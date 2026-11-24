@@ -11,10 +11,12 @@
 // Desktop and tablet (data-map-card=panel): the host fills the shell and the card is the slim left panel (PANEL_CSS). A phone
 // (data-map-card=box): the approved phone card (layout A, ui/phoneCard.js) stays; the chart takes the left box where its mini chart was.
 //   const screen = mountMapScreen({ host, root, services, sources, ground, touch, reduced, box, glass, home, ux, showTessie, deepAt });   ux: ?mapux=1's mock (liveChart.js)
-//   screen.chart, screen.showAll() (the card's CHART: the whole bay at the entrance, the boat in the menu), screen.panelWidth(), screen.destroy()
+// factDate: () => the Date whose lake fact the chart shows (chartFact.js; null on a deterministic page: the first)
+//   screen.chart, screen.fact, screen.showAll() (the card's CHART: the whole bay at the entrance, the boat in the menu), screen.panelWidth(), screen.destroy()
 import { createChart, CHART_TIMING } from './liveChart.js';
 import { centreFor, zoomRange } from './chartModel.js';
 import { mountPanelPlan } from './panelPlan.js';
+import { mountChartFact } from './chartFact.js';
 
 const PANEL_W = 'clamp(300px,26vw,360px)';
 const ZOOM_IN_S = 0.9;       // the entrance's zoom into the pin
@@ -87,7 +89,7 @@ html[data-map-card=box] #lk-load[data-state=home] .lk-livechart:not([hidden]){an
 import { clampT as clamp } from '../../../src/sim/core/math.js';
 
 export function mountMapScreen({ host, root = globalThis.document?.getElementById('lk-load'), services, sources = {}, ground = {}, touch = () => false, reduced = () => false,
-  box = false, glass = true, mapHint = null, ux = null, home = () => services?.get?.('menu') ?? null, showTessie = () => false, deepAt = null } = {}) {
+  box = false, glass = true, mapHint = null, ux = null, home = () => services?.get?.('menu') ?? null, showTessie = () => false, deepAt = null, factDate = () => new Date() } = {}) {
   if (!host || !root) return null;
   const doc = root.getRootNode?.() ?? globalThis.document, html = doc.documentElement, win = doc.defaultView ?? globalThis;
   if (!doc.getElementById('lk-mapscreen-css')) { const s = doc.createElement('style'); s.id = 'lk-mapscreen-css'; s.textContent = PANEL_CSS + '\n' + BOX_CSS; doc.head.appendChild(s); }
@@ -132,6 +134,8 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
   });
   for (const ty of ['pointerdown', 'pointerup', 'wheel', 'dblclick']) surprise.addEventListener(ty, (e) => e.stopPropagation(), { passive: ty !== 'wheel' });
   host.appendChild(surprise);
+  // the day's lake fact: the chart's quiet caption at the entrance (chartFact.js); a phone's goes under its box, on the card
+  const fact = mountChartFact(box ? (card() ?? host) : host, { doc, date: factDate });
 
   const panelPx = () => (box ? 0 : (card()?.offsetWidth ?? 0));
   const insets = () => ({ left: panelPx(), right: 0, top: 0, bottom: 0 });
@@ -153,7 +157,7 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
   function toEntrance() {
     entrance = true;
     chart.setMode('entrance'); chart.setSize(box ? 'card' : 'menu'); chart.setGlass(1);
-    syncInsets(); host.hidden = false; chart.show(true);
+    syncInsets(); host.hidden = false; chart.show(true); fact?.show(true);
     const v = fitPins(); if (v) chart.setView({ ...v, animate: false });
     lake(false);
   }
@@ -161,7 +165,7 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
   function toMenu() {
     entrance = false;
     chart.setMode('play'); chart.setSize(box ? 'card' : 'menu'); chart.setGlass(glass ? 0.9 : 1);
-    syncInsets(); host.hidden = false; chart.show(true);
+    syncInsets(); host.hidden = false; chart.show(true); fact?.show(false);
     centreOnBoat(false);
     lake(!glass);
   }
@@ -189,7 +193,7 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
     if (s === 'home' && (prev !== 'home' || host.hidden)) toEntrance();
     else if (s === 'menu' && !off() && (prev !== 'menu' || host.hidden)) toMenu();
     else if (s === 'out' && prev === 'home') zoomIn();
-    else if (s === 'gone' || s === 'company' || s === 'attract' || s === 'fail') { if (!host.hidden) { chart.show(false); host.hidden = true; } lake(false); }
+    else if (s === 'gone' || s === 'company' || s === 'attract' || s === 'fail') { if (!host.hidden) { chart.show(false); host.hidden = true; } fact?.show(false); lake(false); }
     prev = s;
   }
   const mo = win.MutationObserver ? new win.MutationObserver(sync) : null;
@@ -216,9 +220,9 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
       if (host.hidden) return;
       if (entrance) { const v = fitPins(); if (v) chart.setView({ ...v, animate: true, duration: CHART_TIMING.glideS }); } else centreOnBoat(true);
     },
-    plan,
+    plan, fact,
     insideHost: (t) => host.contains(t) || !!plan?.contains(t),
-    destroy() { plan?.dispose(); mo?.disconnect(); ro?.disconnect(); offSel(); offAct(); offView(); chart.destroy(); lake(false); host.remove(); delete html.dataset.mapCard; },
+    destroy() { plan?.dispose(); fact?.dispose(); mo?.disconnect(); ro?.disconnect(); offSel(); offAct(); offView(); chart.destroy(); lake(false); host.remove(); delete html.dataset.mapCard; },
   };
   return api;
 }

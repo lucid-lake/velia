@@ -77,7 +77,7 @@ ${P} .lk-card .lk-supl,${P} .lk-card .lk-ver{display:none}
 ${P} .lk-card .lk-word{left:16px;top:10px;height:44px;display:flex;align-items:center;line-height:1;font-size:26px}
 ${P} .lk-card .lk-row.lk-sum{left:16px;top:56px;min-height:44px;font-size:15px;letter-spacing:.01em;padding:0;margin:0;max-width:calc(100% - var(--lk-rc) - 48px)}
 ${P} .lk-card .lk-row.lk-sum .ch{font-size:20px;opacity:.8}
-:root[data-f-phone-card=on][data-map-card=box] #lk-load .lk-card .lk-livechart{left:16px;top:108px;bottom:16px;width:calc(100% - var(--lk-rc) - 48px)}
+:root[data-f-phone-card=on][data-map-card=box] #lk-load .lk-card .lk-livechart{left:16px;top:108px;bottom:36px;width:calc(100% - var(--lk-rc) - 48px)}   /* 36: the chart's caption, the day's lake fact, sits under it (ui/chart/chartFact.js) */
 ${P} .lk-card .lk-livechart .lkc-lyb{top:12px;right:12px}
 ${P} .lk-card .lk-livechart .lkc-ctl{right:12px}
 ${P} .lk-card .lk-livechart .lkc-surprise{left:12px;bottom:12px}

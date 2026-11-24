@@ -1,7 +1,8 @@
 // The phone card's rotating line while the shaders build (owner, 2026-11-17: "while loading show more info on the phone to hold the
 // user"; ui/buildCard.js): true facts about Emerald Bay and Lake Tahoe, each with its public source, and short tips for the
-// phone's own controls (the steer and sheet rings, the NAV and Tack quarters, "⋯" and the Pro panel's Reef row).
-// Each line 60 characters or fewer, English only, no internal names (v2/tests/build-card.test.mjs).
+// phone's own controls (the steer and sheet rings, the NAV and Tack quarters, "⋯" and the Pro panel's Reef row). The facts are also
+// the chart's quiet caption at the entrance, one a day (ui/chart/chartFact.js; 2026-11-24, moved there from the loading screen).
+// Each line 60 characters or fewer, English only, no internal names (v2/tests/build-card.test.mjs, v2/tests/chart-fact.test.mjs).
 import { PILOT_LABEL } from './pilotLabel.js';   // the autopilot button's name (NAV)
 export const LINE_MAX = 60;
 
