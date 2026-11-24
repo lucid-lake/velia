@@ -48,6 +48,8 @@ export const LEAN_CLASS = Object.freeze({
   // play as Tessie (v2/living/tessiePlayer.js tip(); the UI audit, owner 2026-11-21: every line of hers is the skipper's line): her
   // first-time teaching lines, once ever, under the same 20 s gap and busy rule; no status lines ("Got them!", "Next time…" are gone)
   'tip.tessie.swim': TIP, 'tip.tessie.dive': TIP, 'tip.tessie.dash': TIP, 'tip.tessie.look': TIP,
+  // "Tessie's up. [T] to be her." (tessiePlayer.js createBeLine): a TIP that may come back (LEAN_REPEAT), retired for good by the first swap
+  'tip.tessie.be': TIP,
   // a press or a tap refused, with the way out (the planner, the double-tap mark, the pilot)
   'mark.set': MUST,   // "Mark set. Click NAV to sail there.": the answer to a double-click; said at once
   'refuse.plan': MUST, 'refuse.mark': MUST, 'refuse.pilot': MUST, 'refuse.dest': MUST, 'refuse.course': MUST,
@@ -72,6 +74,9 @@ export const LEAN_CLASS = Object.freeze({
   'officer.rc_wrong': MUST, 'officer.rc_pen_pst': MUST, 'officer.rc_pen_wl': MUST, 'officer.rc_pen_mark': MUST,
 });
 export const classOf = (kind) => LEAN_CLASS[kind] ?? CHAT;
+// A TIP that may show again (a nudge, not a lesson): at most max times a session, never within everyS of its own last showing, and
+// never once retired (lean.retire(kind): the player did it; kept in the same store as the once-ever marks). The gap and busy rules hold.
+export const LEAN_REPEAT = Object.freeze({ 'tip.tessie.be': Object.freeze({ everyS: 240, max: 3 }) });
 // A line that arrives with no kind (the shared modules that never pass one: the bar's say, the Calm HUD's line, the logbook's find,
 // the practice marks, the kayaks' and Tessie's call-outs): its kind by its text. The few that teach or must be acted on are named;
 // every other is chatter. sail.js fills the kind in before the hint row sees the line.
@@ -97,16 +102,18 @@ export function createLeanSkipper({ phone = null, storage = globalThis.localStor
   const holds = new Set();   // a channel's own manoeuvre (Regatta's mark rounding): hold('rounding', on)
   let seen = new Set();
   try { const v = JSON.parse(storage?.getItem(P.storeKey) ?? '[]'); if (Array.isArray(v)) seen = new Set(v); } catch { /* blocked or bad: no memory this visit */ }
+  const counts = {}, kindAt = {};   // LEAN_REPEAT kinds: shown this session, and when last
   const remember = (kind) => { if (seen.has(kind)) return; seen.add(kind); try { storage?.setItem(P.storeKey, JSON.stringify([...seen])); } catch { /* private mode: once a visit */ } };
   const isBusy = () => { if (holds.size) return true; try { return !!busy(); } catch { return false; } };
   const phoneOn = () => !!phone?.on;
   // may a TIP of this kind show now (no marks made)
-  const tipOk = (kind) => !seen.has(kind) && !isBusy() && t - lastAt >= P.gapS && t - mustAt >= P.mustHoldS;
+  const again = (kind) => { const r = LEAN_REPEAT[kind]; return !r || ((counts[kind] ?? 0) < r.max && t - (kindAt[kind] ?? -Infinity) >= r.everyS); };
+  const tipOk = (kind) => !seen.has(kind) && again(kind) && !isBusy() && t - lastAt >= P.gapS && t - mustAt >= P.mustHoldS;
   // the one gate: MUST at once; TIP once ever into a quiet moment; CHAT never. mark: the line will show (stamp the clocks)
   function pass(kind, { mark = true } = {}) {
     const c = classOf(kind);
     if (c === MUST) { if (mark) { lastAt = t; mustAt = t; } return true; }
-    if (c === TIP && tipOk(kind)) { if (mark) { lastAt = t; remember(kind); } return true; }
+    if (c === TIP && tipOk(kind)) { if (mark) { lastAt = t; if (LEAN_REPEAT[kind]) { counts[kind] = (counts[kind] ?? 0) + 1; kindAt[kind] = t; } else remember(kind); } return true; }
     if (c === CREW) return t - mustAt >= P.mustHoldS;
     return false;
   }
@@ -130,9 +137,10 @@ export function createLeanSkipper({ phone = null, storage = globalThis.localStor
     firstShown() { phone?.firstShown?.(); },
     // another channel's line (Cruise's quiet line, Regatta's card): the same classes and the same clock
     gate(kind) { return pass(kind); },
+    retire(kind) { remember(kind); },   // a LEAN_REPEAT kind the player no longer needs: never again (stored)
     hold(name, on) { if (on) holds.add(name); else holds.delete(name); },
     classOf,
     get busy() { return isBusy(); },
-    get state() { return { t, lastAt, mustAt, seen: [...seen], phone: phone?.state ?? null }; },
+    get state() { return { t, lastAt, mustAt, seen: [...seen], counts: { ...counts }, phone: phone?.state ?? null }; },
   };
 }

@@ -91,9 +91,9 @@ export const POLICIES = Object.freeze({
       if (!desktopLike(p) || (p.gpu != null && p.gpu >= 3)) return 'off';
       return c.headless && (f === '' || f === 'true') ? 'off' : 'on'; } },
   // play as Tessie (owner, 2026-11-20): she is a vessel where she exists at all (a desktop or a tablet at L0-L2); a phone
-  // never sees her in the Boat plate, never gets the swap pill or "Be Tessie" (it never loads her)
+  // never sees her in the Boat plate, never gets the swap line or "Be Tessie" (it never loads her)
   playTessie: { fixed: true, axes: 'form, gpu', aliases: '?tessie=0 (off)',
-    why: 'Tessie as a vessel (the Boat plate, the Be Tessie pill, Be Tessie on her chart mark) wherever Tessie herself is on; never on a phone',
+    why: 'Tessie as a vessel (the Boat plate, T or the skipper\'s line when she shows herself, Be Tessie on her chart mark) wherever Tessie herself is on; never on a phone',
     tier: (p, c, m, decide) => (decide('tessie') === 'on' ? 'on' : 'off') },
   // play as Tessie, phase 2a (owner, 2026-11-20): the eye goes under the water with her. Full at L0-L1 (a desktop or a
   // tablet: every under-water draw; 2b's shafts and motes join it), lite at L2 (the medium, the underside, the bed, the crossing; no shafts,

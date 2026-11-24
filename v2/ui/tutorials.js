@@ -179,7 +179,7 @@ export const CHAPTERS = [
     'She is shy. She comes up when she likes, most often near her water. Sunset (19:00 to 20:45) and storms bring her rarest moments.',
     'Come within about 22 m and she dives. Give her room and she may swim beside you.',
     '<b>Never charge her.</b> Head straight at her, fast, inside 40 m, and she dives… then comes after you. Keep 25 m away for 30 s, or leave her water. If she catches you, she rolls you over: “Tessie said no.”',
-    'On a computer or a tablet you can <b>be her</b>: pick Tessie in the Boat row, or take Be Tessie when she shows herself. Look where she should go: look down and she dives, look up and she rises, run upward at the surface and she leaps. Her controls show on the screen while you are her. Not on a phone.',
+    'On a computer or a tablet you can <b>be her</b>: pick Tessie in the Boat row, or answer the skipper’s “Tessie’s up.” when she shows herself. Look where she should go: look down and she dives, look up and she rises, run upward at the surface and she leaps. Her controls show on the screen while you are her. Not on a phone.',
   ], try: { k: 'Press {key:menu}, click Tessie’s water, Sail from here. Sail slowly and watch the water off the bow.', t: 'On a computer: Menu, Tessie’s water, Sail from here. Then sail slowly and watch the water off the bow.' } },
 
   { id: 'race', title: 'Racing', lines: [

@@ -57,6 +57,8 @@ ${SUBFACE('A', 'fraunces-soft', '400 700')}${SUBFACE('B', 'cormorant-garamond-60
 .lk-hint .cap.wide{letter-spacing:.04em;padding:0 .6em}
 .lk-hint .cap.hot{border-color:var(--lk-lit);color:var(--lk-lit-ink);background:var(--lk-lit-fill)}
 .lk-hint .label{margin-left:.35em}
+.lk-hint .row[data-tap]{min-height:44px;box-sizing:border-box}   /* a line that is its own tap target (note's onTap): a finger's 44 px */
+.lk-hint .row[data-tap].in{pointer-events:auto;cursor:pointer}
 .lk-hint .dot{margin:0 .3em;color:var(--lk-ink-soft)}
 .lk-hint .caps{display:inline-flex;align-items:center;gap:.5em}
 .lk-hint .list{display:flex;flex-direction:column;gap:.7em;padding:.85em 1.1em;opacity:0;transition:opacity var(--lk-out) var(--lk-ease-out)}
@@ -219,7 +221,7 @@ export function createControlsHint({ root = document.body, state = () => null, o
     if (name === 'keep') { cur = name; shownAt = t; usedFor = 0; keepShown = keepDir; el.innerHTML = ''; const r = document.createElement('div'); r.className = 'row'; r.innerHTML = W.expand(touch() || modality() === 'mouse' ? KEEP.hand(keepDir) : KEEP.keys(keepDir)); el.appendChild(r); breeze(r); requestAnimationFrame(() => r.classList.add('in')); return; }
     if (name === 'flash' && flashSpec) { cur = name; shownAt = t; usedFor = 0; el.innerHTML = ''; const r = document.createElement('div'); r.className = 'row'; const fk = flashSpec.key && !touch() ? [flashSpec.key] : [];
       r.innerHTML = W.expand(flashSpec.keyAfter && fk.length ? `<span class="label">${SAYT(flashSpec.text)}</span>${CAPS(...fk)}` : ROW(fk, SAYT(flashSpec.text))); el.appendChild(r); breeze(r); requestAnimationFrame(() => r.classList.add('in')); return; }
-    if (name === 'note' && noteSpec) { if (noteSpec.kind === 'first') PQ.firstShown(); cur = name; shownAt = t; usedFor = 0; el.innerHTML = ''; const r = document.createElement('div'); r.className = 'row'; r.innerHTML = W.expand(ROW(noteSpec.key && !touch() ? [noteSpec.key] : [], noteSpec.text), { meetTerms: true }); el.appendChild(r); breeze(r); requestAnimationFrame(() => r.classList.add('in')); speak(noteSpec.speak); return; }
+    if (name === 'note' && noteSpec) { if (noteSpec.kind === 'first') PQ.firstShown(); cur = name; shownAt = t; usedFor = 0; el.innerHTML = ''; const r = document.createElement('div'); r.className = 'row'; r.innerHTML = W.expand(ROW(noteSpec.key && !touch() ? [noteSpec.key] : [], noteSpec.text), { meetTerms: true }); if (noteSpec.onTap) tappable(r, noteSpec.onTap); el.appendChild(r); breeze(r); requestAnimationFrame(() => r.classList.add('in')); speak(noteSpec.speak); return; }
     cur = name; shownAt = t; usedFor = 0;
     el.innerHTML = '';
     if (name === 'none') return;
@@ -238,6 +240,13 @@ export function createControlsHint({ root = document.body, state = () => null, o
   };
   const offW = W.onChange?.((ev) => { if (ev.type === 'mode') { redrawList(); if (cur !== 'none' && cur !== 'keys' && cur !== 'note') { const c = cur; cur = 'none'; show(c, { now: true, say: false }); } } });
   const redrawList = () => { if (cur === 'keys') { cur = 'none'; show('keys', { now: true }); } };
+  // a note with onTap: the line itself is the button (a tap or a click runs it once and the line goes; the press never reaches the page under it)
+  const tappable = (r, fn) => {
+    r.dataset.tap = ''; r.setAttribute('role', 'button');
+    r.addEventListener('pointerdown', (e) => e.stopPropagation?.());
+    let done = false;
+    r.addEventListener('click', (e) => { e.preventDefault?.(); e.stopPropagation?.(); if (done) return; done = true; if (cur === 'note') hide(); noteSpec = null; fn(); });
+  };
   const hide = () => { if (cur === 'none') return; [...el.querySelectorAll('.row')].forEach((r) => { if (r.classList.contains('in')) { r.classList.remove('in'); if (r.querySelector('.lt')) r.classList.add('out'); } }); cur = 'none'; shownAt = t; };
   const heat = () => {                        // the pressed cap brightens
     for (const c of caps ?? el.querySelectorAll('.cap')) {
@@ -372,11 +381,12 @@ export function createControlsHint({ root = document.body, state = () => null, o
   const quiet = (on) => { quieted = !!on; return quieted; };
   const hush = (on) => { hushed = !!on; if (hushed && cur === 'flash') { flashSpec = null; resumeName = null; hide(); } return hushed; };   // a flash already up (a reef at the start) goes too
   // kind: what the line is (src/ui/phoneQuiet.js PHONE_KEEP: 'first', 'status', 'reply', 'sea.<id>'); a phone drops the kinds it does not keep (true: handled)
-  function note(text, key, speakText = null, { kind = null } = {}) {
+  // onTap: the line is its own tap target (min 44 px high), e.g. "Tessie's up. Tap here to be her."
+  function note(text, key, speakText = null, { kind = null, onTap = null } = {}) {
     if (!text || forced) return false;
     if (!PQ.allow(kind)) return true;
     const code = !key ? '' : key.length === 1 ? (/\d/.test(key) ? `Digit${key}` : `Key${key.toUpperCase()}`) : key;
-    noteSpec = { text, key, code, at: t, speak: speakText, kind };
+    noteSpec = { text, key, code, at: t, speak: speakText, kind, onTap: typeof onTap === 'function' ? onTap : null };
     if (cur !== 'none' && cur !== 'keys' && cur !== 'note') hide();   // a press just made: say it now
     else if (cur === 'note') { cur = 'none'; shownAt = t - 1; }
     return true;
@@ -390,6 +400,8 @@ export function createControlsHint({ root = document.body, state = () => null, o
     if (cur === 'flash') { cur = 'none'; show('flash'); }
     return true;
   }
+  // drop(kind): a note of this kind, up or waiting, goes now (its reason is gone)
+  function drop(kind) { if (!kind || noteSpec?.kind !== kind) return false; if (cur === 'note') hide(); noteSpec = null; return true; }
   function force(name, { animate = false } = {}) {   // animate: the line enters or leaves on the wind, as in play (a capture of the motion)
     name = ALIAS[name] ?? name;
     if (animate && name != null && name !== 'off') { forced = name; if (name === 'none') hide(); else { cur = 'none'; show(name, { now: false }); } return; }
@@ -409,6 +421,6 @@ export function createControlsHint({ root = document.body, state = () => null, o
   const setPro = () => redrawList();
   // keep(dir): −1 / +1 while the bow is in the no-go zone turning through a tack (port / starboard), 0 when not
   const keep = (dir) => { keepDir = dir < 0 ? -1 : dir > 0 ? 1 : 0; };
-  return { update, force, note, flash, keep, hush, get free() { return cur !== 'note' && cur !== 'flash' && cur !== 'keep' && !noteSpec && !flashSpec && !keepDir && !forced; },   // nothing a status must not cut: no note, status or keep line up or waiting
+  return { update, force, note, drop, flash, keep, hush, get free() { return cur !== 'note' && cur !== 'flash' && cur !== 'keep' && !noteSpec && !flashSpec && !keepDir && !forced; },   // nothing a status must not cut: no note, status or keep line up or waiting
      get hushed() { return hushed; }, quiet, get quieted() { return quieted; }, dispose, el, skills: sk, words: W, phoneQuiet: PQ, redrawList, setPro, get current() { return cur; }, get shown() { return { ...shown }; }, states: ['none', ...Object.keys(HINTS), 'keys'] };
 }

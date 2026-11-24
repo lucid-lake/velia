@@ -1,7 +1,7 @@
 // Play as Tessie on the page (owner, 2026-11-20, every default approved). Her chunk only
 // (living/tessie.js re-exports it), made by main.js where feature('playTessie') is on: a phone never loads a line of it.
-//   the swap      one state (as 'boat' | 'tessie', entered from the menu's Boat plate, the Be Tessie (T) pill, or "Be Tessie" on
-//                 her chart mark); the skipper sails the Halcyon away from her while you are her (sim/tessieFlee.js); T swaps back
+//   the swap      one state (as 'boat' | 'tessie', entered from the menu's Boat plate, T (or a tap on the skipper's line
+//                 "Tessie's up." on a tablet) while she shows herself, or "Be Tessie" on her chart mark); the skipper sails the Halcyon away from her while you are her (sim/tessieFlee.js); T swaps back
 //   her hands     W S A D / arrows, Space (held: deep), F or a click (the lunge), T (back), C (first ↔ third person); the boat's keys do nothing
 //                 while you are her (one key map per vessel). The owner's final scheme (2026-11-20): drag to look (the camera's pitch steers
 //                 her depth), W A S D swim about the camera, Shift dashes (a press, 1.8 s, then a 4.5 s cooldown), Space (or F)
@@ -31,7 +31,7 @@ import { createFlee } from '../sim/tessieFlee.js';
 import { createTessieCam, createGlide, needsVeil } from '../ui/tessieCam.js';
 import { heightAt as tessieHeightAt, reachAt } from '../sim/tessie.js';
 import { tessieSettings } from '../ui/tessieSettings.js';   // phase 2a: Invert up/down, Camera follows her
-import { mountHud, hudLayout, CAP_RULE, capLine } from '../ui/tessieHud.js';   //: the sonar, the skills row, her keys on the right edge
+import { mountHud, hudLayout, capLine } from '../ui/tessieHud.js';   //: the sonar, the skills row, her keys on the right edge
 import { skillOfCode } from '../sim/tessieSkills.js';   // the dash's keys: the slot's 1 and Shift
 
 const DEG = Math.PI / 180;
@@ -40,7 +40,7 @@ export const TESSIE_KEYS = new Set(['ShiftLeft', 'ShiftRight', 'KeyW', 'KeyS', '
 const INERT = new Set(['KeyR', 'KeyZ', 'KeyX', 'KeyY', 'KeyK', 'KeyG', 'KeyI', 'KeyJ', 'KeyU', 'Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract', 'Digit0', 'KeyB', 'Backquote', 'Digit2', 'Digit3', 'Digit4']);   // Digit2 … 4: the skills row's reserved slots do nothing yet (owner, 2026-11-21)
 const COUNT_KEY = 'lakeshore.tessie.knocks.v1';   // her lines' once-ever marks are the lean skipper's store now (v2/ui/leanSkipper.js 'tip.tessie.*')
 const HALCYON = { L: 8.5, B: 3.0 }, BUSY_HULL = { L: 8.5, B: 3.0 }, GLASS = { L: 12.2, B: 3.8 };
-export const PLAYER = Object.freeze({ offM: 150, veilOut: 0.22, veilIn: 0.4, reachDelayS: 2, reachM: [100, 90, 115, 80, 125], reachConeDeg: 20, beRowPx: 52, holdNearM: 30, dialM: 20, arrowV: 0.2, lookUpM: 6, fastS: 3, chevV: Object.freeze([1.5, 6.5, 15]), dashLineS: 2 });   // dashLineS: a boat in her corners out of reach this long, once ever: the dash's line   //: the fast line after 3 s swimming at the surface; the speed chevrons lit past 1.5, 6.5 and 15 m/s   // phase 2a: the dial's 0–20 m, its ▲/▼ past 0.2 m/s, the first dive's line, the first time past 6 m
+export const PLAYER = Object.freeze({ offM: 150, veilOut: 0.22, veilIn: 0.4, reachDelayS: 2, reachM: [100, 90, 115, 80, 125], reachConeDeg: 20, holdNearM: 30, dialM: 20, arrowV: 0.2, lookUpM: 6, fastS: 3, chevV: Object.freeze([1.5, 6.5, 15]), dashLineS: 2 });   // dashLineS: a boat in her corners out of reach this long, once ever: the dash's line   //: the fast line after 3 s swimming at the surface; the speed chevrons lit past 1.5, 6.5 and 15 m/s   // phase 2a: the dial's 0–20 m, its ▲/▼ past 0.2 m/s, the first dive's line, the first time past 6 m
 
 const MARK = '<svg viewBox="0 0 32 20" aria-hidden="true"><path d="M2 15c3-1 4-6 7-6s3 5 6 5 3-6 6-6c2 0 3 2 3 4M24 12c1-4 1-8 4-9 1.5-.5 2.5.6 2 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 17.5h30" stroke="currentColor" stroke-width="1" opacity=".55"/></svg>';
 const BOAT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v13M12 4l6 11h-6M11 6L6 15h5"/><path d="M3 18h18l-2 3H6z"/></svg>';
@@ -52,13 +52,6 @@ const BOAT_HUD = Object.freeze(['#hands', '.lk-nav', '.lk-chart', '.lk-cv', '.lk
   '.lk-pro', '.lk-inst', '.lk-guide', '.lk-calm-mark', '.lk-fold', '.lk-view .pill:not(.lk-tsw)', '.lk-view .xt[data-x=mode]', '.lk-keys.lk-edgepair:not(.tp-keys)']);   // Sail's legend, not hers (tp-keys: the same component)
 const PLAYER_CSS = `#lk-tplay{position:fixed;inset:0;z-index:4;pointer-events:none;font:400 15px/1.2 var(--lk-ui,system-ui);color:var(--lk-ink,#f3ecdc)}
 #lk-tplay [hidden]{display:none!important}
-#lk-tplay .tp-be{all:unset;box-sizing:border-box;pointer-events:auto;cursor:pointer;position:absolute;left:50%;top:calc(var(--lk-cap-top,58px) + ${PLAYER.beRowPx}px);transform:translateX(-50%);display:inline-flex;align-items:center;gap:.6em;height:40px;padding:0 .6em 0 .9em;
-  background:var(--lk-glass-dense,rgb(var(--lk-brand-navy) / .8));-webkit-backdrop-filter:var(--lk-glass-blur,blur(12px));backdrop-filter:var(--lk-glass-blur,blur(12px));border:1px solid var(--lk-glass-edge,rgb(var(--lk-cream) / .28));border-radius:999px;color:var(--lk-ink,#f3ecdc);
-  opacity:0;transition:opacity .6s ease}
-#lk-tplay .tp-be[data-on]{opacity:1}
-#lk-tplay .tp-be svg{width:28px;height:18px}
-#lk-tplay .tp-be .cap{${CAP_RULE};font-size:13px}   /* Sail's key legend's cap (src/ui/keyLegend.js CAP_RULE): one cap */
-#lk-tplay .tp-be:hover,#lk-tplay .tp-be:focus-visible{border-color:rgb(var(--lk-cream) / .6);outline:none}
 #lk-tplay .tp-dial{position:absolute;left:22px;bottom:22px;width:132px;height:132px}
 #lk-tplay .tp-dial svg{width:100%;height:100%;overflow:visible}
 #lk-tplay .tp-dial .w{position:absolute;left:0;right:0;top:56px;text-align:center;font:600 12px/1 var(--lk-ui,system-ui);letter-spacing:.16em}
@@ -100,8 +93,7 @@ ${BOAT_HUD.map((q) => `html[data-tessie-play] ${q}`).join(',')}{display:none!imp
 .lk-view .pill.lk-tsw{display:none}
 html[data-tessie-play] .lk-view .pill.lk-tsw{display:flex}
 .lk-view .pill.lk-tsw .seg svg{fill:none;stroke:currentColor;stroke-width:1.7}
-.lk-view .pill.lk-tsw .seg.on,.lk-view .pill.lk-tsw .seg.on:hover{background:var(--lk-lit-fill);color:var(--lk-lit-ink);box-shadow:inset 0 0 0 var(--lk-line) var(--lk-lit);opacity:1}   /* who you are is a choice: lit amber (the Boat | Helm view keeps cream) */
-@media (prefers-reduced-motion:reduce){#lk-tplay .tp-be{transition:none}}`;
+.lk-view .pill.lk-tsw .seg.on,.lk-view .pill.lk-tsw .seg.on:hover{background:var(--lk-lit-fill);color:var(--lk-lit-ink);box-shadow:inset 0 0 0 var(--lk-line) var(--lk-lit);opacity:1}   /* who you are is a choice: lit amber (the Boat | Helm view keeps cream) */`;
 
 // the top bar's who-you-are switch (decision A: Halcyon | Tessie, the panel's order; decision D: the one you are lit, .on, amber)
 export const SWITCH_ORDER = Object.freeze(['halcyon', 'tessie']);
@@ -137,6 +129,38 @@ export function createTipQueue({ hint = () => null, active = () => true, onShown
   };
 }
 
+// "Tessie's up." (owner, 2026-11-24: one skipper line in place of the Be Tessie pill): when she shows herself near the boat (the swap's
+// window, W.pill), the skipper's line says so with the way in: "[T] to be her", or on a tablet "Tap here to be her." with the line itself
+// as the tap target. The lean skipper decides when (v2/ui/leanSkipper.js 'tip.tessie.be', LEAN_REPEAT): the first sighting of a session,
+// then later sightings at most every 4 min, at most 3 a session, under the 20 s gap and the busy rule. The first swap by T or the tap
+// retires it for good (the lean store). Asked once per sighting: a sighting that ends before a quiet moment drops it.
+//   const L = createBeLine({ hint: () => controlsHint, touch: () => tablet, onTap });  L.step(dt, up); L.retire()
+export const BE_LINE = Object.freeze({ kind: 'tip.tessie.be', keys: "Tessie's up. [T] to be her.", touch: "Tessie's up. Tap here to be her." });
+export function createBeLine({ hint = () => null, touch = () => false, onTap = null, askS = 1 } = {}) {
+  let was = false, want = false, wait = 0, shown = 0;
+  const lean = () => hint()?.phoneQuiet ?? null;
+  const retired = () => { const s = lean()?.state?.seen; return Array.isArray(s) && s.includes(BE_LINE.kind); };
+  const count = () => { const c = lean()?.state?.counts; return c ? c[BE_LINE.kind] ?? 0 : null; };   // null: no lean store to ask
+  return {
+    step(dt, up) {
+      up = !!up;
+      if (up && !was) { want = !retired(); wait = 0; }   // a new sighting
+      if (!up && was) { want = false; hint()?.drop?.(BE_LINE.kind); }   // she is gone: so is the line
+      was = up; wait -= dt;
+      if (!want || !up || wait > 0) return;
+      wait = askS;
+      const h = hint(); if (!h?.note) return;
+      if (retired()) { want = false; return; }
+      const tablet = !!touch(), c0 = count();
+      h.note(capLine(tablet ? BE_LINE.touch : BE_LINE.keys), '', null, { kind: BE_LINE.kind, ...(tablet && onTap ? { onTap } : {}) });
+      const c1 = count();
+      if (c0 == null || c1 > c0) { want = false; shown++; }   // shown (the lean counted it), or no lean to ask: asked once
+    },
+    retire() { want = false; lean()?.retire?.(BE_LINE.kind); hint()?.drop?.(BE_LINE.kind); },
+    get waiting() { return want; }, get shown() { return shown; },
+  };
+}
+
 export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, birthplaces = null, veil = null,
   project = null, focal = () => 600, canvas = null, mode = () => 'sail', race = () => false, knocked = () => false, reduced = () => false,
   services = () => null, touch = () => false, headless = false, storage = (() => { try { return globalThis.localStorage ?? null; } catch { return null; } })(),
@@ -166,8 +190,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     if (el || !doc?.body) return el;
     if (!doc.getElementById('lk-tplay-css')) { const st = doc.createElement('style'); st.id = 'lk-tplay-css'; st.textContent = PLAYER_CSS; doc.head.appendChild(st); }
     el = doc.createElement('div'); el.id = 'lk-tplay';
-    el.innerHTML = `<button class="tp-be" type="button" hidden aria-label="Be Tessie, key T">${MARK}<span>Be Tessie</span><span class="cap">T</span></button>
-<div class="tp-dial" hidden aria-hidden="true"><svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="58" stroke-width="2" style="fill:rgb(var(--lk-brand-navy) / .72);stroke:rgb(var(--lk-cream) / .7)"/>
+    el.innerHTML = `<div class="tp-dial" hidden aria-hidden="true"><svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="58" stroke-width="2" style="fill:rgb(var(--lk-brand-navy) / .72);stroke:rgb(var(--lk-cream) / .7)"/>
 <path class="tk" d="" fill="none" stroke-width="7" stroke-linecap="round" style="stroke:rgb(var(--lk-cream) / .3)"/><path class="fl" d="" fill="none" stroke-width="7" stroke-linecap="round" style="stroke:rgb(var(--lk-cream) / .92)"/><g class="chev" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M53 104l5 5-5 5"/><path d="M63 104l5 5-5 5"/><path d="M73 104l5 5-5 5"/></g></svg><b class="w">SURFACE</b><i class="m">0 m</i><i class="ar"></i></div>
 <svg class="tp-ghost" hidden aria-hidden="true"><defs><mask id="tp-gm" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%"><path class="o" d="" stroke="#fff"/><path class="i" d="" stroke="#000"/></mask></defs><rect width="100%" height="100%" mask="url(#tp-gm)" style="fill:rgb(var(--lk-cream) / .5)"/></svg>
 <div class="tp-aim" hidden aria-hidden="true"><i></i><i></i><i></i><i></i><b></b></div>
@@ -176,7 +199,6 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     //: the sonar, the skills row (a tablet taps DASH to dash), her keys on the right edge
     hud = mountHud({ root: el, skills: C.skills.list(), storage, keyHints, onSlot: (id) => { if (id === 'dash') touchIn.dash = true; } });
     hud?.show(false);
-    q('.tp-be').addEventListener('click', (e) => { e.stopPropagation(); self.become('swap'); });
     // the dial's track: 0 to 20 m over a 270° sweep from lower left
     q('.tk').setAttribute('d', arc(0, 1));
     // the tablet: the floating stick in the left 40 %, a drag elsewhere looks, the Bite button
@@ -215,6 +237,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const hintSvc = () => svc()?.get?.('hint') ?? svc()?.get?.('controls')?.hint ?? null;
   const tips = createTipQueue({ hint: hintSvc, active: () => W.as === 'tessie', onShown: (kind) => log.tips.push(kind) });
   const tip = (kind, text) => tips.want(kind, text), stepTips = (dt) => tips.step(dt);
+  // she shows herself: the skipper's line says so, with the way in (a tablet: the line is the tap target)
+  const beLine = createBeLine({ hint: hintSvc, touch, onTap: () => self.become('swap') });
 
   // ---- the keys (capture: before every other listener; the boat's keys stop here while you are her) ----
   const onKey = (e) => {
@@ -370,7 +394,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   }
   function veilSwap(fn) { if (veil) { veil(1, PLAYER.veilOut); veilT = { t: PLAYER.veilOut + 0.05, fn }; } else fn(); }
   const self = {
-    get active() { return W.as === 'tessie'; }, get as() { return W.as; }, get pill() { return W.pill; }, ctl: C, hits: H, swap: W, cam,
+    get active() { return W.as === 'tessie'; }, get as() { return W.as; }, get pill() { return W.pill; }, beLine, ctl: C, hits: H, swap: W, cam,
     get knocks() { return knockTotal; },
     girthAt: (i, N) => reachAt(i * sim.L / Math.max(1, N - 1), sim.L),   // phase 2b: her body's reach at spine frame i of N (m: her bubbles leave her skin)
     // a fixed pose (tools/v2-perf.mjs, the evidence): her nose held at `nose` m (E / Q as the keys would), the look held at `look` rad (+ down),
@@ -388,6 +412,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       const s = B.state, place = entry === 'swap' ? null : at ?? spotBy(s);
       const go = () => {
         W.become(entry);
+        if (entry === 'swap') beLine.retire();   // T or the line's tap, once: the line has done its job (never again, stored)
         if (place) { sim.ambush(place.x, place.z, place.heading, PLAY.drift); }
         C.begin(place);
         // the skipper takes the Halcyon and sails away from her (unless an autopilot already has her: Cruise, AUTO)
@@ -453,7 +478,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       if (pendingEntry && W.as === 'boat' && !card && plugin.render?.ready) { const e = pendingEntry; pendingEntry = null; self.become(e); }
       const sg = sighting();
       W.step(dt, { ...self.ctx(), shown: sg.shown, distM: sg.distM });
-      if (dom()) { const be = q('.tp-be'); const on = W.pill && W.as === 'boat'; if (on) be.hidden = false; be.toggleAttribute('data-on', on); if (!on && be.hidden === false && !be.matches(':hover')) be.dataset.offT = String((+be.dataset.offT || 0) + dt); if (on) be.dataset.offT = '0'; if (!on && (+be.dataset.offT || 0) > 0.7) be.hidden = true; }
+      beLine.step(dt, W.pill && W.as === 'boat');   // "Tessie's up. [T] to be her." on the skipper's line (createBeLine)
       if (holdTip > 0) { holdTip -= dt; if (holdTip <= 0) tip('tip.tessie.swim', touch() ? PLAY_LINES.tipTouch : PLAY_LINES.tip); }
       stepTips(dt);
       // phase 2a's two lines, each once: the first dive's (at the surface in water deep enough, after the tip), the first time past 6 m
@@ -531,7 +556,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     },
     stats() {
       return { as: W.as, entry: W.entry, pill: W.pill, view, viewK: cam.state.viewK, fleeOn, knocks: knockTotal, under: lastUnder ? { ...lastUnder } : null, look: +cam.look.toFixed(4), eye: lastPose?.pos ? lastPose.pos.map((v) => +v.toFixed(2)) : null, ctl: { ...C.state, lunge: C.state.lunge ? { phase: C.state.lunge.phase, kind: C.state.lunge.kind, t: +C.state.lunge.t.toFixed(2), target: C.state.lunge.target?.id ?? null } : null, bite: C.state.bite ? { kind: C.state.bite.kind, t: +C.state.bite.t.toFixed(2), target: C.state.bite.target?.id ?? null, locked: C.state.bite.locked, hit: C.state.bite.hit } : null, strike: C.state.strike }, lock: lastLock ? { ...lastLock, k: +lastLock.k.toFixed(2) } : null, bite: sim.biteState ? { kind: sim.biteState.kind, phase: sim.biteState.phase, t: +sim.biteState.t.toFixed(2), gape: +(sim.state.gape ?? 0).toFixed(3) } : null,
-        log: { ...log, knocks: log.knocks.slice(-8), swaps: log.swaps.slice(-8) }, tipsWant: tips.waiting, glide: glide.active, aim: lastAim };
+        log: { ...log, knocks: log.knocks.slice(-8), swaps: log.swaps.slice(-8) }, tipsWant: tips.waiting, beLine: { waiting: beLine.waiting, shown: beLine.shown }, glide: glide.active, aim: lastAim };
     },
   };
   let lastLock = null, lastTg = null, lockWas = null, lockAt = -Infinity;   //: the lock this step, the corners' close-in clock

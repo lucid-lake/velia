@@ -11,6 +11,11 @@ class El {
   querySelectorAll(sel) { const out = []; const walk = (e) => { for (const c of e.children) { if (sel === '.row' && /\brow\b/.test(c.className)) out.push(c); walk(c); } }; walk(this); return out; }
   prepend(c) { this.children.unshift(c); c.parent = this; return c; }
   querySelector() { return null; }
+  // element listeners and attributes (a line that is its own tap target: controlsHint note's onTap); fire(type) calls them
+  addEventListener(type, f) { ((this._on ??= {})[type] ??= []).push(f); }
+  fire(type, e = {}) { for (const f of this._on?.[type] ?? []) f({ preventDefault() {}, stopPropagation() {}, ...e }); }
+  setAttribute(k, v) { (this._attr ??= {})[k] = String(v); }
+  getAttribute(k) { return this._attr?.[k] ?? null; }
 }
 const listeners = new Map();
 export function install() {

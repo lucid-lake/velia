@@ -87,7 +87,7 @@ export const FLAT_ROWS = [
 ];
 // Play as Tessie (living/tessiePlayer.js TESSIE_KEYS; the UI audit, owner 2026-11-21): her own tab, only where feature('playTessie') is on
 // (front.js keyTable); the boat's keys do nothing while you are her. T is the swap both ways: in Sail it becomes her while she shows
-// herself (the Be Tessie pill), as her it gives the Halcyon back. The words are her legend's (ui/tessieHud.js LEGEND).
+// herself (the skipper's line says "Tessie's up. [T] to be her."), as her it gives the Halcyon back. The words are her legend's (ui/tessieHud.js LEGEND).
 export const KEY_TESSIE = { id: 'tessie', title: 'Tessie', note: 'Drag to look. Esc opens the menu.', rows: [
   { id: 't-swim', k: ['WASD'], codes: ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], alt: ['↑', '↓', '←', '→'], v: 'swim', g: 'about the camera: W away from it', modes: ['tessie'] },
   { id: 't-dash', k: ['1', '⇧'], codes: ['Digit1', 'ShiftLeft', 'ShiftRight'], v: 'dash', g: 'a burst of speed, then a cooldown', modes: ['tessie'] },

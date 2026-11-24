@@ -1,5 +1,6 @@
 // Play as Tessie, the swap's state and its rules (§ 3.6 and § 7 phase 1d). Pure: no DOM, no wall clock.
-// One state: as 'boat' | 'tessie', with how it was entered ('menu' | 'swap' | 'chart'). The Be Tessie (T) pill:
+// One state: as 'boat' | 'tessie', with how it was entered ('menu' | 'swap' | 'chart'). The swap's window (W.pill: T works, and the
+// skipper's line "Tessie's up." may show; v2/living/tessiePlayer.js createBeLine):
 //   shows   when she has shown herself (any part of her above the water) within showM, or at once during her revenge
 //   stays   while she is within showM, and lingerS after she dives out of sight
 //   never   in a race, while knocked down, on a phone (no playTessie), while a card or the map is open, or while you are her
