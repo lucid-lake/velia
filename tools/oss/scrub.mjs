@@ -73,7 +73,8 @@ function loadLocal(dirs) {
   // OSS_SCRUB_NO_LOCAL=1: behave as on a contributor's machine (no local lists), to test the generic path
   for (const d of process.env.OSS_SCRUB_NO_LOCAL ? [] : new Set(dirs.flatMap(ancestors))) {
     const local = join(d, 'CLAUDE.local.md');
-    if (existsSync(local)) {
+    // only a CLAUDE.local.md above the scanned tree (the project's own list), never one inside it (a checkout's own notes)
+    if (!dirs.some((r) => resolve(r) === resolve(d) || resolve(d).startsWith(resolve(r) + '/')) && existsSync(local)) {
       found++;
       // each backticked path or glob gives its last segment, the glob dropped (a folder or window name); file names are skipped
       for (const m of readFileSync(local, 'utf8').matchAll(/`([^`]+)`/g)) {

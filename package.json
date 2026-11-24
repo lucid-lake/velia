@@ -9,6 +9,7 @@
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "vite build",
     "build:classic": "VELIA_BASE=/classic/ vite build",
+    "build:site": "node tools/build/site.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "capture": "node tools/capture.mjs",
     "diff": "node tools/diff.mjs",
