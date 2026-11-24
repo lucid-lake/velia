@@ -89,7 +89,7 @@ test('the preset table: every row whole; Fair the identity; the storm moody and 
   assert.ok(lum(b) / lum(d) > (lum(bright) / lum(dark)) * 1.5, 'more contrast between the lit and the dark');
   const hot = [4, 3.9, 3.8], rimOn = gradeColour(hot, S, { sunCos: 0.95 }), rimOff = gradeColour(hot, { ...S, rim: 0 }, { sunCos: 0.95 });
   assert.ok(lum(rimOn) > lum(rimOff) * 1.2 && rimOn[0] / rimOn[2] > rimOff[0] / rimOff[2], 'a warm lit rim toward the sun on the brightest');
-  const high = gradeColour(grey, S, { dirY: 0.5 }), band = gradeColour(grey, S, { dirY: 0.015 }), water = gradeColour(grey, S, { dirY: -0.2 });
+  const high = gradeColour(grey, S, { dirY: 0.5 }), band = gradeColour(grey, S, { dirY: 0.03 }), water = gradeColour(grey, S, { dirY: -0.2 });
   assert.ok(lum(band) > lum(water) * 1.25 && lum(band) > lum(high) * 1.5, 'the grad: a bright band at the horizon over dark water, under a heavy sky');
   assert.ok(S.saturation > 0.8, 'colour kept (the old steel took 70 % of it)');
   // the clearing warm, the overcast cool
@@ -102,6 +102,7 @@ test('the weights: one row per weather, summing to 1, and continuous as the weat
   assert.equal(lookWeights({ cover: 0.12 }).clear, 1);
   assert.equal(lookWeights({ cover: 0.28 }).fair, 1);
   assert.equal(lookWeights({ cover: 0.85 }).overcast, 1);
+  assert.equal(lookWeights({ cover: 0.6 }).fair, 1, 'v1\'s deck (the frames matched to v1) stays Fair');
   assert.equal(lookWeights({ cover: 0.28, on: 1, dark: 1, rain: 0 }).storm, 1);
   assert.equal(lookWeights({ cover: 0.28, on: 1, dark: 1, rain: 1 }).rain, 1);
   assert.equal(lookWeights({ cover: 0.28, on: 1, dark: 0.2, gold: 1 }).clearing, 1);

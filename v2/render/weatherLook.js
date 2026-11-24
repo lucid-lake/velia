@@ -37,7 +37,7 @@ fn weatherGrade(e0: vec3f, ndc: vec2f) -> vec3f {
   let rimK = WL.g4.w * wr * toward * (0.35 + 0.65 * WL.g5.y);
   e *= (vec3f(1.0) + (WL.g3.xyz - 1.0) * ws) * (vec3f(1.0) + (WL.g4.xyz - 1.0) * wh) * (vec3f(1.0) + rimK * vec3f(1.0, 0.9, 0.74));
   // the grad: a heavy sky overhead and dark water under a bright band at the horizon, where the light comes in under the deck
-  let up = smoothstep(-0.06, 0.03, dir.y); let high = smoothstep(0.05, 0.45, dir.y); let band = 1.0 - smoothstep(0.0, 0.09, abs(dir.y - 0.015));
+  let up = smoothstep(-0.004, 0.012, dir.y); let high = smoothstep(0.05, 0.45, dir.y); let band = smoothstep(-0.01, 0.02, dir.y) * (1.0 - smoothstep(0.03, 0.12, dir.y));   // the band on the sky side only: the far water keeps the water's grade
   let g = mix(1.0 - 0.25 * WL.g5.x, 1.0 - 0.6 * WL.g5.x * high, up) * (1.0 + 0.3 * WL.g5.x * band);
   let q = vec2f(ndc.x * WL.g5.z, ndc.y) * WL.g5.w; let t2 = dot(q, q); let c4 = 1.0 / ((1.0 + t2) * (1.0 + t2));   // cos^4 of the field angle
   return e * g * mix(1.0, c4, WL.g1.w);
