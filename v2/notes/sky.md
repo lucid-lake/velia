@@ -700,6 +700,32 @@ nothing per frame: the fog is a few ALU in each surface's aerial read, behind a 
 Every pass stays inside +0.3 ms at 2560 × 1600 and +0.4 ms on the phone path; with no storm the new code is skipped on
 `F.storm.x` and the frame is the same within the rounds' noise (the 23 fair goldens are 0 px).
 
+### One wind and a look per weather (2026-11-24: sim/weatherWind.js, sim/weatherLook.js, render/weatherLook.js, render/storm.js, render/clouds.js)
+The storm read flat and nearly grey; the owner asked for one wind driving the whole storm and a look per weather.
+- **One wind** (`sim/weatherWind.js`): read once a frame at the eye from the shared field (the outflow is the field's own 'flow'
+  modifier), after the storm's step. The rain drifts with it, a gust leaning it more (the wind over its 8 s mean × 1.6 extra,
+  capped at × 2); the streaks lie along the drop's motion past the camera. The deck's drift is integrated on the scene clock
+  (it was the wind's speed × t, so any change of speed slid the whole deck); on a time cut it is re-placed at speed × t, so a
+  steady wind draws the same deck as before. Aloft, a storm's steering flow (250°, 14 m/s) takes the deck by the front's
+  envelope, so the deck and the cells move together. `ww.eye` and `ww.at(x, z)` are the gulls' getter (`hook.weatherWind`,
+  the plug-in context's `weatherWind`). The cells' track itself stays the arc's 70° (stormArc.js DIR, also baked into
+  render/water.js and v1's code): re-steering it to the day's wind is a follow-up once the water work merges.
+- **A look per weather** (`sim/weatherLook.js` WEATHER_LOOKS): clear, fair (the identity: the composite skips the grade),
+  overcast, storm, rain, clearing; weights from the deck's chosen coverage and the storm's dark, rain and gold, eased over
+  2.5 s on the scene clock (snapped on a cut). The grade runs after the exposure in the composite: stops (in the grade, since
+  the storm's mist and rain are divided by the exposure), the ASC CDL about mid grey, saturation, split-tone, a warm rim
+  toward the sun scaled by the cell's shade, a graduated filter (a heavy sky, darker water, a bright horizon band), the cos^4
+  vignette; `haze` scales the storm's mist. It replaces the old steel (70 % desaturation, −1 stop) and the clearing's warmth;
+  the flash and the rainbow stay. `?wlook=<row>|off` pins a row.
+- **Rain on the lens** (`render/weatherLook.js`, ported from web-ocean-3d's LensRain, MIT): two screen-space lattices of drops
+  (runners and beads), each refracting the frame through its cap, in the storm composites only, one extra texel read a pixel,
+  no blur. The glass wets in 1.1 s and dries over 7.5 s; the drops run downwind across the screen with the air past the lens;
+  a lens looking downwind takes 30 %. On the follow and chase cameras; none in the helm view (the skipper's eye is not a lens:
+  drops on it read as a broken screen), under the water, or under Reduced Motion. Policy row `lensRain` (off on a phone,
+  which has no storm); `?lensrain=0` the A/B.
+- **Cost** (2560 × 1600, M5 Pro, headless, ABBA against main, load 5.6–5.9): the composite +0.07 ms for the grade, +0.21 ms
+  more for the lens in the rain (0.16 → 0.44 ms); Clear +0.08 ms; Fair unchanged within the noise.
+
 ### The spume (2026-11-14: render/spume.js, render/water.js; owner: "port it. It's a wind effect, so it shows in any strong wind, storm or fair")
 v1's recipe (`src/wind-cues.js` whitecapAt, its numbers in `src/sim/windCues.js`), unchanged:
 `spume = smoothstep(12, 17, U) × max(lane, 0) × smoothstep(0.3, 0.8, breaking) × 0.6`, added to the whitecaps' foam and clamped

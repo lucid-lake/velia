@@ -65,6 +65,9 @@ import { arriveOnEntry } from '../src/audio.js';   // music: the gesture that en
 import { setStreamMusic } from '../src/audioFormat.js';   // music: every piece streams (no decoded PCM)
 import { visitSeed } from '../src/visitSeed.js';   // music: a seed per visit for the pieces' order (v1's)
 import { weatherMenu } from '../src/sim/weather/weatherMenu.js';
+import { createWeatherWind } from './sim/weatherWind.js';   // the one wind every weather effect reads (the rain, the clouds' drift, the gulls' calls)
+import { createWeatherLook, createLensWater, fillLookRecord } from './sim/weatherLook.js';   // a look per weather; the lens's water
+import { createWeatherLookBuffer } from './render/weatherLook.js';
 import { createBoatSim, waterFor, START, FOLLOW, DESK_TRIM } from './sim/boat.js';
 import { keysToAxes, keysToTrim, sumHands, isPortrait, CODES, HELD_CODES } from './sim/controls.js';
 import { createModeSwitch, proWanted } from './ui/modeSwitch.js';
@@ -271,7 +274,9 @@ async function boot() {
   device.queue.writeTexture({ texture: lutTex }, gradeLutData(), { bytesPerRow: GRADE.size * 4, rowsPerImage: GRADE.size }, [GRADE.size, GRADE.size, GRADE.size]);
   // the post chain (2026-11-18, render/bloom.js): the bloom's mip 0 (binding 2) and the post uniform (binding 3) ride the same group
   const lutBGL = device.createBindGroupLayout({ label: 'grade-lut', entries: [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float', viewDimension: '3d' } }, { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
-    { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } }, { binding: 3, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }] });
+    { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } }, { binding: 3, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+    { binding: 4, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }] });   // the weather's look and the lens (render/weatherLook.js)
+  const wlookBuf = createWeatherLookBuffer(device);
   const lutView = lutTex.createView({ dimension: '3d' }), lutSampler = device.createSampler({ label: 'grade-lut', magFilter: 'linear', minFilter: 'linear' });
   let lutBG = null;   // made with the post chain below, again on each target change (the bloom's texture is sized with the frame)
   const compositeLayouts = new Map(msaaCounts.map((n) => [n, device.createPipelineLayout({ bindGroupLayouts: [frameBGL, hdrBGLs.get(n), lutBGL] })]));
@@ -307,7 +312,7 @@ async function boot() {
   const bloomOn = feature('bloom').on;
   const post = createPost({ device, reg, on: bloomOn });
   const postState = { bloom: true, k: Number.isFinite(flags.bloomk) && flags.bloomk >= 0 ? flags.bloomk : 1, dither: flags.dither !== false, ramp: pipesDefer ? 0 : 1, threshold: BLOOM.threshold, knee: BLOOM.knee };
-  const makeLutBG = () => device.createBindGroup({ layout: lutBGL, entries: [{ binding: 0, resource: lutView }, { binding: 1, resource: lutSampler }, { binding: 2, resource: post.view }, { binding: 3, resource: { buffer: post.buffer } }] });
+  const makeLutBG = () => device.createBindGroup({ layout: lutBGL, entries: [{ binding: 0, resource: lutView }, { binding: 1, resource: lutSampler }, { binding: 2, resource: post.view }, { binding: 3, resource: { buffer: post.buffer } }, { binding: 4, resource: { buffer: wlookBuf.buffer } }] });
   lutBG = makeLutBG();
   graph.onResize((t) => { post.resize(t); lutBG = makeLutBG(); });
   if (graph.targets.hdr) { post.resize(graph.targets); lutBG = makeLutBG(); }
@@ -444,7 +449,7 @@ async function boot() {
   const musicOn = !P.headless && flags.filmui !== true && flags.music !== '0' && flags.music !== false;   // music: live pages, not a ?filmui=1 film or ?music=0 (below)
   const musicDoor = createLateCore();   // music: the fireworks' pieces and the boat's radio on the page's music bus (bound below)
   const plugCtx = { device, reg, frameBGL, frameStruct, sky, shadow: tshadow, hdrTarget, depthFormat, msaaCounts, chunks, musicDoor: musicOn ? musicDoor : null, errors, flags, P, feature, inGroup, terrain, water, tBase, manifest: fullM, under: underOn, boatOn, wake: wakeFx,
-    get B() { return B; }, get boatR() { return boatR; }, get clock() { return clock; }, get windField() { return windField; }, get m4() { return m4; }, get storm() { return storm; },
+    get B() { return B; }, get boatR() { return boatR; }, get clock() { return clock; }, get windField() { return windField; }, get m4() { return m4; }, get storm() { return storm; }, get weatherWind() { return weatherWind; },
     get cockpitIn() { return cockpitIn; }, get pipeQ() { return pipeQ; }, get regatta() { return regatta; }, get startPose() { return startPose; }, get sailBirth() { return sailBirth; },
     get birthRow() { return birthRow; }, get beds() { return beds; },
     birdsOn, birdsModP, ospreyDiveOn, pipesDefer, hook, simFrame, drawFrame, get graph() { return graph; }, get eye() { return eye; }, get fwd() { return fwd; }, get up() { return up; }, get sunNow() { return sunNow; },
@@ -885,7 +890,14 @@ async function boot() {
   // bar's Weather menu (Clear | Fair | Storm) eases the deck's coverage and starts or sends away the storm; the thunder on
   // the page's sound (v2/engine/audio.js: made in the first gesture; a capture is silent) ---
   const storm = !stormSim ? createStormOff() : stormSim.createStorm({ windField, seed: P.seed, now: () => clock.t, eye: () => eye, sunDir: () => sunNow, sunElev: () => sunNow.elevDeg, exposure: expNow, deck: clouds.deck });
-  const bowNow = () => (rainbowOn ? storm.weather.bowAmt : 0);   //: the rainbow's amount the composite draws (0 on a phone)
+  const bowNow = () => (rainbowOn ? storm.weather.bowAmt : 0);
+  // the one wind for the weather (sim/weatherWind.js): read once a frame at the eye, after the storm's step; the rain's lean, the
+  // deck's drift and (later) the gulls' calls read it; a look per weather (sim/weatherLook.js) and the lens's water, both on the scene clock
+  const weatherWind = createWeatherWind({ field: windField });
+  const wlook = createWeatherLook({ force: flags.wlook ?? null });
+  const lensWater = createLensWater(), lensRec = { amount: 0, gx: 0, gy: 1, wet: 0 };
+  const lensPolicy = feature('lensRain').on && stormOn;   //: no storm, no rain on the lens (a phone)
+  const camVel = [0, 0, 0]; let camWas = null, camT = null;   //: the rainbow's amount the composite draws (0 on a phone)
   storm.begin({ natural: flags.storms === 'natural' });
   const stormUrl = stormSim ? stormSim.stormFromParams(flags) : null;   // a phone: ?weather=storm is skipped
   if (stormUrl) storm.start({ s0: stormUrl.s0, rate: stormUrl.rate, ref: stormUrl.ref, t0: clock.t });
@@ -1306,9 +1318,11 @@ async function boot() {
     storm.update(clock.hour);
     wx.update(clock.t);
     storm.waterWind(windNowAt(clock.hour), windStorm);   // the day's wind at the hour (windNow), then the outflow on it
+    weatherWind.update({ eye, t: clock.t, windT: B ? B.t : clock.t, base: windNow, storm: { on: storm.weather.on, front: storm.weather.front[3] }, cut: clock.cuts });   // the one wind at the eye (the field has the outflow now)
+    const lookNow = wlook.update({ cover: deckCover.value, on: storm.weather.on, dark: storm.weather.dark, rain: storm.weather.rain, gold: storm.weather.gold, t: clock.t, cut: clock.cuts });   // the weather's look, eased
     water.setWind(seaNow(windStorm));   // v1's sea at the boat (spectrum.js): the tables rebuilt only when the wind moves, re-weighted by the fetch
     coverNow = coverAt();
-    clouds.update({ wind: windNow, t: clock.t, eye, night: nightFloor(sunNow.elevDeg), weather: storm.weather, deck: { coverage: coverNow }, sunElevDeg: sunNow.elevDeg, cut: clock.cuts + (clock.gliding ? 0.5 : 0) });   // a time cut re-bakes the key at once (fix 2026-11-18)   // M5a: the drift, the key schedule's step, its params (one writeBuffer); M5e: the storm cell, the menu's coverage
+    clouds.update({ wind: windNow, t: clock.t, eye, night: nightFloor(sunNow.elevDeg), weather: storm.weather, deck: { coverage: coverNow }, drift: weatherWind.drift, sunElevDeg: sunNow.elevDeg, cut: clock.cuts + (clock.gliding ? 0.5 : 0) });   // a time cut re-bakes the key at once (fix 2026-11-18)   // M5a: the drift, the key schedule's step, its params (one writeBuffer); M5e: the storm cell, the menu's coverage
     // the readback window sits on the boat (its float reads it); without one, on the eye as M2
     const g = B ? water.centreFor(B.state.x, B.state.z, clock.t) : water.centreFor(eye[0], eye[2], clock.t);
     underFill();   // phase 2a: the eye's depth under the drawn surface at the lens (play as Tessie only; 0 otherwise)
@@ -1382,7 +1396,20 @@ async function boot() {
     U.set4('moon', moonNow.x, moonNow.y, moonNow.z, moonNow.lit);
     U.set4('night', lv.air, lv.domes, lv.band, lv.k);
     U.set4('look', look === 'v1' ? waterKeep(P.exposure, sunNow.elevDeg, moonShareNow, expNow()) : 0, gradeLut ? gradeStrength(sunNow.elevDeg) : 0, gradeSky ? skyStrength(sunNow.elevDeg) : 0, look === 'v1' ? skyMatchStrength(sunNow.elevDeg) : 0);   // fix(v2) frame look: AgX (> 0) with the water's keep, the LUT's, the polariser's and the sky match's strengths by the sun
-    storm.fillFrame(U, eye);   // M5e: the storm rows (storm, rain, cell, front, bow)
+    const shadeNow = storm.fillFrame(U, eye, lookNow.haze);   // M5e: the storm rows (storm, rain, cell, front, bow); the look's share of the storm's mist
+    { // the camera's own velocity on the scene clock (the rain's streaks lie along the drops' motion past it; the air on the lens)
+      const dtc = camT == null ? 0 : clock.t - camT; camT = clock.t;
+      if (camWas && dtc > 0 && dtc < 0.25) { for (let i = 0; i < 3; i++) camVel[i] = (eye[i] - camWas[i]) / dtc; if (Math.hypot(camVel[0], camVel[1], camVel[2]) > 40) camVel.fill(0); }
+      else if (!(dtc > 0)) { /* a frozen clock keeps the last */ } else camVel.fill(0);
+      camWas = [eye[0], eye[1], eye[2]];
+      const rx = -fwd[2], rz = fwd[0], rl = Math.hypot(rx, rz) || 1;   // the camera's right on the water
+      const lensOn = lensPolicy && flags.lensrain !== false && !UNDER_STATE.on && !(!P.headless && reducedNow());   // Reduced Motion: no lens
+      const L = lensWater.update({ rain: storm.weather.on > 0.5 ? storm.weather.rain : 0, on: lensOn, air: { x: weatherWind.eye.vx - camVel[0], z: weatherWind.eye.vz - camVel[2] }, right: [rx / rl, 0, rz / rl], fwd, t: clock.t, cut: clock.cuts });
+      const viewK = 1 - (m4?.views?.k ?? 0);   // the helm view's eye takes none (the skipper's eye is not a lens); the follow and chase cameras do
+      lensRec.amount = L.amount * viewK; lensRec.gx = L.gx; lensRec.gy = L.gy; lensRec.wet = L.wet;
+      fillLookRecord(wlookBuf.data, lookNow, { aspect: w / h, tanHalf: Math.tan(0.5 * fovDeg * DEG), shade: shadeNow, lens: lensRec, t: clock.t });
+      wlookBuf.write(device.queue);
+    }
     const windT = B ? B.t : clock.t;
     windTex.update(windT, eye[0], eye[2]); windTex.upload(device.queue, windBlend.slots); windBlend.set(windTex.blend(windT));   // audit W1–W3; fix(v2) shadow stepping: the fill into its slot, this frame's cross-fade
     U.set4('windfx', windTex.centre[0], windTex.centre[1], (windTex.fills > 0 && windFx.tex ? WIND_BITS.tex : 0) | (windFx.gust ? WIND_BITS.gust : 0) | (windFx.lanes ? WIND_BITS.lanes : 0) | (windFx.caps ? WIND_BITS.caps : 0), water.significantHeight);
@@ -1413,8 +1440,7 @@ async function boot() {
     // M5e: the rain and the bolt for this frame, the thunder of the new strikes at the distance's delay (live pages)
     { const Fr = storm.frame, W = storm.weather;
       if (Fr.ran && stormDraw) {
-        const w = Fr.w;
-        stormDraw.update({ rain: W.rain, vx: w.vx, vz: w.vz, t: clock.t, dark: W.dark, strike: Fr.bolt, flash: Fr.boltGlow * Fr.k, groundY: Fr.bolt ? Math.max(0, terrain.field.height(Fr.bolt.x, Fr.bolt.z)) : 0 });
+        stormDraw.update({ rain: W.rain, vx: weatherWind.rain.vx, vz: weatherWind.rain.vz, cvx: camVel[0], cvy: camVel[1], cvz: camVel[2], t: clock.t, dark: W.dark, strike: Fr.bolt, flash: Fr.boltGlow * Fr.k, groundY: Fr.bolt ? Math.max(0, terrain.field.height(Fr.bolt.x, Fr.bolt.z)) : 0 });
         if (thunder && audio.running && storm.state) for (const s of Fr.strikes) { const th = stormSim.thunderOf(s, Fr.L), dueT = stormSim.sceneTimeOf(storm.state, s.s) + th.delayS; thunder.play(thunder.bus.context.currentTime + Math.max(0, dueT - clock.t), { ...th, seed: s.seed }); }
       } else if (stormDraw && (stormDraw.stats.drops || stormDraw.stats.boltGlow)) stormDraw.update({});
     }
@@ -1661,7 +1687,7 @@ async function boot() {
   const BEDS_STATE = ['sog', 'heading', 'heel', 'pitch', 'x', 'z', 'apparentWind', 'trueWind', 'mainFill', 'jibFill', 'mainTopFill', 'jibTopFill', 'drive', 'side', 'mainStall', 'surf', 'slam', 'rail', 'roundUp', 'groove', 'grooveHeld'];
   hook.music = music;   // music: stats(), the core, setMode (v2/audio/music.js)
   hook.beds = B ? { input: () => { const i = bedsInput(); return JSON.parse(JSON.stringify({ ...i, state: Object.fromEntries(BEDS_STATE.map((k) => [k, i.state[k] ?? null])) })); }, live: beds } : null;
-  hook.storm = storm; hook.weatherMenu = wx;   // M5e: the storm (start, stop, choose, strikesFrom) and the Weather menu
+  hook.storm = storm; hook.weatherMenu = wx; hook.weatherWind = weatherWind; hook.weatherLook = wlook; hook.lens = lensRec;   // M5e: the storm (start, stop, choose, strikesFrom) and the Weather menu
   // M3: the boat for the harness: the hands (held until the next call), a trace row, the sim and the render module
   hook.sea = sea; hook.exhaust = exhaustFx; hook.engineSound = () => engineSound;   // #8, #14: the engine, the tackle, the exhaust, the sound
   hook.hands = hands ? { get now() { return { steer: handsNow.steer, pull: handsNow.pull }; }, get fingers() { return hands.fingers; }, get multi() { return hands.multi; } } : null;   // BACKLOG-v2 #2: the page tests read the one-finger hands
