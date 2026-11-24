@@ -211,16 +211,37 @@ V2_CARD_CSS = """    /* the desktop card, top to bottom (owner 2026-11-18) */
     __D__ .lk-sup{grid-area:auto;height:28px;min-height:28px;padding:0 .8em 0 .55em;gap:.4em;font-size:max(.96em,15px);letter-spacing:.03em;background:none;border:1px solid var(--brass)}
     __D__ .lk-sup .lk-cup{width:14px;height:14px}
     __D__ .lk-sup:hover,__D__ .lk-sup:focus-visible{background:color-mix(in srgb,var(--brass) 14%,transparent);border-color:color-mix(in srgb,var(--brass) 70%,#fff)}
-    /* the right group "EN ▾ · v0.7 · About ›": the language picker moves into the foot (v2/ui/birthplaceCard.js), its list opens upward; one dot between neighbours */
-    __D__ .lk-foot .lk-lang{position:static;order:0;margin:0 0 0 auto;z-index:3}
-    __D__ .lk-foot .lk-langbtn{padding:0 .3em;height:28px;font-size:max(.96em,15px);letter-spacing:.06em;opacity:.84;text-shadow:none}
-    __D__ .lk-foot .lk-langlist{top:auto;bottom:calc(100% + .35em);right:auto;left:0}
-    __D__ .lk-foot .lk-lang{position:relative;top:auto;right:auto;bottom:auto;display:flex;align-items:center;height:28px}
+    /* the right group "GitHub · v0.8 · About ›": the source link (the GitHub mark and its word, v2/ui/source.js) opens it; one dot between neighbours;
+       28 px like its neighbours, a 44 px hit */
+    __D__ .lk-foot .lk-gh{position:relative;order:0;margin:0 0 0 auto;height:28px;padding:0 .3em;font-size:max(.96em,15px);letter-spacing:.06em;opacity:.84}
+    __D__ .lk-foot .lk-gh::after{content:'';position:absolute;inset:-8px 0}
     __D__ .lk-ver{order:1;grid-area:auto;display:flex;align-items:center;height:28px;margin:0;padding:0;font-size:0;opacity:.62;line-height:1}
     __D__ .lk-ver::after{content:attr(data-short);font-size:13px;letter-spacing:.04em}
     __D__ .lk-ver::before,__D__ .lk-card .lk-news::before{content:'\\00b7';font-size:16px;line-height:1;opacity:.75;margin:0 .45em}
     __D__ .lk-card .lk-news{order:2;grid-area:auto;justify-self:auto;display:flex;flex-direction:row;align-items:center;height:28px;min-height:28px;margin:0;padding:0 .3em 0 0;opacity:.84}
     __D__ .lk-card .lk-news .t{font-size:max(.96em,15px);letter-spacing:.06em}""".replace("__D__", _D)
+
+
+# v2 only: the source link in the card's foot (v2/ui/source.js), where v1 has the language chip (v2 has no chip). Its base look is the
+# foot's: the cream ink, the UI face, a faint wash on hover, a 2 px focus ring; the layouts place it (the desktop card above, the panel in
+# v2/ui/chart/panelPlan.js, the phone's ⋯ list in v2/ui/phoneCard.js; the touch grid before the panel mounts: its third line).
+V2_GH_CSS = """    /* the source link (v2/ui/source.js): the GitHub mark and its word, in the foot beside Support Velia */
+    .lk-gh{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:.45em;color:var(--navy);font-family:var(--lk-ui,var(--lk-font));font-size:max(.84em,13px);letter-spacing:.04em;white-space:nowrap;border-radius:.25em;transition:background-color .2s,opacity .2s}
+    .lk-gh .lk-ghm{display:block;flex:none;width:1em;height:1em;fill:currentColor}
+    .lk-gh:hover,.lk-gh:focus-visible{background:rgb(var(--ink3) / .14);opacity:1}
+    .lk-gh:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+    #lk-load[data-pg] .lk-gh{display:none}
+    @media (pointer:coarse){.lk-gh{min-height:44px}}
+    #lk-load .lk-foot .lk-gh{grid-row:3;grid-column:1 / -1;justify-self:start;padding:0 .35em}"""
+
+
+def source_link():
+    """The card's source link (v2 only): v2/ui/source.js's address, label, word and mark."""
+    src = (ROOT / "v2/ui/source.js").read_text()
+    get = lambda k: re.search(k + r": '([^']*)'", src).group(1)
+    mark = re.search(r"export const GH_MARK = '([^']*)'", src).group(1)
+    return (f'<a class="lk-gh" href="{get("url")}" target="_blank" rel="noopener" aria-label="{get("label")}">'
+            f'<svg class="lk-ghm" viewBox="0 0 24 24" aria-hidden="true">{mark}</svg><span>{get("word")}</span></a>')
 
 
 V2_NIGHT_NOTE = """    /* night (owner, 2026-11-19: "I'm not a big fan of this colour; the default navy and white is enough"): the DOM keeps the day's navy
@@ -267,11 +288,15 @@ def render(auto, v2=False):
         body = body.replace('        <p class="lk-sub">__TAGLINE__ <span class="lk-free">__WHAT__</span></p>\n', "", 1)
         body = body.replace('<p class="lk-by">__LL_MARK__<span>by Lucid Lake Studio</span></p>', '<p class="lk-hero"><span class="hs1">{_H1}</span><svg class="hw" viewBox="0 0 150 9" preserveAspectRatio="none" aria-hidden="true"><path d="M0 5 C8 0 16 0 24 4.5 S40 9 48 4.5 S64 0 72 4.5 S88 9 96 4.5 S112 0 120 4.5 S136 8 146 3.5 c3 -1.5 5 0 3 2"/></svg><span class="hs2">{_H2}</span></p>\n        <p class="lk-by">__LL_MARK__<span>by Lucid Lake Studio</span><span class="lk-free">Free · no sign-up</span></p>', 1)   # owner 2026-11-19 (header A; owner 2026-11-19: the old slogan, the descriptor's tagline, replaces "Sail a real lake in your browser." on the panel): the panel shows VELIA, the hero line, "Free · no sign-up"; the studio line stays in the markup (About reads its mark) and is hidden on the panel (v2/ui/chart/panelPlan.js)
         _t = TAGLINE.split(". ", 1); body = body.replace("{_H1}", _t[0] + ("." if len(_t) > 1 else "")).replace("{_H2}", _t[1] if len(_t) > 1 else "")   # the slogan's two sentences: a script line and a small-caps line (owner 2026-11-19, pick A)
+        body = re.sub(r'      <div class="lk-lang" inert>\n.*?\n      </div>\n', "", body, count=1, flags=re.S)   # no language chip on v2's card: the source link takes its place in the foot
+        body = body.replace('</small></div>\n        <small class="lk-ver">', '</small></div>\n        ' + source_link() + '\n        <small class="lk-ver">', 1)
         body = re.sub(r'<small class="lk-ver">(.*?)</small>', r'<button class="lk-ver" type="button" data-go="news" data-from="home">\1</button>', body, count=1, flags=re.S)   # owner 2026-11-19: the version is a button too (it opens What's new); birthplaceCard.js names it "What's new in v0.7"
     if v2:   # v2 only (owner 2026-11-19: "the default navy and white is enough"): pages and menus stay navy and cream at night; v1's tokens.css and shell keep the night red
         sub["__TOKENS__"] = v2_navy_tokens(sub["__TOKENS__"])
         head = re.sub(r"    /\* night \(src/ui/theme\.js\): the lit parchment[^\n]*\n    :root\[data-lk-theme=night\] #lk-load\[data-state=menu\]:not\(\[data-pg\]\) \.lk-card\{filter:[^\n]*\n", "", head, count=1)   # the card's night sepia
-    head = head.replace("__V2_OUT_CSS__\n", V2_OUT_CSS + "\n" + V2_CARD_CSS + "\n" if v2 else "")   # a whole line: v1's pages keep no blank line
+    head = head.replace("__V2_OUT_CSS__\n", V2_OUT_CSS + "\n" + V2_CARD_CSS + "\n" + V2_GH_CSS + "\n" if v2 else "")
+    if v2:   # the language chip's rules (the shared shell's) leave v2's page with the chip
+        head = "\n".join(l for l in head.split("\n") if "lk-lang" not in l and "/* the language (owner" not in l and "/* the language: text only" not in l)   # a whole line: v1's pages keep no blank line
     for k, v in sub.items():
         head, body = head.replace(k, v), body.replace(k, v)
     return head.rstrip("\n"), body.rstrip("\n").replace(" >\n", ">\n")

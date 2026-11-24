@@ -4,7 +4,7 @@
 //                     under them says the place and why (tap, no hover); "Surprise me" at its foot; the voyage line over it
 //   right, the thumb  the modes stacked in the right thumb's reach: Cruise and Regatta, and Sail, the filled one, in the bottom corner;
 //                     pills sized to their words (46 px, Sail 52 px; owner, 2026-11-19: "the 3 big buttons on the right side are too big")
-//   the ⋯ menu        Chart, Log, Controls, Setup, About, Support Velia in one list (top right), nothing else on the card
+//   the ⋯ menu        Chart, Log, Controls, Setup, Support Velia, GitHub, About in one list (top right), nothing else on the card
 //   the edges         safe areas at both sides (a notch), nothing under 44 px, the text 15 px and up
 // First visit: one tap (Sail). Pick a place: two taps (a pin, Sail). In play: a pin (shows it), "Sail from here" (moves her).
 // The desktop card and the loading shell are untouched: every rule is under :root[data-f-phone-card=on].
@@ -61,8 +61,6 @@ ${P} .lk-card .lk-pmore{all:unset;box-sizing:border-box;position:absolute;z-inde
 ${P}[data-state=menu] .lk-card .lk-pmore{right:66px}
 ${P} .lk-card .lk-pmore[aria-expanded=true]{border-color:var(--navy)}
 ${P}[data-state=menu]:not([data-pg]) .lk-card .lk-x{top:8px;right:10px}
-${P} .lk-lang{top:18px;right:70px}
-${P}[data-state=menu] .lk-lang{right:128px}
 ${P} .lk-card .lk-links{display:none;position:absolute;z-index:6;left:auto;right:10px;top:62px;bottom:auto;width:min(480px,calc(100% - 28px));max-height:calc(100% - 76px);overflow:auto;box-sizing:border-box;grid-template-columns:1fr 1fr;grid-auto-rows:min-content;gap:2px 8px;padding:6px;
   border:1px solid var(--hair);border-radius:16px;background:rgb(var(--pan) / .985);box-shadow:0 8px 24px rgb(0 0 0 / .35)}
 ${P}[data-pmore] .lk-card .lk-links{display:grid;opacity:1;animation:none}
@@ -93,18 +91,17 @@ ${P}[data-kbd] .lk-card .lk-pick:focus-visible{outline:2px solid var(--navy);out
 ${P} .lk-card .lk-pmore{top:10px;right:16px;width:44px;height:44px;background:var(--lk-glass-dense,var(--back));border:1px solid var(--lk-glass-edge,var(--hair))}
 ${P}[data-state=menu] .lk-card .lk-pmore{right:68px}
 ${P}[data-state=menu]:not([data-pg]) .lk-card .lk-x{top:10px;right:16px;width:44px;height:44px}
-${P} .lk-lang{top:10px;right:68px}
-${P}[data-state=menu] .lk-lang{right:120px}
-${P} .lk-lang .lk-langbtn{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:44px;padding:0 6px;cursor:pointer;font:400 15px/1 var(--lk-ui);letter-spacing:.05em;color:var(--navy)}
-${P} .lk-lang .lk-langbtn i{display:none}
-${P} .lk-lang .lk-langbtn:focus-visible{outline:2px solid var(--navy);outline-offset:-2px}
 ${P} .lk-card .lk-links .lk-go{display:none!important}
 ${P} .lk-card .lk-sup .lk-cup{display:none!important}
 ${P} .lk-card .lk-sup::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:var(--brass);margin-right:8px}
 ${P} .lk-card .lk-news .t i{display:none!important}
 ${P} .lk-card .lk-sup,${P} .lk-card .lk-news{font:400 16px/1 var(--lk-ui);letter-spacing:.04em;color:var(--navy)}
-${P} .lk-card .lk-news{justify-content:flex-start;align-items:flex-start;text-align:left;padding-left:35px}
+${P} .lk-card .lk-news{justify-content:center;align-items:flex-start;text-align:left;padding-left:35px}   /* a column: its word at the left, centred in its 44 px row like Support and GitHub above it */
 ${P} .lk-card .lk-news .t{font:inherit;letter-spacing:inherit}
+/* the source link in the ⋯ list's right column, between Support Velia and About: the same row (44 px, 16 px type); the GitHub mark (14 px) where
+   Support has its brass dot, so the three words line up */
+${P} .lk-card .lk-gh{height:44px;min-height:44px;justify-content:flex-start;gap:7px;padding:0 14px;border-radius:8px;font:400 16px/1 var(--lk-ui);letter-spacing:.04em;color:var(--navy)}
+${P} .lk-card .lk-gh .lk-ghm{width:14px;height:14px}
 /* the slogan, where the header has the room: right of VELIA, the script, the brass wave, the small caps (the desktop panel's treatment, smaller) */
 ${P} .lk-card .lk-hero .hs1{display:block;font:400 23px/1 'Velia Script','Snell Roundhand',Georgia,serif;font-style:italic;font-synthesis:none;white-space:nowrap}
 ${P} .lk-card .lk-hero .hs2{display:block;font:600 10.5px/1 'Velia Caps','Cormorant SC',Georgia,serif;letter-spacing:.22em;text-transform:uppercase;white-space:nowrap;opacity:.92}

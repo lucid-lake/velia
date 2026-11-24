@@ -59,9 +59,9 @@ ${P} .lk-row.lk-sum .v{white-space:normal;overflow:visible}
 ${P} .lk-row.plan{order:4;margin-top:.8em}
 ${P} .lk-foot{margin:.25em 0 0;padding:.35em 0 .05em;gap:.4em}
 ${P} .lk-sup{padding:0 .6em 0 .45em!important;font-size:14px!important;gap:.3em;white-space:nowrap}
-${P} .lk-foot .lk-langbtn,${P} .lk-card .lk-news .t{font-size:14px!important;letter-spacing:.03em!important}
+${P} .lk-foot .lk-gh,${P} .lk-card .lk-news .t{font-size:14px!important;letter-spacing:.03em!important}
 ${P} .lk-ver::before,${P} .lk-card .lk-news::before{margin:0 .22em!important}
-${P} .lk-foot .lk-langbtn{padding:0 .2em!important}
+${P} .lk-foot .lk-gh{padding:0 .2em!important}
 ${P} .lk-card .lk-news{padding:0!important}
 ${P} .lk-row .v.picks{width:100%}
 ${P} .lk-card .lk-pick{flex:1 1 0;justify-content:center;padding-left:.3em;padding-right:.3em}

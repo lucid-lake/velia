@@ -93,9 +93,6 @@ export function installFront({ settings, B, windField = null, clock, views = nul
   const root = document.getElementById('lk-load');
   if (!root) return null;
   let ui = null;
-  // the language chip on the card (loading.js setLang): the saved choice, a new one saved
-  window.__veliaLoading?.setLang?.(settings.get('lang'), { silent: true });
-  addEventListener('lakeshore:lang', (e) => settings.set('lang', e.detail?.lang));
   setTipsOn(settings.get('tips'));
   if (!document.getElementById('lk-front-v2-css')) { const st = document.createElement('style'); st.id = 'lk-front-v2-css'; st.textContent = SOON_CSS; document.head.appendChild(st); }
 

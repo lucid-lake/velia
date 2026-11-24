@@ -34,7 +34,7 @@ export const SETUP_ROWS = Object.freeze([
   { key: 'display', tab: 'screen', data: 'r:display:', acts: true, how: 'the instruments\' palette: auto, day, night (src/ui/theme.js set)' },
   { key: 'hud', tab: 'screen', data: 'r:hud:', acts: true, how: 'the Calm HUD preset (src/ui/calmHud.js reads it)' },
   { key: 'largeText', tab: 'screen', data: 't:largeText', acts: true, how: 'the type at 1.25x (src/ui/theme.js setLargeText)' },
-  { key: 'lang', tab: 'screen', data: 'r:lang:', acts: true, how: 'English (the card\'s chip); Chinese is disabled "(soon)", as v1' },
+  { key: 'lang', tab: 'screen', data: 'r:lang:', acts: true, how: 'English; Chinese is disabled "(soon)", as v1' },
   { key: 'quality', tab: 'screen', data: 'r:quality:', acts: true, how: 'the quality ladder: auto (it measures), high L0, balanced L1, low (Battery) L2 (main.js quality.pin)' },
 ]);
 

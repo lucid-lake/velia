@@ -217,6 +217,7 @@ The impostor hull card follows the idea in agargaro/octahedral-impostor (MIT), s
 | Asset | Source | Date | Licence |
 |---|---|---|---|
 | The Settings gear in the top bar (`src/ui/viewSwitch.js`) | Feather Icons "settings" path, by Cole Bemis — https://feathericons.com | 2026-10-30 | MIT |
+| The GitHub mark on v2's card foot, beside the word "GitHub", linking to this repo (`v2/ui/source.js` GH_MARK) | GitHub's mark (the Invertocat), GitHub, Inc. — https://github.com/logos | 2026-11-24 | GitHub's trademark, used as its logo guidelines allow: unaltered, to link to the project on GitHub; not under this repo's MIT licence |
 
 ## KTX2 texture compression (feat/ktx2, 2026-10-31)
 | What | Source | Licence | Use |

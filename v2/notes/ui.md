@@ -403,6 +403,15 @@ within 3 s of the first frame, automation, a new visitor's first visit: the card
 own start, the welcome's picks then ENTER; no WebGPU). Golden: `v2-home` (v1's home pose: a fresh browser's welcome on the card
 over the live lake, 90 frames of the film clock); `v2-first-visit` (the staged minute) is gone.
 
+**The source link (2026-11-24: ui/source.js).** v2's card has no language chip (the language stays a Setup › Screen row; v1's card
+keeps its chip). The card's foot carries one GitHub link to the repo instead, written into v2/index.html by tools/loading_shell.py:
+the GitHub mark (an inline SVG in the text's ink) and the word "GitHub", label "Velia on GitHub", a new tab. Its place in each layout:
+the desktop and tablet panel's foot reads Support Velia | GitHub | v0.8 | About (14 px type and mark, hairline dividers, 40 px rows,
+44 px on touch: ui/chart/panelPlan.js); the desktop card before the panel mounts puts it first in the right group, 28 px with a 44 px
+hit; the phone card lists it in the ⋯ menu between Support Velia and About (44 px rows, the 14 px mark where Support has its brass
+dot: ui/phoneCard.js). Help › About adds "Velia is open source (MIT)." and the repo's address under the studio line (ui/aboutPage.js).
+Tests: v2/tests/source-link.test.mjs; the panel's foot in pages/mapCard.page.mjs.
+
 ## The launch gate (2026-11-14: start.js, engine/gpuCheck.js, engine/device.js, sim/steadyCamera.js, ui/seaText.js; tools/build/base-path.mjs, site.mjs)
 
 Once this merges, v2 is the public Velia (velia.lucidlakelabs.com) and v1, frozen, is the classic page at `/classic/`.

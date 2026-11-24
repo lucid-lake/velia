@@ -28,7 +28,6 @@ const CSS = `#lk-load .lk-links{grid-template-columns:repeat(4,1fr)}
 #lk-load[data-state=menu]:not([data-pg]) .lk-card .lk-x{all:unset;box-sizing:border-box;position:absolute;z-index:4;top:.75em;right:.85em;display:inline-flex;align-items:center;justify-content:center;width:var(--btn);height:var(--btn);border:1px solid var(--hair);border-radius:50%;background:var(--back);color:var(--navy);cursor:pointer;font-size:max(1.15em,17px);line-height:1}
 #lk-load[data-state=menu] .lk-card .lk-x:hover,#lk-load[data-state=menu] .lk-card .lk-x:focus-visible{background:linear-gradient(rgb(var(--ink3) / .16),rgb(var(--ink3) / .16)),var(--back);border-color:rgb(var(--ink3) / .95)}
 #lk-load[data-state=menu] .lk-card .lk-x:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
-:where(:root:not([data-screen~=narrow]):not([data-screen~=upright])) #lk-load[data-state=menu]:not([data-pg]) .lk-lang{right:calc(1.2em + var(--btn) + 8px)}
 :root #lk-load[data-state=menu]:not([data-pg]) .lk-veil{display:block;position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity .5s var(--lk-ease);
   background:radial-gradient(ellipse 58% 90% at 16% 52%,rgb(var(--lk-brand-navy) / .44) 0%,rgb(var(--lk-brand-navy) / .2) 52%,rgb(var(--lk-brand-navy) / 0) 82%),radial-gradient(ellipse 80% 75% at 55% 50%,rgb(var(--lk-brand-navy) / 0) 62%,rgb(var(--lk-brand-navy) / .2) 100%)}
 :root #lk-load[data-state=menu][data-on]:not([data-pg]) .lk-veil{opacity:1}
