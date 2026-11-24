@@ -20,7 +20,7 @@ import { decodeShore, encodeShore, decodeMask, encodeMask, sampleRaster, maskAt,
 import { SHORE_REGION } from '../../src/shoreline-layout.js';
 import { shoreArrays, pickDraws, RANGE, SHADOW_MESHES, mirrorProxies, pickMirror, harbourParts, MIRROR } from '../render/towns.js';
 import { decodeLights } from '../sim/night.js';
-import { packTowns } from '../../tools/v2-towns-pack.mjs';
+import { packTowns, townsDiff } from '../../tools/v2-towns-pack.mjs';
 import { makeTerrain } from './helpers/ground.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -34,8 +34,10 @@ const range = (mesh) => { const m = S.meshes[mesh]; return Array.from({ length: 
 
 test('the shipped files are the pack tool\'s output (v1\'s layouts, deterministic)', async () => {
   const p = await packedP;
-  assert.ok(Buffer.compare(gunzipSync(p.files['shore.vsh.gz']), file('shore.vsh.gz')) === 0, 'shore.vsh.gz: re-run node tools/v2-towns-pack.mjs');
-  assert.ok(Buffer.compare(gunzipSync(p.files['mask.vtm.gz']), file('mask.vtm.gz')) === 0, 'mask.vtm.gz: re-run node tools/v2-towns-pack.mjs');
+  for (const f of ['shore.vsh.gz', 'mask.vtm.gz']) {
+    const d = townsDiff(f, gunzipSync(p.files[f]), file(f));   // the decoded content (tools/v2-towns-pack.mjs townsDiff)
+    assert.equal(d, null, `${f}: ${d}: re-run node tools/v2-towns-pack.mjs`);
+  }
   assert.ok(p.counts.piers >= 30 && p.counts.boathouses >= 8 && p.counts.breakwaters > 100 && p.counts.decks > 2000, JSON.stringify(p.counts));
   // the bytes on the wire (after the first frame) and the GPU's
   const wire = readFileSync(resolve(ROOT, 'v2/assets/towns/shore.vsh.gz')).length + readFileSync(resolve(ROOT, 'v2/assets/towns/mask.vtm.gz')).length;
@@ -209,7 +211,7 @@ test('#41c: the mirror\'s proxies: every pier piece, the harbour\'s parts; the p
 //, 2026-11-17: "drop ski runs and the far towns' detail" on a phone): the phone's set
 test('the phone\'s set: the pack\'s output, the bay\'s instances only (every one of them), Hwy 89 kept and no ski runs', async () => {
   const p = await packedP;
-  for (const f of ['shore-phone.vsh.gz', 'mask-phone.vtm.gz']) assert.ok(Buffer.compare(gunzipSync(p.files[f]), file(f)) === 0, `${f}: re-run node tools/v2-towns-pack.mjs`);
+  for (const f of ['shore-phone.vsh.gz', 'mask-phone.vtm.gz']) { const d = townsDiff(f, gunzipSync(p.files[f]), file(f)); assert.equal(d, null, `${f}: ${d}: re-run node tools/v2-towns-pack.mjs`); }
   assert.deepEqual({ ...BAY }, { ...SHORE_REGION }, 'the bay is v1\'s shoreline region');
   const SP = decodeShore(file('shore-phone.vsh.gz')), MP = decodeMask(file('mask-phone.vtm.gz'));
   let inFull = 0;
