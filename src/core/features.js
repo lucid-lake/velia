@@ -223,6 +223,12 @@ export const POLICIES = Object.freeze({
   farTowns: { fixed: true, axes: 'form', aliases: '?profile=form:phone',
     why: 'the ski runs and the far towns\' decks on a tablet or a desktop; a phone loads the bay\'s set (its piers, boathouses, tower, harbour and Hwy 89\'s cut)',
     tier: (p, c) => (phoneOnly(p, c) ? 'off' : 'on') },
+  // --- rain on the lens (owner, 2026-11-24: "rain on the lens" per weather; phones only if within budget, behind a policy row): the
+  // storm composites' lens pass (render/weatherLook.js: three lattices of drops, one extra texel read a pixel). A phone has no storm
+  // (the storm row below), so it never draws; the row keeps the rule in one place if a phone storm comes back ---
+  lensRain: { fixed: true, axes: 'form', aliases: '?lensrain=0 (off everywhere), ?profile=form:phone',
+    why: 'rain on the camera\'s lens in a storm (the follow and chase cameras) on a tablet or a desktop; a phone has no storm',
+    tier: (p, c) => (c.flags.lensrain === '0' || phoneOnly(p, c) ? 'off' : 'on') },
   lightningBolts: { fixed: true, axes: 'form', aliases: '?profile=form:phone',
     why: 'the lightning bolt\'s channel (its mesh and pipeline) on a tablet or a desktop; a phone\'s storm keeps the rain, the flashes and the thunder',
     tier: (p, c) => (phoneOnly(p, c) ? 'off' : 'on') },

@@ -144,10 +144,11 @@ export function createStorm({ windField, seed = 1, now = () => 0, eye = () => [0
       return out;
     },
     // the storm's rows of the shared uniform (uniforms.js): storm, rain, cell, front, bow
-    fillFrame(U, e = eye()) {
+    // hazeMul: the weather look's share of the storm's mist (v2/sim/weatherLook.js haze; 1 keeps it)
+    fillFrame(U, e = eye(), hazeMul = 1) {
       const shade = sunShadeAt(e[0], e[1], e[2], W);
       U.set4('storm', W.on, shade, W.dark, W.gold);
-      U.set4('rain', W.rain, W.flash, W.haze, W.bowAmt);
+      U.set4('rain', W.rain, W.flash, Math.min(1, W.haze * hazeMul), W.bowAmt);
       U.set4('cell', W.cell[0], W.cell[1], W.cell[2], W.cover);
       U.set4('front', W.front[0], W.front[1], W.front[2], W.front[3]);
       U.set4('bow', W.toRain[0], W.toRain[1], W.flashAdd, W.time);

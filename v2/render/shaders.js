@@ -6,6 +6,7 @@ import { wgslStruct } from '../engine/uniforms.js';
 import { AGX_WGSL } from './grade.js';
 import { POST_WGSL, DITHER_WGSL, LENS_WGSL } from './bloom.js';
 import { PURKINJE_WGSL } from './purkinje.js';   // feat/v2-look-ponlai: the night's Purkinje shift
+import { WLOOK_WGSL, GRADE_WGSL, LENS_RAIN_WGSL, LENS as LENS_RAIN } from './weatherLook.js';   // the weather's look (v2/sim/weatherLook.js) and the rain on the lens
 
 export const HEAD = `diagnostic(off, derivative_uniformity);
 ${wgslStruct()}
@@ -82,6 +83,9 @@ ${AGX_WGSL}
 ${DITHER_WGSL}
 ${LENS_WGSL}
 ${PURKINJE_WGSL}
+${WLOOK_WGSL}
+${GRADE_WGSL}
+${mode === 'plain' ? '' : LENS_RAIN_WGSL}
 ${mode === 'bow' ? `@group(1) @binding(1) var tDepth: ${msaa > 1 ? 'texture_depth_multisampled_2d' : 'texture_depth_2d'};
 ${RAINBOW_WGSL}` : ''}
 const LUMA = vec3f(0.2126, 0.7152, 0.0722);
@@ -107,12 +111,9 @@ ${mode === 'bow' ? `  // the depth is read only for the bow (its distance mask a
     c *= 1.0 - wb.alex * F.rain.w * 0.18 * ${BOW_WATER.k.toFixed(2)} * wet;
     c += wb.light * bowK * ${BOW_WATER.k.toFixed(2)} * wet;
   }
-` : ''}  let l = dot(c, LUMA);
-  let steel = mix(c, vec3f(l) * vec3f(0.84, 0.94, 1.08), F.storm.z * 0.7) * (1.0 - F.storm.z * 0.5);
-  let uvc = ndc * 0.5; let vig = 1.0 - dot(uvc, uvc) * F.storm.z * 1.2;
-  let warm = mix(steel, steel * vec3f(1.2, 1.02, 0.74), F.storm.w * 0.85);
-  let sat = mix(vec3f(dot(warm, LUMA)), warm, F.storm.w * 0.18 + 1.0);
-  return sat * vig * (vec3f(0.85, 0.92, 1.12) * (F.rain.y * 3.0) + 1.0) + vec3f(0.6, 0.68, 0.9) * (F.bow.z * ${FLASH_ADD});
+` : ''}  // the storm's grade (its steel, vignette, the clearing's warmth) is the weather look's (render/weatherLook.js: the storm, rain and
+  // clearing rows, after the exposure); here only the flash: the whole scene lit blue-white, its lift held at the day's level
+  return c * (vec3f(0.85, 0.92, 1.12) * (F.rain.y * 3.0) + 1.0) + vec3f(0.6, 0.68, 0.9) * (F.bow.z * ${FLASH_ADD});
 }`}
 fn aces(x: vec3f) -> vec3f {
   return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), vec3f(0.0), vec3f(1.0));
@@ -130,11 +131,17 @@ fn srgb(c: vec3f) -> vec3f {
     let off = vec2i(round(lensFringe(v.pos.xy, dim, PO.c.y))); let hi = vec2i(dim) - vec2i(1);
     c.r = textureLoad(hdr, clamp(px + off, vec2i(0), hi), 0).r; c.b = textureLoad(hdr, clamp(px - off, vec2i(0), hi), 0).b;
   }
+  ${mode === 'plain' ? '' : `if (WL.l0.x > 0.001) {   // rain on the lens (render/weatherLook.js): the drop's image from a displaced place, its glint and dark rim
+    let lr = lensRain(v.pos.xy, dim);
+    if (lr.z > 0.002) { let hi = vec2i(dim) - vec2i(1); c = mix(c, textureLoad(hdr, clamp(px + vec2i(round(lr.xy)), vec2i(0), hi), 0).rgb, lr.z); }
+    c = c * (1.0 + min(lr.w, 0.0)) + vec3f(max(lr.w, 0.0) * ${LENS_RAIN.glintHdr} / max(F.params.x, 1e-6));
+  }`}
   ${mode === 'plain' ? '' : mode === 'storm' ? 'c = stormGrade(c, px, v.ndc);' : 'if (F.storm.x > 0.5) { c = stormGrade(c, px, v.ndc); }'}
   // fix(v2) frame look: v1's camera (F.look.x > 0: AgX, then v1's LUT at F.look.y on the encoded picture) or M2's ACES (?look=v2)
   // the post chain: the bloom (exposed HDR, thresholded and blurred) added before the tone curve, so a glow rolls off as the light does
   // feat/v2-look-ponlai: the night's Purkinje shift on the exposed colour, before the bloom's glow (render/purkinje.js; 0 by day)
   var e = c * F.params.x;
+  if (WL.g2.w > 0.5) { e = weatherGrade(e, v.ndc); }   // the weather's look (v2/sim/weatherLook.js): skipped at the identity (Fair)
   if (PO.b.z > 0.0) { e = purkinje(e, PO.b.w, PO.b.z); }
   var x = e + textureSampleLevel(tBloom, sLut, v.pos.xy / dim, 0.0).rgb * PO.b.x;
   if (PO.c.y > 0.0 && PO.b.x > 0.0) { x += lensStreak(tBloom, sLut, v.pos.xy / dim) * PO.b.x * PO.c.y; }   // the intro's anamorphic streak on the glow

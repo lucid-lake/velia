@@ -378,11 +378,12 @@ export function createClouds({ device, reg, frameBGL, frameBG, U, frameStruct, p
     // cut: the clock's cut mark (main.js: its cuts, + 0.5 while a glide runs): a change re-bakes the whole key at once, so a time
     // pick out of the night (the fireworks' show to Golden hour) never shows the night's black clouds for the key's slow cycle
     // (fix 2026-11-18)
-    update({ wind, t = 0, eye, night = 0, weather = null, deck: deckIn = null, sunElevDeg = 90, cut = 0 }) {
+    // drift: the deck's drift (m) from the one wind (v2/sim/weatherWind.js: integrated on the scene clock); without it, the wind's speed × t
+    update({ wind, t = 0, eye, night = 0, weather = null, deck: deckIn = null, drift = null, sunElevDeg = 90, cut = 0 }) {
       if (deckIn) Object.assign(deckNow, deckIn);
       if (off) { state.t = t; state.rows = 0; return null; }   // the params stay as made at load: on = 0, the readers see T = 1
       state.weather = weather; state.night = night; state.t = t;
-      const d = cloudDrift(wind?.speedMs ?? 0, wind?.dirDeg ?? 0, t);
+      const d = drift ?? cloudDrift(wind?.speedMs ?? 0, wind?.dirDeg ?? 0, t);
       state.drift[0] = d[0]; state.drift[1] = d[1];
       let all = !state.eyeAt;
       if (eye && state.eyeAt && Math.hypot(eye[0] - state.eyeAt[0], eye[1] - state.eyeAt[1], eye[2] - state.eyeAt[2]) > KEY.cutM) all = true;

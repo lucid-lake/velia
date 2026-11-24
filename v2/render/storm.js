@@ -29,7 +29,7 @@ ${frameStruct}
 @group(0) @binding(0) var<uniform> F: Frame;
 ${ATMO_WGSL}
 ${SKY_READ}
-struct RainU { t: f32, vx: f32, vz: f32, amount: f32, dark: f32, pad0: f32, pad1: f32, pad2: f32 }
+struct RainU { t: f32, vx: f32, vz: f32, amount: f32, dark: f32, cvx: f32, cvy: f32, cvz: f32 }   // cv: the camera's own velocity (m/s)
 @group(2) @binding(0) var<uniform> R: RainU;
 ${HASH_WGSL}
 struct RV { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) a: f32, @location(2) col: vec3f }
@@ -44,9 +44,11 @@ const BOX = vec3f(${RAIN.box.map((x) => x.toFixed(1)).join(', ')}); const FALL_M
   let p0 = d.xyz * BOX + fall * (R.t + d.w * 3.0);
   let rel = (fract((p0 - cam) / BOX) - 0.5) * BOX;
   let p = cam + rel;
-  // a motion-blurred streak along the fall (≈ 0.6 m), the near ones longer, wider and fainter, the far ones fine
+  // a motion-blurred streak along the drop's motion past the camera (≈ 0.6 m; ported from web-ocean-3d's src/sky/Weather.ts, MIT:
+  // the drops stay in the world and the camera moves through them, so a following wind stands the streaks up and a head wind or
+  // a fast boat lays them back), the near ones longer, wider and fainter, the far ones fine
   let dist = length(rel);
-  let axis = normalize(fall); let toCam = normalize(cam - p);
+  let rv = fall - vec3f(R.cvx, R.cvy, R.cvz); let axis = rv / max(length(rv), 1e-3); let toCam = normalize(cam - p);
   let side = normalize(cross(axis, toCam));
   let near = 1.0 - smoothstep(2.0, 7.0, dist);
   let len = mix(0.45, 1.0, near) * (d.w * 0.4 + 0.8);
@@ -108,14 +110,16 @@ export function createStormDraw({ device, reg, frameBGL, frameBG, U, frameStruct
   const mB = bolts ? reg.shader('storm-bolt', BOLT_WGSL(frameStruct)) : null;
   if (bolts) reg.add('storm-bolt', { layout: device.createPipelineLayout({ bindGroupLayouts: [frameBGL, bglBolt] }), vertex: { module: mB, entryPoint: 'vs', buffers: [{ arrayStride: 32, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }, { shaderLocation: 2, offset: 24, format: 'float32x2' }] }] },
     fragment: { module: mB, entryPoint: 'fs', targets: [{ ...hdrTarget, blend: add }] }, primitive: { topology: 'triangle-list', cullMode: 'none' }, depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare: 'greater' }, multisample: { count: msaa } });
-  const state = { drops: 0, maxDrops, bolt: null, boltGlow: 0, builds: 0, bolts: !!bolts };
+  const state = { drops: 0, maxDrops, vx: 0, vz: 0, bolt: null, boltGlow: 0, builds: 0, bolts: !!bolts };
   return {
     stats: state,
     // rain 0–1 at the camera, the wind there (m/s), the scene time; strike: the bolt to show (or null) with its flash
     // 0–1.5 and the ground's height under it
-    update({ rain = 0, vx = 0, vz = 0, t = 0, dark = 0, strike = null, flash = 0, groundY = 0 }) {
+    // vx, vz: the rain's drift (v2/sim/weatherWind.js rain: the wind at the eye, a gust leaning it more); cv*: the camera's velocity
+    update({ rain = 0, vx = 0, vz = 0, cvx = 0, cvy = 0, cvz = 0, t = 0, dark = 0, strike = null, flash = 0, groundY = 0 }) {
       state.drops = Math.round(maxDrops * Math.min(1, Math.max(0, rain)));
-      if (state.drops > 0) { rainU[0] = t; rainU[1] = vx; rainU[2] = vz; rainU[3] = rain; rainU[4] = dark; device.queue.writeBuffer(rainBuf, 0, rainU); }
+      state.vx = vx; state.vz = vz;
+      if (state.drops > 0) { rainU[0] = t; rainU[1] = vx; rainU[2] = vz; rainU[3] = rain; rainU[4] = dark; rainU[5] = cvx; rainU[6] = cvy; rainU[7] = cvz; device.queue.writeBuffer(rainBuf, 0, rainU); }
       const show = bolts && !!strike && flash > 0.002 && strike.bolt;
       if (show && strike.id !== state.bolt) {
         const m = boltMesh(strike, groundY, mesh.verts, mesh.index); mesh.nv = m.nv; mesh.ni = m.ni;
