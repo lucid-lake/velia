@@ -8,7 +8,7 @@
 //   a first visit (a new visitor: no stored settings; owner 2026-11-13, no staged minute in v2): the same door as a returning
 //     visit: the mark, the card over the live lake, no dissolve (data-first), the boat at Sail's own start, no opening camera,
 //     no stage; no skill question (owner 2026-11-21: the profile starts as New); the old big card never paints before the
-//     panel's layout (v2/ui/loadWords.js hold); a fact under the line; ENTER sails
+//     panel's layout (v2/ui/loadWords.js hold); no lake fact under the line (2026-11-24: the facts are the chart's); ENTER sails
 //   no WebGPU: the launch gate's page (it links the classic Velia, /classic/), the loading card gone, no page error (v1's showed its fail state:
 //     v1 falls back to WebGL2, v2 cannot)
 // Run by `npm run test:pages:v2` (LAKESHORE_BASE set), or node v2/tests/pages/loading.page.mjs --base http://127.0.0.1:<port>
@@ -75,7 +75,7 @@ try {
     await page.close();
   }
   // a first visit (a new visitor: no stored settings): the same door as a returning visit; no skill question (owner 2026-11-21): the
-  // profile starts as New; the old big card never paints before the panel's layout (loadWords.js hold); a fact under the line; ENTER
+  // profile starts as New; the old big card never paints before the panel's layout (loadWords.js hold); no fact under the line; ENTER
   {
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
@@ -83,7 +83,7 @@ try {
     await page.addInitScript(() => { window.__flash = 0; window.__facts = new Set(); const tick = () => { const R = document.getElementById('lk-load'); if (R) {
       const c = R.querySelector('.lk-card'), cs = c && getComputedStyle(c);
       if (R.dataset.state === 'home' && !document.documentElement.dataset.mapCard && cs && cs.visibility !== 'hidden' && +cs.opacity > 0.05) window.__flash++;
-      const f = R.querySelector('.lk-pfact.on'); if (f?.textContent) window.__facts.add(f.textContent); }
+      for (const p of R.querySelectorAll('.lk-prog p')) if (!/lk-psay|lk-padv/.test(p.className) && p.textContent) window.__facts.add(p.textContent); }
       if (R?.dataset.state !== 'gone') requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
     await page.goto(`${BASE}/?hour=18.75&seed=1&wind=3&attract=0`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.__veliaLoading?.state === 'home' && window.__velia?.m4?.front, null, { timeout: 240000 });
@@ -96,7 +96,7 @@ try {
       flash: window.__flash, facts: window.__facts.size, hold: document.documentElement.dataset.lkHold ?? null }));
     check(r.view === 'home' && w.choices === 0 && w.profile === 'new', `no skill question: the card's home view, the profile New (${JSON.stringify({ view: r.view, choices: w.choices, profile: w.profile })})`);
     check(w.flash === 0 && w.hold === null, `the old big card never painted before the panel's layout (${w.flash} frames)`);
-    check(w.facts >= 1, `a fact under the line while it loaded (${w.facts})`);
+    check(w.facts === 0, `no second line under the stage caption while it loaded: the lake facts are on the chart (${w.facts})`);
     check(!r.first && !r.stage && !r.intro && !r.fv, `no staged minute: no dissolve, no stage, no opening camera, no first-visit decision (${JSON.stringify({ first: r.first, stage: r.stage, intro: r.intro, fv: r.fv })})`);
     check(Math.hypot(r.x - 61, r.z + 406) > 300, `the boat at Sail's own start, not the granite shelf (${r.x.toFixed(0)}, ${r.z.toFixed(0)})`);
     await pickMode(page, 'sail');

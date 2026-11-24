@@ -359,7 +359,8 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
           corners: () => services.get('hunts')?.chart?.() ?? [] },   //: the cups' hunts' corners (◇, filled once found), in every mode   //: the place races' pins (Races layer), only while Regatta is the mode (owner 2026-11-19); Tessie's Deep only where she can go
         ground: { live: feature('chartGround').tier === 'live', heightAt: terrainShim.heightAt, ready: () => terrain.field?.slot?.(1)?.variant === 'full' },
         touch: () => feature('fingerTargets').on, reduced: () => reducedNow(),
-        showTessie: () => feature('playTessie').on, deepAt: (x, z) => -terrainShim.heightAt(x, z) });   // the Boat plate's Tessie and her deep pins
+        showTessie: () => feature('playTessie').on, deepAt: (x, z) => -terrainShim.heightAt(x, z),   // the Boat plate's Tessie and her deep pins
+        factDate: () => (flags.hour == null ? new Date() : null) });   // the chart's lake fact: the day's; ?hour (a deterministic page): the first
       if (!screen) return;
       screen.chart.on('mark', (p) => { const r = setWater(p); if (!r.ok && r.text) hint.flash?.(r.text, { secs: 5, kind: 'refuse.mark' }); });   // a double-click (a double-tap) on the water: the target at once
       services.provide('liveChart', screen.chart);

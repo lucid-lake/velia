@@ -63,12 +63,12 @@ const ledger = (page) => page.evaluate(() => [...document.querySelectorAll('#lk-
   check(s.insets.left === Math.round(panel.w) || Math.abs(s.insets.left - panel.w) < 2, `desk: the chart keeps the panel's width clear (inset ${s.insets.left})`);
   const parts = await page.evaluate(() => {
     const vis = (s) => { const e = document.querySelector(s); return !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; };
-    return { word: vis('#lk-load .lk-word'), by: vis('#lk-load .lk-by'), sum: vis('#lk-load .lk-ledger'), picks: vis('#lk-load .lk-picks') || vis('#lk-load .lk-row.plan'),
+    return { word: vis('#lk-load .lk-word'), hero: vis('#lk-load .lk-hero'), free: !!document.querySelector('#lk-load .lk-free'), sum: vis('#lk-load .lk-ledger'), picks: vis('#lk-load .lk-picks') || vis('#lk-load .lk-row.plan'),
       links: [...document.querySelectorAll('#lk-load .lk-links > .lk-link:not(.lk-go)')].filter((b) => b.getClientRects().length).map((b) => [b.getBoundingClientRect(), b.innerText.trim()]).sort((p, q) => p[0].top - q[0].top || p[0].left - q[0].left).map((p) => p[1]),
       oneRow: (() => { const r = [...document.querySelectorAll('#lk-load .lk-links > .lk-link:not(.lk-go)')].filter((b) => b.getClientRects().length).map((b) => b.getBoundingClientRect()); return r.length > 0 && r.every((x) => Math.abs(x.top - r[0].top) < 2 && x.height <= 44); })(), go: document.querySelector('#lk-load .lk-go')?.getClientRects().length ? document.querySelector('#lk-load .lk-go').innerText.trim() : null, sup: vis('#lk-load .lk-sup'), gh: vis('#lk-load .lk-foot .lk-gh'), about: vis('#lk-load .lk-news'),
       ver: document.querySelector('#lk-load .lk-ver')?.dataset.short ?? null, mini: vis('#lk-load .lk-bp') };
   });
-  check(parts.word && parts.by && parts.sum && parts.picks && parts.sup && parts.gh && parts.about && !parts.mini, `desk: VELIA, the studio line, the float plan, the mode pill and the foot are there; the card's mini chart is not (${JSON.stringify(parts)})`);
+  check(parts.word && parts.hero && !parts.free && parts.sum && parts.picks && parts.sup && parts.gh && parts.about && !parts.mini, `desk: VELIA, the slogan (no "Free · no sign-up", 2026-11-24), the float plan, the mode pill and the foot are there; the card's mini chart is not (${JSON.stringify(parts)})`);
   check(parts.links.join(' ').toLowerCase() === 'setup keys tutorial logbook' && parts.oneRow, `desk: SETUP KEYS TUTORIAL LOGBOOK in one row, no CHART (the screen is the chart; owner 2026-11-18) (${parts.links.join(' ')})`);
   check(/^set sail$/i.test(parts.go ?? ''), `desk: Set sail is the panel's one primary action (${parts.go})`);
   const foot = await page.evaluate(() => { const f = document.querySelector('#lk-load .lk-foot'), c = document.querySelector('#lk-load .lk-card').getBoundingClientRect(); return [...f.children].filter((e) => e.getClientRects().length).every((e) => e.getBoundingClientRect().right <= c.right + 1); });
@@ -79,6 +79,21 @@ const ledger = (page) => page.evaluate(() => [...document.querySelectorAll('#lk-
   check(wl.tag === 'DIV' && !wl.ch && !wl.popup, `desk: the waters row is a plain label while there is one lake: no chevron, no press (${JSON.stringify(wl)})`);
   const pins = s.pois.filter((p) => p.kind === 'birthplace');
   check(pins.length === 5 && pins.every((p) => p.px >= panel.w && p.px <= 1280 && p.py >= 0 && p.py <= 720), `desk: the five pins are on the map in what the panel leaves (${pins.map((p) => p.id).join(', ')})`);
+
+  // the day's lake fact (2026-11-24, moved from the loading screen): one quiet line on the free map, clear of Surprise me, the + and −
+  // column and the map credit; ?hour: the first fact; a tap the next
+  const fx = await page.evaluate(() => {
+    const q = (s) => { const e = document.querySelector(s); const b = e?.getBoundingClientRect(); return b && b.width ? { l: b.left, t: b.top, r: b.right, b: b.bottom } : null; };
+    const f = document.querySelector('.lk-livechart .lkc-fact');
+    return { text: f?.textContent ?? null, shown: !!f && !f.hidden && f.getClientRects().length > 0, font: f ? getComputedStyle(f).fontFamily.split(',')[0].replace(/"/g, '') + ' ' + getComputedStyle(f).fontStyle : null,
+      f: q('.lk-livechart .lkc-fact'), sur: q('.lk-livechart .lkc-surprise'), ctl: q('.lkc-ctl'), osm: q('#lk-load .lk-osm'), panel: q('#lk-load .lk-card') };
+  });
+  const hit = (a, b) => !!a && !!b && a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+  check(fx.shown && fx.text === 'Lake Tahoe is 501 m deep at its deepest point.' && fx.font === 'Jost italic', `desk: the chart's lake fact, the first on a deterministic page, in the chart's italic (${JSON.stringify({ text: fx.text, font: fx.font })})`);
+  check(fx.f && fx.f.l >= fx.panel.r && fx.f.r <= 1280 && fx.f.b <= 720 && !hit(fx.f, fx.sur) && !hit(fx.f, fx.ctl) && !hit(fx.f, fx.osm) && fx.f.b <= fx.sur.t, `desk: the fact sits over Surprise me on the free map, touching nothing (${JSON.stringify(fx.f)})`);
+  await page.click('.lk-livechart .lkc-fact'); await page.waitForTimeout(200);
+  const fx2 = await page.evaluate(() => ({ text: document.querySelector('.lk-livechart .lkc-fact').textContent, sel: window.__velia.m4.ui.services.get('liveChart').state.selected ?? null }));
+  check(fx2.text === 'Fannette Island is the only island in Lake Tahoe.' && !fx2.sel, `desk: a tap shows the next fact and selects nothing on the map (${JSON.stringify(fx2)})`);
 
   // the owner's help for a map you may not know moves: the + / − pair, the crosshair cursor, the one-time hint
   check(await page.evaluate(() => document.querySelector('.lkc-hint').textContent === 'Scroll to zoom · drag to move'), 'help: the hint reads "Scroll to zoom · drag to move" on a desktop');
@@ -328,7 +343,7 @@ for (const how of ['button', 'dblclick', 'keyboard']) {
 const stack = (page) => page.evaluate(() => {
   const r = (q) => { const e = document.querySelector(q); const b = e?.getBoundingClientRect(); return b && b.width ? { t: b.top, b: b.bottom } : null; };
   const links = [...document.querySelectorAll('#lk-load .lk-links > .lk-link')].filter((b) => b.getClientRects().length).map((b) => b.getBoundingClientRect());
-  return { by: r('#lk-load .lk-by'), sum: r('#lk-load .lk-ledger'), plan: r('#lk-load .lk-row.plan'), linkT: Math.min(...links.map((l) => l.top)), linkB: Math.max(...links.map((l) => l.bottom)), foot: r('#lk-load .lk-foot'), h: innerHeight };
+  return { by: r('#lk-load .lk-hero'), sum: r('#lk-load .lk-ledger'), plan: r('#lk-load .lk-row.plan'), linkT: Math.min(...links.map((l) => l.top)), linkB: Math.max(...links.map((l) => l.bottom)), foot: r('#lk-load .lk-foot'), h: innerHeight };
 });
 const grouped = (g) => g.by.b <= g.sum.t && g.sum.b <= g.plan.t && g.plan.b <= g.linkT && g.linkB <= g.foot.t && g.foot.b <= g.h && g.foot.b > g.h - 70 && g.sum.t - g.by.b < 70 && g.linkT - g.plan.b < 60;
 for (const [w, h] of [[1280, 720], [1920, 1080], [1280, 650]]) {
@@ -346,6 +361,7 @@ for (const [w, h] of [[1280, 720], [1920, 1080], [1280, 650]]) {
     await page.keyboard.press('Escape'); await page.waitForTimeout(1200);
     const gm = await stack(page);
     check(grouped(gm), `${w}×${h}: the in-game menu is the same (${JSON.stringify(gm)})`);
+    check(await page.evaluate(() => document.querySelector('.lkc-fact')?.hidden === true), `${w}×${h}: no lake fact in the in-game menu (the entrance only)`);
   }
   check(errors.length === 0, `${w}×${h}: no page errors (${errors.slice(0, 2).join(' | ')})`);
   await ctx.close();
@@ -366,6 +382,10 @@ for (const [w, h] of [[844, 390], [667, 375]]) {
   check(await page.evaluate(() => document.querySelector('.lkc-hint').textContent === 'Pinch to zoom · drag to move'), `${w}×${h}: the hint says "Pinch to zoom · drag to move"`);
   const sp = await rect(page, '.lk-livechart .lkc-surprise');
   check(sp && sp.h >= 44 && sp.l >= box.l && sp.r <= box.r, `${w}×${h}: Surprise me is a 44 px target inside the map (${sp?.h})`);
+  // the day's lake fact: the chart's caption under the box, one line, on the card, clear of the thumb column
+  const pf = await page.evaluate(() => { const f = document.querySelector('#lk-load .lk-card > .lkc-fact'), c = document.querySelector('#lk-load .lk-card').getBoundingClientRect(), b = f?.getBoundingClientRect();
+    return f && { l: b.left, t: b.top, r: b.right, b: b.bottom, shown: !f.hidden && f.getClientRects().length > 0, one: f.scrollWidth <= f.clientWidth + 1, text: f.textContent, cb: c.bottom }; });
+  check(pf && pf.shown && pf.one && pf.t >= box.b && pf.b <= pf.cb && Math.abs(pf.l - box.l) <= 2 && pf.r <= sail.l, `${w}×${h}: the lake fact is the map's caption, under it on one line (${JSON.stringify(pf)})`);
   const pins = s.pois.filter((p) => p.kind === 'birthplace');
   check(pins.length === 5 && pins.every((p) => p.px >= 0 && p.px <= box.w && p.py >= 0 && p.py <= box.h), `${w}×${h}: all five pins are in the box (${pins.map((p) => `${p.id}@${p.px | 0},${p.py | 0}`).join(' ')})`);
   // a pin then Sail (two taps); the first visit's one tap is checked on desktop and below

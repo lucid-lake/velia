@@ -73,11 +73,10 @@ ${P} .lk-card .lk-news{height:44px;min-height:44px;justify-content:flex-start;ju
 ${P} .lk-card .lk-supl,${P} .lk-card .lk-ver{display:none}
 /* one family with the desktop panel (owner, 2026-11-19: "audit the phone card as well"): one edge (16 px), one scale (8 / 16), the panel's pills and foot style */
 @font-face{font-family:'Velia Script';font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/pinyon-script-400.woff2) format('woff2')}
-@font-face{font-family:'Velia Caps';font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/cormorant-sc-600.woff2) format('woff2')}
 ${P} .lk-card .lk-word{left:16px;top:10px;height:44px;display:flex;align-items:center;line-height:1;font-size:26px}
 ${P} .lk-card .lk-row.lk-sum{left:16px;top:56px;min-height:44px;font-size:15px;letter-spacing:.01em;padding:0;margin:0;max-width:calc(100% - var(--lk-rc) - 48px)}
 ${P} .lk-card .lk-row.lk-sum .ch{font-size:20px;opacity:.8}
-:root[data-f-phone-card=on][data-map-card=box] #lk-load .lk-card .lk-livechart{left:16px;top:108px;bottom:16px;width:calc(100% - var(--lk-rc) - 48px)}
+:root[data-f-phone-card=on][data-map-card=box] #lk-load .lk-card .lk-livechart{left:16px;top:108px;bottom:36px;width:calc(100% - var(--lk-rc) - 48px)}   /* 36: the chart's caption, the day's lake fact, sits under it (ui/chart/chartFact.js) */
 ${P} .lk-card .lk-livechart .lkc-lyb{top:12px;right:12px}
 ${P} .lk-card .lk-livechart .lkc-ctl{right:12px}
 ${P} .lk-card .lk-livechart .lkc-surprise{left:12px;bottom:12px}
@@ -102,9 +101,9 @@ ${P} .lk-card .lk-news .t{font:inherit;letter-spacing:inherit}
    Support has its brass dot, so the three words line up */
 ${P} .lk-card .lk-gh{height:44px;min-height:44px;justify-content:flex-start;gap:7px;padding:0 14px;border-radius:8px;font:400 16px/1 var(--lk-ui);letter-spacing:.04em;color:var(--navy)}
 ${P} .lk-card .lk-gh .lk-ghm{width:14px;height:14px}
-/* the slogan, where the header has the room: right of VELIA, the script, the brass wave, the small caps (the desktop panel's treatment, smaller) */
+/* the slogan, where the header has the room: right of VELIA, the script, the brass wave, the tracked caps (the desktop panel's treatment, smaller) */
 ${P} .lk-card .lk-hero .hs1{display:block;font:400 23px/1 'Velia Script','Snell Roundhand',Georgia,serif;font-style:italic;font-synthesis:none;white-space:nowrap}
-${P} .lk-card .lk-hero .hs2{display:block;font:600 10.5px/1 'Velia Caps','Cormorant SC',Georgia,serif;letter-spacing:.22em;text-transform:uppercase;white-space:nowrap;opacity:.92}
+${P} .lk-card .lk-hero .hs2{display:block;font:var(--lk-brand) 11px/1 var(--lk-font);letter-spacing:.28em;text-transform:uppercase;white-space:nowrap;opacity:.92}   /* Jost, the wordmark's face: three faces on the card, as on the panel (2026-11-24) */
 ${P} .lk-card .lk-hero .hw{display:block;width:96px;height:7px;margin:3px 0 4px 2px;fill:none;stroke:var(--brass);stroke-width:1;stroke-linecap:round;opacity:.9;overflow:visible}
 @media (min-width:760px){${P} .lk-card .lk-hero{display:block!important;position:absolute;left:150px;top:9px;margin:0;z-index:1;pointer-events:none;color:var(--navy)}}
 @media (prefers-reduced-motion:reduce){${P}[data-state=home] .lk-card{animation:none}}`;
