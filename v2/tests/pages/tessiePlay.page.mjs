@@ -36,9 +36,11 @@ async function open(q, opts = {}) {
 }
 // the skipper's line while she shows herself (v2/living/tessiePlayer.js createBeLine): up on the hint row, no pill
 const BE_UP = () => window.__velia.tessiePlay?.pill && /Tessie.s up\./.test(document.querySelector('.lk-hint .row.in')?.textContent ?? '');
-const beLine = (page) => page.evaluate(() => { const r = document.querySelector('.lk-hint .row.in'), b = r?.getBoundingClientRect();
+// the line's facts, read in the frame it is found (a loaded machine: a later read can meet the next line)
+const beLine = (page) => page.waitForFunction(() => { const r = document.querySelector('.lk-hint .row.in'), b = r?.getBoundingClientRect();
+  if (!window.__velia.tessiePlay?.pill || !/Tessie.s up\./.test(r?.textContent ?? '')) return null;
   return { text: (r?.textContent ?? '').replace(/\s+/g, ' ').trim(), caps: [...(r?.querySelectorAll('.cap') ?? [])].map((c) => c.textContent), tap: r?.dataset.tap != null, h: Math.round(b?.height ?? 0), top: Math.round(b?.top ?? -1),
-    pe: r ? getComputedStyle(r).pointerEvents : null, barB: Math.round(document.querySelector('.lk-view')?.getBoundingClientRect().bottom ?? -1), pill: !!document.querySelector('#lk-tplay .tp-be') }; });
+    pe: r ? getComputedStyle(r).pointerEvents : null, barB: Math.round(document.querySelector('.lk-view')?.getBoundingClientRect().bottom ?? -1), pill: !!document.querySelector('#lk-tplay .tp-be') }; }, null, { timeout: 30000 }).then((h) => h.jsonValue(), () => ({}));
 const stats = (page) => page.evaluate(() => window.__velia.tessiePlay?.stats() ?? null);
 try {
   // ---- the panel and Dive in ----
@@ -255,10 +257,12 @@ try {
   {
     const { ctx, page, errors } = await open(`${Q}&tessie=now&touch=1`);
     await page.evaluate(() => { const hm = window.__velia.m4?.front?.home; if (hm?.isOpen) hm.close(); });
-    const tUp = await page.waitForFunction(BE_UP, null, { timeout: 120000 }).then(() => true, () => false);
-    const tl0 = await beLine(page);
-    check(tUp && tl0.text === "Tessie's up. Tap here to be her." && !tl0.caps.length && tl0.tap && tl0.pe === 'auto' && tl0.h >= 44 && !tl0.pill, `tablet: "Tessie's up. Tap here to be her.", the line its own tap target, ${tl0.h} px high (${JSON.stringify(tl0)})`);
-    await page.click('.lk-hint .row.in[data-tap]');
+    // read the line and tap it in the frame it is found (a loaded machine: a later read can meet the next line)
+    const tl0 = await page.waitForFunction(() => { const r = document.querySelector('.lk-hint .row.in'); if (!window.__velia.tessiePlay?.pill || !/Tessie.s up\./.test(r?.textContent ?? '')) return null;
+      const b = r.getBoundingClientRect(), out = { text: r.textContent.replace(/\s+/g, ' ').trim(), caps: r.querySelectorAll('.cap').length, tap: r.dataset.tap != null, pe: getComputedStyle(r).pointerEvents, h: Math.round(b.height), pill: !!document.querySelector('#lk-tplay .tp-be') };
+      const x = b.left + b.width / 2, y = b.top + b.height / 2; out.hit = document.elementFromPoint(x, y)?.closest?.('.lk-hint .row') === r;   // the line is what a finger there touches
+      r.click(); return out; }, null, { timeout: 120000 }).then((h) => h.jsonValue(), () => ({}));
+    check(tl0.text === "Tessie's up. Tap here to be her." && !tl0.caps && tl0.tap && tl0.pe === 'auto' && tl0.hit && tl0.h >= 44 && !tl0.pill, `tablet: "Tessie's up. Tap here to be her.", the line its own tap target, ${tl0.h} px high (${JSON.stringify(tl0)})`);
     const tapped = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie', null, { timeout: 8000 }).then(() => true, () => false);
     check(tapped && (await stats(page))?.entry === 'swap', 'tablet: a tap on the line swaps her in');
     const t = await page.evaluate(() => { const L = document.querySelector('#lk-tplay .tp-lunge'); return { shown: !document.querySelector('#lk-tplay .tp-touch')?.hidden, bite: L ? Math.round(L.getBoundingClientRect().width) : 0, word: L?.textContent, dive: !!document.querySelector('#lk-tplay .tp-dive'), keys: !!document.querySelector('#lk-tplay .tp-legend')?.getClientRects().length }; });
