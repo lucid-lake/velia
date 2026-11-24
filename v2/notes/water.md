@@ -367,6 +367,22 @@ only the body terms remain (soft).
   shader and read the sky LUT again cost +0.7 to +0.9 ms at 2560: register pressure, not the terms' work.
 - The phone takes the same terms (all ALU, no texture read).
 
+## The wind lanes held in the water (2026-11-24: render/spume.js laneAt, spLane, laneDrift; render/water.js foam streaks)
+
+**The fault:** fine streaks slid across the water much faster than the waves, "like another plane under the boat", now and then.
+They were v1's wind lanes (2.2 m across, 30 m along: they roughen the short ripples and the mirror), and, on aged foam, the
+foam map's streaks. Both laid their pattern along the wind by turning world coordinates to it about a fixed point (the lanes
+the bay centre, the streaks the world's origin), so when the wind turned by dθ a lane at the boat moved sideways by its
+distance from that point × dθ; and the lanes' drift was t × U, so a gust (dU) slid them by t × dU, t being seconds since
+load. Measured on the JS twin with the page's own wind at the boat (`windField.sample`, a 0.6°/s shift at wind 9, the
+Sail start 565 m from the anchor, 0.1 s pairs): the lanes moved 5.5–6 m/s across the wind and 20–50 m/s along it; 5 km
+out, 45–60 and over 100 m/s. Their own drift is 0.03 × U = 0.38 m/s; the sea's peak waves run 4–6 m/s.
+**The fix:** each lane set lies along a fixed direction, 10° apart (`SPUME.binDeg`), and the local wind cross-fades the
+nearest two (the blend keeps the variance), so a turn fades one set into the next in place; the drift is the frame's own
+integral of 0.03 × the wind (`laneDrift`, `F.spume.zw`), shared by the foam streaks (the foam map drifts at the same 3 %).
+After: 0 m/s across, ≤ 0.5 m/s along (the measure's step), at the start and 5 km out. The lanes still lie within 4° of the
+wind and stay 30 : 1 stretched (`v2/tests/spume.test.mjs`); the new test fails on the old lanes.
+
 ## The shore: breakers, swash, wet sand, spray (#56 M3, 2026-11-14: sim/shoreField.js, render/shore.js, render/water.js; tools/v2-shore-bake.mjs)
 
 Ultra-Water's shore (MIT, Humpalumps; `src/water/shoreMap.js`, `OceanSurface.js` SHORE_GLSL / shoreWaves / SWASH_GLSL, `Spray.js`),

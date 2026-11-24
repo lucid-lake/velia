@@ -48,7 +48,7 @@ ${wgsl}
 @group(0) @binding(3) var<storage, read> T: array<f32>;
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g: vec3u) {
   let i = g.x; if (i >= arrayLength(&O)) { return; }
-  let p = P[i]; O[i] = spLane(p.xy, p.z, p.w, T[i]);
+  let p = P[i]; O[i] = spLane(p.xy, p.z, p.w, T[i], vec2f(0.0));
 }`;
       const mod = dev.createShaderModule({ code });
       const info = await mod.getCompilationInfo();

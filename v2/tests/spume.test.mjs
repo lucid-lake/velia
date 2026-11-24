@@ -67,6 +67,22 @@ test('steady: a frame (1/60 s) moves a lane by a hair, never a flicker', () => {
   assert.equal(laneAt(2310.5, -1404.2, 17, 0.6, 777), laneAt(2310.5, -1404.2, 17, 0.6, 777));
 });
 
+// the fault of 2026-11-24: v1's lanes turned with the local wind about the bay centre, so a wind shift swept them across the water
+// at their distance from it × the turn's rate (45–60 m/s 5 km out in a 0.6°/s shift), and the drift t × U slid them t × dU in a gust.
+// Now a turn cross-fades fixed lane sets and the drift is integrated: across 0.1 s the profile across the wind moves only by the drift
+test('a wind shift fades the lanes, never sweeps them: 5 km out, the wind turning 0.6°/s and gusting, the lanes move ≤ the surface drift', () => {
+  const x = 3500, z = -5000, prof = (U, a, t, d) => { const p = []; const px = -Math.sin(a), pz = Math.cos(a); for (let s = -15; s <= 15; s += 0.05) p.push(laneAt(x + px * s, z + pz * s, U, a, t, d)); return p; };
+  const shift = (p, q) => { let best = 0, be = Infinity; for (let k = -80; k <= 80; k++) { let e = 0, n = 0; for (let i = 0; i < p.length; i++) { const j = i + k; if (j >= 0 && j < q.length) { e += (p[i] - q[j]) ** 2; n++; } } if (e / n < be) { be = e / n; best = k; } } return best * 0.05; };
+  const d = [0, 0];
+  let worst = 0;
+  for (let i = 0; i < 20; i++) {
+    const t = 600 + i * 0.1, a0 = 0.3 + 0.6 * DEG * i * 0.1, a1 = a0 + 0.06 * DEG, U0 = 9 + Math.sin(i), U1 = 9 + Math.sin(i + 0.1);
+    const d0 = [...d]; d[0] += 0.03 * U0 * Math.cos(a0) * 0.1; d[1] += 0.03 * U0 * Math.sin(a0) * 0.1;
+    worst = Math.max(worst, Math.abs(shift(prof(U0, a0, t, d0), prof(U1, a1, t + 0.1, d))));
+  }
+  assert.ok(worst <= 0.1, `the lanes moved ${worst.toFixed(2)} m across the wind in 0.1 s (the drift: 0.03 m)`);
+});
+
 test('MaterialX Perlin: 0 on the lattice, within ±1, deterministic, smooth', () => {
   for (const [x, y] of [[0, 0], [3, -7], [-120, 44]]) assert.ok(Math.abs(perlin2(x, y)) < 1e-12);
   let lo = 0, hi = 0;

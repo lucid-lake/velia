@@ -29,7 +29,8 @@ export const SPUME = Object.freeze({
   acrossM: 2.2, alongM: 30,      // a lane: across and along the wind (m)
   warpM: 70, warpAmp: 6,         // the meander: a 70 m noise, ± 6 m
   warpRate: 0.004, evolve: 0.02, // the meander's and the lanes' slow change (1/s)
-  drift: 0.03,                   // the lanes drift downwind at 3 % of the wind
+  drift: 0.03,                   // the lanes drift downwind at 3 % of the wind (integrated: laneDrift)
+  binDeg: 10,                    // the lane sets' fixed directions, this far apart; the local wind cross-fades the nearest two
   anchor: CURRENT_WATERS.terrain.bayCentre,   // the lanes' origin (v1's bay centre: fp32 keeps centimetres)
   look: { extentM: 256, ahead: 0.3, fade: [0.78, 0.96] },   // v1's look map square round a point ahead of the camera
   albedo: 0.9, shade: [0.8, 0.25],                          // v1's foam colour (as render/wake.js WAKE_FOAM)
@@ -57,18 +58,33 @@ export function perlin2(px, py) {
 
 import { smooth } from '../../src/sim/core/math.js';
 
-// v1's streakAt at a rest point (x, z: world m), the wind U (m/s) travelling along `travelRad` (atan2(z, x)), t (s): −1..1
-export function laneAt(x, z, U, travelRad, t) {
-  const S = SPUME, Ue = Math.max(U, 0.1), wx = Math.cos(travelRad), wz = Math.sin(travelRad);
-  const rx = x - S.anchor[0], rz = z - S.anchor[1];
+// v1's streakAt at a rest point (x, z: world m), the wind U (m/s) travelling along `travelRad` (atan2(z, x)), t (s): −1..1.
+// drift: the lanes' downwind drift so far, (x, z) m (the frame's integral of SPUME.drift × the wind: laneDrift below).
+// fix (2026-11-24, the lanes ran 5–50 m/s across the water during a wind shift): v1's lanes are the pattern turned to the
+// local wind about the bay centre, so a turn of dθ swept a lane at the boat sideways by its distance from the anchor × dθ
+// (6 m/s at the Sail start in a 0.6°/s shift, 50 m/s 5 km out), and v1's drift t × U moved them by t × dU (minutes into a
+// sail, a gust slid them tens of metres). Now each lane set lies along a fixed direction (SPUME.binDeg apart) and the
+// local wind cross-fades the two nearest (variance kept): a turn fades one set into the next where it lies, and the drift
+// is the water's own, integrated over the frames. Nothing moves faster than the surface drift.
+function laneBin(rx, rz, a, t, drift) {
+  const S = SPUME, wx = Math.cos(a), wz = Math.sin(a);
   const qx = rx / S.warpM, qz = rz / S.warpM;
-  const r2x = rx + perlin2(qx + t * S.warpRate, qz) * S.warpAmp, r2z = rz + perlin2(qz + 3.7, qx - t * S.warpRate) * S.warpAmp;
-  const along = r2x * wx + r2z * wz - t * Ue * S.drift, across = -r2x * wz + r2z * wx;
+  const r2x = rx + perlin2(qx + t * S.warpRate, qz) * S.warpAmp - drift[0], r2z = rz + perlin2(qz + 3.7, qx - t * S.warpRate) * S.warpAmp - drift[1];
+  const along = r2x * wx + r2z * wz, across = -r2x * wz + r2z * wx;
   const ev = t * S.evolve;
   const nA = perlin2(across / S.acrossM + ev, along / S.alongM);
   const nB = perlin2(across / (S.acrossM * 0.5) + 7.3 - ev, along / (S.alongM * 0.5) + 2.1);
-  return Math.min(1, Math.max(-1, nA * 1.5 + nB * 0.6)) * smooth(S.laneOnset[0], S.laneOnset[1], Ue);
+  return nA * 1.5 + nB * 0.6;
 }
+export function laneAt(x, z, U, travelRad, t, drift = [0, 0]) {
+  const S = SPUME, Ue = Math.max(U, 0.1), step = S.binDeg * Math.PI / 180;
+  const b = travelRad / step, k = Math.floor(b), w1 = b - k, w0 = 1 - w1;
+  const rx = x - S.anchor[0], rz = z - S.anchor[1];
+  const v = (laneBin(rx, rz, k * step, t, drift) * w0 + laneBin(rx, rz, (k + 1) * step, t, drift) * w1) / Math.sqrt(w0 * w0 + w1 * w1);
+  return Math.min(1, Math.max(-1, v)) * smooth(S.laneOnset[0], S.laneOnset[1], Ue);
+}
+// the lanes' drift: SPUME.drift × the frame's wind (U m/s along travelRad) over dt sim s (at most 1 s a call) added into d ([x, z] m)
+export function laneDrift(d, U, travelRad, dt) { const k = SPUME.drift * Math.max(U, 0) * Math.min(Math.max(dt, 0), 1); d[0] += Math.cos(travelRad) * k; d[1] += Math.sin(travelRad) * k; return d; }
 
 // v1's laneVisibility × the look map's square: 1 near, 0 where a lane would alias or past the map.
 // fpV: dist × the pixel's angle / √max(vy, 0.02) (m); vy: the view's vertical component; d: the point minus the look
@@ -109,17 +125,24 @@ fn spNoise(p: vec2f) -> f32 {   // MaterialX's 2-D Perlin (v1's mx_noise_float)
   let c = spGrad(spHash(X, Y + 1), fx, fy - 1.0); let d = spGrad(spHash(X + 1, Y + 1), fx - 1.0, fy - 1.0);
   return 0.6616 * ((1.0 - v) * (a * (1.0 - u) + b * u) + v * (c * (1.0 - u) + d * u));
 }
-// v1's streakAt (src/wind-cues.js): the lanes along the wind, −1..1
-fn spLane(xz: vec2f, U0: f32, travel: f32, t: f32) -> f32 {
-  let U = max(U0, 0.1); let wd = vec2f(cos(travel), sin(travel));
-  let r = xz - vec2f(${f(SPUME.anchor[0])}, ${f(SPUME.anchor[1])});
+// v1's streakAt (src/wind-cues.js): the lanes along the wind, −1..1; drift: the lanes' drift so far (m, F.spume.zw). Two lane
+// sets on fixed directions ${SPUME.binDeg}° apart, cross-faded by the local wind (laneAt above: no set turns, none sweeps)
+fn spLaneBin(r: vec2f, a: f32, t: f32, drift: vec2f) -> f32 {
+  let wd = vec2f(cos(a), sin(a));
   let q = r / ${f(SPUME.warpM)};
-  let r2 = r + vec2f(spNoise(vec2f(q.x + t * ${SPUME.warpRate}, q.y)), spNoise(vec2f(q.y + 3.7, q.x - t * ${SPUME.warpRate}))) * ${f(SPUME.warpAmp)};
-  let along = dot(r2, wd) - t * U * ${SPUME.drift}; let across = dot(r2, vec2f(-wd.y, wd.x));
+  let r2 = r + vec2f(spNoise(vec2f(q.x + t * ${SPUME.warpRate}, q.y)), spNoise(vec2f(q.y + 3.7, q.x - t * ${SPUME.warpRate}))) * ${f(SPUME.warpAmp)} - drift;
+  let along = dot(r2, wd); let across = dot(r2, vec2f(-wd.y, wd.x));
   let ev = t * ${SPUME.evolve};
   let nA = spNoise(vec2f(across / ${f(SPUME.acrossM)} + ev, along / ${f(SPUME.alongM)}));
   let nB = spNoise(vec2f(across / ${f(SPUME.acrossM * 0.5)} + 7.3 - ev, along / ${f(SPUME.alongM * 0.5)} + 2.1));
-  return clamp(nA * 1.5 + nB * 0.6, -1.0, 1.0) * smoothstep(${f(SPUME.laneOnset[0])}, ${f(SPUME.laneOnset[1])}, U);
+  return nA * 1.5 + nB * 0.6;
+}
+fn spLane(xz: vec2f, U0: f32, travel: f32, t: f32, drift: vec2f) -> f32 {
+  let U = max(U0, 0.1); let step = ${(SPUME.binDeg * Math.PI / 180).toFixed(8)};
+  let b = travel / step; let k = floor(b); let w1 = b - k; let w0 = 1.0 - w1;
+  let r = xz - vec2f(${f(SPUME.anchor[0])}, ${f(SPUME.anchor[1])});
+  let v = (spLaneBin(r, k * step, t, drift) * w0 + spLaneBin(r, (k + 1.0) * step, t, drift) * w1) / sqrt(w0 * w0 + w1 * w1);
+  return clamp(v, -1.0, 1.0) * smoothstep(${f(SPUME.laneOnset[0])}, ${f(SPUME.laneOnset[1])}, U);
 }
 // v1's foam colour: albedo 0.9 under the sky's and the sun's light, shaded a little by the normal n against the sun s
 fn spumeColour(n: vec3f, s: vec3f, eSky: vec3f, eSun: vec3f) -> vec3f {

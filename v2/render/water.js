@@ -576,7 +576,7 @@ fn glintOf(n: vec3f, v: vec3f, l: vec3f, s2: f32) -> f32 {
   let wl = windLocal(v.world.xz); let wv = wl.xy; let localU = length(wv); let aroundU = wl.z;
   let fpV = v1Footprint(toEye);
   var lane = 0.0;   // W3: v1's wind lanes as drawn (signed: rough lanes, smooth slicks), along the local wind
-  if (wfxOn(${BITS.lanes}u) && localU > ${STREAK_ONSET[0]}.0) { let lv = laneVisAt(v.uv0, toEye, fpV); if (lv > 0.0) { lane = spLane(v.uv0, localU, atan2(wv.y, wv.x), F.cam.w) * lv; } }
+  if (wfxOn(${BITS.lanes}u) && localU > ${STREAK_ONSET[0]}.0) { let lv = laneVisAt(v.uv0, toEye, fpV); if (lv > 0.0) { lane = spLane(v.uv0, localU, atan2(wv.y, wv.x), F.cam.w, F.spume.zw) * lv; } }
   var gustW = 0.0;   // W1: the gust look's weight
   if (wfxOn(${BITS.gust}u)) { gustW = gustWeight(v.world.xz, wv, localU, aroundU); }
   gustW = clamp(gustW + max(lane, 0.0) * ${LANE.dark}, 0.0, 1.0);   // a lane darkens like a gust
@@ -731,10 +731,18 @@ fn glintOf(n: vec3f, v: vec3f, l: vec3f, s2: f32) -> f32 {
       // the density's own ceiling, so the caps' share and their shading stay v2's; the depth's calm as the caps'
       let fm = fmAt(v.uv0);
       if (fm.x > 0.002) {
-        let wd = vec2f(cos(F.wind.y), sin(F.wind.y));
-        let su = vec2f(dot(v.uv0, wd), dot(v.uv0, vec2f(-wd.y, wd.x))) * FM_STREAK;
-        let sgx = vec2f(dot(fgx, wd), dot(fgx, vec2f(-wd.y, wd.x))) * FM_STREAK; let sgy = vec2f(dot(fgy, wd), dot(fgy, vec2f(-wd.y, wd.x))) * FM_STREAK;
-        let st = textureSampleGrad(tSlope, sRep, su, FOAM_LAYER, sgx, sgy).r;
+        // the streaks on two fixed directions (spume.js SPUME.binDeg apart) cross-faded by the wind, riding the foam's drift
+        // (F.spume.zw: the same 3 % of the wind as the map's): turned with the wind about the world's origin, they swept
+        // sideways at the boat's distance from it × the turn's rate during a shift (the lanes' fault, render/spume.js laneAt)
+        let fb = F.wind.y / FM_BIN; let fk = floor(fb); let fw1 = fb - fk; let fw0 = 1.0 - fw1;
+        var st = 0.0;
+        for (var j = 0; j < 2; j++) {
+          let a = (fk + f32(j)) * FM_BIN; let wd = vec2f(cos(a), sin(a)); let wp = vec2f(-wd.y, wd.x); let ux = v.uv0 - F.spume.zw;
+          let su = vec2f(dot(ux, wd), dot(ux, wp)) * FM_STREAK;
+          let sgx = vec2f(dot(fgx, wd), dot(fgx, wp)) * FM_STREAK; let sgy = vec2f(dot(fgy, wd), dot(fgy, wp)) * FM_STREAK;
+          st += (textureSampleGrad(tSlope, sRep, su, FOAM_LAYER, sgx, sgy).r - 0.5) * select(fw0, fw1, j == 1);
+        }
+        st = 0.5 + st / sqrt(fw0 * fw0 + fw1 * fw1);
         let freshK = clamp(fm.y * 2.0, 0.0, 1.0);
         let aged = clamp(fm.x * FM_GAIN, 0.0, 1.0) * mix(smoothstep(0.25, 0.75, st) * 1.2, 1.0, freshK);
         dens = max(dens, aged * v.damp.y);
