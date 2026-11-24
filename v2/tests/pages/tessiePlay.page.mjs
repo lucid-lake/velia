@@ -2,13 +2,14 @@
 //   the panel: the waters row is a plain label, one conditions row (the clock, the weather, the wind); the Boat plate offers Tessie; picked, the
 //     mode pill goes (one way to play: owner, 2026-11-20) and Set sail reads Dive in; back on the Halcyon the pill and its lit mode return; Dive in starts you as her (the menu's entry), the Halcyon 150 m off
 //     with the skipper aboard, a sailboat laid ahead within 10 s
-//   the swap: she shows herself near the boat and the Be Tessie (T) pill appears; T swaps you in (her dial, the folded cockpit's flag),
+//   the swap: she shows herself near the boat and the skipper's line says "Tessie's up. [T] to be her." (no pill); T swaps you in (her dial, the folded cockpit's flag),
 //     T swaps back (the boat's hands again)
 //   the controls (the owner's final scheme; phase 2a's climb rate): C near or far; a drag down and W take her under and the eye
 //     goes under with her (the eye-under flag), a drag up brings her up (the flag off); Q dives, E comes up; Space with nothing in
 //     reach is the snap; a knockdown: a sailboat of the busy lake ahead, W and Space when the corners turn amber (locked): over past 55°, and still capsized on camera 30 s later (owner: "they stay capsized")
 //   her mark: the live map's card on her water offers Be Tessie; it moves you there and you are her
-//   a phone: no play as Tessie at all (no hook, no Tessie cell, no pill)
+//   a tablet: the line reads "Tessie's up. Tap here to be her." and is the tap target (44 px or more); the tap swaps her in
+//   a phone: no play as Tessie at all (no hook, no Tessie cell, no line)
 // Run by `npm run test:pages:v2 -- tessiePlay`, or node v2/tests/pages/tessiePlay.page.mjs --base http://127.0.0.1:<port>
 import { chromium } from 'playwright-core';
 import { openMap } from './liveMap.mjs';
@@ -33,6 +34,13 @@ async function open(q, opts = {}) {
   await page.waitForFunction(() => window.__velia?.ready, null, { timeout: 240000 });
   return { ctx, page, errors };
 }
+// the skipper's line while she shows herself (v2/living/tessiePlayer.js createBeLine): up on the hint row, no pill
+const BE_UP = () => window.__velia.tessiePlay?.pill && /Tessie.s up\./.test(document.querySelector('.lk-hint .row.in')?.textContent ?? '');
+// the line's facts, read in the frame it is found (a loaded machine: a later read can meet the next line)
+const beLine = (page) => page.waitForFunction(() => { const r = document.querySelector('.lk-hint .row.in'), b = r?.getBoundingClientRect();
+  if (!window.__velia.tessiePlay?.pill || !/Tessie.s up\./.test(r?.textContent ?? '')) return null;
+  return { text: (r?.textContent ?? '').replace(/\s+/g, ' ').trim(), caps: [...(r?.querySelectorAll('.cap') ?? [])].map((c) => c.textContent), tap: r?.dataset.tap != null, h: Math.round(b?.height ?? 0), top: Math.round(b?.top ?? -1),
+    pe: r ? getComputedStyle(r).pointerEvents : null, barB: Math.round(document.querySelector('.lk-view')?.getBoundingClientRect().bottom ?? -1), pill: !!document.querySelector('#lk-tplay .tp-be') }; }, null, { timeout: 30000 }).then((h) => h.jsonValue(), () => ({}));
 const stats = (page) => page.evaluate(() => window.__velia.tessiePlay?.stats() ?? null);
 try {
   // ---- the panel and Dive in ----
@@ -83,16 +91,15 @@ try {
     check(errors.length === 0, `panel: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }
-  // ---- the swap pill, T in, a knockdown, T back ----
+  // ---- the line, T in, a knockdown, T back ----
   {
     const { ctx, page, errors } = await open(`${Q}&tessie=now`);
     await page.evaluate(() => { const hm = window.__velia.m4?.front?.home; if (hm?.isOpen) hm.close(); });
-    const pill = await page.waitForFunction(() => window.__velia.tessiePlay?.pill && !document.querySelector('#lk-tplay .tp-be')?.hidden, null, { timeout: 120000 }).then(() => true, () => false);
-    check(pill, 'swap: she shows herself near the boat, the Be Tessie (T) pill appears');
-    // the UI audit (decisions C, E): "Be Tessie" with Sail's cap, one row under the skipper's line (never on it)
-    const be = await page.evaluate(() => { const b = document.querySelector('#lk-tplay .tp-be'), h = document.querySelector('.lk-hint'); const cs = getComputedStyle(document.documentElement);
-      return { text: b?.querySelector('span:not(.cap)')?.textContent, cap: b?.querySelector('.cap')?.textContent, top: Math.round(b?.getBoundingClientRect().top ?? 0), hintTop: Math.round(h?.getBoundingClientRect().top ?? -1), capTop: cs.getPropertyValue('--lk-cap-top').trim() }; });
-    check(be.text === 'Be Tessie' && be.cap === 'T' && be.hintTop > 0 && be.top >= be.hintTop + 40, `the pill: "Be Tessie" [T], a row under the skipper's line (${JSON.stringify(be)})`);
+    const up = await page.waitForFunction(BE_UP, null, { timeout: 120000 }).then(() => true, () => false);
+    check(up, 'swap: she shows herself near the boat, the skipper\'s line says so');
+    // owner, 2026-11-24: one skipper line, not a pill: "Tessie's up. [T] to be her.", the cap inline, on the hint row under the bar
+    const be = await beLine(page);
+    check(/^Tessie's up\. ?T to be her\.$/.test(be.text) && be.caps.join() === 'T' && !be.tap && !be.pill && be.barB > 0 && be.top >= be.barB && be.top < be.barB + 60, `the line: "Tessie's up. [T] to be her." on the skipper's row under the bar, no pill (${JSON.stringify(be)})`);
     // owner, 2026-11-21: the boat's instrument plate (COG, TWS, TWA, VMG, HEEL, RUD) showed while you were her. Pro puts it up first
     const boatHud = () => page.evaluate(() => ['.lk-nav', '.lk-pro', '.lk-cp', '.lk-thr', '.lk-guide', '.lk-calm-mark'].filter((q) => [...document.querySelectorAll(q)].some((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05)));
     await page.evaluate(() => window.__velia.m4.ui.setPro(true)); await page.waitForTimeout(1200);
@@ -246,15 +253,20 @@ try {
     check(errors.length === 0, `swap: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }
-  // ---- a tablet's hands: the pill pressed, the floating stick, Lunge and Dive ----
+  // ---- a tablet's hands: the line tapped, the floating stick, Lunge and Dive ----
   {
     const { ctx, page, errors } = await open(`${Q}&tessie=now&touch=1`);
     await page.evaluate(() => { const hm = window.__velia.m4?.front?.home; if (hm?.isOpen) hm.close(); });
-    await page.waitForFunction(() => window.__velia.tessiePlay?.pill && !document.querySelector('#lk-tplay .tp-be')?.hidden, null, { timeout: 120000 }).catch(() => {});
-    await page.click('#lk-tplay .tp-be');
-    await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie', null, { timeout: 8000 }).catch(() => {});
+    // read the line and tap it in the frame it is found (a loaded machine: a later read can meet the next line)
+    const tl0 = await page.waitForFunction(() => { const r = document.querySelector('.lk-hint .row.in'); if (!window.__velia.tessiePlay?.pill || !/Tessie.s up\./.test(r?.textContent ?? '')) return null;
+      const b = r.getBoundingClientRect(), out = { text: r.textContent.replace(/\s+/g, ' ').trim(), caps: r.querySelectorAll('.cap').length, tap: r.dataset.tap != null, pe: getComputedStyle(r).pointerEvents, h: Math.round(b.height), pill: !!document.querySelector('#lk-tplay .tp-be') };
+      const x = b.left + b.width / 2, y = b.top + b.height / 2; out.hit = document.elementFromPoint(x, y)?.closest?.('.lk-hint .row') === r;   // the line is what a finger there touches
+      r.click(); return out; }, null, { timeout: 120000 }).then((h) => h.jsonValue(), () => ({}));
+    check(tl0.text === "Tessie's up. Tap here to be her." && !tl0.caps && tl0.tap && tl0.pe === 'auto' && tl0.hit && tl0.h >= 44 && !tl0.pill, `tablet: "Tessie's up. Tap here to be her.", the line its own tap target, ${tl0.h} px high (${JSON.stringify(tl0)})`);
+    const tapped = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie', null, { timeout: 8000 }).then(() => true, () => false);
+    check(tapped && (await stats(page))?.entry === 'swap', 'tablet: a tap on the line swaps her in');
     const t = await page.evaluate(() => { const L = document.querySelector('#lk-tplay .tp-lunge'); return { shown: !document.querySelector('#lk-tplay .tp-touch')?.hidden, bite: L ? Math.round(L.getBoundingClientRect().width) : 0, word: L?.textContent, dive: !!document.querySelector('#lk-tplay .tp-dive'), keys: !!document.querySelector('#lk-tplay .tp-legend')?.getClientRects().length }; });
-    check(t.shown && t.bite === 104 && t.word === 'Bite' && !t.dive && !t.keys, `tablet: the pill pressed swaps; the stick's zone, one Bite button (${t.bite} px), no Dive, no key line (${JSON.stringify(t)})`);
+    check(t.shown && t.bite === 104 && t.word === 'Bite' && !t.dive && !t.keys, `tablet: the stick's zone, one Bite button (${t.bite} px), no Dive, no key line (${JSON.stringify(t)})`);
     const v0 = (await stats(page))?.ctl?.want ?? 0;
     await page.mouse.move(200, 500); await page.mouse.down(); await page.mouse.move(200, 430, { steps: 4 }); await page.waitForTimeout(2500);
     const v1 = (await stats(page))?.ctl?.want ?? 0;

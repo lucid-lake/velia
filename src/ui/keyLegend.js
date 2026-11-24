@@ -187,7 +187,7 @@ export const loadCounts = (storage) => {
   } catch { return zero(); }
 };
 
-// the one key cap (the UI audit, 2026-11-21: v2's other caps, Tessie's legend and her Be Tessie pill, use this rule, not their own)
+// the one key cap (the UI audit, 2026-11-21: v2's other caps, Tessie's legend, use this rule, not their own)
 export const CAP_RULE = 'display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:1.9em;height:1.9em;padding:0 .45em;border:var(--lk-line) solid currentColor;border-radius:var(--lk-radius)';
 // a cap's face (v2's six rows: Space reads SPC)
 export const capFace = (k, six = true) => (six && k === 'Space' ? 'SPC' : k);
