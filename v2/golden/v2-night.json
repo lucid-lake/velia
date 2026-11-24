@@ -1,0 +1,10 @@
+{
+  "name": "v2-night",
+  "url": "http://127.0.0.1:5174/?hour=21.6&wind=2&settle=40&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M5e: v1's night pose (21:36, the sun −11°): the airglow sky's blue on the water, the boat lit as by a long exposure, the stern light, the town lights across the lake, the ridges dark"
+}

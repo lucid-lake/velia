@@ -1,0 +1,10 @@
+{
+  "name": "v2-cruise",
+  "url": "http://127.0.0.1:5174/?mode=cruise&hour=17.9&wind=2&cruisecam=astern&chillsettle=4&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "Cruise (BACKLOG-v2 #11): v1's Cruise capture on v2: the start the chart picks (chooseStart), 20 s settled on her heading, then 4 s sailed by v1's navigator and AI skipper and directed; the Boat camera (v1's astern view) at 17:54, Tahoe's day wind at level 2"
+}

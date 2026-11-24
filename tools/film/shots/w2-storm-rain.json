@@ -1,0 +1,55 @@
+{
+ "name": "w2-storm-rain",
+ "title": "Velia week 2: rain and the ground bolt",
+ "about": "Week 2 shot 4c: rain over the bow from the helm, the HERO ground bolt; 1 s handles.",
+ "duration": 4.5,
+ "fps": 30,
+ "warm": 30,
+ "url": {
+  "mode": "sail",
+  "hour": 18.25,
+  "seed": 1,
+  "wind": 2,
+  "start": "1300,-850",
+  "heading": 290,
+  "weather": "storm",
+  "stormrate": 2,
+  "stormref": "1200,-1050",
+  "cloudcov": 0.6,
+  "view": "helm",
+  "settle": 8,
+  "stormt": 122,
+  "helmlook": "-14,14"
+ },
+ "camera": {
+  "rig": true,
+  "keys": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "fov": 62
+   },
+   {
+    "t": 4.5,
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "fov": 62
+   }
+  ]
+ },
+ "formats": {
+  "L": {
+   "w": 1920,
+   "h": 1080,
+   "ss": 1.5,
+   "mbps": 20
+  }
+ }
+}

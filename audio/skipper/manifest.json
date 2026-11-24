@@ -1,0 +1,674 @@
+{
+ "note": "The old skipper's spoken hints (tools/skipper_voice.py): Kokoro-82M (Apache-2.0), voice bm_george, speed 0.88, -19 LUFS. The key is the hash of the spoken text (src/ui/skipperLines.js hashText); each clip is <hash>.opus and <hash>.m4a.",
+ "voice": "bm_george",
+ "speed": 0.88,
+ "lang": "en-gb",
+ "lufs": -19.0,
+ "clips": {
+  "41b6d76184a": {
+   "text": "Sails shaking. Pull the sails in.",
+   "ids": [
+    "pull.keys.plain",
+    "pull.pointer.plain"
+   ],
+   "dur": 2.78,
+   "opus": 8441,
+   "m4a": 12326
+  },
+  "e75f55a5f77": {
+   "text": "She’s overpowered. Ease the sails out.",
+   "ids": [
+    "ease.keys.plain",
+    "ease.pointer.plain"
+   ],
+   "dur": 3.06,
+   "opus": 9162,
+   "m4a": 13391
+  },
+  "2101dea128a": {
+   "text": "Nothing’s pulling. Turn away from the wind.",
+   "ids": [
+    "irons.keys.plain"
+   ],
+   "dur": 3.03,
+   "opus": 9213,
+   "m4a": 13230
+  },
+  "8941ab22c7c": {
+   "text": "Nothing’s pulling. Click the water off the wind.",
+   "ids": [
+    "irons.pointer.plain"
+   ],
+   "dur": 3.41,
+   "opus": 10385,
+   "m4a": 14951
+  },
+  "a8dd6b3671d": {
+   "text": "She needs a hand. Steer.",
+   "ids": [
+    "steer.keys.plain"
+   ],
+   "dur": 2.39,
+   "opus": 7088,
+   "m4a": 10676
+  },
+  "90f94e9f59b": {
+   "text": "She needs a hand. Click the water to steer there.",
+   "ids": [
+    "steer.pointer.plain"
+   ],
+   "dur": 3.52,
+   "opus": 10531,
+   "m4a": 15317
+  },
+  "5eb3a515c58": {
+   "text": "Keep her moving. Steer through faster.",
+   "ids": [
+    "tack.keys.plain"
+   ],
+   "dur": 2.94,
+   "opus": 8807,
+   "m4a": 12885
+  },
+  "2788cffca7b": {
+   "text": "Keep her moving. Click the water across the wind, past it.",
+   "ids": [
+    "tack.pointer.plain"
+   ],
+   "dur": 4.21,
+   "opus": 12498,
+   "m4a": 18040
+  },
+  "02b482371fc": {
+   "text": "Boom swings hard. Pull in, then steer gently downwind.",
+   "ids": [
+    "gybe.keys.plain"
+   ],
+   "dur": 4.49,
+   "opus": 13370,
+   "m4a": 19345
+  },
+  "afcc1aa6a93": {
+   "text": "Boom swings hard. Drag the sail line in, then click gently downwind.",
+   "ids": [
+    "gybe.pointer.plain"
+   ],
+   "dur": 5.49,
+   "opus": 16461,
+   "m4a": 23527
+  },
+  "f275a7e64b8": {
+   "text": "She’s had enough. Ease in a strong puff.",
+   "ids": [
+    "heavy.keys.plain"
+   ],
+   "dur": 3.03,
+   "opus": 8938,
+   "m4a": 13296
+  },
+  "48d35d136ee": {
+   "text": "She’s had enough. Drag the sail line out in a strong puff.",
+   "ids": [
+    "heavy.pointer.plain"
+   ],
+   "dur": 4.24,
+   "opus": 12541,
+   "m4a": 18323
+  },
+  "fe8bc96843d": {
+   "text": "Look up the lake. Dark water means wind.",
+   "ids": [
+    "gusts.keys.plain",
+    "gusts.pointer.plain"
+   ],
+   "dur": 3.08,
+   "opus": 9338,
+   "m4a": 13684
+  },
+  "d35fc6e9b2a": {
+   "text": "Feel her settle. Tune the sails until the boat locks in.",
+   "ids": [
+    "groove.keys.plain"
+   ],
+   "dur": 4.23,
+   "opus": 12735,
+   "m4a": 18162
+  },
+  "8c95816129c": {
+   "text": "Feel her settle. Drag the sail line until the boat locks in.",
+   "ids": [
+    "groove.pointer.plain"
+   ],
+   "dur": 4.46,
+   "opus": 13479,
+   "m4a": 19245
+  },
+  "ef3b697c24f": {
+   "text": "Lost? The chart shows where you are.",
+   "ids": [
+    "chart.keys.plain",
+    "chart.keys.sailor"
+   ],
+   "dur": 2.61,
+   "opus": 7849,
+   "m4a": 13351
+  },
+  "ea917bda010": {
+   "text": "Lost? Click the chart, top right.",
+   "ids": [
+    "chart.pointer.plain",
+    "chart.pointer.sailor"
+   ],
+   "dur": 2.71,
+   "opus": 7997,
+   "m4a": 13663
+  },
+  "839d10c38bd": {
+   "text": "Want a different breeze? Try these.",
+   "ids": [
+    "wind.keys.plain",
+    "wind.pointer.plain",
+    "wind.keys.sailor",
+    "wind.pointer.sailor"
+   ],
+   "dur": 2.7,
+   "opus": 8126,
+   "m4a": 12100
+  },
+  "67a102d6140": {
+   "text": "Have a look round. Come closer.",
+   "ids": [
+    "look.keys.plain",
+    "look.pointer.plain",
+    "look.keys.sailor",
+    "look.pointer.sailor"
+   ],
+   "dur": 2.5,
+   "opus": 7513,
+   "m4a": 11164
+  },
+  "d10a069729c": {
+   "text": "Forgot a key? Hold it down.",
+   "ids": [
+    "whisper.keys.plain",
+    "whisper.pointer.plain",
+    "whisper.keys.sailor",
+    "whisper.pointer.sailor"
+   ],
+   "dur": 2.47,
+   "opus": 7576,
+   "m4a": 10891
+  },
+  "e41bda208ba": {
+   "text": "Sails shaking. Trim the sheets.",
+   "ids": [
+    "pull.keys.sailor",
+    "pull.pointer.sailor"
+   ],
+   "dur": 2.61,
+   "opus": 7811,
+   "m4a": 11640
+  },
+  "96da31ac339": {
+   "text": "She’s overpowered. Ease the sheets.",
+   "ids": [
+    "ease.keys.sailor",
+    "ease.pointer.sailor"
+   ],
+   "dur": 2.81,
+   "opus": 8364,
+   "m4a": 12406
+  },
+  "db75f334aab": {
+   "text": "Nothing’s pulling. Bear away, you are in irons.",
+   "ids": [
+    "irons.keys.sailor"
+   ],
+   "dur": 3.63,
+   "opus": 11011,
+   "m4a": 15818
+  },
+  "84843a423fb": {
+   "text": "Nothing’s pulling. Click the water, to bear away.",
+   "ids": [
+    "irons.pointer.sailor"
+   ],
+   "dur": 3.81,
+   "opus": 11577,
+   "m4a": 16591
+  },
+  "d1dbaaa2afd": {
+   "text": "She needs a hand. Take the helm.",
+   "ids": [
+    "steer.keys.sailor"
+   ],
+   "dur": 2.61,
+   "opus": 7831,
+   "m4a": 11504
+  },
+  "c5b3a6b3ecf": {
+   "text": "She needs a hand. Click the water, a course for the helm.",
+   "ids": [
+    "steer.pointer.sailor"
+   ],
+   "dur": 3.95,
+   "opus": 11867,
+   "m4a": 17078
+  },
+  "9a2ded8c13f": {
+   "text": "Keep her moving. Tack through the wind faster.",
+   "ids": [
+    "tack.keys.sailor"
+   ],
+   "dur": 3.3,
+   "opus": 9918,
+   "m4a": 14460
+  },
+  "a3984b0f174": {
+   "text": "Keep her moving. Click the water across the wind, to tack.",
+   "ids": [
+    "tack.pointer.sailor"
+   ],
+   "dur": 4.14,
+   "opus": 12397,
+   "m4a": 17851
+  },
+  "756608e7ded": {
+   "text": "Boom swings hard. Sheet in, then gybe gently.",
+   "ids": [
+    "gybe.keys.sailor"
+   ],
+   "dur": 3.95,
+   "opus": 11788,
+   "m4a": 17118
+  },
+  "84fa49f562b": {
+   "text": "Boom swings hard. Drag the sail line in, then click gently to gybe.",
+   "ids": [
+    "gybe.pointer.sailor"
+   ],
+   "dur": 5.59,
+   "opus": 16810,
+   "m4a": 23751
+  },
+  "95d7b397146": {
+   "text": "She’s had enough. Ease in a gust.",
+   "ids": [
+    "heavy.keys.sailor"
+   ],
+   "dur": 2.72,
+   "opus": 8015,
+   "m4a": 11969
+  },
+  "926289c723c": {
+   "text": "She’s had enough. Drag the sail line out to ease in a gust.",
+   "ids": [
+    "heavy.pointer.sailor"
+   ],
+   "dur": 4.34,
+   "opus": 12898,
+   "m4a": 18646
+  },
+  "7482979c09c": {
+   "text": "Look up the lake. Dark water is a gust.",
+   "ids": [
+    "gusts.keys.sailor",
+    "gusts.pointer.sailor"
+   ],
+   "dur": 3.11,
+   "opus": 9335,
+   "m4a": 13747
+  },
+  "ac8668e7ab3": {
+   "text": "Feel her settle. Trim to the groove.",
+   "ids": [
+    "groove.keys.sailor"
+   ],
+   "dur": 2.86,
+   "opus": 8622,
+   "m4a": 12681
+  },
+  "9b01a80eedd": {
+   "text": "Feel her settle. Drag the sail line until you find the groove.",
+   "ids": [
+    "groove.pointer.sailor"
+   ],
+   "dur": 4.55,
+   "opus": 13656,
+   "m4a": 19610
+  },
+  "f6d0518d9bc": {
+   "text": "Easy now. Under one knot to anchor.",
+   "ids": [
+    "note.fast"
+   ],
+   "dur": 2.95,
+   "opus": 8818,
+   "m4a": 12940
+  },
+  "6c4ee0d34e9": {
+   "text": "Too deep here. I’d anchor in three to twenty metres.",
+   "ids": [
+    "note.deep"
+   ],
+   "dur": 3.82,
+   "opus": 11483,
+   "m4a": 16557
+  },
+  "b1b94e911dd": {
+   "text": "Too shallow to hold here.",
+   "ids": [
+    "note.shallow"
+   ],
+   "dur": 2.28,
+   "opus": 6947,
+   "m4a": 10241
+  },
+  "31c99177cf4": {
+   "text": "Let go of the mooring or the pier first.",
+   "ids": [
+    "note.tied"
+   ],
+   "dur": 3.14,
+   "opus": 9711,
+   "m4a": 13799
+  },
+  "e98c524438a": {
+   "text": "Easy now. Slower to pick up the ball.",
+   "ids": [
+    "note.ballFast"
+   ],
+   "dur": 2.96,
+   "opus": 8976,
+   "m4a": 13006
+  },
+  "4ad9c549de6": {
+   "text": "Bow to the ball, nice and easy.",
+   "ids": [
+    "note.ball"
+   ],
+   "dur": 2.93,
+   "opus": 9040,
+   "m4a": 12922
+  },
+  "cbfa4eded2f": {
+   "text": "Stop alongside, then tie up.",
+   "ids": [
+    "note.pierFast"
+   ],
+   "dur": 2.66,
+   "opus": 8040,
+   "m4a": 11834
+  },
+  "208baa582f6": {
+   "text": "Within a metre of the pier, then tie up.",
+   "ids": [
+    "note.pier"
+   ],
+   "dur": 3.12,
+   "opus": 9415,
+   "m4a": 13788
+  },
+  "61afd044405": {
+   "text": "She’s at anchor. The dawn button waits for the morning.",
+   "ids": [
+    "note.dawn"
+   ],
+   "dur": 3.68,
+   "opus": 11155,
+   "m4a": 16062
+  },
+  "8e5145f9dac": {
+   "text": "The sails can carry her now. Stop the engine.",
+   "ids": [
+    "note.engine"
+   ],
+   "dur": 3.53,
+   "opus": 10659,
+   "m4a": 15291
+  },
+  "82b0d541f16": {
+   "text": "Engine off. The sails have her.",
+   "ids": [
+    "note.engineOffSails"
+   ],
+   "dur": 2.73,
+   "opus": 8313,
+   "m4a": 12133
+  },
+  "2ec36b57dff": {
+   "text": "Engine off. Anchor holding.",
+   "ids": [
+    "note.engineOffAnchor"
+   ],
+   "dur": 2.53,
+   "opus": 7899,
+   "m4a": 11330
+  },
+  "f3b0789e2b4": {
+   "text": "Engine off. She’s made fast.",
+   "ids": [
+    "note.engineOffFast"
+   ],
+   "dur": 2.64,
+   "opus": 8089,
+   "m4a": 11657
+  },
+  "0bee63e9703": {
+   "text": "Plus for more power. Minus to slow. She holds the setting.",
+   "ids": [
+    "note.motorKeys"
+   ],
+   "dur": 4.38,
+   "opus": 13137,
+   "m4a": 18877
+  },
+  "877c1e064dd": {
+   "text": "Sails down? Press Y.",
+   "ids": [
+    "note.sailsDown"
+   ],
+   "dur": 2.26,
+   "opus": 6855,
+   "m4a": 10495
+  },
+  "949f4fa39d5": {
+   "text": "There’s a mooring ball. Pick it up?",
+   "ids": [
+    "note.ballNear"
+   ],
+   "dur": 2.64,
+   "opus": 7849,
+   "m4a": 11701
+  },
+  "cd95b003d78": {
+   "text": "Shoaling. Bear away.",
+   "ids": [
+    "note.shoal"
+   ],
+   "dur": 2.02,
+   "opus": 6009,
+   "m4a": 10628
+  },
+  "e0a40f9afab": {
+   "text": "Rocks ahead. Bear away.",
+   "ids": [
+    "note.rocks"
+   ],
+   "dur": 2.26,
+   "opus": 6901,
+   "m4a": 10218
+  },
+  "25ec7a4b183": {
+   "text": "The shore is ahead. Bear away.",
+   "ids": [
+    "note.shore"
+   ],
+   "dur": 2.6,
+   "opus": 7790,
+   "m4a": 11546
+  },
+  "fa5867a7e9a": {
+   "text": "Shoal water ahead. Bearing away.",
+   "ids": [
+    "note.shoalAuto"
+   ],
+   "dur": 2.77,
+   "opus": 8246,
+   "m4a": 12228
+  },
+  "8dd0844c780": {
+   "text": "Rocks ahead. Bearing away.",
+   "ids": [
+    "note.rocksAuto"
+   ],
+   "dur": 2.31,
+   "opus": 7080,
+   "m4a": 10433
+  },
+  "8b3b6be80f5": {
+   "text": "The shore is ahead. Bearing away.",
+   "ids": [
+    "note.shoreAuto"
+   ],
+   "dur": 2.66,
+   "opus": 7993,
+   "m4a": 11799
+  },
+  "a0192928910": {
+   "text": "No way round. Luff up, and stop her.",
+   "ids": [
+    "note.boxed"
+   ],
+   "dur": 3.01,
+   "opus": 9051,
+   "m4a": 13370
+  },
+  "e5461bf0c07": {
+   "text": "We are aground. Reverse the engine, or back the jib.",
+   "ids": [
+    "note.aground"
+   ],
+   "dur": 4.12,
+   "opus": 12382,
+   "m4a": 17862
+  },
+  "3913d38e28b": {
+   "text": "Kedging off. Hauling on the anchor.",
+   "ids": [
+    "note.kedge"
+   ],
+   "dur": 2.78,
+   "opus": 8356,
+   "m4a": 12186
+  },
+  "a75558ab388": {
+   "text": "No deep water near enough to kedge. Try the engine.",
+   "ids": [
+    "note.noKedge"
+   ],
+   "dur": 3.86,
+   "opus": 11670,
+   "m4a": 16695
+  },
+  "29cb651aff7": {
+   "text": "She floats. Easy now.",
+   "ids": [
+    "note.floating"
+   ],
+   "dur": 2.21,
+   "opus": 6635,
+   "m4a": 10108
+  },
+  "1e586c1004d": {
+   "text": "You have the helm.",
+   "ids": [
+    "note.helm"
+   ],
+   "dur": 1.6,
+   "opus": 4881,
+   "m4a": 7509
+  },
+  "6c622762319": {
+   "text": "Turn your phone for the full cockpit.",
+   "ids": [
+    "note.turnPhone"
+   ],
+   "dur": 2.89,
+   "opus": 8770,
+   "m4a": 12710
+  },
+  "009b7fd704a": {
+   "text": "Jib’s let fly. She’ll round up and stop. Sheet in to sail on.",
+   "ids": [
+    "note.letFlyJib"
+   ],
+   "dur": 4.7,
+   "opus": 14561,
+   "m4a": 20028
+  },
+  "db5ded1d1ab": {
+   "text": "Jib let go. She’ll turn into the wind and stop. Pull it in to sail on.",
+   "ids": [
+    "note.letFlyJibPlain"
+   ],
+   "dur": 5.19,
+   "opus": 15401,
+   "m4a": 22261
+  },
+  "1d735f0bfbb": {
+   "text": "Sheets let fly. She’ll slow down. Sheet in to sail on.",
+   "ids": [
+    "note.letFlyBoth"
+   ],
+   "dur": 4.21,
+   "opus": 12640,
+   "m4a": 18109
+  },
+  "13a45ed7a4e": {
+   "text": "Dark water ahead. Here comes a gust.",
+   "ids": [
+    "note.gustAhead"
+   ],
+   "dur": 2.97,
+   "opus": 8986,
+   "m4a": 13021
+  },
+  "e67fd403f8b": {
+   "text": "Look down. You can see the bottom.",
+   "ids": [
+    "note.bottom"
+   ],
+   "dur": 2.61,
+   "opus": 7873,
+   "m4a": 12098
+  },
+  "7f9839cac8e": {
+   "text": "Want the sheets yourself? Try Settings.",
+   "ids": [
+    "note.sheets"
+   ],
+   "dur": 2.99,
+   "opus": 8952,
+   "m4a": 13336
+  },
+  "70d16d7f1fb": {
+   "text": "She’s coming back. Sail!",
+   "ids": [
+    "note.tessieChase"
+   ],
+   "dur": 2.28,
+   "opus": 6783,
+   "m4a": 10308
+  },
+  "033b9ca17b5": {
+   "text": "That was close.",
+   "ids": [
+    "note.tessieClose"
+   ],
+   "dur": 1.46,
+   "opus": 4475,
+   "m4a": 6803
+  }
+ }
+}

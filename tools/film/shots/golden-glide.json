@@ -1,0 +1,100 @@
+{
+  "name": "golden-glide",
+  "title": "Velia: golden glide",
+  "about": "Golden hour (18:24 PDT), a level-2 breeze: the camera glides with the boat off its starboard bow; the low sun on Fannette Island and its pines, glitter on the water, the bay's west wall beyond.",
+  "duration": 6,
+  "fps": 60,
+  "url": {
+    "mode": "cruise",
+    "hour": 18.4,
+    "seed": 1,
+    "wind": 2,
+    "start": "300,-150",
+    "heading": 200,
+    "settle": 20,
+    "chillsettle": 26
+  },
+  "camera": {
+    "frame": "boat0",
+    "ease": "linear",
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          44,
+          4,
+          40
+        ],
+        "fov": 24
+      },
+      {
+        "t": 6,
+        "pos": [
+          44,
+          4,
+          52
+        ],
+        "fov": 24
+      }
+    ],
+    "aim": {
+      "at": "boat",
+      "offset": [
+        0,
+        3.2,
+        0
+      ],
+      "tau": 1.5
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "ss": 1.5,
+      "mbps": 50
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "ss": 1.5,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "camera": {
+        "keys": [
+          {
+            "t": 0,
+            "pos": [
+              30,
+              3,
+              26
+            ],
+            "fov": 46
+          },
+          {
+            "t": 6,
+            "pos": [
+              30,
+              3,
+              42
+            ],
+            "fov": 46
+          }
+        ],
+        "aim": {
+          "offset": [
+            -7,
+            7,
+            2.5
+          ],
+          "tau": 0.8
+        }
+      }
+    }
+  },
+  "warm": 30
+}

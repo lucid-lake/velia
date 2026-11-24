@@ -1,0 +1,80 @@
+{
+  "name": "gust",
+  "title": "Velia: the gust",
+  "about": "H3 17:00, level 3: calm lit water, a gust's dark line runs in from the left, the boat heels and surges past the lens. Split: gust-approach (0-3 s, the loop seed) and gust-heel (3-7 s, the hook).",
+  "duration": 4.4,
+  "fps": 60,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "start": "300,-300",
+    "heading": 110,
+    "settle": 16
+  },
+  "camera": {
+    "frame": "boat0",
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          55,
+          1.5,
+          14
+        ],
+        "fov": 20
+      }
+    ],
+    "aim": {
+      "at": "boat",
+      "offset": [
+        7.5,
+        4.5,
+        -2.9
+      ],
+      "tau": 1.2
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "ss": 1.5,
+      "mbps": 50
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "ss": 1.5,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "camera": {
+        "keys": [
+          {
+            "t": 0,
+            "pos": [
+              48,
+              1.5,
+              14
+            ],
+            "fov": 32
+          }
+        ],
+        "aim": {
+          "offset": [
+            7.5,
+            6.5,
+            -2.9
+          ]
+        }
+      }
+    }
+  }
+}

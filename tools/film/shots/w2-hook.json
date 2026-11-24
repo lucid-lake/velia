@@ -1,0 +1,61 @@
+{
+ "name": "w2-hook",
+ "title": "Velia week 2: the finale over the mast",
+ "about": "Week 2 shot 1: the finale peak (show 290-293 s) from low behind the boat at the viewing spot; 1 s handles.",
+ "duration": 5,
+ "fps": 30,
+ "warm": 30,
+ "fw": true,
+ "url": {
+  "mode": "sail",
+  "seed": 1,
+  "start": "1350,-960",
+  "heading": 243,
+  "wind": 1,
+  "clouds": 0,
+  "cloudcov": 0,
+  "settle": 4,
+  "hour": 22.05444,
+  "fwt": 289
+ },
+ "camera": {
+  "frame": "boat0",
+  "ease": "linear",
+  "keys": [
+   {
+    "t": 0,
+    "pos": [
+     -4,
+     1.0,
+     -12
+    ],
+    "fov": 70
+   },
+   {
+    "t": 5,
+    "pos": [
+     -3.5,
+     1.0,
+     0.9
+    ],
+    "fov": 70
+   }
+  ],
+  "aim": {
+   "at": [
+    1127,
+    101,
+    -846
+   ],
+   "tau": 1.5
+  }
+ },
+ "formats": {
+  "L": {
+   "w": 1920,
+   "h": 1080,
+   "ss": 1.5,
+   "mbps": 20
+  }
+ }
+}

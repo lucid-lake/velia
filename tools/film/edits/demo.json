@@ -1,0 +1,187 @@
+{
+  "name": "DEMO",
+  "title": "Your first minute",
+  "about": "\u00a7 DEMO (audited 14:06; welcome \u2192 card in the game's own order): the first minute of Velia, silent, one 17:00 session, the dawn mirror last, the loop navy to navy.",
+  "fps": 60,
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "deliver": [
+        [
+          3840,
+          2160,
+          50
+        ],
+        [
+          1920,
+          1080,
+          16
+        ]
+      ]
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "deliver": [
+        [
+          1080,
+          1920,
+          18
+        ],
+        [
+          2160,
+          3840,
+          50
+        ]
+      ]
+    }
+  },
+  "card": {
+    "free": "Free. No login. In your browser.",
+    "soon": "More boats, maps and multiplayer coming soon"
+  },
+  "segments": [
+    {
+      "clip": "card-welcome",
+      "in": 0,
+      "dur": 2.4
+    },
+    {
+      "clip": "card-home",
+      "in": 0,
+      "dur": 4.5,
+      "push": 0.03,
+      "dissolve": 12
+    },
+    {
+      "clip": "sail-start",
+      "in": 0,
+      "dur": 4.0,
+      "dissolve": 12
+    },
+    {
+      "clip": "ctl-wheel",
+      "in": 0.5,
+      "dur": 3.0
+    },
+    {
+      "clip": "sail-start",
+      "in": 7.0,
+      "dur": 3.0
+    },
+    {
+      "clip": "gust",
+      "in": 0,
+      "dur": 4.0
+    },
+    {
+      "clip": "helm-view",
+      "in": 0,
+      "dur": 3.0
+    },
+    {
+      "clip": "fannette-arrive",
+      "in": 1.0,
+      "dur": 6.0
+    },
+    {
+      "clip": "ctl-winch",
+      "in": 0,
+      "dur": 3.0
+    },
+    {
+      "clip": "ctl-trim",
+      "in": 0.3,
+      "dur": 1.7
+    },
+    {
+      "clip": "ctl-lever",
+      "in": 0.3,
+      "dur": 1.7
+    },
+    {
+      "clip": "ctl-wheel-keys",
+      "in": 0.2,
+      "dur": 1.8,
+      "overlay": "inputs"
+    },
+    {
+      "clip": "big-wave-surf",
+      "in": 0,
+      "dur": 4.0
+    },
+    {
+      "clip": "cruise-drift",
+      "in": 0,
+      "dur": 2.8
+    },
+    {
+      "clip": "regatta-start",
+      "in": 0.6,
+      "dur": 2.2
+    },
+    {
+      "clip": "regatta-heel",
+      "in": 0.4,
+      "dur": 1.5
+    },
+    {
+      "clip": "regatta-tack",
+      "in": 0.4,
+      "dur": 2.2
+    },
+    {
+      "clip": "regatta-wren",
+      "in": 0.4,
+      "dur": 1.6
+    },
+    {
+      "clip": "mirror-dawn",
+      "in": 1.0,
+      "dur": 3.0
+    },
+    {
+      "card": true,
+      "dur": 4.0
+    },
+    {
+      "clip": "card-welcome",
+      "in": 0,
+      "dur": 0.25,
+      "dissolve": 12
+    }
+  ],
+  "texts": [
+    {
+      "text": "Real wind. Real water.",
+      "from": 17.4,
+      "to": 20.1
+    },
+    {
+      "text": "Touch \u00b7 Keyboard \u00b7 Gamepad",
+      "from": 32.6,
+      "to": 37.6
+    },
+    {
+      "text": "Photorealistic. In your browser.",
+      "from": 38.5,
+      "to": 41.3
+    },
+    {
+      "text": "Cruise: let her sail.",
+      "from": 42.0,
+      "to": 44.35
+    },
+    {
+      "text": "Regatta: race the AI.",
+      "from": 44.9,
+      "to": 51.8
+    },
+    {
+      "text": "Free. No login.",
+      "from": 52.35,
+      "to": 54.8
+    }
+  ]
+}

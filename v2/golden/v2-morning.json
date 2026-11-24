@@ -1,0 +1,10 @@
+{
+  "name": "v2-morning",
+  "url": "http://127.0.0.1:5174/?hour=7&cam=B&camyaw=75&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M2: cam B's eye on Emerald Bay, toward the low sun east-north-east out of the mouth: the glint path, the backlit walls"
+}

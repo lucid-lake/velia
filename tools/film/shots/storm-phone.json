@@ -1,0 +1,62 @@
+{
+  "name": "storm-phone",
+  "title": "Velia: the storm's peak, on a phone",
+  "about": "wow/storm: 15 s of the afternoon storm's peak (arc 125–155 s at 2×) on the phone tier (Low), portrait: Halcyon close-hauled up Emerald Bay in the outflow, rain, two scripted bolts on the ridge ahead, thunder at its distance's delay.",
+  "duration": 15,
+  "fps": 30,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 18.25,
+    "seed": 1,
+    "wind": 2,
+    "start": "1300,-850",
+    "heading": 290,
+    "weather": "storm",
+    "stormt": 125,
+    "stormrate": 2,
+    "stormref": "1200,-1050",
+    "quality": "low",
+    "cloudcov": 0.6,
+    "settle": 8
+  },
+  "camera": {
+    "frame": "boat",
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          5,
+          3.5,
+          -17
+        ],
+        "fov": 64
+      },
+      {
+        "t": 15,
+        "pos": [
+          5,
+          3.5,
+          -16
+        ],
+        "fov": 64
+      }
+    ],
+    "aim": {
+      "at": "boat",
+      "offset": [
+        0,
+        7,
+        0
+      ],
+      "tau": 1.5
+    }
+  },
+  "formats": {
+    "P": {
+      "w": 720,
+      "h": 1280,
+      "mbps": 8
+    }
+  }
+}

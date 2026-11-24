@@ -1,0 +1,10 @@
+{
+  "name": "v2-sail-wind",
+  "url": "http://127.0.0.1:5174/?hour=16&windspeed=11&winddir=200&camyaw=120&camdist=2&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M3: a strong wind (11 m/s from 200) from the starboard quarter: the heel, the sails drawing, the keel through the water"
+}

@@ -1,0 +1,156 @@
+{
+  "_": "One lake's profile: the home card's text and chart, then everything the game reads about the place: the terrain files, the origin, the day, the season, the named points, the bay, the start, the regions (one row each: its birthplaces, traffic, kayak lanes, put-ins, cup and chart name; v2/sim/regions.js), the landmarks, the scenic stops and the names said on screen.",
+  "id": "tahoe-emerald",
+  "hero": "The water is real. The helm is yours.",
+  "what": "Free, no sign-up.",
+  "title": "Velia \u00b7 Sail Lake Tahoe in your browser",
+  "description": "A sailing game in your browser: real wind, real water on Lake Tahoe's Emerald Bay. Free, no sign-up.",
+  "place": "Emerald Bay",
+  "region": "Lake Tahoe",
+  "stills": {
+    "hero": "/brand/stills/reel-golden-1920.webp",
+    "hero960": "/brand/stills/reel-golden-960.webp"
+  },
+  "wind": "A southwest breeze builds through the afternoon and fades at sunset.",
+  "lat": 38.954159,
+  "lon": -120.100464,
+  "soundingsUnit": "metres",
+  "chart": {
+    "box": [520, 480],
+    "metresPerUnit": 2.4,
+    "destination": {
+      "name": "Fannette Island",
+      "at": [350, 326]
+    },
+    "course": {
+      "from": [190, 458],
+      "to": [268, 362]
+    },
+    "contoursM": [10, 30],
+    "northDeg": 0
+  },
+  "day": {
+    "_": "Each map is fixed at its highlight day; the normal day is kept in the system (?day=normal; owner 2026-11-07). Each day's season:.",
+    "utcOffsetH": -7,
+    "highlight": {
+      "date": "2026-07-04",
+      "name": "the Fourth of July",
+      "season": { "name": "early July", "snowLine": 3000, "fullM": 300, "aspectM": 300, "maxSlope": 1.0, "grassDry": 0.35, "bloom": 0.85 }
+    },
+    "normal": {
+      "date": "2026-06-15",
+      "name": "mid-June",
+      "season": { "name": "mid-June", "snowLine": 2850, "fullM": 250, "aspectM": 300, "maxSlope": 1.0, "grassDry": 0.15, "bloom": 1 }
+    }
+  },
+  "terrain": {
+    "dir": "terrain",
+    "full": "tahoe.json",
+    "phone": "tahoe-phone.json",
+    "surfaceM": 1897.89,
+    "root": 81920,
+    "fine": { "x0": -200, "x1": 200, "z0": -200, "z1": 200, "leaf": 40 },
+    "bayCentre": [700, -600],
+    "lakeCentre": [4700, -15200]
+  },
+  "treeline": 2900,
+  "points": {
+    "house": [38.9522, -120.1068],
+    "headBeach": [38.9533, -120.1062],
+    "mouthNW": [38.9657, -120.0832],
+    "mouthSE": [38.9655, -120.0788],
+    "creekTop": [38.9516, -120.1136],
+    "creekMouth": [38.9536, -120.1080],
+    "peak": [38.906, -120.099],
+    "ridgeFrom": [38.900, -120.151],
+    "ridgeTo": [38.845, -120.158],
+    "harbour": [38.9375, -120.0410]
+  },
+  "island": { "searchM": 150, "radiusM": 140 },
+  "bay": { "lengthM": 3000, "maxDepthM": 75, "beachHalfWidthM": 110, "mouthInM": 330, "mouthOutM": 400 },
+  "landmarks": {
+    "ruin": { "sizeM": 4.9 },
+    "house": { "yawDeg": 30, "length": 30, "width": 11 },
+    "peak": { "name": "tallac" },
+    "overlook": { "x": -875, "z": -150 }
+  },
+  "windBay": { "x0": -300, "x1": 1400, "dx": 150, "z0": -1100, "z1": -200, "dz": 100, "deep": -20, "factor": 0.962, "levelAt": [600, -650] },
+  "start": { "x": 1200, "z": -1050, "headingDeg": 251, "speed": 2.75 },
+  "regions": [
+    {
+      "id": "emerald-bay", "name": "Emerald Bay", "centre": [300, -400], "radiusM": 1500, "area": null, "neighbours": ["tahoe-west"], "keepOut": [[-12, 25, 120]],
+      "label": { "id": "n-bay", "text": "Emerald Bay", "x": 560, "z": -360, "cls": "A", "kind": "water", "angle": -33.5, "alt": [[740, -560], [380, -170]] },
+      "birthplaces": [
+        { "id": "tessie", "name": "Tessie's water", "x": 460, "z": -50, "look": [0, 0], "why": "Deep water, 60 m, in her own water. Fannette Island and the tea house 460 m off." },
+        { "id": "fannette", "name": "Off Fannette", "x": 210, "z": 50, "look": [2, 0], "why": "The tea house 200 m off the bow. Vikingsholm and the falls beyond." },
+        { "id": "vikingsholm", "name": "Vikingsholm", "x": -220, "z": 220, "look": [-549, 217], "why": "Off the charted anchorage. The castle, the beach and the falls ahead." },
+        { "id": "narrows", "name": "The narrows", "x": 800, "z": -910, "look": [1495, -1281], "why": "The inner end of the narrows. The channel buoys and the mouth ahead." }
+      ],
+      "kayaks": [
+        { "id": "kayak-tessie-round", "lane": [[300, 60], [560, 100], [640, -60], [560, -170], [380, -150]], "colour": "yellow", "pfd": "red", "mate": { "colour": "red", "pfd": "blue" }},
+        { "id": "kayak-fannette-east", "lane": [[90, -80], [150, 0], [140, 110], [70, 160], [100, 60]], "colour": "red", "pfd": "blue", "mate": { "colour": "yellow", "pfd": "orange" }},
+        { "id": "kayak-vikingsholm-east", "lane": [[-130, 330], [60, 320], [60, 190], [-40, 165], [-110, 230]], "colour": "orange", "pfd": "yellow", "mate": { "colour": "yellow", "pfd": "orange" }},
+        { "id": "kayak-narrows", "lane": [[670, -930], [740, -1035], [790, -1020], [720, -915]], "colour": "orange", "pfd": "yellow", "mate": { "colour": "red", "pfd": "yellow" }},
+        { "id": "kayak-channel-east", "lane": [[980, -610], [1390, -790], [1410, -840], [1000, -660]], "colour": "yellow", "pfd": "blue", "mate": { "colour": "orange", "pfd": "red" }}
+      ],
+      "launchSpots": [
+        { "id": "vikingsholm-beach", "name": "Vikingsholm beach", "at": [-450, 255] },
+        { "id": "boat-camp", "name": "the boat-in campground, north shore", "at": [490, -730] },
+        { "id": "eagle-point-bay", "name": "Eagle Point campground, bay shore", "at": [1590, -980] },
+        { "id": "emerald-point-bay", "name": "Emerald Point, bay shore", "at": [1250, -1165] }
+      ],
+      "boats": [
+        { "id": "bay-lane", "prio": 0, "tint": "#f4f2ec", "sail": { "cloth": "white", "inkA": "#1C2340", "inkB": "#2F5E95", "roseAlpha": 0.55, "number": "" }, "route": [[100, -250], [760, -800], [960, -600], [460, -160]] },
+        { "id": "bay-south", "prio": 1, "tint": "#1d3557", "sail": null, "route": [[-200, 280], [500, 250], [760, -100], [300, -300], [-150, -150]] },
+        { "id": "fannette-round", "prio": 2, "tint": "#efece4", "sail": { "cloth": "tan", "inkA": "#1C2340", "inkB": "#C9A45A", "roseAlpha": 0.6, "number": "312" }, "route": [[-200, -70], [60, -210], [220, 40], [30, 280], [-230, 180]] },
+        { "id": "bay-head", "prio": 4, "tint": "#f1efe8", "sail": { "cloth": "white", "inkA": "#1C2340", "inkB": "#1C2340", "roseAlpha": 0, "number": "" }, "route": [[-160, -110], [-330, 250], [-250, 40]] },
+        { "id": "bay-channel", "prio": 3, "tint": "#f3f1ea", "sail": { "cloth": "cream", "inkA": "#3A4670", "inkB": "#A3312B", "roseAlpha": 0.4, "number": "" }, "route": [[760, -650], [1260, -930], [1690, -1350], [2250, -1700], [1690, -1350], [1260, -930]] }
+      ],
+      "cup": { "id": "emerald-bay", "name": "Emerald Bay", "line": "The legend and the island: sheltered water, short tacks, close scenery.", "races": ["tea-house-run", "tessies-deep", "glass-boat-chase"], "hunt": "chart-the-bay", "huntName": "Chart the Bay" }
+    },
+    {
+      "id": "tahoe-west", "name": "Lake Tahoe", "centre": [2200, -1500], "radiusM": 1700, "area": [[1100, null, null, null], [null, null, null, -1000]], "neighbours": ["emerald-bay"],
+      "label": { "id": "n-tahoe", "text": "Lake Tahoe", "x": 3050, "z": -2250, "cls": "A", "kind": "water", "alt": [[2900, -1700]] },
+      "birthplaces": [
+        { "id": "lake", "name": "Open lake", "x": 2300, "z": -1400, "look": [1700, -1270], "why": "Outside the mouth, on the big lake." }
+      ],
+      "kayaks": [
+        { "id": "kayak-point", "lane": [[2010, -1150], [2080, -1000], [2130, -1010], [2060, -1170]], "colour": "yellow", "pfd": "orange" },
+        { "id": "kayak-mouth-north", "lane": [[1515, -1465], [1615, -1585], [1690, -1580], [1595, -1445]], "colour": "red", "pfd": "orange" },
+        { "id": "kayak-lake-round", "lane": [[2150, -1300], [2300, -1250], [2450, -1350], [2420, -1480], [2250, -1520]], "colour": "orange", "pfd": "red", "mate": { "colour": "yellow", "pfd": "blue" }}
+      ],
+      "launchSpots": [
+        { "id": "eagle-point-lake", "name": "Eagle Point, lake shore", "at": [1930, -1080] },
+        { "id": "emerald-point-lake", "name": "Emerald Point, lake shore", "at": [1445, -1450] },
+        { "id": "west-shore-cove", "name": "the west shore cove", "at": [1065, -1680] }
+      ],
+      "boats": [
+        { "id": "lake-mouth", "prio": 0, "tint": "#f1efe8", "sail": { "cloth": "white", "inkA": "#1C2340", "inkB": "#2F6B45", "roseAlpha": 0.5, "number": "57" }, "route": [[1400, -2050], [2650, -1150], [2500, -1900]] },
+        { "id": "lake-north", "prio": 1, "tint": "#f3f1ea", "sail": null, "route": [[1800, -1800], [2350, -900], [2500, -1600]] },
+        { "id": "lake-point", "prio": 2, "tint": "#2f5d50", "sail": { "cloth": "white", "inkA": "#3A4670", "inkB": "#3A4670", "roseAlpha": 0, "number": "" }, "route": [[2550, -300], [2900, -1300], [2250, -2350], [2350, -1250]] }
+      ],
+      "cup": { "id": "the-mouth", "name": "The Mouth", "line": "The passage to the big lake: the bar, the buoys, open water, the show.", "races": ["pass-the-channel", "storm-run", "lights-on-the-lake"], "hunt": "chart-the-mouth", "huntName": "Chart the Mouth" }
+    }
+  ],
+  "firstGust": { "aheadM": 195, "offsetM": 0, "gain": 0.35, "edgeM": 10 },
+  "goal": {
+    "text": "Sail to Fannette Island",
+    "arrival": "That is Fannette. You steered her here yourself."
+  },
+  "stops": {
+    "islandE": { "at": [270, 30], "look": [0, 25, 0], "name": "the island" },
+    "islandS": { "at": [180, 230], "look": [0, 25, 0], "name": "the island" },
+    "bayHead": { "at": [-160, 280], "look": [-549, 10, 217], "name": "the bay head and Vikingsholm", "snapM": 40 },
+    "falls": { "at": [-240, 100], "look": [-856, 61, 171], "name": "the waterfall", "snapM": 40 },
+    "north": { "at": [520, -560], "look": [-549, 10, 217], "name": "the north shore" },
+    "narrows": { "at": [1000, -930], "look": [2600, 0, -4500], "name": "the narrows and the mouth" },
+    "east": { "at": [920, -300], "look": [1500, 60, -700], "name": "the east shore" },
+    "tallac": { "at": [450, 40], "look": [127, 1063, 5346], "name": "Mount Tallac" }
+  },
+  "loop": ["island", "bayHead", "falls", "north", "narrows", "east", "tallac"],
+  "night": { "centre": [200, 200], "radius": 260 },
+  "charts": {
+    "logbook": { "x0": -1250, "x1": 6000, "z0": -2400, "z1": 2400 },
+    "plotter": { "x0": -3400, "x1": 7000, "z0": -4400, "z1": 2800 }
+  }
+}

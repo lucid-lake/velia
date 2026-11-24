@@ -1,0 +1,9 @@
+{
+ "trees": 119292,
+ "shrubs": 587473,
+ "chm_mean_forest": 9.212437629699707,
+ "chm_p95": 24.738603591918945,
+ "have_share": 0.7120192886947038,
+ "trees_per_ha_forest": 305.03526040072506,
+ "source": "USGS 3DEP CA_SierraNevada_5_2022 (EPT, public domain)"
+}

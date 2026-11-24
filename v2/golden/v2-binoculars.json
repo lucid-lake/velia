@@ -1,0 +1,10 @@
+{
+  "name": "v2-binoculars",
+  "url": "http://127.0.0.1:5174/?hour=15&wind=2&bino=228.4,1&hm=0&chatter=0&start=1200,-1050&heading=251&filmui=1&once=0&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "#5: v1's binoculars on v2 (a live page on the film clock, ?bino=228.4,1: raised at the start toward Fannette Island and the ruin, 2.4 km, 4 s of film): the 6.5° field at the helm's eye, steadied, v1's figure-eight lens mask, the compass, the mil reticle, the rangefinder"
+}

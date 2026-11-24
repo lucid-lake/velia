@@ -1,0 +1,22 @@
+node_modules/
+dist/
+dist-v2/
+dist-classic/
+dist-site/
+renders/
+third_party/
+.vite-v2/
+.vite-ultra/
+.worktrees/
+/.claude/
+__pycache__/
+*.pyc
+.DS_Store
+.playwright-profile/
+# keys never live in this repo
+.env
+.env.*
+# local-only files of the scrub and the export
+.oss-deny-words
+.oss-manifest
+CLAUDE.local.md

@@ -1,0 +1,8 @@
+# Cloudflare Pages headers (read only at the root of the upload). Vite hashes every file under assets/ (the name changes with the
+# content), so they may be cached for a year. HTML is not listed on purpose: it keeps the Pages default (public, max-age=0,
+# must-revalidate), revalidated on each visit, so a new deploy shows at once. /classic/assets/* is v1 under the switch build
+# (tools/build/site.mjs copies this file to the upload's root).
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+/classic/assets/*
+  Cache-Control: public, max-age=31536000, immutable

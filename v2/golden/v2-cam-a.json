@@ -1,0 +1,10 @@
+{
+  "name": "v2-cam-a",
+  "url": "http://127.0.0.1:5174/?hour=13&cam=A&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M2: v1's cam A pose at 13:00 (above the bay by the mouth, up the bay over the island)"
+}

@@ -1,0 +1,54 @@
+{
+ "name": "w2-fw-helm-r2",
+ "title": "Velia week 2: the show from the helm",
+ "about": "Week 2 shot 7b, round 2: show 172-175 s from the helm, right after 7a: cyan, orange and blue bursts apart over the mast (187-191 s showed a soft glow column); 1 s handles.",
+ "duration": 5,
+ "fps": 30,
+ "warm": 30,
+ "fw": true,
+ "url": {
+  "mode": "sail",
+  "seed": 1,
+  "start": "1350,-960",
+  "heading": 243,
+  "wind": 1,
+  "clouds": 0,
+  "cloudcov": 0,
+  "settle": 4,
+  "hour": 21.92333,
+  "fwt": 171,
+  "view": "helm",
+  "helmlook": "0,28"
+ },
+ "camera": {
+  "rig": true,
+  "keys": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "fov": 70
+   },
+   {
+    "t": 5,
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "fov": 70
+   }
+  ]
+ },
+ "formats": {
+  "L": {
+   "w": 1920,
+   "h": 1080,
+   "ss": 1.5,
+   "mbps": 20
+  }
+ }
+}

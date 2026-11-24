@@ -1,0 +1,10 @@
+{
+  "name": "v2-sail-20",
+  "url": "http://127.0.0.1:5174/?hour=20&wind=2&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M3: the follow camera at 20:00: the low sun on the cloth, the boat on the dusk water"
+}

@@ -1,0 +1,3 @@
+#!/bin/sh
+# The scrub over the commit message (tools/oss/scrub.mjs).
+exec node "$(git rev-parse --show-toplevel)/tools/oss/scrub.mjs" --commit-msg "$1"

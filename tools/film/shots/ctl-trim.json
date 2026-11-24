@@ -1,0 +1,86 @@
+{
+  "name": "ctl-trim",
+  "title": "Velia: TRIM",
+  "about": "Macro: TRIM pressed, it lights, the trim panel fades in (the desktop layout in both formats: the phone keeps TRIM in its panel row).",
+  "duration": 2.5,
+  "settle": 2,
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "gate": 0,
+    "start": "-330,40",
+    "heading": 60
+  },
+  "inputs": [
+    {
+      "t": 0.5,
+      "tap": ".lk-cp .c[data-id=pro]"
+    }
+  ],
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "view": [
+        1920,
+        1080
+      ],
+      "dpr": 6,
+      "pixelratio": 3,
+      "mbps": 50,
+      "hide": [
+        ".lk-view",
+        ".lk-dock",
+        ".toast",
+        ".lk-hint",
+        ".lk-guide"
+      ],
+      "crop": {
+        "around": ".lk-cp",
+        "h": 420,
+        "dy": -60
+      }
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "view": [
+        1920,
+        1080
+      ],
+      "dpr": 7,
+      "pixelratio": 3,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "hide": [
+        ".lk-view",
+        ".lk-dock",
+        ".toast",
+        ".lk-hint",
+        ".lk-guide"
+      ],
+      "crop": {
+        "around": ".lk-cp",
+        "h": 620,
+        "dy": -140
+      }
+    }
+  },
+  "ui": true,
+  "fps": 60,
+  "storage": {
+    "lakeshore.settings.v1": {
+      "welcomed": true,
+      "profile": "new"
+    },
+    "lakeshore.desknote.v1": "1"
+  },
+  "waitFor": "!!window.__lakeshore.station?.shown"
+}

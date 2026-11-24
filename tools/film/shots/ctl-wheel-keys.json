@@ -1,0 +1,93 @@
+{
+  "name": "ctl-wheel-keys",
+  "title": "Velia: keys and pad",
+  "about": "Macro: the wheel turns under A, then D (the key caps and the pad icon are the cut's overlays).",
+  "duration": 2.5,
+  "settle": 2,
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "gate": 0,
+    "start": "-330,40",
+    "heading": 60
+  },
+  "inputs": [
+    {
+      "t": 0.2,
+      "key": "KeyA",
+      "dur": 0.8
+    },
+    {
+      "t": 1.3,
+      "key": "KeyD",
+      "dur": 0.9
+    }
+  ],
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "view": [
+        1920,
+        1080
+      ],
+      "dpr": 6,
+      "pixelratio": 3,
+      "mbps": 50,
+      "hide": [
+        ".lk-view",
+        ".lk-dock",
+        ".toast",
+        ".lk-hint",
+        ".lk-guide"
+      ],
+      "crop": {
+        "around": "wheel",
+        "h": 400,
+        "dy": -20
+      }
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "view": [
+        432,
+        768
+      ],
+      "dpr": 8,
+      "pixelratio": 4,
+      "touch": true,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "hide": [
+        ".lk-view",
+        ".lk-dock",
+        ".toast",
+        ".lk-hint",
+        ".lk-guide"
+      ],
+      "crop": {
+        "around": "wheel",
+        "h": 250,
+        "dy": -40
+      }
+    }
+  },
+  "ui": true,
+  "fps": 60,
+  "storage": {
+    "lakeshore.settings.v1": {
+      "welcomed": true,
+      "profile": "new"
+    },
+    "lakeshore.desknote.v1": "1"
+  },
+  "waitFor": "!!window.__lakeshore.station?.shown"
+}

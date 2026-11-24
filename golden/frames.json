@@ -1,0 +1,40 @@
+{
+  "viewport": [
+    1280,
+    720
+  ],
+  "frames": [
+    {
+      "name": "start",
+      "query": "mode=sail&seed=1&hour=15&wind=2&settle=40&hud=full&birds=0",
+      "tolerance": 0.1,
+      "about": "the Sail start, default heading"
+    },
+    {
+      "name": "night",
+      "query": "mode=sail&seed=1&hour=21.6&wind=2&settle=40&hud=full&birds=0",
+      "tolerance": 0.1,
+      "about": "night sail"
+    },
+    {
+      "name": "home",
+      "query": "mode=sail&seed=1&hour=15&gate=1&attract=0&hud=full&birds=0",
+      "tolerance": 0.1,
+      "about": "the home card (loading shell at 100 %, live page: no headless, so the card shows)",
+      "pin": "quality=high",
+      "waitState": "home",
+      "why": "live page (not headless): the card needs the shell. The flake (backlog 0d: 2 of 5 runs 1.1-1.3 %, the still's 32 s drift and the inking-in on the wall clock) is fixed by freezing the page's CSS animations before the shot (tools/goldens.mjs); 0.1 % like the rest since 2026-11-05"
+    },
+    {
+      "name": "hud-full",
+      "query": "mode=sail&seed=1&hour=15&wind=2&hud=full&birds=0",
+      "tolerance": 0.1,
+      "pin": "noload=1&filmui=1&once=0&attract=0&quality=high&music=0&metrics=0&mute=1&keylegend=0",
+      "film": {
+        "frames": 400
+      },
+      "about": "Sail with the full HUD (the top bar, the helm dashboard, the hint line) after 13 s of play"
+    }
+  ],
+  "pin": "headless=1&once=0&noload=1"
+}

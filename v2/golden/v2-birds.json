@@ -1,0 +1,10 @@
+{
+  "name": "v2-birds",
+  "url": "http://127.0.0.1:5174/?hour=17&wind=2&settle=20&birds=1&campos=0,10,0&camlook=0,10,-1&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "birds: v1's birds golden (the bald eagle and the osprey with the gulls' flock behind, placed by v1's director cues, a long lens from the foredeck at 17:00) on v2: v1's flight model, v2's draw"
+}

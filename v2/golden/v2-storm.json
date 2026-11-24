@@ -1,0 +1,10 @@
+{
+  "name": "v2-storm",
+  "url": "http://127.0.0.1:5174/?hour=18.25&wind=2&start=2300,-1400&heading=330&weather=storm&stormref=2300,-1400&cloudcov=0.6&stormt=150&settle=8&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M5e: v1's storm pose (150 s into the arc, off Emerald Bay's mouth): the dark cell overhead, the rain, the haze on the far shore, the steel grade, the sea up under the outflow"
+}

@@ -1,0 +1,92 @@
+{
+  "name": "ctl-winch",
+  "title": "Velia: the winch",
+  "about": "Macro: the dot drags the MAIN winch's drum down; it spins, the sheet comes in, the sail fills.",
+  "duration": 3,
+  "settle": 2,
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "gate": 0,
+    "start": "-330,40",
+    "heading": 60
+  },
+  "inputs": [
+    {
+      "t": 0.4,
+      "drag": {
+        "on": "main",
+        "path": "down",
+        "px": 70,
+        "dur": 1.8
+      }
+    }
+  ],
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "view": [
+        1920,
+        1080
+      ],
+      "dpr": 5,
+      "pixelratio": 3,
+      "mbps": 50,
+      "hide": [
+        ".lk-view",
+        ".lk-dock",
+        ".toast",
+        ".lk-hint",
+        ".lk-guide"
+      ],
+      "crop": {
+        "around": "main",
+        "h": 520,
+        "dy": -170
+      }
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "view": [
+        432,
+        768
+      ],
+      "dpr": 8,
+      "pixelratio": 4,
+      "touch": true,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "hide": [
+        ".lk-view",
+        ".lk-dock",
+        ".toast",
+        ".lk-hint",
+        ".lk-guide"
+      ],
+      "crop": {
+        "around": "main",
+        "h": 330,
+        "dy": -90
+      }
+    }
+  },
+  "ui": true,
+  "fps": 60,
+  "storage": {
+    "lakeshore.settings.v1": {
+      "welcomed": true,
+      "profile": "new"
+    },
+    "lakeshore.desknote.v1": "1"
+  },
+  "waitFor": "!!window.__lakeshore.station?.shown"
+}

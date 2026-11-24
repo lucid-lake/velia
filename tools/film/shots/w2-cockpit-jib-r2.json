@@ -1,0 +1,57 @@
+{
+ "name": "w2-cockpit-jib-r2",
+ "title": "Velia week 2: the JIB winch and its placard",
+ "about": "Week 2 shot 2b, round 2, a UI take: a crop around the engraved JIB winch at dpr 3.7, a drag up (the sheet comes in); 1 s handles.",
+ "ui": true,
+ "duration": 5,
+ "fps": 30,
+ "settle": 16,
+ "settleDt": 0.1,
+ "storage": {
+  "lakeshore.settings.v1": {
+   "welcomed": true,
+   "profile": "new"
+  },
+  "lakeshore.desknote.v1": "1"
+ },
+ "waitFor": "!!window.__lakeshore.station",
+ "css": "",
+ "url": {
+  "mode": "sail",
+  "hour": 17,
+  "seed": 1,
+  "wind": 3,
+  "cloudcov": 0.18,
+  "start": "300,-300",
+  "heading": 110,
+  "gate": 0
+ },
+ "inputs": [
+  {
+   "t": 1.4,
+   "drag": {
+    "on": "jib",
+    "path": "up",
+    "px": 40,
+    "dur": 1.8
+   }
+  }
+ ],
+ "formats": {
+  "L": {
+   "w": 1920,
+   "h": 1080,
+   "view": [
+    1920,
+    1080
+   ],
+   "dpr": 3.7,
+   "pixelratio": 3.7,
+   "mbps": 20,
+   "crop": {
+    "around": "jib",
+    "h": 292
+   }
+  }
+ }
+}

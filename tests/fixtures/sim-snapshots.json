@@ -1,0 +1,116 @@
+{
+ "_": "The Simulation's snapshot texts (encodeState) over the voyage seeds: sha-256 + bytes. tools/sim-snapshots.mjs --write; tests/sim-snapshots.test.mjs.",
+ "snapshots": {
+  "sail": {
+   "1": {
+    "600": {
+     "sha256": "c008aaa17a2608269de659e53b492690972744f8d30d2cb137a2e65ca2429eee",
+     "bytes": 2738
+    },
+    "7200": {
+     "sha256": "c29029b2425678601a8af6ae443c1aa5084feb97297f88b31f8af73d1b773e67",
+     "bytes": 2796
+    },
+    "live": {
+     "sha256": "214b10bdff713c7885238b40cfc36fcd3da3d2f83476621d28c96f9b4648b03d",
+     "bytes": 2437
+    }
+   },
+   "2": {
+    "600": {
+     "sha256": "1e723d4416a918e6b71c728c5b15d27a087b34ed23b49d3ccbe59a1ccbc9c71f",
+     "bytes": 2669
+    },
+    "7200": {
+     "sha256": "35ec388d784448c49cc5516bc06ae60c66f9f9a3a3738458c031a3ebe3334fea",
+     "bytes": 2808
+    },
+    "live": {
+     "sha256": "d316a22318279fa2b36b9c42fa848a2a8072dc4b016866dc28b165f2dc26b4aa",
+     "bytes": 2445
+    }
+   },
+   "3": {
+    "600": {
+     "sha256": "742ce94bb48c5e8b3faf32719c6cfeeeba5d5ce238c783df6a6db1d8e8522b1e",
+     "bytes": 2674
+    },
+    "7200": {
+     "sha256": "1678e48b5f05bacdabf3c86ed81af201dbd450765bfc76f84d49fa5a861cf733",
+     "bytes": 2796
+    },
+    "live": {
+     "sha256": "4b147279f320c6744ec9926db8456a0e26c7abeaef86bebea60151eb6c7cb8e1",
+     "bytes": 2433
+    }
+   }
+  },
+  "cruise": {
+   "1": {
+    "600": {
+     "sha256": "e77865b2db639ed5addf7da5bfdfa1fc0734b8fc2fc5b3597fe67428f5738bfb",
+     "bytes": 2566
+    },
+    "7200": {
+     "sha256": "2a56ceb06aaef69531d5942d2c0130493e7879ef4a8f550c20ee86bea9e790dd",
+     "bytes": 2520
+    }
+   },
+   "2": {
+    "600": {
+     "sha256": "0f476b49796d815fa293c099acddd6773090bf2ba429ac2d0208ddb245b5e805",
+     "bytes": 2390
+    },
+    "7200": {
+     "sha256": "59e9a60b938a33ebac2e58e1082cd620b8f9070b7a82e38393d518675e7f2188",
+     "bytes": 2482
+    }
+   },
+   "3": {
+    "600": {
+     "sha256": "30d60bc1097233c9a71e392401fd4fce9164878e873b0c669ca8f6602c01c8c9",
+     "bytes": 2410
+    },
+    "7200": {
+     "sha256": "8d04324b7fee2e557dec06af93e4c4a1339bf0a60033209db02c5f746d7cc5be",
+     "bytes": 2492
+    }
+   }
+  },
+  "regatta": {
+   "1": {
+    "600": {
+     "sha256": "ec1b2195fd284c9d996a1cc49e7d88f3cf314fa77b164dd1de94c91bcdf4922b",
+     "bytes": 4789
+    },
+    "7200": {
+     "sha256": "ef251bcb4e51ee1fc25b713121b07f08fd77b55bb715246980437de7f27e720c",
+     "bytes": 4815
+    }
+   },
+   "2": {
+    "600": {
+     "sha256": "d864e6707e6e417531d1f0c0044c169bf855f89485f723159e4043703bd5a420",
+     "bytes": 4645
+    },
+    "7200": {
+     "sha256": "663a4d903fe9db947a5503946fb328d7ac9bb3bd8df2b4a7133da62d4d8a2807",
+     "bytes": 4870
+    }
+   },
+   "3": {
+    "600": {
+     "sha256": "4292e709d5750bdc72f5ac3ad636e95036fa362877ee7e0e76eba049aecb4577",
+     "bytes": 4753
+    },
+    "7200": {
+     "sha256": "72df008745c95aac15948ece867085b0f49d50351a9e2984329db778badfbb41",
+     "bytes": 4795
+    }
+   }
+  }
+ },
+ "text": {
+  "sail/1/600": "{\"v\":1,\"t\":10.000000000000076,\"n\":600,\"acc\":0,\"dt\":0.016666666666666666,\"clock\":\"start\",\"t0\":0,\"boats\":[{\"id\":\"boat\",\"params\":null,\"physics\":{\"t\":10.000000000000076,\"acc\":0,\"auto\":{\"main\":1.3962633997967682,\"jib\":0.5631900789029515,\"flatten\":0.0000022598407083632537,\"main0\":1.3962634015954636},\"jibSide\":-1,\"mainB\":-1.396263401595462,\"jibB\":-0.5631900788698753,\"reefPos\":0,\"reefAuto\":0,\"reefWait\":0,\"reefCalm\":0,\"heelAvg\":0.062034185912149736,\"firstTick\":false,\"p\":0.01063503745606199,\"cues\":{\"surf\":{\"v\":0},\"round\":{\"active\":false,\"t\":0,\"calm\":0,\"v\":0},\"groove\":{\"v\":0,\"above\":0,\"locked\":false,\"held\":0}},\"engine\":{\"on\":false,\"cranking\":0,\"rpm\":0,\"lever\":0,\"hours\":0,\"starts\":0,\"gear\":0,\"throttle\":0},\"furlPos\":0,\"state\":{\"x\":407.755784918261,\"z\":394.8333272175746,\"heading\":1.2652277392531357,\"u\":2.0433111325568043,\"v\":-0.18724092526355282,\"yawRate\":-0.016722751130575534,\"heel\":-0.13179741272183748,\"pitch\":0,\"heave\":0,\"rudderAngle\":-0.019200682945249653,\"boomAngle\":-1.2566370614359157,\"jibAngle\":-0.42356373871032893,\"mainFill\":1,\"jibFill\":0.9993957695780298,\"mainDraft\":1,\"jibDraft\":1,\"jibBacked\":false,\"reef\":0,\"apparentWind\":{\"speed\":8.900137309712935,\"angle\":2.2903095558263704},\"trueWind\":{\"speed\":10.483268208715714,\"angle\":2.425548981537336},\"traveller\":0,\"twist\":0,\"backstay\":0,\"jibLead\":0,\"mainTwistX\":0,\"jibTwistX\":0,\"mainLowFill\":1,\"mainTopFill\":1,\"jibLowFill\":0.9993957695780298,\"jibTopFill\":0.9993957695780298,\"mainLowAoA\":0.8801310644232387,\"mainTopAoA\":0.8801310644232387,\"jibLowAoA\":1.7117403696763454,\"jibTopAoA\":1.7117403696763454,\"sog\":2.051872205699985,\"cog\":1.1738469164192076,\"reefing\":0,\"leeway\":-0.091380822833928,\"mainAoA\":0.8801310644232387,\"jibAoA\":1.7117403696763454,\"mainSheet\":1.3962634015954636,\"jibSheet\":0.5631900789029515,\"flatten\":0,\"drive\":1169.6073907047612,\"side\":-723.842465077795,\"heelMoment\":-3496.7027275539026,\"crewSheet\":1.3962634015954636,\"mainStall\":1,\"jibStall\":0.9993957695780298,\"waveSurge\":0,\"hullRes\":156.28714960930287,\"slamVel\":0,\"mainAoABest\":0.8801310644232372,\"surf\":0,\"rail\":0,\"roundUp\":0,\"slam\":0,\"grooveScore\":0,\"groove\":0,\"grooveHeld\":0,\"engineOn\":false,\"engineState\":\"off\",\"engineRpm\":0,\"engineGear\":0,\"throttle\":0,\"thrust\":0,\"propWalk\":0,\"propWash\":2.0385422719469517,\"furl\":0,\"ext\":{\"X\":0,\"Y\":0,\"N\":0},\"jibMatch\":0.5631900789029515},\"wingT\":0,\"wing\":0,\"vesselId\":\"halcyon\"},\"tackle\":{\"mode\":\"free\",\"anchor\":{\"phase\":\"stowed\",\"x\":0,\"z\":0,\"out\":0,\"target\":0,\"depth\":0,\"set\":0,\"H\":0,\"lift\":0,\"hold\":0,\"dragging\":false,\"dragged\":0,\"stillS\":0,\"dragS\":0,\"scope\":0},\"ball\":null,\"pennant\":0,\"fenders\":false,\"fendersAuto\":true,\"lines\":[],\"nearPier\":null,\"pierGap\":{\"$n\":\"Infinity\"},\"minGap\":{\"$n\":\"Infinity\"},\"contact\":0,\"force\":{\"X\":0,\"Y\":0,\"N\":0},\"why\":null},\"anchor\":null}]}"
+ }
+}

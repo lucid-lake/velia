@@ -1,0 +1,66 @@
+{
+  "name": "fannette-arrive",
+  "title": "Velia: Fannette",
+  "about": "Sailing east at the beacon on Fannette, the sun behind: the island is found (the logbook's postcard toast), then the arrival line 'That is Fannette. You steered her here yourself.'",
+  "duration": 8,
+  "settle": 21,
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "gate": 0,
+    "start": "-300,25",
+    "heading": 85
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "view": [
+        1920,
+        1080
+      ],
+      "dpr": 2,
+      "pixelratio": 2,
+      "mbps": 50,
+      "hide": [
+        ".lk-view",
+        ".lk-dock"
+      ]
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "view": [
+        432,
+        768
+      ],
+      "dpr": 5,
+      "pixelratio": 4,
+      "touch": true,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "hide": [
+        ".lk-view",
+        ".lk-dock"
+      ]
+    }
+  },
+  "ui": true,
+  "fps": 60,
+  "storage": {
+    "lakeshore.settings.v1": {
+      "welcomed": true,
+      "profile": "new"
+    },
+    "lakeshore.desknote.v1": "1"
+  },
+  "waitFor": "!!window.__lakeshore.station?.shown",
+  "settleDt": 0.1
+}

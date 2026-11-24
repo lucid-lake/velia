@@ -1,0 +1,8 @@
+{
+  "_": "The kayak's profile (refactor round 2, Phase C step 5): the craft's own, not a row of src/vessels/index.json (no home-card entry, no menu). physics: the lake fleet's hull model (src/kayaks/agent.js HULL; round 9): M kg, K N·s²/m², C N·s/m, I kg·m², D N·m·s. spec in feet, as halcyon's.",
+  "id": "kayak",
+  "craft": "kayak",
+  "name": "Kayak",
+  "spec": { "loa": 11.2, "lwl": 10.8, "beam": 2.0 },
+  "physics": { "M": 108, "K": 7.5, "C": 6.0, "I": 120, "D": 140 }
+}

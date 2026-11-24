@@ -1,0 +1,69 @@
+{
+  "name": "helm-view",
+  "title": "Velia: at the helm",
+  "about": "H3 17:00, level 3, the gust: the helm camera at the wheel looking forward over the cockpit to the bow and the lit sails; the wheel works, the gust heels the view.",
+  "duration": 3,
+  "fps": 60,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "start": "300,-300",
+    "heading": 110,
+    "settle": 15,
+    "view": "helm"
+  },
+  "camera": {
+    "rig": true,
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          0,
+          0,
+          0
+        ],
+        "fov": 58
+      }
+    ],
+    "aim": {
+      "at": "boat"
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "ss": 1.5,
+      "mbps": 50
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "ss": 1.5,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "camera": {
+        "rig": true,
+        "keys": [
+          {
+            "t": 0,
+            "pos": [
+              0,
+              0,
+              0
+            ],
+            "fov": 62
+          }
+        ]
+      }
+    }
+  }
+}

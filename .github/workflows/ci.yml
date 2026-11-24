@@ -1,0 +1,23 @@
+# The fast suites and the build on every push and pull request. The page tests and the golden frames need a GPU and run
+# locally only (README.md § Test).
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:v2
+      - run: node --test tests/
+      - run: npm run build:v2
+      - run: npm run build

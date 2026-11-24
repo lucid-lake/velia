@@ -1,0 +1,8 @@
+{
+  "_": "The waters the player can choose (the home card's WATERS page). Each entry: id (the ?waters= value and the saved choice), file (its descriptor in this folder), ready (false shows as 'soon' and cannot be chosen). The first ready entry is the default.",
+  "default": "tahoe-emerald",
+  "waters": [
+    { "id": "tahoe-emerald", "file": "tahoe-emerald.json", "ready": true }
+  ],
+  "soon": "More waters charted soon"
+}

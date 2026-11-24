@@ -1,0 +1,249 @@
+/* Velia's design tokens, v2 "instrument glass": one hand for every screen element.
+   Every persistent element sits on a small smoked-navy glass plate, like a yacht's multifunction display; the glass is
+   the contrast guarantee, so text never relies on the world behind it. Brand type (Jost 500) for the wordmark, titles and
+   page heads; Atkinson Hyperlegible Next for every small UI text, with tabular numbers for instruments. Sail cream for
+   ink; ONE accent, binnacle amber, for what is lit; port red and starboard green only where they mean port and starboard.
+   After sunset the whole set shifts to a night-red palette (src/ui/theme.js sets data-lk-theme on <html>).
+   The first paint gets them inline: tools/loading_shell.py copies this file into index.html's shell (the lk-tokens
+   style); a page without the shell gets them from src/ui/tokens.js (ensureTokens). Canvas code reads the same numbers
+   from tokens.js (TOKENS), and tests/design.test.mjs keeps the two equal. */
+@font-face{font-family:'Atkinson Hyperlegible Next';font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/atkinson-hyperlegible-next-latin-400.woff2) format('woff2')}
+@font-face{font-family:'Atkinson Hyperlegible Next';font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/atkinson-hyperlegible-next-latin-500.woff2) format('woff2')}
+:root{
+  /* type: Jost is the brand voice (the wordmark, titles, page heads); Atkinson Hyperlegible Next carries the UI */
+  --lk-font:'Jost',-apple-system,'Helvetica Neue','Segoe UI',sans-serif;
+  --lk-ui:'Atkinson Hyperlegible Next',-apple-system,'Helvetica Neue','Segoe UI',sans-serif;
+  --lk-light:300;                /* the loading card's Jost */
+  --lk-book:400;
+  --lk-brand:500;                /* Jost, titles and the wordmark */
+  --lk-regular:400;              /* the UI's body */
+  --lk-medium:500;               /* key caps, instrument labels and numbers, the lit word */
+  --lk-track:.04em;              /* the UI's tracking (Atkinson wants less than Jost) */
+  --lk-track-wide:.16em;         /* page titles and section heads, small caps style */
+  --lk-track-caps:.08em;         /* instrument labels: SOG, AWA, TWS */
+  /* sizes at 1280×720: caption 15, body 16–17, label 17–18; they scale with the viewport and with the "larger text"
+     setting (--lk-text 1.25) */
+  --lk-text:1;
+  --lk-fs-caption:calc(clamp(15px,1.95vh,19px) * var(--lk-text));
+  --lk-fs-body:calc(clamp(16px,2.3vh,22px) * var(--lk-text));
+  --lk-fs-label:calc(clamp(17px,2.45vh,25px) * var(--lk-text));   /* the hint row, the glyph's em */
+  --lk-fs-num:calc(clamp(19px,3vh,30px) * var(--lk-text));         /* an instrument's big number */
+  --lk-fs-title:clamp(24px,3.9vh,34px);
+  --lk-fs-word:clamp(32px,6.1vh,48px);
+
+  /* ink: the sail's cream, on glass */
+  --lk-cream:239 230 210;        /* #EFE6D2, as an rgb triplet: rgb(var(--lk-cream) / a) */
+  --lk-cream-hex:#EFE6D2;
+  --lk-paper:#F6F1E7;            /* the loading card's lockups */
+  --lk-ink:rgb(var(--lk-cream) / .94);         /* text and icons */
+  --lk-ink-soft:rgb(var(--lk-cream) / .84);    /* secondary text */
+  --lk-ink-faint:rgb(var(--lk-cream) / .80);   /* section heads, footnotes: the floor for any text */
+  --lk-hair:rgb(var(--lk-cream) / .50);        /* hairlines: key caps */
+  --lk-rest:rgb(var(--lk-cream) / .70);        /* rest state of an icon (the mark, the glyph), a disabled label */
+  --lk-lit-ink:rgb(var(--lk-amber));           /* a lit word or icon: binnacle amber */
+  --lk-lit:rgb(var(--lk-amber) / .95);         /* a lit cap's hairline */
+  --lk-lit-fill:rgb(var(--lk-amber) / .16);    /* a lit cap's fill: pressed or selected */
+
+  /* the one accent, from the boat: binnacle amber, the lit lamp of a compass (tuned for AA on the glass) */
+  --lk-amber:247 192 96;         /* #F7C060 */
+  --lk-amber-hex:#F7C060;
+  /* one documented exception to "amber only for state" (owner, 2026-11-06): the home card's Support Velia pill and its About button are
+     drawn in the compass rose's gold (the card's --brass), so the ask reads warm next to the cream; nothing else uses gold for a non-state */
+  /* port and starboard, only where they mean port and starboard (the wind's side, the bearing's side) */
+  --lk-port:255 112 100;         /* #FF7064 */
+  --lk-stbd:84 208 136;          /* #54D088 */
+
+  /* glass: the instrument plate */
+  --lk-shade:6 12 18;            /* the dark under a shadow, an rgb triplet */
+  --lk-navy:11 16 22;            /* #0B1016, the glass's and the pages' ground */
+  /* the Lucid Lake logo's navy (sampled from brand/lucidlake: the mark's ink #1C2340): the dashboard's, the capsule's and every glass plate's ground; navy and cream are our signature */
+  --lk-brand-navy:28 35 64;
+  --lk-brand-navy-hex:#1C2340;
+  --lk-glass:rgb(var(--lk-brand-navy) / .8);
+  --lk-glass-dense:rgb(var(--lk-brand-navy) / .93);  /* a plate over a canvas or a tip over another plate: no blur to lean on */
+  --lk-glass-blur:blur(12px) saturate(.9);
+  --lk-glass-edge:rgb(var(--lk-cream) / .25);
+  --lk-glass-r:14px;
+  --lk-glass-shadow:0 2px 14px rgb(var(--lk-shade) / .35);
+  --lk-glass-pad:.45em .8em;
+  /* pages (menu, logbook, the big chart) keep their veil, darker */
+  --lk-veil:linear-gradient(180deg,rgb(var(--lk-brand-navy) / .9) 0%,rgb(var(--lk-brand-navy) / .86) 55%,rgb(var(--lk-brand-navy) / .94) 100%);   /* the pages' veil: the logo's navy */
+  --lk-veil-edge:inset 0 0 18vw rgb(5 8 12/.45);
+  --lk-blur:blur(14px) saturate(.8);
+
+  /* line */
+  --lk-line:1px;
+  --lk-radius:.22em;
+  --lk-icon:24px;                /* the icon in a round button: 24 px, drawn with a 1.7 px stroke */
+  --lk-stroke:1.7;
+
+  /* halo: for text on a page's veil (never needed on a plate) */
+  --lk-halo:0 1px 2px rgb(var(--lk-shade) / .6),0 0 16px rgb(var(--lk-shade) / .45);
+  --lk-halo-soft:0 1px 2px rgb(var(--lk-shade)/.55),0 0 14px rgb(var(--lk-shade)/.35);
+  --lk-cap-halo:none;
+  --lk-glyph-halo:none;
+
+  /* motion: in 0.6 s ease-out with a 6 px rise; out 0.45 s; a 40 ms stagger */
+  --lk-ease:cubic-bezier(.2,.6,.3,1);
+  --lk-ease-out:cubic-bezier(.4,0,.6,1);
+  --lk-in:.6s;
+  --lk-out:.45s;
+  --lk-rise:6px;
+  --lk-stagger:.04s;
+
+  /* the safe margins: every corner element sits on them */
+  --lk-mx:clamp(28px,3.2vw,56px);
+  --lk-my:clamp(26px,4.6vh,50px);
+  /* the round family: two sizes, one gap, one plain glass edge. lk-d: the large instrument (the chart, the wind dial),
+     stacked top-right; lk-b: the small round button (the dock, the menu mark, the view switch); lk-gap: the one gap */
+  --lk-dm:1;                     /* the larger-text setting grows the instruments a little */
+  --lk-d:calc(min(clamp(140px,30.6vh,340px),40vw) * var(--lk-dm));
+  /* the game chrome (the top capsule): near-black and near-white, a different hand from the instruments' glass; red at night */
+  --lk-chrome-bg:rgb(var(--lk-brand-navy));
+  --lk-chrome-ink:#F4F4F2;
+  --lk-edge-gap:round(clamp(12px,1.9vh,16px),1px);  /* whole pixels: the bar never lands on a half pixel (feat/portrait);  the one gap to the top and the bottom edge: top bar and bottom panel (owner, 2026-10-30) */
+  --lk-by:var(--lk-edge-gap);  /* the bottom margin: the button row and the circles hug the bottom edge */
+  /* the key row (round 3b, compact): u is the row's unit, 1 px at 1280 x 720 (it follows the viewport height, and the free width between the circles: the row is 410 u wide); a slot is 48 u, a plate 46 u tall */
+  --lk-u:round(down,clamp(.8px,min(calc(100vh / 720),calc((100vw - 2 * (var(--lk-mx) + var(--lk-d) + var(--lk-gap))) / 410)),2px),.05px);
+  --lk-b:clamp(44px,6vh,54px);
+  --lk-row-h:calc(var(--lk-u) * 46);   /* the dashboard's key row */
+  --lk-gap:clamp(8px,1.4vh,14px);
+
+  /* layers */
+  --lk-z-chart:9;
+  --lk-z-hud:10;
+  --lk-z-dock:11;
+  --lk-z-page:12;
+  --lk-z-menu:14;
+  --lk-z-card:20;
+  --lk-z-gloss:22;               /* a word's gloss: over everything, the home card's Keys page included */
+}
+/* phone width: the floor sizes */
+@media (max-width:640px){:root{--lk-fs-caption:calc(15px * var(--lk-text));--lk-fs-body:calc(16px * var(--lk-text));--lk-fs-label:calc(17px * var(--lk-text));--lk-fs-num:calc(19px * var(--lk-text))}}
+/* the larger-text setting (settings.js largeText) */
+:root[data-lk-text=large]{--lk-text:1.25;--lk-dm:1.12}
+/* night: real captains turn the instruments red to keep their night vision. After sunset (auto) or when chosen, the
+   glass, the ink and the accent shift to red; port and starboard stay, dimmed. */
+:root[data-lk-theme=night]{
+  --lk-chrome-bg:rgb(var(--lk-brand-navy));
+  --lk-chrome-ink:rgb(var(--lk-cream));
+  --lk-cream:255 112 90;
+  --lk-cream-hex:#FF705A;
+  --lk-paper:#FF7A62;
+  --lk-amber:255 160 104;
+  --lk-amber-hex:#FFA068;
+  --lk-port:255 96 84;
+  --lk-stbd:72 190 120;
+  --lk-shade:4 1 2;
+  --lk-navy:9 3 4;
+  --lk-brand-navy:30 9 10;
+  --lk-glass:rgb(var(--lk-brand-navy) / .86);
+  --lk-glass-dense:rgb(var(--lk-brand-navy) / .93);
+  --lk-glass-edge:rgb(var(--lk-cream) / .30);
+  --lk-veil:linear-gradient(180deg,rgb(var(--lk-brand-navy) / .95) 0%,rgb(var(--lk-brand-navy) / .92) 55%,rgb(var(--lk-brand-navy) / .97) 100%);
+}
+/* the glass plates: the H list and the small plates hug their content (never a strip); the instruments and buttons are round (below). A notification is never one (owner, 2026-11-07): only the subtitle line or the watermark */
+.lk-hint .row,.lk-hint .list,.lk-plate{
+  background:var(--lk-glass);-webkit-backdrop-filter:var(--lk-glass-blur);backdrop-filter:var(--lk-glass-blur);
+  border:var(--lk-line) solid var(--lk-glass-edge);box-shadow:var(--lk-glass-shadow);border-radius:var(--lk-glass-r);box-sizing:border-box}
+/* an instrument's readout: a small caps label above a big bright tabular number, and its unit */
+.lk-read .c{display:flex;flex-direction:column;gap:.3em}
+.lk-read i{font-style:normal;font-weight:var(--lk-medium);font-size:var(--lk-fs-caption);letter-spacing:var(--lk-track-caps);color:var(--lk-ink)}
+.lk-read b{font-weight:var(--lk-medium);font-size:var(--lk-fs-num);line-height:1;color:var(--lk-ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+.lk-read small{font-size:var(--lk-fs-caption);font-weight:var(--lk-medium);margin-left:.2em;color:var(--lk-ink-soft)}
+/* the round family. A round piece is plain glass with a hairline edge, the original chart circle's style: no ornament,
+   content to the rim. Large (.lk-rd, an instrument): the diameter is lk-d. Small (.sm, a push-button): lk-b. The lit state is one
+   amber hairline over a faint amber fill, on hover, focus, press or when on. */
+.lk-rd{--d:var(--lk-d);position:relative;box-sizing:border-box;width:var(--d);height:var(--d);border-radius:50%;
+  background:var(--lk-glass-dense);-webkit-backdrop-filter:var(--lk-glass-blur);backdrop-filter:var(--lk-glass-blur);
+  border:var(--lk-line) solid var(--lk-glass-edge);box-shadow:var(--lk-glass-shadow)}
+.lk-rd.sm{--d:var(--lk-b)}
+.lk-rd>.glass{position:relative;display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;height:100%;border-radius:50%}
+.lk-rd::after{content:'';position:absolute;inset:-1px;border-radius:50%;pointer-events:none;border:var(--lk-line) solid var(--lk-lit);background:var(--lk-lit-fill);opacity:0;transition:opacity .2s}
+.lk-rd.on::after,button.lk-rd:hover::after,button.lk-rd:focus-visible::after,button.lk-rd:active::after{opacity:1}
+.lk-rd svg{fill:none;stroke:currentColor;stroke-width:var(--lk-stroke);stroke-linecap:round;stroke-linejoin:round}
+.lk-rd.sm svg{position:relative;z-index:1;width:var(--lk-icon);height:var(--lk-icon)}
+button.lk-rd{all:unset;display:block;position:relative;box-sizing:border-box;width:var(--lk-b);height:var(--lk-b);border-radius:50%;cursor:pointer;
+  background:var(--lk-glass-dense);-webkit-backdrop-filter:var(--lk-glass-blur);backdrop-filter:var(--lk-glass-blur);border:var(--lk-line) solid var(--lk-glass-edge);box-shadow:var(--lk-glass-shadow);
+  color:var(--lk-rest);-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:color .15s}
+button.lk-rd:hover,button.lk-rd:focus-visible,button.lk-rd.on{color:var(--lk-lit-ink)}
+button.lk-rd:focus-visible{outline:var(--lk-line) solid var(--lk-lit);outline-offset:2px}
+/* the readings inside an instrument (the chart's HDG, SOG, DPT; the dial's AWA, AWS): a small caps label, a bright tabular number, the unit */
+.lk-rd .inr{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:.12em;pointer-events:none;font-variant-numeric:tabular-nums;z-index:1}
+.lk-rd .rw{display:flex;align-items:baseline;gap:.4em;line-height:1.05;white-space:nowrap}
+.lk-rd .rw i{font-style:normal;font-weight:var(--lk-medium);font-size:var(--lk-fs-caption);letter-spacing:var(--lk-track-caps);color:var(--lk-ink)}
+.lk-rd .rw b{font-weight:var(--lk-medium);font-size:var(--lk-fs-num);color:var(--lk-ink)}
+.lk-rd .rw.s b{font-size:var(--lk-fs-label)}
+.lk-rd .rw small{font-size:var(--lk-fs-caption);font-weight:var(--lk-medium);margin-left:.15em;color:var(--lk-ink-soft)}
+/* ---- the helm dashboard (owner, 2026-10-30) ---- */
+/* the skipper's line is a film's subtitle (owner, 2026-10-30): centred just under the top capsule, clean text with a soft shadow on a very tight
+   translucent backing that hugs the words only, at most two lines, a 0.4 s fade; the key caps inside are small and quiet. When the capsule opens or
+   shows an event the line steps down (the capsule is game events, the subtitle the skipper: they never overlap). */
+:root{--lk-cap-top:calc(calc(var(--lk-sat,0px) + var(--lk-edge-gap)) + 38px + 10px)}   /* the bar is 32 px tall (viewSwitch.js): the same 16 px under it as before */
+:root .lk-hint{left:50%;transform:translateX(-50%);top:var(--lk-cap-top);bottom:auto;display:flex;justify-content:center;transition:top .3s var(--lk-ease)}
+/* the subtitle itself (owner, 2026-10-30, round 3): a film's subtitle, not a plate. No background at all; white text in a clean humanist sans (Atkinson Hyperlegible Next 500, OFL),
+   a thin dark outline (the stroke, painted under the fill) and a soft shadow, so it reads over snow, sky and water alike. 4.2 % of the viewport height (4 to 4.5 %),
+   at most 42 characters a line (balanced), two lines at most, centred. Upright: italics only for the speaker's emphasis (em). */
+:root{--lk-sub-font:'Velia Sub A',Georgia,'Times New Roman',serif;--lk-sub-w:520;--lk-sub-track:.006em;--lk-sub-k:.98}
+:root[data-subfont=b]{--lk-sub-font:'Velia Sub B',Georgia,serif;--lk-sub-w:600;--lk-sub-track:.016em;--lk-sub-k:1.2}
+:root[data-subfont=c]{--lk-sub-font:'Velia Sub C',Georgia,serif;--lk-sub-w:520;--lk-sub-track:.008em;--lk-sub-k:1.06}
+:root[data-subfont=d]{--lk-sub-font:'Velia Sub D',Georgia,serif;--lk-sub-w:500;--lk-sub-track:.01em;--lk-sub-k:1.02}
+:root[data-subfont=e]{--lk-sub-font:'Velia Sub E',var(--lk-ui);--lk-sub-w:500;--lk-sub-track:.012em;--lk-sub-k:1}
+:root .lk-hint{--sub-sh:rgb(var(--lk-shade) / .92);font-size:calc(clamp(17px,min(4.2vh,3.4vw),46px) * var(--lk-sub-k));line-height:1.22;max-width:min(42ch,92vw);font-weight:var(--lk-medium)}
+:root .lk-hint > .row{background:none;border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:0;padding:0;
+  line-height:1.22;gap:.4em;text-align:center;flex-wrap:wrap;justify-content:center;color:#fff;letter-spacing:var(--lk-sub-track);text-wrap:balance;
+  font-family:var(--lk-sub-font);font-weight:var(--lk-sub-w);font-feature-settings:'lnum' 1,'kern' 1;-webkit-text-stroke:.1em var(--sub-sh);paint-order:stroke fill;
+  text-shadow:0 .04em .12em rgb(var(--lk-shade) / .85),0 .06em .35em rgb(var(--lk-shade) / .6);
+  transition:opacity .4s var(--lk-ease),transform .4s var(--lk-ease)}
+@supports not (paint-order:stroke){:root .lk-hint > .row{-webkit-text-stroke:0;text-shadow:-.045em -.045em 0 var(--sub-sh),.045em -.045em 0 var(--sub-sh),-.045em .045em 0 var(--sub-sh),.045em .045em 0 var(--sub-sh),0 .06em .3em var(--sub-sh)}}
+:root .lk-hint > .row .label{margin-left:0}
+/* a wind-set line (subtitleWind.js): its letters carry the motion, so the row itself is always there; the key cap fades beside it */
+:root .lk-hint > .row:has(.lt){opacity:1;transform:none}
+:root .lk-hint > .row:has(.lt):not(.in) .cap{opacity:0}
+:root .lk-hint > .row .cap{transition:opacity .4s var(--lk-ease)}
+/* reduced motion: no drift, a plain fade of the whole line */
+@media (prefers-reduced-motion:reduce){:root .lk-hint > .row:has(.lt){opacity:0;transition:opacity .4s var(--lk-ease)}:root .lk-hint > .row.in:has(.lt){opacity:1}}
+:root .lk-hint .say,:root .lk-hint .say .tag{font-family:inherit;font-style:normal;font-weight:inherit;font-size:1em;letter-spacing:inherit;color:#fff}
+:root .lk-hint .say em{font-style:italic}
+:root .lk-hint .say .tag{opacity:.9}
+/* the key, where a line must name one: a small quiet cap, a hair above the baseline, never louder than the words */
+:root .lk-hint > .row .cap{height:1.15em;min-width:1.15em;padding:0 .28em;font-size:.56em;font-weight:var(--lk-medium);letter-spacing:.04em;opacity:.9;-webkit-text-stroke:0;
+  font-family:var(--lk-ui);border:var(--lk-line) solid rgb(255 255 255 / .65);border-radius:.25em;background:rgb(var(--lk-brand-navy) / .78);text-shadow:none;align-self:center}
+/* the H list is tall: it stands at the left, above the chart circle's place (the circle hides while it is up) */
+:root .lk-hint:has(.list){font-size:var(--lk-fs-label);max-width:none;left:var(--lk-mx);transform:none;top:auto;bottom:var(--lk-by);justify-content:flex-start;font-size:var(--lk-fs-label)}
+:root:has(.lk-hint .list .row.in) .lk-chart .small{visibility:hidden}   /* the keys list stands where the chart circle is, for as long as H is held */
+/* the caption's separator dot reads as the ink, not the soft ink */
+:root .lk-hint .dot{color:var(--lk-ink)}
+/* the old floating menu mark is the top capsule's Menu now */
+button.lk-menu-mark{display:none}
+/* the helm view: the circles step down to 70 % so the cockpit and the wheel stay clear */
+:root[data-lk-view=helm]{--lk-dm:.7}
+/* at rest: the circles dim a little (their numbers keep their contrast on the dense glass); the button row dims in toolDock.js */
+.lk-dim .lk-chart .small,.lk-dim .lk-cv{filter:opacity(.82)}
+/* phone portrait: the button row is one line at the bottom (the flip dots between the circles are gone) */
+@media (max-width:640px){
+  :root .lk-hint{font-size:calc(clamp(16px,4.6vw,24px) * var(--lk-sub-k));left:calc(var(--lk-mx) + 8px);right:calc(var(--lk-mx) + 8px);transform:none;max-width:none;justify-content:center}
+}
+/* the device tiers (ui/device.js). A phone in Sail: the wind dial at the helm layout's dial rect, above the
+   winches (helmStation.js sets --lk-dial-r / --lk-dial-b); no chart circle (the CHART key opens the big chart). An iPad: the desktop
+   layout at u = 1, its circles 200 px (180 px upright, standing above the helm group's two ends). */
+:root[data-screen~=compact].lk-cpanel{--lk-d:124px}
+:root[data-screen~=compact].lk-cpanel .lk-cv{left:auto;top:auto;right:var(--lk-dial-r,16px);bottom:var(--lk-dial-b,120px)}
+:root[data-screen~=compact].lk-cpanel .lk-chart .opener{display:none!important}
+:root[data-screen~=compact]:where(:not([data-screen~=portrait])).lk-cpanel .lk-chart .small{left:var(--lk-chart-l,16px);top:var(--lk-chart-t,112px);right:auto;bottom:auto}   /* landscape: the heading circle above the wheel (helmStation.js phone-land), a tap opens the big chart */
+/* an upright iPhone (owner, 2026-10-31; helmStation.js portraitLayout): the chart circle top-left and the wind dial top-right, under
+   the bar; the skipper's line under them; the controls in the bottom band */
+:root[data-screen~=portrait]:where([data-screen~=compact]).lk-cpanel{--lk-d:var(--lk-pd,108px)}
+:root[data-screen~=portrait]:where([data-screen~=compact]).lk-cpanel .lk-cv{left:auto;bottom:auto;right:var(--lk-dial-r,12px);top:var(--lk-dial-t,66px)}
+:root[data-screen~=portrait]:where([data-screen~=compact]).lk-cpanel .lk-chart .small{right:auto;bottom:auto;left:var(--lk-chart-l,12px);top:var(--lk-chart-t,66px)}
+:root[data-screen~=portrait]:where([data-screen~=compact]).lk-cpanel .lk-hint{top:calc(var(--lk-circ-b,180px) + 8px)}
+:root[data-screen~=full]:where([data-input=touch],[data-form=tablet]){--lk-d:200px}
+@media (orientation:portrait){
+  :root[data-screen~=full]:where([data-input=touch],[data-form=tablet]){--lk-d:180px}
+  :root[data-screen~=full]:where([data-input=touch],[data-form=tablet]).lk-cpanel .lk-chart .small{left:var(--lk-grp-l,20px);right:auto;bottom:var(--lk-grp-b,160px)}
+  :root[data-screen~=full]:where([data-input=touch],[data-form=tablet]).lk-cpanel .lk-cv{right:var(--lk-grp-r,20px);bottom:var(--lk-grp-b,160px)}
+}
+@media (max-width:640px){:root{--lk-u:round(down,calc((100vw - 20px) / 412),.05px)}}
+@media (pointer:coarse){:root{--lk-cap-top:calc(calc(var(--lk-sat,0px) + var(--lk-edge-gap)) + 40px + 10px)}}   /* a finger's bar is 40 px tall, its buttons 44 px by hit area */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){:root{--lk-glass:rgb(var(--lk-navy) / .86)}}
+@media (prefers-reduced-motion:reduce){:root{--lk-rise:0px}}

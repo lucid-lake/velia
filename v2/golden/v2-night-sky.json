@@ -1,0 +1,10 @@
+{
+  "name": "v2-night-sky",
+  "url": "http://127.0.0.1:5174/?hour=22.5&cam=B&camyaw=190&campitch=28&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M5e: cam B turned to the south-south-west at 22:30 (the sun −18°): the Milky Way's core over the bay's wall, the stars, the clouds grey-blue against the band"
+}

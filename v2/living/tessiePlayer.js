@@ -1,0 +1,590 @@
+// Play as Tessie on the page (owner, 2026-11-20, every default approved). Her chunk only
+// (living/tessie.js re-exports it), made by main.js where feature('playTessie') is on: a phone never loads a line of it.
+//   the swap      one state (as 'boat' | 'tessie', entered from the menu's Boat plate, the Be Tessie (T) pill, or "Be Tessie" on
+//                 her chart mark); the skipper sails the Halcyon away from her while you are her (sim/tessieFlee.js); T swaps back
+//   her hands     W S A D / arrows, Space (held: deep), F or a click (the lunge), T (back), C (first ↔ third person); the boat's keys do nothing
+//                 while you are her (one key map per vessel). The owner's final scheme (2026-11-20): drag to look (the camera's pitch steers
+//                 her depth), W A S D swim about the camera, Shift dashes (a press, 1.8 s, then a 4.5 s cooldown), Space (or F)
+//                 bites, C first ↔ third person, T back; a tablet: a floating thumbstick, a drag outside it looks, one big Bite button (feature('tessieTouch'))
+//   the camera    behind her neck (ui/tessieCam.js), the swap's glide under 120 m, the veil over it or under reduced motion
+//   the hits      the corners on the boat ahead, the fall's hit, the knockdowns (the lake's sailboats, the glass boat, your Halcyon),
+//                 the kayakers splashed and spooked only (sim/tessieHits.js)
+//   the HUD       the cockpit folded (calmHud's shot rule reads services 'tessiePlay'), her depth dial bottom left, the four corners, the
+//                 top bar's Halcyon | Tessie (Tessie lit amber), her teaching lines on Sail's skipper line (tip(): 'tip.tessie.*' kinds, the
+//                 lean skipper's once-ever, 20 s gap and busy rules, key caps inline; no status lines), her key legend (Sail's own component)
+//   the sound     the rush with her speed, the low-pass under the surface, her breath on each surfacing (living/tessie-sound.js swim)
+//   phase 2a      (owner, 2026-11-20, every default approved): the eye goes under with her (ui/tessieCam.js under,
+//                 waterAt and floorAt from the page); E rises and Q sinks (held; Shift + E at the surface breaches), the look's climb rate
+//                 (desktop; settings "Dive by looking" is on there), the tablet's ▲ Up and ▼ Down (72 px beside Bite; the look drag only
+//                 looks), the dial 0–20 m with a ▲/▼ while she climbs or sinks faster than 0.2 m/s, the outline aid gone while the eye is
+//                 under, the first dive's line once ("Hold Q to dive. E comes up."), the first time past 6 m "Look up to see the boats.",
+//                 the key line with UP E · DOWN Q; settings (ui/tessieSettings.js): Invert up/down (off), Camera follows her (on)
+//   const P = createTessiePlayer({ plugin, B, depthAt, busy, tour, kayaks, birthplaces, veil, project, focal, canvas, mode, race,
+//                                  knocked, reduced, services, touch, headless, waterAt, floorAt, underOn, settings })
+//   P.step(dt) after her plug-in's step; c = P.camera(dt, c, orbit) last in placeCamera; P.threat() for the busy lake's escape;
+//   P.become(entry) / P.back(); P.active; P.stats()
+import { createTessiePlay, LINES as PLAY_LINES, PLAY } from '../sim/tessiePlay.js';
+import { createTessieHits } from '../sim/tessieHits.js';
+import { createSwap } from '../sim/tessieSwap.js';
+import { isRace } from '../engine/modes.js';   // a race: the mode table's race rows
+import { createFlee } from '../sim/tessieFlee.js';
+import { createTessieCam, createGlide, needsVeil } from '../ui/tessieCam.js';
+import { heightAt as tessieHeightAt, reachAt } from '../sim/tessie.js';
+import { tessieSettings } from '../ui/tessieSettings.js';   // phase 2a: Invert up/down, Camera follows her
+import { mountHud, hudLayout, CAP_RULE, capLine } from '../ui/tessieHud.js';   //: the sonar, the skills row, her keys on the right edge
+import { skillOfCode } from '../sim/tessieSkills.js';   // the dash's keys: the slot's 1 and Shift
+
+const DEG = Math.PI / 180;
+export const TESSIE_KEYS = new Set(['ShiftLeft', 'ShiftRight', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyF', 'KeyT', 'KeyC', 'KeyE', 'KeyQ', 'Digit1']);   // phase 2a: E rises, Q sinks
+// the boat's keys: nothing while you are her (R, Q, E, Z, X, Y, K, G, I, J, U, + and −; B, ` and 0 too)
+const INERT = new Set(['KeyR', 'KeyZ', 'KeyX', 'KeyY', 'KeyK', 'KeyG', 'KeyI', 'KeyJ', 'KeyU', 'Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract', 'Digit0', 'KeyB', 'Backquote', 'Digit2', 'Digit3', 'Digit4']);   // Digit2 … 4: the skills row's reserved slots do nothing yet (owner, 2026-11-21)
+const COUNT_KEY = 'lakeshore.tessie.knocks.v1';   // her lines' once-ever marks are the lean skipper's store now (v2/ui/leanSkipper.js 'tip.tessie.*')
+const HALCYON = { L: 8.5, B: 3.0 }, BUSY_HULL = { L: 8.5, B: 3.0 }, GLASS = { L: 12.2, B: 3.8 };
+export const PLAYER = Object.freeze({ offM: 150, veilOut: 0.22, veilIn: 0.4, reachDelayS: 2, reachM: [100, 90, 115, 80, 125], reachConeDeg: 20, beRowPx: 52, holdNearM: 30, dialM: 20, arrowV: 0.2, lookUpM: 6, fastS: 3, chevV: Object.freeze([1.5, 6.5, 15]), dashLineS: 2 });   // dashLineS: a boat in her corners out of reach this long, once ever: the dash's line   //: the fast line after 3 s swimming at the surface; the speed chevrons lit past 1.5, 6.5 and 15 m/s   // phase 2a: the dial's 0–20 m, its ▲/▼ past 0.2 m/s, the first dive's line, the first time past 6 m
+
+const MARK = '<svg viewBox="0 0 32 20" aria-hidden="true"><path d="M2 15c3-1 4-6 7-6s3 5 6 5 3-6 6-6c2 0 3 2 3 4M24 12c1-4 1-8 4-9 1.5-.5 2.5.6 2 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 17.5h30" stroke="currentColor" stroke-width="1" opacity=".55"/></svg>';
+const BOAT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v13M12 4l6 11h-6M11 6L6 15h5"/><path d="M3 18h18l-2 3H6z"/></svg>';
+// the boat's own HUD, gone while you are her and back when you give her back (owner, 2026-11-21: the instrument plate's COG, TWS, TWA,
+// VMG, HEEL, RUD showed while playing as Tessie): the nav column's instruments, the cockpit's DOM (its 3D station folds by sail.js
+// dashHidden), the chart, the trim readouts and the Pro recess, the throttle's word, the dock, the first sail's coaching chips, the
+// Calm HUD's "show the helm" mark and fold tab, the hands, Sail's key legend, the bar's mode pills
+const BOAT_HUD = Object.freeze(['#hands', '.lk-nav', '.lk-chart', '.lk-cv', '.lk-puck', '.lk-tackb', '.lk-cp', '.lk-cpx', '.lk-thr', '.lk-dock', '.lk-tp',
+  '.lk-pro', '.lk-inst', '.lk-guide', '.lk-calm-mark', '.lk-fold', '.lk-view .pill:not(.lk-tsw)', '.lk-view .xt[data-x=mode]', '.lk-keys.lk-edgepair:not(.tp-keys)']);   // Sail's legend, not hers (tp-keys: the same component)
+const PLAYER_CSS = `#lk-tplay{position:fixed;inset:0;z-index:4;pointer-events:none;font:400 15px/1.2 var(--lk-ui,system-ui);color:var(--lk-ink,#f3ecdc)}
+#lk-tplay [hidden]{display:none!important}
+#lk-tplay .tp-be{all:unset;box-sizing:border-box;pointer-events:auto;cursor:pointer;position:absolute;left:50%;top:calc(var(--lk-cap-top,58px) + ${PLAYER.beRowPx}px);transform:translateX(-50%);display:inline-flex;align-items:center;gap:.6em;height:40px;padding:0 .6em 0 .9em;
+  background:var(--lk-glass-dense,rgb(var(--lk-brand-navy) / .8));-webkit-backdrop-filter:var(--lk-glass-blur,blur(12px));backdrop-filter:var(--lk-glass-blur,blur(12px));border:1px solid var(--lk-glass-edge,rgb(var(--lk-cream) / .28));border-radius:999px;color:var(--lk-ink,#f3ecdc);
+  opacity:0;transition:opacity .6s ease}
+#lk-tplay .tp-be[data-on]{opacity:1}
+#lk-tplay .tp-be svg{width:28px;height:18px}
+#lk-tplay .tp-be .cap{${CAP_RULE};font-size:13px}   /* Sail's key legend's cap (src/ui/keyLegend.js CAP_RULE): one cap */
+#lk-tplay .tp-be:hover,#lk-tplay .tp-be:focus-visible{border-color:rgb(var(--lk-cream) / .6);outline:none}
+#lk-tplay .tp-dial{position:absolute;left:22px;bottom:22px;width:132px;height:132px}
+#lk-tplay .tp-dial svg{width:100%;height:100%;overflow:visible}
+#lk-tplay .tp-dial .w{position:absolute;left:0;right:0;top:56px;text-align:center;font:600 12px/1 var(--lk-ui,system-ui);letter-spacing:.16em}
+#lk-tplay .tp-dial .m{position:absolute;left:0;right:0;top:74px;text-align:center;font:400 13px/1 var(--lk-ui,system-ui);font-variant-numeric:tabular-nums;opacity:.8;font-style:normal}
+#lk-tplay .tp-aim{position:absolute;left:0;top:0;width:0;height:0}
+#lk-tplay .tp-aim i{position:absolute;width:16px;height:16px;border:0 solid rgb(var(--lk-cream) / .85)}
+#lk-tplay .tp-aim i:nth-child(1){left:0;top:0;border-left-width:2px;border-top-width:2px}
+#lk-tplay .tp-aim i:nth-child(2){right:0;top:0;border-right-width:2px;border-top-width:2px}
+#lk-tplay .tp-aim i:nth-child(3){left:0;bottom:0;border-left-width:2px;border-bottom-width:2px}
+#lk-tplay .tp-aim i:nth-child(4){right:0;bottom:0;border-right-width:2px;border-bottom-width:2px}
+#lk-tplay .tp-aim b{position:absolute;left:50%;bottom:-22px;transform:translateX(-50%);font:500 13px/1 var(--lk-ui,system-ui);font-variant-numeric:tabular-nums;text-shadow:0 0 4px rgb(var(--lk-brand-navy) / .8)}
+#lk-tplay .tp-aim[data-reach] i{border-color:rgb(var(--lk-amber,240 172 64))}
+#lk-tplay .tp-aim[data-reach] b{color:rgb(var(--lk-amber,240 172 64))}
+#lk-tplay .tp-ghost{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#lk-tplay .tp-ghost path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+#lk-tplay .tp-zone{position:absolute;left:0;top:70px;bottom:0;width:40%;pointer-events:auto;touch-action:none}
+#lk-tplay .tp-stick{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;border:1.5px solid rgb(var(--lk-cream) / .55);background:rgb(var(--lk-brand-navy) / .25);pointer-events:none}
+#lk-tplay .tp-stick .knob{position:absolute;left:32px;top:32px;width:56px;height:56px;border-radius:50%;background:rgb(var(--lk-cream) / .85)}
+#lk-tplay .tp-look{position:absolute;left:40%;right:0;top:70px;bottom:0;pointer-events:auto;touch-action:none}
+#lk-tplay .tp-lunge{all:unset;box-sizing:border-box;position:absolute;pointer-events:auto;touch-action:none;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;
+  background:var(--lk-glass-dense,rgb(var(--lk-brand-navy) / .8));border:1.5px solid rgb(var(--lk-cream) / .6);color:var(--lk-ink,#f3ecdc);font:600 14px/1 var(--lk-ui,system-ui);letter-spacing:.12em;text-transform:uppercase}
+#lk-tplay .tp-lunge{right:28px;bottom:28px;width:104px;height:104px}
+#lk-tplay .tp-lunge[data-rest]{opacity:.5}
+#lk-tplay .tp-ud{all:unset;box-sizing:border-box;position:absolute;pointer-events:auto;touch-action:none;display:flex;align-items:center;justify-content:center;width:72px;height:72px;border-radius:50%;cursor:pointer;
+  background:var(--lk-glass-dense,rgb(var(--lk-brand-navy) / .8));border:1.5px solid rgb(var(--lk-cream) / .6);color:var(--lk-ink,#f3ecdc);font:600 13px/1 var(--lk-ui,system-ui);letter-spacing:.08em}
+#lk-tplay .tp-up{right:148px;bottom:110px}
+#lk-tplay .tp-dn{right:148px;bottom:24px}
+#lk-tplay .tp-ud[data-dim]{opacity:.45}
+#lk-tplay .tp-ud:active,#lk-tplay .tp-ud[aria-pressed=true]{background:rgb(var(--lk-amber,240 172 64) / .25)}
+#lk-tplay .tp-dial .chev path{stroke:rgb(var(--lk-cream) / .92);opacity:.18;transition:opacity .4s ease,stroke .4s ease}
+#lk-tplay .tp-dial .chev path[data-on]{opacity:1}
+#lk-tplay .tp-dial .chev[data-dash] path[data-on]{stroke:rgb(var(--lk-amber,240 172 64))}
+#lk-tplay .tp-dial .ar{position:absolute;left:0;right:0;top:92px;text-align:center;font:600 12px/1 var(--lk-ui,system-ui);opacity:.85}
+#lk-tplay .tp-lunge:active,#lk-tplay .tp-lunge[aria-pressed=true]{background:rgb(var(--lk-amber,240 172 64) / .25)}
+html[data-tessie-play].lk-calm-bar .lk-view{opacity:1!important;visibility:visible!important;pointer-events:auto!important}
+html[data-tessie-play] .lk-view.off{opacity:1!important;transform:none!important;pointer-events:auto!important}
+html[data-tessie-play] .lk-view.off .isl,html[data-tessie-play] .lk-view.off .isl *{pointer-events:auto!important}   /* the bar stays while you are her (her keys never wake the Calm HUD) */
+${BOAT_HUD.map((q) => `html[data-tessie-play] ${q}`).join(',')}{display:none!important}
+.lk-view .pill.lk-tsw{display:none}
+html[data-tessie-play] .lk-view .pill.lk-tsw{display:flex}
+.lk-view .pill.lk-tsw .seg svg{fill:none;stroke:currentColor;stroke-width:1.7}
+.lk-view .pill.lk-tsw .seg.on,.lk-view .pill.lk-tsw .seg.on:hover{background:var(--lk-lit-fill);color:var(--lk-lit-ink);box-shadow:inset 0 0 0 var(--lk-line) var(--lk-lit);opacity:1}   /* who you are is a choice: lit amber (the Boat | Helm view keeps cream) */
+@media (prefers-reduced-motion:reduce){#lk-tplay .tp-be{transition:none}}`;
+
+// the top bar's who-you-are switch (decision A: Halcyon | Tessie, the panel's order; decision D: the one you are lit, .on, amber)
+export const SWITCH_ORDER = Object.freeze(['halcyon', 'tessie']);
+export function topSwitchHtml(as = 'tessie') {
+  const icon = { halcyon: BOAT_ICON, tessie: MARK.replace('viewBox="0 0 32 20"', 'viewBox="0 0 32 20" style="width:26px"') }, name = { halcyon: 'Halcyon', tessie: 'Tessie' };
+  return SWITCH_ORDER.map((id) => `<button type="button" class="seg${id === as ? ' on' : ''}" data-tw="${id}" aria-pressed="${id === as}" aria-label="${name[id]} (T)">${icon[id]}<span class="w">${name[id]}</span></button>`).join('');
+}
+
+// Her lines on Sail's skipper line (the UI audit, owner 2026-11-21: "we used the skipper lines format for hint always"): each goes
+// through hint.note with its 'tip.tessie.*' kind, so the lean skipper decides (v2/ui/leanSkipper.js: once ever, the 20 s gap, nothing
+// mid-manoeuvre, the phone's quiet rule on top); [K] marks become the line's own key caps (tessieHud.js capLine). A line refused now
+// waits and asks again every askS while she is played, until the lean store marks it shown.
+//   const T = createTipQueue({ hint: () => controlsHint, active: () => playing, onShown(kind) });  T.want(kind, text); T.step(dt)
+export function createTipQueue({ hint = () => null, active = () => true, onShown = null, askS = 1 } = {}) {
+  const want = new Map(); let wait = 0;
+  const seen = (kind) => { const s = hint()?.phoneQuiet?.state?.seen; return Array.isArray(s) ? s.includes(kind) : null; };   // null: no lean store to ask
+  return {
+    want(kind, text) { if (seen(kind) !== true) want.set(kind, text); },
+    step(dt) {
+      wait -= dt;
+      if (!want.size || !active() || wait > 0) return;
+      wait = askS;
+      const h = hint(); if (!h?.note) return;
+      for (const [kind, text] of want) {
+        if (seen(kind) === true) { want.delete(kind); continue; }
+        h.note(capLine(text), '', null, { kind });
+        const s = seen(kind);
+        if (s !== false) { want.delete(kind); if (s) onShown?.(kind); }   // shown (the lean store has it), or no store: asked once
+        break;
+      }
+    },
+    get waiting() { return [...want.keys()]; },
+  };
+}
+
+export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, birthplaces = null, veil = null,
+  project = null, focal = () => 600, canvas = null, mode = () => 'sail', race = () => false, knocked = () => false, reduced = () => false,
+  services = () => null, touch = () => false, headless = false, storage = (() => { try { return globalThis.localStorage ?? null; } catch { return null; } })(),
+  waterAt = null, floorAt = null, underOn = true, settings = null, keyHints = () => true } = {}) {
+  const sim = plugin.sim;
+  const C = createTessiePlay({ sim, depthAt }), H = createTessieHits(), W = createSwap(), cam = createTessieCam(), glide = createGlide();
+  let flee = null, fleeOn = false, view = 'third', clock = 0, entryT = 0, reachDone = true, holdCamUntil = -1, veilT = null, lastPose = null, lastBoatPose = null;
+  const boatPose = { pos: [0, 0, 0], target: [0, 0, 0], fov: 55 };   // lastBoatPose's storage
+  let prevCard = null, provided = false, pulse = false, dragYaw = 0;
+  const touchLook = [0, 0];   // the tablet's look drag this frame (rad)
+  const held = new Set(), touchIn = { x: 0, y: 0, dive: false, lunge: false, up: false, down: false, dash: false, id: null, ox: 0, oy: 0 };
+  const prefs = settings ?? tessieSettings(storage);   // phase 2a: Invert up/down, Camera follows her
+  let surfaceT = 0, tapDive = 0, dashPulse = false;
+  const log = { knocks: [], spooks: 0, falls: 0, hits: 0, lastFall: null, swaps: [], tips: [] };
+  let knockTotal = 0; try { knockTotal = +(storage?.getItem(COUNT_KEY) ?? 0) || 0; } catch { /* */ }
+  const doc = headless ? null : globalThis.document ?? null;
+  const loadEl = () => doc?.getElementById('lk-load') ?? null;
+  const cardUp = () => { const el = loadEl(); if (!el) return false; const s = el.dataset.state; return (s === 'home' || s === 'menu' || s === 'attract' || s === 'company') && !el.hasAttribute('data-off') || !!el.dataset.pg; };
+  const typing = () => /^(INPUT|SELECT|TEXTAREA)$/.test(doc?.activeElement?.tagName ?? '');
+  const nose = () => sim.state.nose ?? null;
+  const svc = () => services?.() ?? null;
+
+  // ---- the DOM (made on the first frame that needs it) ----
+  let el = null, sw = null;
+  const q = (s) => el?.querySelector(s);
+  function dom() {
+    if (el || !doc?.body) return el;
+    if (!doc.getElementById('lk-tplay-css')) { const st = doc.createElement('style'); st.id = 'lk-tplay-css'; st.textContent = PLAYER_CSS; doc.head.appendChild(st); }
+    el = doc.createElement('div'); el.id = 'lk-tplay';
+    el.innerHTML = `<button class="tp-be" type="button" hidden aria-label="Be Tessie, key T">${MARK}<span>Be Tessie</span><span class="cap">T</span></button>
+<div class="tp-dial" hidden aria-hidden="true"><svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="58" stroke-width="2" style="fill:rgb(var(--lk-brand-navy) / .72);stroke:rgb(var(--lk-cream) / .7)"/>
+<path class="tk" d="" fill="none" stroke-width="7" stroke-linecap="round" style="stroke:rgb(var(--lk-cream) / .3)"/><path class="fl" d="" fill="none" stroke-width="7" stroke-linecap="round" style="stroke:rgb(var(--lk-cream) / .92)"/><g class="chev" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M53 104l5 5-5 5"/><path d="M63 104l5 5-5 5"/><path d="M73 104l5 5-5 5"/></g></svg><b class="w">SURFACE</b><i class="m">0 m</i><i class="ar"></i></div>
+<svg class="tp-ghost" hidden aria-hidden="true"><defs><mask id="tp-gm" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%"><path class="o" d="" stroke="#fff"/><path class="i" d="" stroke="#000"/></mask></defs><rect width="100%" height="100%" mask="url(#tp-gm)" style="fill:rgb(var(--lk-cream) / .5)"/></svg>
+<div class="tp-aim" hidden aria-hidden="true"><i></i><i></i><i></i><i></i><b></b></div>
+<div class="tp-touch" hidden><div class="tp-look"></div><div class="tp-zone"></div><div class="tp-stick" hidden><i class="knob"></i></div><button class="tp-lunge" type="button" aria-pressed="false">Bite</button><button class="tp-ud tp-up" type="button" aria-pressed="false" aria-label="Up">▲ Up</button><button class="tp-ud tp-dn" type="button" aria-pressed="false" aria-label="Down">▼ Down</button></div>`;
+    doc.body.appendChild(el);
+    //: the sonar, the skills row (a tablet taps DASH to dash), her keys on the right edge
+    hud = mountHud({ root: el, skills: C.skills.list(), storage, keyHints, onSlot: (id) => { if (id === 'dash') touchIn.dash = true; } });
+    hud?.show(false);
+    q('.tp-be').addEventListener('click', (e) => { e.stopPropagation(); self.become('swap'); });
+    // the dial's track: 0 to 20 m over a 270° sweep from lower left
+    q('.tk').setAttribute('d', arc(0, 1));
+    // the tablet: the floating stick in the left 40 %, a drag elsewhere looks, the Bite button
+    const zone = q('.tp-zone'), stick = q('.tp-stick'), knob = q('.knob');
+    zone.addEventListener('pointerdown', (e) => { if (touchIn.id != null) return; touchIn.id = e.pointerId; touchIn.ox = e.clientX; touchIn.oy = e.clientY; stick.hidden = false; stick.style.left = `${e.clientX}px`; stick.style.top = `${e.clientY}px`; zone.setPointerCapture?.(e.pointerId); e.preventDefault(); });
+    zone.addEventListener('pointermove', (e) => { if (e.pointerId !== touchIn.id) return; let dx = e.clientX - touchIn.ox, dy = e.clientY - touchIn.oy; const l = Math.hypot(dx, dy), m = 46; if (l > m) { dx *= m / l; dy *= m / l; } touchIn.x = dx / m; touchIn.y = -dy / m; knob.style.transform = `translate(${dx}px,${dy}px)`; });
+    const up = (e) => { if (e.pointerId !== touchIn.id) return; touchIn.id = null; touchIn.x = 0; touchIn.y = 0; stick.hidden = true; knob.style.transform = ''; };
+    zone.addEventListener('pointerup', up); zone.addEventListener('pointercancel', up);
+    const hold = (b, k) => { b.addEventListener('pointerdown', (e) => { touchIn[k] = true; b.setAttribute('aria-pressed', 'true'); e.preventDefault(); e.stopPropagation(); }); for (const t of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(t, () => { touchIn[k] = false; b.setAttribute('aria-pressed', 'false'); }); };
+    hold(q('.tp-lunge'), 'lunge'); hold(q('.tp-up'), 'up'); hold(q('.tp-dn'), 'down');   // phase 2a: ▲ / ▼ (as E / Q)
+    // a tap on ▼ at the surface (under 0.25 s) starts a dive to 6 m; any other depth input ends it
+    { const dn = q('.tp-dn'); let t0 = 0; dn.addEventListener('pointerdown', () => { t0 = clock; tapDive = 0; }); dn.addEventListener('pointerup', () => { if (clock - t0 < 0.25 && C.state.nose < 1.2) tapDive = PLAY.diveNose; }); }
+    const look = q('.tp-look'); let lk = null;
+    look.addEventListener('pointerdown', (e) => { lk = { id: e.pointerId, x: e.clientX, y: e.clientY }; look.setPointerCapture?.(e.pointerId); e.preventDefault(); });
+    look.addEventListener('pointermove', (e) => { if (!lk || e.pointerId !== lk.id) return; touchLook[0] += (e.clientX - lk.x) * 0.005; touchLook[1] += (e.clientY - lk.y) * 0.004; lk.x = e.clientX; lk.y = e.clientY; });
+    for (const t of ['pointerup', 'pointercancel']) look.addEventListener(t, (e) => { if (lk && e.pointerId === lk.id) lk = null; });
+    return el;
+  }
+  // the top bar's Halcyon | Tessie (decision A: the panel's order), in the Boat | Helm pill's place while you are her; Tessie lit (.on, amber)
+  function topSwitch() {
+    if (sw || !doc) return sw;
+    const pill = doc.querySelector('.lk-view .pill'); if (!pill) return null;
+    sw = doc.createElement('div'); sw.className = 'pill lk-tsw'; sw.setAttribute('role', 'group'); sw.setAttribute('aria-label', 'Who you are');
+    sw.innerHTML = topSwitchHtml('tessie');
+    pill.parentNode.insertBefore(sw, pill);
+    sw.addEventListener('click', (e) => { const b = e.target.closest?.('[data-tw]'); e.stopPropagation(); if (b?.dataset.tw === 'halcyon') self.back(); });
+    return sw;
+  }
+  // the dial's arc: 0 … 20 m as a share of a 270° sweep (from 135° to 405°, clockwise)
+  function arc(a, b) {
+    const r = 48, cx = 66, cy = 66, p = (u) => { const t = (135 + 270 * u) * DEG; return [cx + Math.cos(t) * r, cy + Math.sin(t) * r]; };
+    const [x0, y0] = p(a), [x1, y1] = p(Math.max(a + 1e-3, b)), large = (b - a) * 270 > 180 ? 1 : 0;
+    return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  }
+  // her lines are the skipper's line (createTipQueue below; the UI audit, owner 2026-11-21)
+  const hintSvc = () => svc()?.get?.('hint') ?? svc()?.get?.('controls')?.hint ?? null;
+  const tips = createTipQueue({ hint: hintSvc, active: () => W.as === 'tessie', onShown: (kind) => log.tips.push(kind) });
+  const tip = (kind, text) => tips.want(kind, text), stepTips = (dt) => tips.step(dt);
+
+  // ---- the keys (capture: before every other listener; the boat's keys stop here while you are her) ----
+  const onKey = (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || typing()) return;
+    if (W.as !== 'tessie') {
+      if (e.code === 'KeyT' && !e.repeat && W.pill && !cardUp()) { e.preventDefault(); e.stopImmediatePropagation(); self.become('swap'); }
+      return;
+    }
+    if (cardUp()) return;
+    if (TESSIE_KEYS.has(e.code)) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (e.repeat) return;
+      held.add(e.code); hud?.count(e.code);   // the legend learns
+      if (e.code === 'KeyF' || e.code === 'Space') pulse = true;   // the bite: a tap shorter than a frame still bites
+      if (skillOfCode(e.code) === 'dash') dashPulse = true;   // the dash: Shift or the slot's 1 (owner, 2026-11-21: the skills row is an RPG bar)   // the dash: a press, even one shorter than a frame
+      if (e.code === 'KeyT') self.back();
+      else if (e.code === 'KeyC') view = view === 'first' ? 'third' : 'first';   //: C toggles her eyes and the view behind her; kept for the visit
+    } else if (INERT.has(e.code)) { e.preventDefault(); e.stopImmediatePropagation(); }
+  };
+  const onKeyUp = (e) => { held.delete(e.code); };
+  if (doc) {
+    globalThis.addEventListener('keydown', onKey, true); globalThis.addEventListener('keyup', onKeyUp, true);
+    globalThis.addEventListener('blur', () => held.clear());
+  }
+  const has = (...c) => c.some((k) => held.has(k));
+  let pinned = null;   // P.pin({ nose, look, swim }): a fixed depth and look (swim: on at her walk, straight ahead) (tools/v2-perf.mjs's underwater poses, the evidence stills); null: the player's hands
+  let pinTg = null;   // the corners' boat this step (a chase pin swims at it and bites in reach)
+  const pinHands = () => {
+    const d = C.state.nose - pinned.nose;
+    let drag = 0, camYaw = nose()?.psi ?? cam.yaw, bite = false;   // straight on along her heading (the pose's), unless she chases
+    if (pinned.chase) {   // the evidence's chase: W toward the nearest of the lake's sailboats (the corners' boat once aimed), Space in reach
+      const n = nose(), L = busy();
+      if (pinned.chaseId == null && n && L?.active) { let bd = Infinity; for (const b of L.liveBoats) { if (b.knock?.capsized) continue; const q2 = b.phys.state, dd = Math.hypot(q2.x - n.x, q2.z - n.z); if (dd < bd) { bd = dd; pinned.chaseId = b.id; } } }   // the nearest one, kept
+      const boat = L?.liveBoats.find((b) => b.id === pinned.chaseId), tg = boat ? boat.phys.state : null;
+      if (tg && n) { camYaw = Math.atan2(tg.x - n.x, -(tg.z - n.z)); drag = C.state.way == null ? 0 : Math.atan2(Math.sin(camYaw - C.state.way), Math.cos(camYaw - C.state.way)); }
+      bite = !pinned.nobite && !!pinTg?.locked && pinTg.id === pinned.chaseId;   // nobite: the evidence's approach under a hull (Space once locked)
+    }
+    return { move: [0, pinned.swim || pinned.chase ? 1 : 0], camYaw, pitch: cam.pitch, look: cam.look, drag, rise: d > 0.15, sink: d < -0.15, lookSteers: false, diveTo: 0, dash: !!pinned.sprint && (d <= 0.15 || pinned.breach), bite };   // sprint: the dash pressed again whenever it is ready (no dash while she climbs to the pose unless it asks for the breach: the dash + E breaches)
+  };
+  const hands = () => {
+    if (pinned) return pinHands();
+    // the way she should swim, about the camera: W A S D or the arrows, or the stick (pushed to its edge: run)
+    const sk = Math.hypot(touchIn.x, touchIn.y) > 0.25 ? [touchIn.x, touchIn.y] : [0, 0];
+    const mv = [(has('KeyD', 'ArrowRight') ? 1 : 0) - (has('KeyA', 'ArrowLeft') ? 1 : 0) + sk[0], (has('KeyW', 'ArrowUp') ? 1 : 0) - (has('KeyS', 'ArrowDown') ? 1 : 0) + sk[1]];
+    const tablet = touch();
+    const h = { move: mv, camYaw: cam.yaw, pitch: cam.pitch, look: cam.look, drag: dragYaw,   // the look: its yaw (W's way, turned by the drag); phase 2a: the player's look steers her climb
+      rise: has('KeyE') || touchIn.up, sink: has('KeyQ') || touchIn.down, lookSteers: !tablet, diveTo: tapDive,   // E / Q, ▲ / ▼ (3.6); a tablet: the look only looks; ▼ tapped: a dive to 6 m
+      sprint: has('ShiftLeft', 'ShiftRight'), dash: dashPulse || touchIn.dash,   // the dash: Shift's press (the controller reads its edge), or the tablet's DASH slot
+      bite: has('Space', 'KeyF') || touchIn.lunge || pulse };
+    pulse = false; dashPulse = false; touchIn.dash = false; dragYaw = 0;
+    if (tapDive && (h.rise || h.sink || C.state.nose >= tapDive - 0.15)) tapDive = 0;
+    h.move = h.move.map((v) => Math.max(-1, Math.min(1, v)));
+    return h;
+  };
+
+  // ---- the world as she sees it: the boats, the glass boat, the kayakers ----
+  function targets() {
+    const out = [];
+    const s = B.state;
+    if (fleeOn || B.driven) out.push({ id: 'halcyon', kind: 'halcyon', x: s.x, z: s.z, heading: s.heading ?? 0, u: s.u ?? 0, motoring: !!s.engineOn, rpm: s.engineRpm, ...HALCYON });
+    // a capsized boat is no target (it lies on its side)
+    const L = busy(); if (L?.active) for (const b of L.liveBoats) { if (b.knock?.capsized) continue; const q2 = b.phys.state; out.push({ id: b.id, kind: 'sail', x: q2.x, z: q2.z, heading: q2.heading, u: q2.u ?? 0, motoring: !!b.motoring, ...BUSY_HULL, ref: b }); }
+    const T = tour(); if (T?.active) { const g = T.boat; out.push({ id: 'glass', kind: 'glass', x: g.x, z: g.z, heading: g.heading, u: g.v ?? 0, ...GLASS }); for (const k of T.kayaks) out.push({ id: `gk${k.i}`, kind: 'kayak', x: k.x, z: k.z, heading: k.heading, L: 3.4, B: 0.85 }); }
+    // the lake's kayakers (round B): each a bite target while upright (a pair: two targets); the glass boat's are only spooked
+    const F = kayaks(); if (F) F.marks().forEach((m, i) => out.push({ id: `k:${m.id ?? i}`, kind: 'kayak', x: m.x, z: m.z, heading: m.heading ?? 0, L: 3.4, B: 0.85, bite: !m.busy && !!F.bite }));
+    return out;
+  }
+  // the hull the sim holds her outside this frame: the nearest of the Halcyon and the lake's sailboats (posed as drawn)
+  plugin.boatFor = (b0) => {
+    const n = nose(); if (!n) return b0;
+    let best = b0, bd = b0 ? Math.hypot(b0.x - n.x, b0.z - n.z) : Infinity;
+    const L = busy();
+    if (L?.active) for (const b of L.liveBoats) {
+      const s = b.phys.state, d = Math.hypot(s.x - n.x, s.z - n.z);
+      if (d < bd && d < PLAYER.holdNearM) { const f = b.float ?? {}; bd = d; best = { x: s.x, z: s.z, heading: s.heading, speed: s.u ?? 0, heel: (s.heel ?? 0) + (f.roll ?? 0), pitch: f.pitch ?? 0, heave: f.heave ?? 0, boomAngle: s.boomAngle ?? 0, jibAngle: s.jibAngle ?? 0 }; }
+    }
+    return best;
+  };
+  // she has shown herself (any part above the water), and the boat's distance to her nearest part
+  function sighting() {
+    const st = sim.state, s = B.state;
+    if (!st.visible || !st.spine) return { shown: false, distM: Infinity };
+    const sp = st.spine, N = sp.length / 8, ds = sim.L / (N - 1);
+    let top = -Infinity, d = Infinity;
+    for (let i = 0; i < N; i += 2) { top = Math.max(top, sp[i * 8 + 1] + tessieHeightAt(i * ds, sim.L)); d = Math.min(d, Math.hypot(sp[i * 8] - s.x, sp[i * 8 + 2] - s.z)); }
+    return { shown: top > 0.05, distM: d };
+  }
+  // where she rises for the menu's and the chart's entries: 150 m abeam of the boat in deep water, swimming the boat's way
+  function spotBy(s) {
+    for (const R of [PLAYER.offM, 120, 180, 100, 220]) for (const sg of [1, -1]) {
+      const a = s.heading + sg * Math.PI / 2, x = s.x + Math.sin(a) * R, z = s.z - Math.cos(a) * R;
+      if (depthAt(x, z) < 12) continue;
+      let ok = true; for (let k = 10; k <= 50 && ok; k += 10) ok = depthAt(x + Math.sin(s.heading) * k, z - Math.cos(s.heading) * k) >= 8;
+      if (ok) return { x, z, heading: s.heading };
+    }
+    return { x: s.x + Math.sin(s.heading + Math.PI / 2) * 60, z: s.z - Math.cos(s.heading + Math.PI / 2) * 60, heading: s.heading };
+  }
+  // the reach: within 10 s of a menu or chart entry, one of the lake's sailboats 80–125 m ahead of her in a 40° cone
+  function stageReach() {
+    const n = nose(), L = busy(); if (!n || !L?.active) return true;
+    const list = L.liveBoats.filter((b) => !b.knock?.capsized); if (!list.length) return false;   // never a capsized one (it would pop upright)
+    for (const b of list) { const s = b.phys.state, d = Math.hypot(s.x - n.x, s.z - n.z), off = Math.abs(Math.atan2(Math.sin(Math.atan2(s.x - n.x, -(s.z - n.z)) - n.psi), Math.cos(Math.atan2(s.x - n.x, -(s.z - n.z)) - n.psi))); if (d < 140 && off < PLAYER.reachConeDeg * DEG) return true; }
+    const eye = lastPose?.pos ?? [n.x, 0, n.z];
+    const pick = [...list].sort((a, b) => Math.hypot(b.phys.state.x - eye[0], b.phys.state.z - eye[2]) - Math.hypot(a.phys.state.x - eye[0], a.phys.state.z - eye[2]))[0];
+    const s = B.state, windFrom = (s.heading ?? 0) + (s.trueWind?.angle ?? 0);
+    for (const R of PLAYER.reachM) for (const off of [0, 8, -8, 15, -15]) {
+      const a = n.psi + off * DEG, x = n.x + Math.sin(a) * R, z = n.z - Math.cos(a) * R;
+      if (depthAt(x, z) < 6) continue;
+      const hs = [n.psi + Math.PI / 2, n.psi - Math.PI / 2].sort((h1, h2) => Math.abs(Math.cos(h1 - windFrom)) - Math.abs(Math.cos(h2 - windFrom)));
+      for (const h of hs) {
+        if (Math.abs(Math.atan2(Math.sin(h - windFrom), Math.cos(h - windFrom))) < 60 * DEG) continue;
+        let ok = true; for (let k = 15; k <= 90 && ok; k += 15) ok = depthAt(x + Math.sin(h) * k, z - Math.cos(h) * k) >= 4;
+        if (ok && L.lay(pick.id, { x, z, heading: h, speed: 2.6 })) { log.reach = { id: pick.id, R, at: +clock.toFixed(1) }; return true; }
+      }
+    }
+    return false;
+  }
+  // a knockdown. mult: the dash bite's × 1.15; e: the contact (her jaw on the rail, the transom or the topsides, or her
+  // back under the bottom; the owner's son, 2026-11-21: "attacking the water at the side of the sailboat, not really the boat"): the boat is
+  // jolted at that point, shoved and heeled away from her (lifted from below), its crew letting the sheets fly (the sails shake)
+  function knock(r, mult = 1, e = null) {
+    const b = r.hit; let ok = false;
+    const away = e ? -r.side : r.side;   // a bite pushes it over away from her; a fall's weight on the rail (a breach) rolls it toward her
+    let bump = null;
+    if (e) {
+      const dx = b.x - e.x, dz = b.z - e.z, dl = Math.hypot(dx, dz) || 1, fx = Math.sin(b.heading ?? 0), fz = -Math.cos(b.heading ?? 0);
+      const along = (e.x - b.x) * fx + (e.z - b.z) * fz, under = e.where === 'bottom';
+      bump = { px: dx / dl * (under ? 0.2 : 0.45) * mult, pz: dz / dl * (under ? 0.2 : 0.45) * mult, roll: away * (under ? 0.22 : 0.14) * mult, pitch: Math.max(-1, Math.min(1, along / 4)) * (e.where === 'stern' ? 0.12 : 0.05), heave: under ? 0.55 : 0 };
+    }
+    if (b.kind === 'sail') ok = !!busy()?.knock(b.id, { K: H.rollK(b.ref.phys.P, away) * mult, holdS: H.K.holdS, bump });
+    else if (b.kind === 'glass') ok = !!tour()?.knock(away);
+    else if (b.kind === 'halcyon') { const P = B.phys?.P; if (P) { B.shove({ K: H.rollK(P, away) * mult }); ok = true; } }
+    else if (b.kind === 'kayak' && b.bite) ok = !!kayaks()?.bite?.(b.id.slice(2), e ? { x: e.x, z: e.z } : {});   // round B: over, a swim, righted, away
+    if (ok) { pullUntil = clock + 5; knockTotal++; try { storage?.setItem(COUNT_KEY, String(knockTotal)); } catch { /* */ } log.knocks.push({ id: b.id, kind: b.kind, side: r.side, at: +clock.toFixed(1), d: r.d }); }
+    return ok;
+  }
+
+  // ---- the swap ----
+  function apply(on) {
+    plugin.playing = on;
+    const H2 = doc?.documentElement;
+    if (H2) H2.toggleAttribute('data-tessie-play', on);
+    if (!on) { plugin.playDip = 1; plugin.sound?.played?.({ on: false }); }
+    if (dom()) {
+      q('.tp-dial').hidden = !on; q('.tp-touch').hidden = !on || !touch(); q('.tp-aim').hidden = true;
+      layoutKey = ''; hud?.show(on); if (on) placeHud();
+      if (!on) q('.tp-ghost').toggleAttribute('hidden', true);
+    }
+    if (on) topSwitch();
+    (svc()?.get?.('hint') ?? svc()?.get?.('controls')?.hint)?.hush?.(on);   // the skipper's sail lines say nothing while you are her (notes pass: her own lines, tip())
+    svc()?.get?.('vesselPick')?.set?.(on ? 'tessie' : 'halcyon', { quiet: true });
+    if (!on) svc()?.get?.('calm')?.wake?.('all');   // given back: the boat's HUD returns awake (BOAT_HUD), not faded by the Calm HUD's idle clock
+  }
+  function veilSwap(fn) { if (veil) { veil(1, PLAYER.veilOut); veilT = { t: PLAYER.veilOut + 0.05, fn }; } else fn(); }
+  const self = {
+    get active() { return W.as === 'tessie'; }, get as() { return W.as; }, get pill() { return W.pill; }, ctl: C, hits: H, swap: W, cam,
+    get knocks() { return knockTotal; },
+    girthAt: (i, N) => reachAt(i * sim.L / Math.max(1, N - 1), sim.L),   // phase 2b: her body's reach at spine frame i of N (m: her bubbles leave her skin)
+    // a fixed pose (tools/v2-perf.mjs, the evidence): her nose held at `nose` m (E / Q as the keys would), the look held at `look` rad (+ down),
+    // swim: W held (her body follows her nose's path; at a drift it lags it by tens of seconds); sprint: Shift held; chase: W toward the
+    // nearest of the lake's sailboats and Space once it is in reach; breach: the run kept while she climbs (a running climb breaches); yaw: the camera held that many rad round her (+ to her left);
+    // null hands her back to the player
+    pin(p = null) { pinned = p && Number.isFinite(p.nose) ? { nose: Math.max(0, p.nose), look: Number.isFinite(p.look) ? p.look : null, swim: !!p.swim, sprint: !!p.sprint, chase: !!p.chase, nobite: !!p.nobite, breach: !!p.breach, yaw: Number.isFinite(p.yaw) ? p.yaw : null } : null; return pinned; },
+    get pinned() { return pinned; },
+    get view() { return view; }, setView(v) { view = v === 'first' ? 'first' : 'third'; return view; },   //'s own state; tests and captures)
+    ctx() { return { on: true, mode: mode(), race: !!race(), knocked: !!knocked(), card: cardUp(), revenge: !!plugin.revenge?.active }; },
+    become(entry = 'swap', at = null) {
+      if (W.as === 'tessie') return { ok: false, why: 'already' };
+      const why = W.can(entry, self.ctx()); if (why) return { ok: false, why };
+      if (!plugin.render?.ready) { if (entry !== 'swap') pendingEntry = entry; return { ok: false, why: 'loading' }; }   // the menu's or the chart's entry waits for her model
+      const s = B.state, place = entry === 'swap' ? null : at ?? spotBy(s);
+      const go = () => {
+        W.become(entry);
+        if (place) { sim.ambush(place.x, place.z, place.heading, PLAY.drift); }
+        C.begin(place);
+        // the skipper takes the Halcyon and sails away from her (unless an autopilot already has her: Cruise, AUTO)
+        if (!B.driven) { flee ??= createFlee({ B, depthAt, her: () => { const n = nose(); return n ? { x: n.x, z: n.z } : null; } }); B.drive(flee.drive); fleeOn = true; }
+        cam.reset(); entryT = clock; reachDone = entry === 'swap';
+        apply(true);
+        holdTip = 0.8;   // her first tip asks the skipper's line after 0.8 s (once ever: the lean store)
+        log.swaps.push({ in: entry, at: +clock.toFixed(1) });
+      };
+      if (entry === 'swap') {
+        // the glide under 120 m (the rig's first pose against the camera now); else, or under reduced motion, the veil
+        const n = nose(); if (!n) return { ok: false, why: 'unseen' };
+        const probe = createTessieCam().step(1 / 60, { spine: sim.state.spine, L: sim.L, psi: n.psi, nose: 0, reduced: reduced() });
+        if (lastBoatPose && !needsVeil(lastBoatPose, probe, { reduced: reduced() })) { go(); glide.start(lastBoatPose); }
+        else { veilSwap(() => {}); holdCamUntil = clock + PLAYER.veilOut + 0.05; go(); }   // she is yours at once; the camera cuts under the veil
+      } else go();
+      return { ok: true, entry };
+    },
+    back({ cut = false } = {}) {
+      if (W.as !== 'tessie') return false;
+      W.back(); C.end();
+      if (fleeOn) { if (B.drivenBy?.(flee.drive)) B.drive(null); fleeOn = false; }   // only if her flee still owns the hook (Cruise's autopilot survives)
+      apply(false); held.clear(); touchIn.x = touchIn.y = 0; touchIn.id = null; touchIn.dive = touchIn.lunge = touchIn.up = touchIn.down = touchIn.dash = false;   // the view C chose stays for the rest of the visit (open question 2)
+      if (!cut && lastPose && lastBoatPose && !needsVeil(lastPose, lastBoatPose, { reduced: reduced() })) glide.start(lastPose);
+      else if (!cut) { glide.stop(); veilSwap(() => {}); }
+      log.swaps.push({ out: true, at: +clock.toFixed(1) });
+      return true;
+    },
+    // the chart's "Be Tessie": the boat moved to her water under the veil (the birthplace's move), she rises 150 m off it
+    async fromChart() {
+      const why = W.can('chart', self.ctx()); if (why && why !== 'card') return { ok: false, why };
+      if (W.as === 'tessie') self.back({ cut: true });
+      const r = birthplaces ? await birthplaces.moveTo('tessie') : { ok: true };
+      if (!r?.ok) return r ?? { ok: false, why: 'unknown' };
+      pendingChart = true;
+      svc()?.get?.('menu')?.close?.();
+      return { ok: true };
+    },
+    // the busy lake's escape: her as a threat the boats keep clear of, only once they see her
+    threat() {
+      if (W.as !== 'tessie' || !sim.state.visible) return null;
+      const n = nose(); if (!n) return null;
+      const nz = C.state.nose, L = C.state.lunge, warned = !!L?.deep && L.phase === 'rise';   // 2c: the warning rings: the boats near them see her coming, at any depth
+      const seeM = warned ? PLAY.warn.seeM : nz < 2.5 ? 60 : nz <= PLAY.hiddenM ? 15 : 0;   //: 1–8 m 15 m, deeper never (HIDDEN on the dial)
+      return seeM ? { x: n.x, z: n.z, heading: n.psi, u: n.speed, m: 120, seeM, warn: warned } : null;
+    },
+    step(dt) {
+      if (!(dt > 0)) return;
+      clock += dt;
+      if (!provided) { const S = svc(); if (S?.provide) { S.provide('tessiePlay', self); provided = true; } }
+      if (veilT) { veilT.t -= dt; if (veilT.t <= 0) { const f = veilT.fn; veilT = null; f?.(); veil?.(0, PLAYER.veilIn); } }
+      // the menu's Boat plate: closing the card applies the pick (Dive in, Resume)
+      const card = cardUp();
+      if (prevCard && !card) {
+        const pick = svc()?.get?.('vesselPick');
+        const want = pick?.get?.();
+        if (pendingChart) { pendingChart = false; self.become('chart'); }
+        else if (want === 'tessie' && W.as === 'boat') self.become('menu');
+        else if (want === 'halcyon' && W.as === 'tessie') self.back({ cut: true });
+      }
+      prevCard = card;
+      if (W.as === 'tessie' && (race() || isRace(mode()))) self.back({ cut: true });
+      if (pendingEntry && W.as === 'boat' && !card && plugin.render?.ready) { const e = pendingEntry; pendingEntry = null; self.become(e); }
+      const sg = sighting();
+      W.step(dt, { ...self.ctx(), shown: sg.shown, distM: sg.distM });
+      if (dom()) { const be = q('.tp-be'); const on = W.pill && W.as === 'boat'; if (on) be.hidden = false; be.toggleAttribute('data-on', on); if (!on && be.hidden === false && !be.matches(':hover')) be.dataset.offT = String((+be.dataset.offT || 0) + dt); if (on) be.dataset.offT = '0'; if (!on && (+be.dataset.offT || 0) > 0.7) be.hidden = true; }
+      if (holdTip > 0) { holdTip -= dt; if (holdTip <= 0) tip('tip.tessie.swim', touch() ? PLAY_LINES.tipTouch : PLAY_LINES.tip); }
+      stepTips(dt);
+      // phase 2a's two lines, each once: the first dive's (at the surface in water deep enough, after the tip), the first time past 6 m
+      if (W.as === 'tessie' && underOn && sim.state.visible) {
+        const nz = C.state.nose;
+        surfaceT = nz < 1.2 && C.state.way != null && holdTip <= 0 && C.state.lim > 0 ? surfaceT + dt : 0;   //: swimming at the surface (a way held) in water deep enough to dive
+        if (surfaceT > PLAYER.fastS) tip('tip.tessie.dive', touch() ? PLAY_LINES.fastTouch : PLAY_LINES.fast);
+        if (nz > PLAYER.lookUpM) tip('tip.tessie.look', PLAY_LINES.look);
+      }
+      if (W.as !== 'tessie' || !sim.state.visible) return;
+      const list = targets(), n = nose();
+      // the corners (kept with hysteresis) and the lock-on: amber means locked, at the surface and under the water
+      const tg = H.aim(n, list, clock);
+      const lk = H.lock(n, list, clock, { nose: C.state.nose, way: C.state.way, tablet: !!touch(), dt });
+      lastLock = lk ? { id: lk.id, k: lk.k, x: lk.x, z: lk.z } : null;
+      if (tg) tg.locked = !!lk?.id && lk.id === tg.id;
+      if (lk?.id && lk.id !== lockWas) lockAt = clock;   // the corners close in once on a new lock
+      lockWas = lk?.id ?? null;
+      pinTg = tg; lastTg = tg;
+      C.step(dt, cardUp() ? {} : hands(), { target: tg, lock: lk });
+      for (const e of C.events) {
+        if (e.type === 'contact') {
+          // a bite's hit test: her head within 3.0 m of the locked hull (2.0 m otherwise)
+          log.bites = (log.bites ?? 0) + 1;
+          const r = H.contact(e.kind === 'rising' ? { ...e, y: 0 } : e, list, clock);   // the rising strike: her head under the hull's bottom
+          log.lastContact = { x: +e.x.toFixed(1), z: +e.z.toFixed(1), kind: e.kind, locked: !!e.locked, hit: r.hit?.id ?? null, d: r.d ?? null, at: +clock.toFixed(1) };
+          const ok = r.hit ? knock(r, e.knock ?? 1, e) : false; if (ok) log.hits++;
+          if (ok) soundKnocks.push({ hit: true, boat: r.hit.kind, x: e.x, z: e.z, where: e.where, mult: e.knock ?? 1 });   // the knock's sound (v2/audio/tessieMix.js): the hull's material, the creak, the sails
+          C.result(ok);
+        } else if (e.type === 'fall') {
+          log.falls++;
+          const r = H.fall(e, list, clock, { hitM: e.locked ? H.K.lock.footM : H.K.hitM });   // the rising strike's fall: 3.5 m while locked
+          log.lastFall = { x: +e.x.toFixed(1), z: +e.z.toFixed(1), hit: r.hit?.id ?? null, d: r.d ?? null, at: +clock.toFixed(1) };
+          const ok = r.hit ? knock(r) : false; if (ok) log.hits++;
+          kayaks()?.spook?.(e.x, e.z, H.K.spookM); log.spooks += r.spooked.length;
+          C.result(ok);
+        } else if (e.type === 'surfaced') kayaks()?.spook?.(e.x, e.z, H.K.spookM);
+      }
+      for (const e of sim.state.events) if (e.type === 'breach' || e.type === 'break') kayaks()?.spook?.(e.x, e.z, H.K.spookM);
+      // the kayaks and the glass boat are solid to her (the sailboats: the sim's own hold)
+      // (round B: not the kayak she is biting: her jaw meets its hull, not the water beside it)
+      const biting = C.state.bite?.target?.id ?? C.state.lunge?.target?.id ?? null;
+      H.holdOff(sim.state.spine, sim.L, biting ? list.filter((b) => b.id !== biting || b.kind !== 'kayak') : list, (s) => reachAt(s, sim.L));
+      if (!reachDone && clock - entryT > PLAYER.reachDelayS) reachDone = stageReach() || clock - entryT > 10;
+      // the sound and the beds under the surface
+      // her sound (v2/living/tessie-sound.js played): the rush by speed and gait (the top 19 m/s), the world's low-pass by the eye's depth,
+      // the water's ambience, the engines, the one-shots from this frame's events
+      const eyeUnder = underOn && lastUnder ? lastUnder.depth : null, pp = lastPose?.pos, pt = lastPose?.target;
+      if (n) plugin.sound?.played?.({ on: true, speedK: C.state.speed / PLAY.top, speed: C.state.speed, nose: C.state.nose, dash: !!C.state.dash, eyeDepth: eyeUnder, boats: list, her: n, dt,
+        cam: pp && pt ? { x: pp[0], z: pp[2], yaw: Math.atan2(pt[0] - pp[0], -(pt[2] - pp[2])) } : { x: n.x, z: n.z, yaw: n.psi }, events: C.events, knocks: soundKnocks, skill: C.skills.state('dash'), phase: C.state.phase, bite: C.state.bite, lunge: C.state.lunge, lockId: lastLock?.id ?? null });
+      soundKnocks.length = 0;
+      plugin.playDip = (eyeUnder != null ? eyeUnder > 0.3 : C.state.nose >= 2) ? 0.55 : 1;
+      paint(tg, list, dt);
+    },
+    camera(dt, c, orbit = null) {
+      // the boat's own camera, tracked in place (no per-frame allocation) in both modes: the swap-back judges the veil against where the boat is NOW
+      if (c) { const b = boatPose; b.pos[0] = c.pos[0]; b.pos[1] = c.pos[1]; b.pos[2] = c.pos[2]; b.target[0] = c.target[0]; b.target[1] = c.target[1]; b.target[2] = c.target[2]; b.fov = c.fov; lastBoatPose = b; }
+      if (W.as !== 'tessie') return glide.active && c ? (lastPose = glide.apply(dt, c)) : c;
+      const n = nose(); if (!n) return c;
+      // the look: the mouse's drag (the page's orbit) or the tablet's look drag; it follows in behind her while she swims and nobody drags
+      const inv = prefs.get('invert') ? -1 : 1;   // phase 2a: Invert up/down (Settings; off)
+      const lo = pinned ? [pinned.yaw != null ? Math.atan2(Math.sin(cam.yaw - (n.psi + pinned.yaw)), Math.cos(cam.yaw - (n.psi + pinned.yaw))) : 0, 0] : [(orbit?.[0] ?? 0) + touchLook[0], ((orbit?.[1] ?? 0) + touchLook[1]) * inv]; touchLook[0] = 0; touchLook[1] = 0;   // a pose's yaw: the camera held that far round her
+      if (pinned?.look != null) cam.setLook(pinned.look);   // the pose's look, held (no assist)
+      const dragging = !!(lo[0] || lo[1]); if (lo[0]) dragYaw -= lo[0];
+      const moving = has('KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight') || Math.hypot(touchIn.x, touchIn.y) > 0.25 || !!(pinned?.swim || pinned?.chase);
+      const keysHeld = moving || has('KeyE', 'KeyQ') || touchIn.up || touchIn.down || !!pinned;
+      //: one continuous camera: the controller's strike state shapes its goal, the lock pulls its aim (never a mode switch)
+      const live = cam.step(dt, { spine: sim.state.spine, L: sim.L, psi: n.psi, nose: C.state.nose, speed: C.state.speed, strike: C.state.strike, lock: lastLock, view, reduced: reduced(), orbit: dragging ? lo : null, follow: moving, pull: clock < pullUntil,
+        followOn: prefs.get('follow') !== false, limit: !!C.state.limit, resting: !keysHeld, waterAt, floorAt, underOn });
+      lastUnder = live.under;
+      if (clock < holdCamUntil && lastBoatPose) return c;
+      const out = glide.apply(dt, { ...live, pos: [...live.pos], target: [...live.target], near: live.under?.medium === 'water' || live.under?.crossing || live.viewK > 0.01 ? 0.1 : 0.5 });   // first person: the 0.1 m near plane (her crown is about 0.25 m under the eye)   // phase 2a: a near plane inside the lens's band while under or crossing
+      lastPose = out;
+      return out;
+    },
+    stats() {
+      return { as: W.as, entry: W.entry, pill: W.pill, view, viewK: cam.state.viewK, fleeOn, knocks: knockTotal, under: lastUnder ? { ...lastUnder } : null, look: +cam.look.toFixed(4), eye: lastPose?.pos ? lastPose.pos.map((v) => +v.toFixed(2)) : null, ctl: { ...C.state, lunge: C.state.lunge ? { phase: C.state.lunge.phase, kind: C.state.lunge.kind, t: +C.state.lunge.t.toFixed(2), target: C.state.lunge.target?.id ?? null } : null, bite: C.state.bite ? { kind: C.state.bite.kind, t: +C.state.bite.t.toFixed(2), target: C.state.bite.target?.id ?? null, locked: C.state.bite.locked, hit: C.state.bite.hit } : null, strike: C.state.strike }, lock: lastLock ? { ...lastLock, k: +lastLock.k.toFixed(2) } : null, bite: sim.biteState ? { kind: sim.biteState.kind, phase: sim.biteState.phase, t: +sim.biteState.t.toFixed(2), gape: +(sim.state.gape ?? 0).toFixed(3) } : null,
+        log: { ...log, knocks: log.knocks.slice(-8), swaps: log.swaps.slice(-8) }, tipsWant: tips.waiting, glide: glide.active, aim: lastAim };
+    },
+  };
+  let lastLock = null, lastTg = null, lockWas = null, lockAt = -Infinity;   //: the lock this step, the corners' close-in clock
+  const soundKnocks = [];   // this frame's contacts that hit, for her sound
+  let pendingChart = false, holdTip = 0, lastAim = null, pendingEntry = null, pullUntil = -1, lastUnder = null, hud = null, layoutKey = '', outT = 0;
+  // the HUD's places for this window: a desktop's bottom corners and row, a tablet's top corners
+  function placeHud() {
+    const w = globalThis.innerWidth ?? 1280, h = globalThis.innerHeight ?? 720, tab = !!touch(), k = `${w}x${h}${tab}`;
+    if (!hud || k === layoutKey) return;
+    layoutKey = k;
+    const bar = parseFloat(globalThis.getComputedStyle?.(doc.documentElement)?.getPropertyValue('--lk-bar-b')) || 58;
+    hud.place(hudLayout({ w, h, tablet: tab, barB: bar }), q('.tp-dial'));
+  }
+  function paint(tg, list = [], dt = 0) {
+    if (!el) return;
+    const st = C.state;
+    //: the sonar (her heading up, the corners' boat at full ink, the locked one ringed amber, a tick on those that have
+    // seen her), the DASH slot's ring, the legend's levels; the dash's line once ever, after a boat sits in her corners out of reach for 2 s
+    placeHud();
+    const th = self.threat(), n0 = nose();
+    hud?.paint({ t: clock, states: { dash: C.skills.state('dash') }, her: n0, boats: list, targetId: tg?.id ?? null, lockId: lastLock?.id ?? null, seen: (b, d) => !!th && b.kind !== 'kayak' && d <= th.seeM, hidden: st.hidden });
+    outT = tg && !tg.locked ? outT + dt : 0;
+    if (outT > PLAYER.dashLineS && holdTip <= 0) tip('tip.tessie.dash', touch() ? PLAY_LINES.dashTouch : PLAY_LINES.dash);
+    // the dial (HIDDEN deeper than 8 m: the boats cannot see her; owner, 2026-11-20: "hide herself"): her nose's depth on the 0–20 m arc, her word, the speed chevrons (the breath ring went with the stamina run); a ▲ or ▼ while she climbs or
+    // sinks faster than 0.2 m/s (the player sees a look is steering her)
+    const k = Math.min(1, st.nose / PLAYER.dialM);
+    const ar = q('.ar'); if (ar) ar.textContent = st.climb < -PLAYER.arrowV ? '▲' : st.climb > PLAYER.arrowV ? '▼' : '';
+    q('.tp-up')?.toggleAttribute('data-dim', st.nose < 1.0);
+    q('.tp-dn')?.toggleAttribute('data-dim', st.lim <= 0 || st.nose >= st.lim - 0.3);
+    q('.fl').setAttribute('d', arc(0, Math.max(0.004, k)));
+    q('.w').textContent = st.hidden ? 'HIDDEN' : st.word; q('.m').textContent = `${st.nose.toFixed(st.nose < 10 ? 1 : 0)} m`;
+    // the speed chevrons in the dial's foot: one lit swimming, two past 6.5 m/s (under the water), three past 15 m/s, amber on the dash
+    const ch = q('.chev'); if (ch) { ch.toggleAttribute('data-dash', !!st.dash); ch.querySelectorAll('path').forEach((p, i) => p.toggleAttribute('data-on', st.speed > PLAYER.chevV[i])); }
+    q('.tp-lunge')?.toggleAttribute('data-rest', st.rest > 0 || !!st.lunge || (!!st.bite && st.phase !== 'recover'));
+    // the outline aid: while the water hides her (a dive), a faint cream line of her own body, 25 % (no other mark)
+    const gh = q('.tp-ghost');
+    if (project && st.nose > 2.5 && !(underOn && (lastUnder?.medium === 'water' || lastUnder?.crossing))) {   // phase 2a: gone while the eye is under (she is in plain view)
+      const sp = sim.state.spine, N = sp.length / 8; let d = '', wsum = 0, nw = 0;
+      for (let i = 0; i < N; i += 3) { const p = project(sp[i * 8], sp[i * 8 + 1], sp[i * 8 + 2]); if (!p) continue; d += `${d ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`; if (i > 6 && i < N - 12) { wsum += 1.4 * focal() / p[2]; nw++; } }
+      gh.toggleAttribute('hidden', !d); if (d) { const w = Math.max(4, Math.min(60, wsum / Math.max(1, nw))), o = gh.querySelector('.o'), i = gh.querySelector('.i'); o.setAttribute('d', d); i.setAttribute('d', d); o.setAttribute('stroke-width', w.toFixed(1)); i.setAttribute('stroke-width', Math.max(1, w - 3).toFixed(1)); }   // her outline only: a 1.5 px cream edge
+    } else gh.toggleAttribute('hidden', true);
+    // the corners: four quiet cream corners round the boat ahead, amber inside the lunge's reach, its distance
+    const aim = q('.tp-aim');
+    lastAim = tg ? { id: tg.id, d: +tg.d.toFixed(1), reach: !!tg.locked, locked: !!tg.locked } : null;
+    if (!tg || !project) { aim.hidden = true; return; }
+    const p = project(tg.x, underOn && lastUnder?.medium === 'water' ? -0.5 : 1.4, tg.z);   // phase 2a: under the water the corners sit on her hull's underbody
+    if (!p || !(p[2] > 0)) { aim.hidden = true; return; }
+    // the lock: the corners turn amber and close in once (1.15 → 1.0 over 0.25 s)
+    const close = tg.locked ? 1 + 0.15 * (1 - Math.min(1, Math.max(0, (clock - lockAt) / 0.25))) : 1;
+    const size = Math.max(44, Math.min(280, 11 * focal() / p[2])) * close;
+    aim.hidden = false; aim.toggleAttribute('data-reach', !!tg.locked);
+    aim.style.left = `${(p[0] - size / 2).toFixed(1)}px`; aim.style.top = `${(p[1] - size * 0.55).toFixed(1)}px`; aim.style.width = `${size.toFixed(0)}px`; aim.style.height = `${(size * 0.8).toFixed(0)}px`;
+    aim.querySelector('b').textContent = `${Math.round(tg.d)} m`;
+  }
+  return self;
+}

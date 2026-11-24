@@ -1,0 +1,18 @@
+{
+  "id": "bay-tour",
+  "waters": "tahoe-emerald",
+  "blurb": "to the mouth and back",
+  "name": "Bay Tour",
+  "designWindFrom": 210,
+  "line": { "committee": [521, -542.5], "pin": [599, -497.5] },
+  "marks": [
+    { "id": "W", "kind": "sphere", "colour": "orange", "at": [290, -60], "rounding": "port" },
+    { "id": "M", "kind": "sphere", "colour": "orange", "at": [880, -940], "rounding": "port" },
+    { "id": "E", "kind": "sphere", "colour": "orange", "at": [1180, -780], "rounding": "port" },
+    { "id": "I", "kind": "cylinder", "colour": "orange", "at": [420, -230], "rounding": "port" }
+  ],
+  "legs": [{ "to": "W" }, { "to": "M" }, { "to": "E" }, { "to": "I" }, { "to": "finish" }],
+  "laps": 1,
+  "scales": [0.55, 0.7, 0.85],
+  "timeLimitS": 2400
+}

@@ -1,0 +1,54 @@
+{
+ "name": "w2-kayaks-helm",
+ "title": "Velia week 2: company on the lake",
+ "about": "Week 2 shot 3: from the helm seat, the look eased toward the kayak pair as they pass; 1 s handles.",
+ "duration": 7,
+ "fps": 30,
+ "warm": 30,
+ "preroll": 7,
+ "helmTrack": {
+  "at": "kayak",
+  "rate": 0.6,
+  "pitch": -0.06
+ },
+ "url": {
+  "mode": "sail",
+  "hour": 17,
+  "seed": 1,
+  "wind": 2,
+  "cloudcov": 0.18,
+  "view": "helm",
+  "settle": 1
+ },
+ "camera": {
+  "rig": true,
+  "keys": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "fov": 28
+   },
+   {
+    "t": 7,
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "fov": 28
+   }
+  ]
+ },
+ "formats": {
+  "L": {
+   "w": 1920,
+   "h": 1080,
+   "ss": 1.5,
+   "mbps": 20
+  }
+ }
+}

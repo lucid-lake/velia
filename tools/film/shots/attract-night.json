@@ -1,0 +1,41 @@
+{
+  "name": "attract-night",
+  "title": "Velia: under the Milky Way",
+  "about": ", 2026-11-07, on sse-2230: \"This view is stunning. How can we make users see it?\"): the reel's middle shot. The mouth of Emerald Bay at 22:30 on 4 July, a clear moonless night: the camera low on the sill looking south-south-east, the galactic core 19° up over the ridge south of the mouth, Halcyon small in the lower third on a beam reach in light air, lit softly by the starlit night with her nav lights, a faint reflection on the calm water. A slow push of 8 m over 7 s.",
+  "duration": 7,
+  "fps": 30,
+  "warm": 40,
+  "url": {
+    "mode": "sail",
+    "hour": 22.5,
+    "seed": 1,
+    "wind": 1,
+    "start": "1708,-1225",
+    "heading": 70,
+    "settle": 4,
+    "clouds": 0,
+    "cloudcov": 0
+  },
+  "camera": {
+    "frame": "world",
+    "ease": "inout",
+    "keys": [
+      { "t": 0, "pos": [1686, 2.6, -1273], "fov": 58 },
+      { "t": 7, "pos": [1689, 2.8, -1265], "fov": 58 }
+    ],
+    "aim": { "at": [2172, 271, -395], "tau": 1.5 }
+  },
+  "formats": {
+    "L": { "w": 1920, "h": 1080, "ss": 1.5, "mbps": 24 },
+    "P": {
+      "w": 1080, "h": 1920, "ss": 1.5, "mbps": 16,
+      "camera": {
+        "keys": [
+          { "t": 0, "pos": [1688, 2.6, -1276], "fov": 74 },
+          { "t": 7, "pos": [1690, 2.8, -1268], "fov": 74 }
+        ],
+        "aim": { "at": [2120, 330, -420] }
+      }
+    }
+  }
+}

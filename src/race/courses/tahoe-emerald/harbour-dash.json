@@ -1,0 +1,16 @@
+{
+  "id": "harbour-dash",
+  "waters": "tahoe-emerald",
+  "blurb": "windward–leeward",
+  "name": "Harbour Dash",
+  "designWindFrom": 210,
+  "line": { "committee": [221, -242.5], "pin": [299, -197.5] },
+  "marks": [
+    { "id": "W", "kind": "sphere", "colour": "orange", "at": [-30, 230], "rounding": "port" },
+    { "id": "L", "kind": "cylinder", "colour": "orange", "at": [235, -78], "rounding": "port" }
+  ],
+  "legs": [{ "to": "W" }, { "to": "L" }, { "to": "finish" }],
+  "laps": 1,
+  "scales": [0.35, 0.5, 0.75],
+  "timeLimitS": 900
+}

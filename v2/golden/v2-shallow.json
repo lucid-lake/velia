@@ -1,0 +1,10 @@
+{
+  "name": "v2-shallow",
+  "url": "http://127.0.0.1:5174/?hour=13&cam=I&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M2: v1's cam I by Fannette Island at 13:00: the turquoise shelf over the sand, the navy beyond"
+}

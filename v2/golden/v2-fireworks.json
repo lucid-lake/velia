@@ -1,0 +1,10 @@
+{
+  "name": "v2-fireworks",
+  "url": "http://127.0.0.1:5174/?settle=4&hour=21.92333&fwt=100&start=1200,-1050&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "The July 4th show at 100 s from the start, the default Boat view (2026-11-18: the barges 1,000 m past the mouth, the scene facing them, about 60°): v1's shells, streaks and smoke over the mouth, the bursts in the waves"
+}

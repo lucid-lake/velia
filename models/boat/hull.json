@@ -1,0 +1,127 @@
+{
+  "glb": "models/boat/hull.glb",
+  "triangles": 25921,
+  "stations": 81,
+  "columns": 27,
+  "loa_m": 8.635,
+  "beam_m": 3.148584,
+  "lwl_m": 7.263,
+  "dims": {
+    "loa": 8.634984,
+    "lwl": 7.263384,
+    "beam": 3.148584
+  },
+  "bytes": 1157344,
+  "fittings_hull_frame": {
+    "fit_mast_step": [
+      0,
+      1.463,
+      -0.739
+    ],
+    "fit_forestay": [
+      0,
+      1.066,
+      -4.12
+    ],
+    "fit_chainplate_S": [
+      0.95,
+      0.976,
+      -0.739
+    ],
+    "fit_chainplate_P": [
+      -0.95,
+      0.976,
+      -0.739
+    ],
+    "fit_backstay_S": [
+      0.7,
+      0.88,
+      4.08
+    ],
+    "fit_backstay_P": [
+      -0.7,
+      0.88,
+      4.08
+    ],
+    "fit_keel": [
+      0,
+      -0.495,
+      -0.439
+    ],
+    "fit_rudder_stock": [
+      0,
+      -0.091,
+      3.25
+    ],
+    "fit_wheel": [
+      0,
+      0.48,
+      2.45
+    ],
+    "fit_cockpit_sole": [
+      0,
+      0.48,
+      2.64
+    ],
+    "fit_companionway": [
+      0,
+      0.48,
+      1.4
+    ],
+    "fit_traveller": [
+      0,
+      1.471,
+      0.7
+    ],
+    "fit_bow_pulpit": [
+      0,
+      1.065,
+      -4.092
+    ],
+    "fit_stern_pulpit_S": [
+      1.318,
+      0.88,
+      4.03
+    ],
+    "fit_stern_pulpit_P": [
+      -1.318,
+      0.88,
+      4.03
+    ],
+    "fit_platform": [
+      0,
+      0.3,
+      4.573
+    ],
+    "fit_exhaust": [
+      1.179,
+      0.3,
+      3.811
+    ],
+    "fit_prop": [
+      0,
+      -0.56,
+      2.3
+    ]
+  },
+  "materials": [
+    "gelcoat",
+    "nonskid",
+    "acrylic",
+    "antifouling",
+    "aluminium",
+    "stainless",
+    "acrylic",
+    "gold_leaf",
+    "vinyl_navy"
+  ],
+  "draw_calls": 9,
+  "prop_hub_below_hull_m": 0.27,
+  "deck_heights": {
+    "mastStepY": 1.463,
+    "bowDeckY": 1.066,
+    "sideDeckY": 0.976,
+    "sternDeckY": 0.88
+  },
+  "dims_mismatch_mm": {}
+}

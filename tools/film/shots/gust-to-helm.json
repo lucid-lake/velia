@@ -1,0 +1,131 @@
+{
+  "name": "gust-to-helm",
+  "title": "Velia: the gust, to the helm",
+  "about": "DEMO v2 take 2: v1's gust side view (0-4.4 s), one eased swing aft and in (4.4-8.0 s), the game's Boat-to-Helm path into the seat (8.0-9.0 s), the helm hold (9.0-11.0 s).",
+  "duration": 11,
+  "fps": 60,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "start": "300,-300",
+    "heading": 110,
+    "settle": 16
+  },
+  "camera": {
+    "frame": "boat0",
+    "window": [
+      4.4,
+      8.0
+    ],
+    "aim": {
+      "at": "boat",
+      "offset": [
+        7.5,
+        4.5,
+        -2.9
+      ],
+      "tau": 1.2
+    },
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          55,
+          1.5,
+          14
+        ],
+        "fov": 20,
+        "aim": [
+          7.5,
+          4.5,
+          -2.9
+        ]
+      },
+      {
+        "t": 4.4,
+        "pos": [
+          55,
+          1.5,
+          14
+        ],
+        "fov": 20,
+        "aim": [
+          7.5,
+          4.5,
+          -2.9
+        ]
+      },
+      {
+        "t": 6.3,
+        "pos": [
+          28,
+          3.5,
+          10
+        ],
+        "fov": 30,
+        "aim": [
+          3,
+          3,
+          -1
+        ]
+      },
+      {
+        "t": 8.0,
+        "pos": [
+          2.9,
+          3.0,
+          18.1
+        ],
+        "fov": 45,
+        "aim": [
+          0,
+          2,
+          0
+        ],
+        "helm": 0
+      },
+      {
+        "t": 9.0,
+        "pos": [
+          2.9,
+          3.0,
+          18.1
+        ],
+        "fov": 58,
+        "aim": [
+          0,
+          2,
+          0
+        ],
+        "helm": 1
+      },
+      {
+        "t": 11,
+        "pos": [
+          2.9,
+          3.0,
+          18.1
+        ],
+        "fov": 58,
+        "aim": [
+          0,
+          2,
+          0
+        ],
+        "helm": 1
+      }
+    ]
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "ss": 1.5,
+      "mbps": 50
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "v2-regatta",
+  "url": "http://127.0.0.1:5174/?mode=regatta&wind=2&racet=10&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "Regatta R1 + R2 (BACKLOG-v2 #12): the race opened at −0:45, 10 s of the helper's untouched start sailed (−0:35): the race camera behind the boat toward the line, the glowing start line with its posts at the pin and the committee boat, the 20 m line, the gold ghost and the dashed path to it, the course line to W, Osprey (the lite draw); the plates are DOM (not in a capture); R3 (2026-11-14, re-blessed for the owner's look): the course laid in fair wind out of Emerald Bay's lee, the box by the wind (nearer in light air) and the eye stepped back for it, the coach's cue (the line and the ghost pulse)"
+}

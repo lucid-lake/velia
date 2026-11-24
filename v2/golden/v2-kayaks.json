@@ -1,0 +1,10 @@
+{
+  "name": "v2-kayaks",
+  "url": "http://127.0.0.1:5174/?hour=15&wind=2&settle=40&campos=1099,1.4,-1011&camlook=1093,0.4,-1006&camfov=40&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "the living lake: v1's first pair laid off the Sail start (v1's start pose, 15:00), seen from 12 m: v1's kayaks and UBC paddlers in their PFDs and caps, mid-stroke on v1's baked strokes"
+}

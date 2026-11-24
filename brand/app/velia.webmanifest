@@ -1,0 +1,19 @@
+{
+  "name": "Velia",
+  "short_name": "Velia",
+  "description": "A sailing game in your browser: real wind, real water on Lake Tahoe's Emerald Bay.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#1C2340",
+  "theme_color": "#1C2340",
+  "icons": [
+    { "src": "/brand/app/velia-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/app/velia-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/app/velia-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/brand/app/velia-icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}

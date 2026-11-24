@@ -1,0 +1,98 @@
+{
+  "name": "card-welcome",
+  "title": "Velia: the welcome",
+  "about": "The first-visit welcome over the live bay at 17:00 (the live render behind the card, the hero photo hidden in film; the same view the sail opens on): How do you sail? The dot taps New to it.",
+  "ui": true,
+  "duration": 2.4,
+  "fps": 60,
+  "settle": 1,
+  "settleMs": 6000,
+  "waitFor": "document.getElementById('lk-load')?.dataset.state === 'home'",
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "gate": 1,
+    "welcome": 1,
+    "start": "-330,40",
+    "heading": 60
+  },
+  "inputs": [
+    {
+      "t": 1.4,
+      "tap": "text=New to it"
+    }
+  ],
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "view": [
+        1920,
+        1080
+      ],
+      "dpr": 2,
+      "pixelratio": 2,
+      "mbps": 50,
+      "hide": [
+        ".lk-bg",
+        ".lk-wash",
+        ".lk-still",
+        ".lk-cv",
+        ".lk-helm",
+        ".lk-hudc",
+        ".lk-cp",
+        ".lk-cpx",
+        ".lk-thr",
+        ".lk-view",
+        ".lk-dock",
+        ".lk-hint",
+        ".lk-guide",
+        ".toast",
+        ".lk-chart",
+        ".lk-rd"
+      ]
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "view": [
+        432,
+        768
+      ],
+      "dpr": 5,
+      "pixelratio": 4,
+      "touch": true,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "hide": [
+        ".lk-bg",
+        ".lk-wash",
+        ".lk-still",
+        ".lk-cv",
+        ".lk-helm",
+        ".lk-hudc",
+        ".lk-cp",
+        ".lk-cpx",
+        ".lk-thr",
+        ".lk-view",
+        ".lk-dock",
+        ".lk-hint",
+        ".lk-guide",
+        ".toast",
+        ".lk-chart",
+        ".lk-rd"
+      ]
+    }
+  },
+  "storage": {
+    "lakeshore.desknote.v1": "1"
+  },
+  "css": "#lk-load{background:transparent !important}"
+}

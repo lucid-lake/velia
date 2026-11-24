@@ -1,0 +1,46 @@
+{
+  "name": "helm-spray",
+  "title": "Velia: helm spray",
+  "about": "The helm view close-hauled into level-4 chop in the bay at 13:00 (heading 241, the thrill-slam course): the bow slams and its spray blows aft past the wheel (owner bug 2026-11-06: near-lens spray read as white balls). The same seed and inputs for before | after.",
+  "duration": 8,
+  "fps": 60,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 13,
+    "seed": 1,
+    "wind": 4,
+    "windref": "start",
+    "start": "4500,-3000",
+    "settle": 20,
+    "view": "helm",
+    "birds": 0,
+    "cloudcov": 0.6,
+    "heading": 241
+  },
+  "camera": {
+    "rig": true,
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          0,
+          0,
+          0
+        ],
+        "fov": 55
+      }
+    ],
+    "aim": {
+      "at": "boat"
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 1280,
+      "h": 720,
+      "ss": 1,
+      "mbps": 12
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "v": 1,
+  "about": "Aids to navigation per waters. A row's place is one of: osm [lat, lon] alone (the waters' projection), on: 'channel' with along (m from the channel's bay end) and off (m from its line; the side from the colour: red right returning, red to starboard entering from the lake), or at [x, z] (world m, a design placement). Red and green rows on the channel keep the source's lat, lon in osm beside the placed spot. Each row names its source; light strings are the light list's (Fl = one flash a period).",
+  "sources": {
+    "dvids": {
+      "title": "US Coast Guard aids-to-navigation team at Lake Tahoe, photos 5760659 and 5760675 (the buoys' hull, colour and reflective strip; the regulatory buoy)",
+      "url": "https://www.dvidshub.net/image/5760675",
+      "accessed": "2026-11-18",
+      "licence": "public domain (US Coast Guard)"
+    },
+    "osm": {
+      "title": "OpenStreetMap / OpenSeaMap seamark nodes 11393770876-11393770879 (Emerald Bay Entrance Buoys 1-4)",
+      "url": "https://api.openstreetmap.org/api/0.6/nodes.json?nodes=11393770876,11393770877,11393770878,11393770879",
+      "accessed": "2026-11-18",
+      "licence": "ODbL 1.0, (c) OpenStreetMap contributors",
+      "note": "one mapper (2023-12-04, edited 2026-05-16); not checked against a Coast Guard list. OSM's pillar shape for 1 and 2 is modelled as the Coast Guard's foam buoy with a solar lantern (shape lighted), the hull a DVIDS photo shows in Emerald Bay"
+    },
+    "uscg-iala-b": {
+      "title": "33 CFR Part 62, United States Aids to Navigation System (lateral marks: red to starboard, green to port, returning from sea; even numbers on red, odd on green, rising from seaward)",
+      "url": "https://www.ecfr.gov/current/title-33/chapter-I/subchapter-C/part-62",
+      "accessed": "2026-11-18",
+      "licence": "US federal regulation, public domain"
+    },
+    "trpa": {
+      "title": "TRPA news release 2023-06-13: motorized boats under 5 mph within Emerald Bay (2018 Shoreline Plan)",
+      "url": "https://trpa.gov/?p=90557",
+      "accessed": "2026-11-18",
+      "licence": "no licence stated; the rule is a fact, nothing copied"
+    },
+    "geometry": {
+      "title": "placed on the game's channel (the trough carved through the bar), no published position",
+      "url": "",
+      "accessed": "2026-11-18",
+      "licence": "ours"
+    }
+  },
+  "waters": {
+    "tahoe-emerald": {
+      "lake": "tahoe",
+      "marks": [
+        { "id": "G1", "name": "Emerald Bay Entrance Lighted Buoy 1", "type": "lateral", "colour": "green", "shape": "lighted", "number": "1", "light": "Fl G 4s", "osm": [38.9647750, -120.0816190], "on": "channel", "along": 381, "off": 24, "src": "osm" },
+        { "id": "R2", "name": "Emerald Bay Entrance Lighted Buoy 2", "type": "lateral", "colour": "red", "shape": "lighted", "number": "2", "light": "Fl R 2.5s", "osm": [38.9650139, -120.0821196], "on": "channel", "along": 381, "off": 24, "src": "osm" },
+        { "id": "G3", "name": "Emerald Bay Entrance Buoy 3", "type": "lateral", "colour": "green", "shape": "can", "number": "3", "light": null, "osm": [38.9640639, -120.0821095], "on": "channel", "along": 311, "off": 24, "src": "osm" },
+        { "id": "R4", "name": "Emerald Bay Entrance Buoy 4", "type": "lateral", "colour": "red", "shape": "conical", "number": "4", "light": null, "osm": [38.9645385, -120.0827869], "on": "channel", "along": 311, "off": 24, "src": "osm" },
+        { "id": "G5", "name": "Channel buoy 5", "type": "lateral", "colour": "green", "shape": "can", "number": "5", "light": null, "on": "channel", "along": 150, "off": 24, "src": "geometry" },
+        { "id": "R6", "name": "Channel buoy 6", "type": "lateral", "colour": "red", "shape": "conical", "number": "6", "light": null, "on": "channel", "along": 150, "off": 24, "src": "geometry" },
+        { "id": "NW1", "name": "No wake, 5 mph", "type": "noWake", "colour": "white", "shape": "regulatory", "light": null, "on": "channel", "along": -45, "off": 42, "side": "starboard", "src": "trpa" },
+        { "id": "NW2", "name": "No wake, 5 mph", "type": "noWake", "colour": "white", "shape": "regulatory", "light": null, "on": "channel", "along": -45, "off": 42, "side": "port", "src": "trpa" },
+        { "id": "NW3", "name": "No wake, 5 mph", "type": "noWake", "colour": "white", "shape": "regulatory", "light": null, "at": [430, -540], "src": "trpa" },
+        { "id": "NW4", "name": "No wake, 5 mph", "type": "noWake", "colour": "white", "shape": "regulatory", "light": null, "at": [-455, 55], "src": "trpa" }
+      ]
+    }
+  }
+}

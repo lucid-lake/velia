@@ -1,0 +1,10 @@
+{
+  "name": "hud-full",
+  "url": "http://127.0.0.1:5173/?mode=sail&seed=1&hour=15&wind=2&hud=full&birds=0&noload=1&filmui=1&once=0&attract=0&quality=high&music=0&metrics=0&mute=1&keylegend=0",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "Sail with the full HUD (the top bar, the helm dashboard, the hint line) after 13 s of play"
+}

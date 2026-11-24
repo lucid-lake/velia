@@ -1,0 +1,7 @@
+{
+  "model": "gemini-3-pro-image",
+  "size": "2K",
+  "mime": "image/jpeg",
+  "prompt": "A still frame from a quiet, photoreal-leaning but painterly natural landscape. A large calm lake in a valley. Muted greens, slate-blue water, a warm pale sky; no saturated colour. Far layers pale and blue with atmospheric haze; near layers darker. One sun direction. Mist on the water. Horizon on the lower third; half the frame is quiet sky. A varied skyline of ridges with a hidden far side. No people, no animals, no buildings, no text, no HUD, no lens flare. Cinematic 16:9, 35 mm lens, soft light, filmic grade, slight grain. The mood of a wide open-world game vista at its quietest. Dawn after rain: wet air, very long haze gradient, a low cloud layer the eye could fly into, ridges fading behind it. Camera high, 200 m, looking down the length of the lake.",
+  "when": "2026-10-29T05:01:27.739772+00:00"
+}

@@ -1,0 +1,80 @@
+{
+  "name": "regatta-start",
+  "title": "Velia: the start",
+  "about": "Regatta, the Island Sprint at 17:00: the gun; our boat on the line with Wren's Osprey beyond it, both sails lit by the sun behind the camera; the camera west of the line pans with the fleet.",
+  "duration": 3.4,
+  "fps": 60,
+  "warm": 30,
+  "url": {
+    "mode": "regatta",
+    "hour": 17,
+    "seed": 1,
+    "cloudcov": 0.18,
+    "autoplay": 1,
+    "racet": -0.8,
+    "diff": "medium"
+  },
+  "camera": {
+    "frame": "world",
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          280,
+          2.5,
+          -205
+        ],
+        "fov": 20
+      }
+    ],
+    "aim": {
+      "at": "fleet",
+      "offset": [
+        0,
+        5,
+        0
+      ],
+      "tau": 1.5
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "ss": 1.5,
+      "mbps": 50
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "ss": 1.5,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "camera": {
+        "keys": [
+          {
+            "t": 0,
+            "pos": [
+              280,
+              2.5,
+              -205
+            ],
+            "fov": 32
+          }
+        ],
+        "aim": {
+          "at": "fleet",
+          "offset": [
+            0,
+            7,
+            0
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,245 @@
+{
+  "_": "A test-only lake (tests/profiles.test.mjs). Never listed in src/waters/index.json; never shipped.",
+  "id": "test-mini",
+  "hero": "A test lake.",
+  "what": "Test only.",
+  "title": "Test lake",
+  "description": "A test lake.",
+  "place": "Mini Pond",
+  "region": "Testland",
+  "stills": {
+    "hero": "/none.jpg",
+    "hero960": "/none.jpg"
+  },
+  "wind": "A test breeze.",
+  "lat": 45.5,
+  "lon": -111.25,
+  "soundingsUnit": "metres",
+  "chart": {
+    "box": [
+      100,
+      100
+    ],
+    "metresPerUnit": 10,
+    "destination": {
+      "name": "Pebble Isle",
+      "at": [
+        50,
+        50
+      ]
+    },
+    "course": {
+      "from": [
+        50,
+        90
+      ],
+      "to": [
+        50,
+        60
+      ]
+    },
+    "contoursM": [
+      5
+    ],
+    "northDeg": 0
+  },
+  "day": {
+    "date": "2026-03-20",
+    "utcOffsetH": -6
+  },
+  "terrain": {
+    "dir": "tests/fixtures/profiles/mini-terrain",
+    "full": "mini.json",
+    "phone": null,
+    "surfaceM": 1200,
+    "root": 1280,
+    "fine": {
+      "x0": -60,
+      "x1": 60,
+      "z0": -60,
+      "z1": 60,
+      "leaf": 40
+    },
+    "bayCentre": [
+      0,
+      -200
+    ],
+    "lakeCentre": [
+      0,
+      0
+    ]
+  },
+  "season": {
+    "name": "spring",
+    "snowLine": 1500,
+    "fullM": 100,
+    "aspectM": 50,
+    "maxSlope": 1,
+    "grassDry": 0.4,
+    "bloom": 0
+  },
+  "treeline": 1600,
+  "points": {
+    "house": [
+      45.4996399,
+      -111.2560134
+    ],
+    "headBeach": [
+      45.4997299,
+      -111.2556296
+    ],
+    "mouthNW": [
+      45.5039589,
+      -111.2515355
+    ],
+    "mouthSE": [
+      45.5039589,
+      -111.2484645
+    ],
+    "creekTop": [
+      45.4994599,
+      -111.2571649
+    ],
+    "creekMouth": [
+      45.499595,
+      -111.2558215
+    ],
+    "peak": [
+      45.4949613,
+      -111.246162
+    ],
+    "ridgeFrom": [
+      45.4946012,
+      -111.257676
+    ],
+    "ridgeTo": [
+      45.4946012,
+      -111.242324
+    ],
+    "harbour": [
+      45.4989202,
+      -111.2443705
+    ]
+  },
+  "island": {
+    "searchM": 60,
+    "radiusM": 55
+  },
+  "bay": {
+    "lengthM": 900,
+    "maxDepthM": 20,
+    "beachHalfWidthM": 30,
+    "mouthInM": 100,
+    "mouthOutM": 120
+  },
+  "landmarks": {
+    "ruin": {
+      "sizeM": 2
+    },
+    "house": {
+      "yawDeg": 10,
+      "length": 12,
+      "width": 6
+    },
+    "peak": {
+      "name": "knoll"
+    },
+    "overlook": {
+      "x": -500,
+      "z": -300
+    }
+  },
+  "windBay": {
+    "x0": -300,
+    "x1": 300,
+    "dx": 100,
+    "z0": -300,
+    "z1": 300,
+    "dz": 100,
+    "deep": -5,
+    "factor": 1,
+    "levelAt": [
+      0,
+      -150
+    ]
+  },
+  "start": {
+    "x": 150,
+    "z": 200,
+    "headingDeg": 300,
+    "speed": 2
+  },
+  "firstGust": {
+    "aheadM": 80,
+    "offsetM": 0,
+    "gain": 0.3,
+    "edgeM": 10
+  },
+  "goal": {
+    "text": "Sail to Pebble Isle",
+    "arrival": "That is Pebble Isle."
+  },
+  "stops": {
+    "islandE": {
+      "at": [
+        120,
+        0
+      ],
+      "look": [
+        0,
+        6,
+        0
+      ],
+      "name": "the isle"
+    },
+    "islandS": {
+      "at": [
+        0,
+        120
+      ],
+      "look": [
+        0,
+        6,
+        0
+      ],
+      "name": "the isle"
+    },
+    "north": {
+      "at": [
+        0,
+        -300
+      ],
+      "look": [
+        0,
+        0,
+        0
+      ],
+      "name": "the north water"
+    }
+  },
+  "loop": [
+    "island",
+    "north"
+  ],
+  "night": {
+    "centre": [
+      0,
+      200
+    ],
+    "radius": 80
+  },
+  "charts": {
+    "logbook": {
+      "x0": -500,
+      "x1": 500,
+      "z0": -500,
+      "z1": 500
+    },
+    "plotter": {
+      "x0": -640,
+      "x1": 640,
+      "z0": -640,
+      "z1": 640
+    }
+  }
+}

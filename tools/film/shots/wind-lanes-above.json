@@ -1,0 +1,91 @@
+{
+  "name": "wind-lanes-above",
+  "title": "Velia: wind lanes",
+  "about": "H3 17:00, level 3: straight down from 140 m, north-up, the gust lanes darkening the water as they race across the bay; the boat on the lower-left third.",
+  "duration": 4,
+  "fps": 60,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.35,
+    "start": "300,-300",
+    "heading": 110,
+    "settle": 10
+  },
+  "camera": {
+    "frame": "boat0",
+    "look": "down",
+    "up": [
+      0,
+      0,
+      -1
+    ],
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          -18,
+          75,
+          12
+        ],
+        "fov": 55
+      },
+      {
+        "t": 4,
+        "pos": [
+          -21,
+          75,
+          11
+        ],
+        "fov": 55
+      }
+    ],
+    "aim": {
+      "at": "boat"
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "ss": 1.5,
+      "mbps": 50
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "ss": 1.5,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "camera": {
+        "keys": [
+          {
+            "t": 0,
+            "pos": [
+              -12,
+              75,
+              4
+            ],
+            "fov": 70
+          },
+          {
+            "t": 4,
+            "pos": [
+              -15,
+              75,
+              3
+            ],
+            "fov": 70
+          }
+        ]
+      }
+    }
+  }
+}

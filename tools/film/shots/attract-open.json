@@ -1,0 +1,94 @@
+{
+  "name": "attract-open",
+  "title": "Velia: the opening",
+  "about": "(the attract loading's last shot): the staged first visit's start, 18:45 at (61, -406) heading 080 on a broad reach over the north shore's granite shelf. The camera sits low off the PORT bow looking aft, so the low sun in the west-north-west stands behind her: the sail backlit, the open bay and the west ridge beyond, the whole rig in frame; it drifts aft a little over 8 s. The reel ends on the live game's own opening pose, so the hand-off from the reel to the live canvas is a film cut, not a flash.",
+  "duration": 8,
+  "fps": 30,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 18.75,
+    "seed": 1,
+    "wind": 3,
+    "start": "61,-406",
+    "heading": 80,
+    "settle": 6,
+    "cloudcov": 0.6
+  },
+  "camera": {
+    "frame": "boat",
+    "ease": "linear",
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          -14,
+          1.8,
+          17
+        ],
+        "fov": 36
+      },
+      {
+        "t": 8,
+        "pos": [
+          -13,
+          2.0,
+          14.5
+        ],
+        "fov": 36
+      }
+    ],
+    "aim": {
+      "at": "boat",
+      "offset": [
+        0,
+        4.5,
+        0
+      ],
+      "tau": 1.4
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 1920,
+      "h": 1080,
+      "ss": 1.5,
+      "mbps": 24
+    },
+    "P": {
+      "w": 1080,
+      "h": 1920,
+      "ss": 1.5,
+      "mbps": 16,
+      "camera": {
+        "keys": [
+          {
+            "t": 0,
+            "pos": [
+              -9.5,
+              2.0,
+              15
+            ],
+            "fov": 56
+          },
+          {
+            "t": 8,
+            "pos": [
+              -9,
+              2.2,
+              13
+            ],
+            "fov": 56
+          }
+        ],
+        "aim": {
+          "offset": [
+            0,
+            5.2,
+            0
+          ]
+        }
+      }
+    }
+  }
+}

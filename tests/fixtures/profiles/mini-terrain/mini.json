@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "origin": {
+  "lat": 45.5,
+  "lon": -111.25
+ },
+ "y0": 1200,
+ "height": {
+  "offset": -100,
+  "step": 0.01
+ },
+ "distance": {
+  "step": 0.5
+ },
+ "levels": [
+  {
+   "name": "mini",
+   "step": 10,
+   "x0": -640,
+   "z0": -640,
+   "w": 129,
+   "h": 129,
+   "height": "mini-h.lsh",
+   "distance": "mini-d.lsh",
+   "dk": 1,
+   "dw": 129,
+   "dh": 129
+  }
+ ]
+}

@@ -1,0 +1,82 @@
+{
+  "name": "regatta-heel",
+  "title": "Velia: Regatta",
+  "about": "Regatta, seconds after the gun: low on our leeward bow, Halcyon heeled 17-19 degrees close-hauled, the bow wave and spray at the lens.",
+  "duration": 2.2,
+  "fps": 60,
+  "warm": 30,
+  "url": {
+    "mode": "regatta",
+    "hour": 17,
+    "seed": 1,
+    "cloudcov": 0.18,
+    "autoplay": 1,
+    "racet": 3,
+    "diff": "medium"
+  },
+  "camera": {
+    "frame": "boat",
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          -13,
+          1.0,
+          9
+        ],
+        "fov": 28
+      }
+    ],
+    "aim": {
+      "at": "boat",
+      "offset": [
+        0,
+        3.5,
+        0
+      ],
+      "tau": 1.0
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "ss": 1.5,
+      "mbps": 50
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "ss": 1.5,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "camera": {
+        "frame": "boat",
+        "keys": [
+          {
+            "t": 0,
+            "pos": [
+              -12,
+              1.0,
+              9
+            ],
+            "fov": 45
+          }
+        ],
+        "aim": {
+          "at": "boat",
+          "offset": [
+            0,
+            5,
+            0
+          ],
+          "tau": 1.0
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "name": "mirror-dawn",
+  "title": "Velia: mirror",
+  "about": "H1 06:40: the morning drift, the boat and its whole reflection on a mirror, the sun down the bay's axis behind the sail.",
+  "duration": 5,
+  "fps": 60,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 6.667,
+    "seed": 1,
+    "wind": 1,
+    "cloudcov": 0.25,
+    "start": "450,-350",
+    "heading": 180,
+    "settle": 20
+  },
+  "camera": {
+    "frame": "boat0",
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          30,
+          0.8,
+          22
+        ],
+        "fov": 20
+      },
+      {
+        "t": 5,
+        "pos": [
+          30,
+          0.8,
+          25
+        ],
+        "fov": 20
+      }
+    ],
+    "aim": {
+      "at": "boat",
+      "offset": [
+        0,
+        -1.2,
+        0
+      ],
+      "tau": 1.8
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "ss": 1.5,
+      "mbps": 50
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "ss": 1.5,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "camera": {
+        "keys": [
+          {
+            "t": 0,
+            "pos": [
+              34,
+              0.8,
+              20
+            ],
+            "fov": 45
+          },
+          {
+            "t": 5,
+            "pos": [
+              34,
+              0.8,
+              23.5
+            ],
+            "fov": 45
+          }
+        ],
+        "aim": {
+          "offset": [
+            0,
+            1.5,
+            0
+          ]
+        }
+      }
+    }
+  }
+}

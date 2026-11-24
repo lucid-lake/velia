@@ -1,0 +1,152 @@
+{
+  "name": "DEMO_v2",
+  "title": "Your first minute",
+  "about": "\u00a7 DEMO v2 (the director's shot flow, 2026-10-31): three long takes and a six-shot coda; continuous moves, 12-frame dissolves on a change of scene, cuts on action in the regatta, one 20-frame dissolve for the change of day. Silent. L only.",
+  "fps": 60,
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "deliver": [
+        [
+          3840,
+          2160,
+          50
+        ],
+        [
+          1920,
+          1080,
+          16
+        ]
+      ]
+    }
+  },
+  "card": {
+    "free": "Free. No login. In your browser.",
+    "soon": "More boats, maps and multiplayer coming soon"
+  },
+  "segments": [
+    {
+      "clip": "card-welcome",
+      "in": 0,
+      "dur": 2.4
+    },
+    {
+      "clip": "card-home",
+      "in": 0,
+      "dur": 4.5,
+      "push": 0.03,
+      "dissolve": 12
+    },
+    {
+      "clip": "sail-start",
+      "in": 0,
+      "dur": 10.0,
+      "dissolve": 12
+    },
+    {
+      "clip": "gust-to-helm",
+      "in": 0,
+      "dur": 11.0,
+      "dissolve": 12
+    },
+    {
+      "clip": "fannette-helm-station",
+      "in": 0,
+      "dur": 20.0,
+      "dissolve": 12,
+      "push": {
+        "to": 0.12,
+        "anchor": [
+          0.56,
+          0.9
+        ],
+        "in": 10.5,
+        "hold": 12.0,
+        "out": 18.0,
+        "end": 20.0
+      },
+      "overlay": {
+        "name": "inputs",
+        "from": 16.8,
+        "to": 18.9
+      }
+    },
+    {
+      "clip": "big-wave-surf",
+      "in": 0.4,
+      "dur": 4.0,
+      "dissolve": 12
+    },
+    {
+      "clip": "cruise-drift",
+      "in": 0,
+      "dur": 3.4,
+      "dissolve": 12
+    },
+    {
+      "clip": "regatta-start",
+      "in": 0,
+      "dur": 3.4
+    },
+    {
+      "clip": "regatta-heel",
+      "in": 0,
+      "dur": 2.2
+    },
+    {
+      "clip": "regatta-tack",
+      "in": 0,
+      "dur": 3.0
+    },
+    {
+      "clip": "mirror-dawn",
+      "in": 0.5,
+      "dur": 4.5,
+      "dissolve": 20
+    },
+    {
+      "card": true,
+      "dur": 4.5
+    },
+    {
+      "clip": "card-welcome",
+      "in": 0,
+      "dur": 0.25,
+      "dissolve": 12
+    }
+  ],
+  "texts": [
+    {
+      "text": "Real wind. Real water.",
+      "from": 17.9,
+      "to": 20.5
+    },
+    {
+      "text": "Touch \u00b7 Keyboard \u00b7 Gamepad",
+      "from": 40.1,
+      "to": 45.7,
+      "y": 0.22
+    },
+    {
+      "text": "Photorealistic. In your browser.",
+      "from": 47.8,
+      "to": 50.4
+    },
+    {
+      "text": "Cruise: let her sail.",
+      "from": 51.2,
+      "to": 53.6
+    },
+    {
+      "text": "Regatta: race the AI.",
+      "from": 54.6,
+      "to": 57.2
+    },
+    {
+      "text": "Free. No login.",
+      "from": 63.167,
+      "to": 65.967
+    }
+  ]
+}

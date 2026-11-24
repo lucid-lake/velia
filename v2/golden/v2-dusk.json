@@ -1,0 +1,10 @@
+{
+  "name": "v2-dusk",
+  "url": "http://127.0.0.1:5174/?hour=20&cam=B&camyaw=295&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M2: the sun near setting in the west-north-west over the bay's head from cam B"
+}

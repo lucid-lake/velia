@@ -1,0 +1,62 @@
+{
+ "name": "w2-storm-bolt-r2",
+ "title": "Velia week 2: a bolt off the bow",
+ "about": "Week 2 shot 4b, round 2: the storm placed (stormref) so the last scripted ground bolt (arc 196 s) lands 1.5 km off the bow, 8 deg to port, before any rain at the boat; the camera off her port quarter, riding with her; 1 s handles.",
+ "duration": 4.5,
+ "fps": 30,
+ "warm": 30,
+ "url": {
+  "mode": "sail",
+  "hour": 18.25,
+  "seed": 1,
+  "wind": 2,
+  "start": "1300,-850",
+  "heading": 290,
+  "weather": "storm",
+  "stormrate": 2,
+  "stormref": "2344,-3034",
+  "stormt": 192,
+  "cloudcov": 0.6,
+  "settle": 8
+ },
+ "camera": {
+  "frame": "boat0",
+  "ease": "linear",
+  "keys": [
+   {
+    "t": 0,
+    "pos": [
+     -8,
+     2.0,
+     -11
+    ],
+    "fov": 55
+   },
+   {
+    "t": 4.5,
+    "pos": [
+     -8,
+     2.0,
+     1.6
+    ],
+    "fov": 55
+   }
+  ],
+  "aim": {
+   "at": [
+    -92,
+    450,
+    -1468
+   ],
+   "tau": 1.5
+  }
+ },
+ "formats": {
+  "L": {
+   "w": 1920,
+   "h": 1080,
+   "ss": 1.5,
+   "mbps": 20
+  }
+ }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "wow-clarity",
+  "title": "Velia: Tahoe's clear water",
+  "about": "Midday, a chase camera 22 m astern looking down 30 degrees: Halcyon sails from 13 m of cobalt water over the bay head's shelf into the turquoise shallows; the granite bed, the boulders, the caustics and her shadow come up under her (wow/clarity).",
+  "duration": 10,
+  "fps": 30,
+  "simRate": 2,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 12.5,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.3,
+    "start": "-441.9,116.7",
+    "heading": 250,
+    "settle": 4,
+    "campitch": 30
+  },
+  "camera": { "frame": "boat", "keys": [ { "t": 0, "pos": [0, 11, -19], "fov": 50 } ], "aim": { "at": "boat", "offset": [0, 1.5, 0], "tau": 1.0 } },
+  "formats": { "L": { "w": 1280, "h": 720, "ss": 1, "mbps": 12 } }
+}

@@ -1,0 +1,62 @@
+{
+ "name": "w2-rainbow-r2",
+ "title": "Velia week 2: the rainbow, whole",
+ "about": "Week 2 shot 5, round 2: a camera 35 m astern of the boat on the antisolar bearing, the whole double arc over her against the passing storm; 1 s handles.",
+ "duration": 5,
+ "fps": 30,
+ "warm": 30,
+ "url": {
+  "mode": "sail",
+  "hour": 18.25,
+  "seed": 1,
+  "wind": 2,
+  "start": "1300,-850",
+  "heading": 100,
+  "weather": "storm",
+  "stormrate": 2,
+  "stormref": "1200,-1050",
+  "stormt": 236,
+  "cloudcov": 0.6,
+  "settle": 41
+ },
+ "camera": {
+  "frame": "world",
+  "ease": "linear",
+  "keys": [
+   {
+    "t": 0,
+    "pos": [
+     1376.7,
+     2.5,
+     -843.4
+    ],
+    "fov": 55
+   },
+   {
+    "t": 5,
+    "pos": [
+     1377.7,
+     2.5,
+     -843.1
+    ],
+    "fov": 55
+   }
+  ],
+  "aim": {
+   "at": [
+    2333,
+    215,
+    -551
+   ],
+   "tau": 1.5
+  }
+ },
+ "formats": {
+  "L": {
+   "w": 1920,
+   "h": 1080,
+   "ss": 1.5,
+   "mbps": 20
+  }
+ }
+}

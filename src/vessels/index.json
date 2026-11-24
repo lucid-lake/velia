@@ -1,0 +1,8 @@
+{
+  "_": "The vessels the player can choose (the home card's VESSEL page). Each entry: id (the ?vessel= value and the saved choice), file (its plate in this folder), ready (false shows as 'soon'). The first ready entry is the default. Never a maker or a model on screen (tests/loading.test.mjs greps for it).",
+  "default": "halcyon",
+  "vessels": [
+    { "id": "halcyon", "file": "halcyon.json", "ready": true }
+  ],
+  "soon": "More vessels coming"
+}

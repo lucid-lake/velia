@@ -1,0 +1,97 @@
+{
+  "name": "storm-clear",
+  "title": "Velia: the afternoon storm clears",
+  "about": "wow/storm, part 2 of the storm film (19 s): round 1's last 19 s, arc 185–291 s at 5.6×: the storm's end, the camera turns astern to the ENE for the clearing and the rainbow over the departing cell.",
+  "duration": 19,
+  "fps": 30,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 18.25,
+    "seed": 1,
+    "wind": 2,
+    "start": "2300,-1400",
+    "heading": 330,
+    "weather": "storm",
+    "stormref": "2300,-1400",
+    "cloudcov": 0.6,
+    "stormt": 185,
+    "stormrate": 5.6,
+    "settle": 41
+  },
+  "camera": {
+    "frame": "boat",
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          24.06,
+          4.5,
+          -8.06
+        ],
+        "fov": 58
+      },
+      {
+        "t": 1,
+        "pos": [
+          24,
+          4.5,
+          -8
+        ],
+        "fov": 58
+      },
+      {
+        "t": 4.5,
+        "pos": [
+          4,
+          6,
+          -30
+        ],
+        "fov": 60
+      },
+      {
+        "t": 8,
+        "pos": [
+          -27,
+          5,
+          -2
+        ],
+        "fov": 60
+      },
+      {
+        "t": 12,
+        "pos": [
+          -16,
+          4.5,
+          17
+        ],
+        "fov": 62
+      },
+      {
+        "t": 19,
+        "pos": [
+          -17,
+          4.5,
+          18
+        ],
+        "fov": 62
+      }
+    ],
+    "aim": {
+      "at": "boat",
+      "offset": [
+        0,
+        9,
+        0
+      ],
+      "tau": 1.5
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 1280,
+      "h": 720,
+      "mbps": 12
+    }
+  }
+}

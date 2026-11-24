@@ -1,0 +1,57 @@
+{
+ "name": "w2-kayaks-r2",
+ "title": "Velia week 2: company on the lake",
+ "about": "Week 2 shot 3, round 2: a camera on the water 7 m in front of the kayak pair (their faces), the boat sailing past behind them; 1 s handles.",
+ "duration": 7,
+ "fps": 30,
+ "warm": 30,
+ "preroll": 4,
+ "url": {
+  "mode": "sail",
+  "hour": 17,
+  "seed": 1,
+  "wind": 2,
+  "cloudcov": 0.18,
+  "settle": 1
+ },
+ "camera": {
+  "frame": "world",
+  "ease": "linear",
+  "keys": [
+   {
+    "t": 0,
+    "pos": [
+     1175.5,
+     1.1,
+     -1018
+    ],
+    "fov": 38
+   },
+   {
+    "t": 7,
+    "pos": [
+     1175.5,
+     1.1,
+     -1010.7
+    ],
+    "fov": 38
+   }
+  ],
+  "aim": {
+   "at": [
+    1176,
+    1.6,
+    -1045
+   ],
+   "tau": 1.5
+  }
+ },
+ "formats": {
+  "L": {
+   "w": 1920,
+   "h": 1080,
+   "ss": 1.5,
+   "mbps": 20
+  }
+ }
+}

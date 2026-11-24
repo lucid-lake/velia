@@ -1,0 +1,147 @@
+{
+ "source": "USDA FSA NAIP 2022 (4-band, 0.6 m), USGS National Map NAIP Plus ImageServer",
+ "capture": "2022-07-21",
+ "sun": {
+  "az": 144.0,
+  "el": 68.0,
+  "date": "2022-07-21",
+  "note": "azimuth fitted from the image; elevation from the NOAA formula at that azimuth; flight time not published"
+ },
+ "strength": 0.6,
+ "targets": {
+  "forest": 0.0105,
+  "brush": 0.0185,
+  "bare": 0.04,
+  "sand": 0.3
+ },
+ "levels": {
+  "bay": {
+   "level": "bay",
+   "texel": 1,
+   "w": 5632,
+   "h": 3584,
+   "median_before": {
+    "forest": 0.04135080426931381,
+    "brush": 0.09557752311229706,
+    "bare": 0.2128610610961914,
+    "sand": 0.26685643196105957
+   },
+   "targets": {
+    "forest": 0.0105,
+    "brush": 0.0185,
+    "bare": 0.04,
+    "sand": 0.3
+   },
+   "gain_class": {
+    "forest": 0.2539249280767191,
+    "brush": 0.1935601530316261,
+    "bare": 0.18791600396055574,
+    "sand": 1.1241999969623246
+   },
+   "p10": 0.020901784300804138,
+   "share": {
+    "forest": 0.3223402798175812,
+    "brush": 0.26307743787765503,
+    "bare": 0.413451224565506,
+    "sand": 0.015715142711997032
+   },
+   "files": {
+    "1": {
+     "file": "albedo-bay-1m.webp",
+     "w": 5632,
+     "h": 3584,
+     "bytes": 5708480
+    },
+    "2": {
+     "file": "albedo-bay-2m.webp",
+     "w": 2816,
+     "h": 1792,
+     "bytes": 2158892
+    },
+    "4": {
+     "file": "albedo-bay-4m.webp",
+     "w": 1408,
+     "h": 896,
+     "bytes": 678334
+    },
+    "8": {
+     "file": "albedo-bay-8m.webp",
+     "w": 704,
+     "h": 448,
+     "bytes": 190088,
+     "phone": true
+    }
+   },
+   "extent": {
+    "x0": -2304.0,
+    "z0": -1792.0,
+    "x1": 3328.0,
+    "z1": 1792.0
+   }
+  },
+  "region": {
+   "level": "region",
+   "texel": 16,
+   "w": 2560,
+   "h": 3840,
+   "median_before": {
+    "forest": 0.056140922009944916,
+    "brush": 0.11089688539505005,
+    "bare": 0.17838861048221588,
+    "sand": 0.26748186349868774
+   },
+   "targets": {
+    "forest": 0.0105,
+    "brush": 0.0185,
+    "bare": 0.04,
+    "sand": 0.3
+   },
+   "gain_class": {
+    "forest": 0.18702934729394022,
+    "brush": 0.16682163736246608,
+    "bare": 0.2242295620324243,
+    "sand": 1.1215713696471679
+   },
+   "p10": 0.04933326691389084,
+   "share": {
+    "forest": 0.2584322392940521,
+    "brush": 0.27360498905181885,
+    "bare": 0.4894971549510956,
+    "sand": 0.0019038531463593245
+   },
+   "files": {
+    "16": {
+     "file": "albedo-region-16m.webp",
+     "w": 2560,
+     "h": 3840,
+     "bytes": 4575604
+    },
+    "32": {
+     "file": "albedo-region-32m.webp",
+     "w": 1280,
+     "h": 1920,
+     "bytes": 1455010
+    },
+    "64": {
+     "file": "albedo-region-64m.webp",
+     "w": 640,
+     "h": 960,
+     "bytes": 415510
+    },
+    "128": {
+     "file": "albedo-region-128m.webp",
+     "w": 320,
+     "h": 480,
+     "bytes": 115348,
+     "phone": true
+    }
+   },
+   "extent": {
+    "x0": -14000.0,
+    "z0": -46000.0,
+    "x1": 26960.0,
+    "z1": 15440.0
+   }
+  }
+ }
+}

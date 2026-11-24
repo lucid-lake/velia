@@ -1,0 +1,15 @@
+{
+  "id": "island-sprint",
+  "waters": "tahoe-emerald",
+  "blurb": "beat, reach, run",
+  "name": "The Island Sprint",
+  "designWindFrom": 210,
+  "line": { "committee": [221, -242.5], "pin": [299, -197.5] },
+  "marks": [
+    { "id": "W", "kind": "sphere", "colour": "orange", "at": [-60, 180], "rounding": "port" },
+    { "id": "I", "kind": "cylinder", "colour": "orange", "at": [200, 140], "rounding": "port" }
+  ],
+  "legs": [{ "to": "W" }, { "to": "I" }, { "to": "finish" }],
+  "laps": 1,
+  "timeLimitS": 900
+}

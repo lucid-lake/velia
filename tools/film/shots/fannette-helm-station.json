@@ -1,0 +1,85 @@
+{
+  "name": "fannette-helm-station",
+  "title": "Velia: Fannette and the helm station",
+  "about": "DEMO v2 take 3, a UI take at natural size: at the helm toward Fannette; C flies out to the follow view; the arrival line; then the MAIN winch, TRIM and the trim panel, the traveller a notch down, the throttle to SLOW AHEAD, A held: every control with the boat's answer in the same frame.",
+  "ui": true,
+  "duration": 20,
+  "fps": 60,
+  "settle": 21,
+  "settleDt": 0.1,
+  "storage": {
+    "lakeshore.settings.v1": {
+      "welcomed": true,
+      "profile": "new"
+    },
+    "lakeshore.desknote.v1": "1"
+  },
+  "waitFor": "!!window.__lakeshore.station",
+  "css": "",
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "gate": 0,
+    "start": "-300,25",
+    "heading": 85,
+    "view": "helm"
+  },
+  "inputs": [
+    {
+      "t": 2.0,
+      "key": "KeyC",
+      "dur": 0.12
+    },
+    {
+      "t": 10.5,
+      "drag": {
+        "on": "main",
+        "path": "down",
+        "px": 70,
+        "dur": 1.8
+      }
+    },
+    {
+      "t": 13.0,
+      "tap": ".lk-cp .c[data-id=pro]"
+    },
+    {
+      "t": 13.9,
+      "tap": ".lk-tp .c[data-id=traveller] .ends button[data-d='-1']"
+    },
+    {
+      "t": 15.2,
+      "drag": {
+        "on": "thr",
+        "path": "up",
+        "pxFrac": 0.11,
+        "dur": 0.6
+      }
+    },
+    {
+      "t": 16.8,
+      "key": "KeyA",
+      "dur": 1.2
+    }
+  ],
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "view": [
+        1920,
+        1080
+      ],
+      "dpr": 2,
+      "pixelratio": 2,
+      "mbps": 50,
+      "hide": [
+        ".lk-view",
+        ".lk-dock"
+      ]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+# The scrub's allow file (tools/oss/scrub.mjs): one rule a line, four TAB-separated fields:
+#   kind<TAB>path glob<TAB>regex on the hit's line<TAB># reason
+# A secret can be allowed only by a rule naming one exact file; a local-only name never.
+internal	**	lakeshore	# "Lakeshore" is the project's code name: identifiers, storage keys, tool and plug-in names. The production build spells it velia (tools/build/scrub.mjs); renaming it in the source would change the scrub's own rules and tests
+email	tests/*.test.mjs	a@b\.co	# a placeholder address in tests that check an email is never sent or kept
+secret	v2/tests/load-report.test.mjs	sk_live_	# a made-up key in the test that checks a key never leaves the load report
+local-path	tools/oss/scrub.mjs	.	# the scrub names the patterns it blocks
+email	tools/oss/scrub.mjs	.	# the scrub names the patterns it blocks
+money	tools/oss/scrub.mjs	.	# the scrub names the patterns it blocks
+citation	tools/oss/scrub.mjs	.	# the scrub names the patterns it blocks

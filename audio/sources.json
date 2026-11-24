@@ -1,0 +1,804 @@
+{
+  "note": "The sound pack. Each loop: a CC0 Freesound recording, len_s from start_s, the next xfade_s faded over its start.",
+  "loops": [
+    {
+      "name": "lake_lap",
+      "id": 464798,
+      "author": "guyburns",
+      "title": "Tiny waves lapping #1",
+      "start_s": 30,
+      "len_s": 36,
+      "xfade_s": 3,
+      "highpass_hz": 40,
+      "use": "small waves on a pebble shore, a windless night (Lake Pedder, Tasmania)"
+    },
+    {
+      "name": "wind_light",
+      "id": 513736,
+      "author": "JanneLaine",
+      "title": "tuuli kaisla",
+      "start_s": 60,
+      "len_s": 36,
+      "xfade_s": 4,
+      "highpass_hz": 40,
+      "use": "light wind in shore reeds (Pärnu, Estonia)"
+    },
+    {
+      "name": "wind_strong",
+      "id": 487541,
+      "author": "tbsound101",
+      "title": "ATM_EXT_OpenFarmlandDayStrongWindGustsPartSheltered",
+      "start_s": 66,
+      "len_s": 36,
+      "xfade_s": 4,
+      "highpass_hz": 40,
+      "use": "strong gusting wind on an open hillside, mics part sheltered"
+    },
+    {
+      "name": "rain_water",
+      "id": 572429,
+      "author": "TRP",
+      "title": "180723 Rain, on water lake, modulating light to med, cottage ONTARIO",
+      "start_s": 10,
+      "len_s": 36,
+      "xfade_s": 4,
+      "use": "light rain on a small lake"
+    },
+    {
+      "name": "birds_dawn",
+      "id": 611453,
+      "author": "Synge101",
+      "title": "Dawn chorus",
+      "start_s": 51,
+      "len_s": 36,
+      "xfade_s": 4,
+      "use": "dawn chorus, countryside (Wicklow, Ireland)"
+    },
+    {
+      "name": "loon",
+      "id": 751848,
+      "author": "itinerantmonk108",
+      "title": "Late Summer Loons",
+      "start_s": 12,
+      "len_s": 38,
+      "xfade_s": 4,
+      "use": "loons calling across a lake (Maine, USA)"
+    }
+  ],
+  "boat": [
+    {
+      "name": "hull_chuckle",
+      "kind": "loop",
+      "id": 852108,
+      "author": "myLoop",
+      "title": "Sailboat Bow",
+      "start_s": 2,
+      "len_s": 36,
+      "xfade_s": 3,
+      "highpass_hz": 60,
+      "use": "small waves on a sailboat's bow, Ammersee (a lake): the chuckle at 1-3 kn"
+    },
+    {
+      "name": "hull_rush",
+      "kind": "loop",
+      "id": 371172,
+      "author": "borralbi",
+      "title": "Sailboat, cockpit at 12kn wind speed",
+      "start_s": 24,
+      "len_s": 36,
+      "xfade_s": 4,
+      "highpass_hz": 100,
+      "use": "water past the hull from the cockpit, under way in 12 kn: the steady rush at 5-7 kn (a span with no splashes)"
+    },
+    {
+      "name": "sail_flutter",
+      "kind": "loop",
+      "id": 57280,
+      "author": "_earthbound_",
+      "title": "RAH_Flapping_Fabric_3.flac",
+      "start_s": 13.25,
+      "len_s": 15,
+      "xfade_s": 2,
+      "use": "the quieter flaps of a fabric (sail) recording: the luff's flutter"
+    },
+    {
+      "name": "sail_flog",
+      "kind": "loop",
+      "id": 448975,
+      "author": "GeorgeHopkins",
+      "title": "flag.wav",
+      "start_s": 0.25,
+      "len_s": 19,
+      "xfade_s": 2,
+      "highpass_hz": 40,
+      "use": "cloth flogging in wind (tags: boat, sail): the sails head to wind"
+    },
+    {
+      "name": "creak_rig",
+      "kind": "bank",
+      "id": 59160,
+      "author": "f_ilippo",
+      "title": "grincements_helvetia.aif",
+      "highpass_hz": 60,
+      "picks": [
+        [
+          1.17,
+          1.6
+        ],
+        [
+          3.62,
+          1.8
+        ],
+        [
+          9.62,
+          1.4
+        ],
+        [
+          13.37,
+          0.8
+        ],
+        [
+          27,
+          1
+        ],
+        [
+          50.62,
+          0.9
+        ],
+        [
+          56.07,
+          1
+        ],
+        [
+          60.72,
+          1.1
+        ],
+        [
+          77.27,
+          1.1
+        ]
+      ],
+      "use": "a moored boat's close-up creaks (Helvetia, a harbour): the rig and the sheet under load, 9 one-shots"
+    },
+    {
+      "name": "creak_sheet",
+      "kind": "bank",
+      "id": 145721,
+      "author": "Rmutt",
+      "title": "Mooring Rope.wav",
+      "highpass_hz": 60,
+      "picks": [
+        [
+          31.57,
+          2
+        ],
+        [
+          36.42,
+          1.8
+        ],
+        [
+          55.02,
+          1.8
+        ],
+        [
+          58.37,
+          1.1
+        ]
+      ],
+      "use": "a mooring rope groaning on a cleat: the sheet loading on the winch as a gust hits, 4 one-shots"
+    },
+    {
+      "name": "sail_snap",
+      "kind": "bank",
+      "id": 57280,
+      "author": "_earthbound_",
+      "title": "RAH_Flapping_Fabric_3.flac",
+      "highpass_hz": 80,
+      "picks": [
+        [
+          8.32,
+          0.6
+        ],
+        [
+          11.02,
+          0.45
+        ],
+        [
+          3.72,
+          0.6
+        ],
+        [
+          34.02,
+          0.5
+        ],
+        [
+          1.22,
+          0.6
+        ]
+      ],
+      "use": "single fabric snaps (tags: sail, slap, snap): the sail filling after a luff, 5 one-shots"
+    },
+    {
+      "name": "engine_idle",
+      "kind": "loop",
+      "id": 450253,
+      "author": "kyles",
+      "title": "Lovis ship sailboat below deck small cabin with engine running idle and go slowly, various gear shifts.flac",
+      "start_s": 8,
+      "len_s": 30,
+      "xfade_s": 3,
+      "highpass_hz": 25,
+      "use": "a sailboat's inboard diesel at idle, heard below deck (the steady first 100 s): the C28's idle, 850-1000 rpm"
+    },
+    {
+      "name": "engine_run",
+      "kind": "loop",
+      "id": 264864,
+      "author": "AugustSandberg",
+      "title": "Marine diesel engine",
+      "start_s": 4,
+      "len_s": 36,
+      "xfade_s": 4,
+      "highpass_hz": 25,
+      "use": "a Volvo Penta MD22 in a sailboat's engine compartment at a steady cruise (firing at 61 Hz): the throttle-up layer, pitched with the rpm"
+    },
+    {
+      "name": "chain_run",
+      "kind": "loop",
+      "id": 347837,
+      "author": "fennelliott",
+      "title": "anchor and chain.wav",
+      "start_s": 2,
+      "len_s": 16,
+      "xfade_s": 2,
+      "highpass_hz": 80,
+      "use": "an anchor chain running (grind and rattle): the chain paying out and coming in"
+    },
+    {
+      "name": "hull_slap",
+      "kind": "bank",
+      "id": 371169,
+      "author": "borralbi",
+      "title": "Sailboat, mic at the side of the boat",
+      "slot_s": 1,
+      "fade_in_ms": 4,
+      "highpass_hz": 70,
+      "picks": [
+        [
+          14.44,
+          0.95
+        ],
+        [
+          19.71,
+          0.95
+        ],
+        [
+          25.02,
+          0.95
+        ],
+        [
+          58.01,
+          0.95
+        ],
+        [
+          8.66,
+          0.95
+        ],
+        [
+          17.4,
+          0.95
+        ],
+        [
+          43.88,
+          0.95
+        ]
+      ],
+      "use": "waves slapping a 12 m yacht's side under sail (mic at the starboard rail): v2's recorded wave hits (?wavehit=rec), 3 small (slaps) then 4 big (slams); picks from an onset scan, decays 70-770 ms, the 20-40 ms knocks left out"
+    }
+  ],
+  "sfx": [
+    {
+      "name": "winch_click",
+      "kind": "bank",
+      "id": 566049,
+      "author": "Pagey1969",
+      "title": "ratchet.wav",
+      "highpass_hz": 150,
+      "slot_s": 0.25,
+      "fade_in_ms": 2,
+      "picks": [
+        [
+          0.406,
+          0.09
+        ],
+        [
+          1.106,
+          0.09
+        ],
+        [
+          1.736,
+          0.09
+        ],
+        [
+          11.226,
+          0.09
+        ],
+        [
+          11.696,
+          0.09
+        ],
+        [
+          12.116,
+          0.09
+        ],
+        [
+          12.636,
+          0.09
+        ]
+      ],
+      "use": "single pawl clicks of a metal ratchet: the winch as W pulls the sheet in (one click per 1.5 deg of sheet), 7 one-shots"
+    },
+    {
+      "name": "sheet_run",
+      "kind": "loop",
+      "id": 394222,
+      "author": "mikewest",
+      "title": "Large rope pulley operated.wav",
+      "start_s": 1.5,
+      "len_s": 7,
+      "xfade_s": 1,
+      "min_len_s": 6,
+      "highpass_hz": 120,
+      "use": "a rope running over a large pulley: the sheet running out through the block as S eases, gated by the ease"
+    },
+    {
+      "name": "wheel_creak",
+      "kind": "bank",
+      "id": 861827,
+      "author": "qubodup",
+      "title": "Creaking Metal Wire of Wooden Gate",
+      "highpass_hz": 80,
+      "slot_s": 1.5,
+      "picks": [
+        [
+          0.08,
+          1.4
+        ],
+        [
+          1.6,
+          0.5
+        ],
+        [
+          2.18,
+          0.45
+        ]
+      ],
+      "use": "a gentle wood-and-wire creak: the wheel turning under the hand (A/D), 3 one-shots"
+    },
+    {
+      "name": "page_turn",
+      "kind": "bank",
+      "id": 437121,
+      "author": "mosaichorse",
+      "title": "Magazine Page",
+      "highpass_hz": 120,
+      "slot_s": 0.5,
+      "fade_in_ms": 4,
+      "picks": [
+        [
+          0,
+          0.3
+        ]
+      ],
+      "use": "one page flip: the logbook opening (L), very soft"
+    },
+    {
+      "name": "kayak_splash",
+      "kind": "bank",
+      "id": 585744,
+      "author": "Nox_Sound",
+      "title": "Foley_Natural_Water_Jump_Mono.wav",
+      "highpass_hz": 60,
+      "slot_s": 2.5,
+      "picks": [
+        [
+          5.15,
+          2.3
+        ],
+        [
+          9.55,
+          2.3
+        ]
+      ],
+      "use": "a body going into natural water (a river): a kayak rolling over and its paddler going in, 2 one-shots"
+    }
+  ],
+  "music": [
+    {
+      "name": "first_light_a",
+      "title": "Lake at first light (take A)",
+      "role": "dawn",
+      "made": "MusicAPI sonic-v6, generated 2026-10-28 from audio/beds/dawn.json",
+      "use": "sparse felt piano over a warm pad: first light and the low sun (Day Sail's calm-hours bed, Chill)"
+    },
+    {
+      "name": "first_light_b",
+      "title": "Lake at first light (take B)",
+      "role": "dawn",
+      "made": "MusicAPI sonic-v6, generated 2026-10-28 from audio/beds/dawn.json",
+      "use": "the second take: the same brief, longer silences (Chill)"
+    },
+    {
+      "name": "over_the_ridge_a",
+      "title": "Over the ridge (take A)",
+      "role": "vista",
+      "made": "MusicAPI sonic-v6, generated 2026-10-28 from audio/beds/vista.json",
+      "use": "silence, then a warm swell of piano and strings: the arrival (Day Sail's vista cue, Chill)"
+    },
+    {
+      "name": "over_the_ridge_b",
+      "title": "Over the ridge (take B)",
+      "role": "vista",
+      "made": "MusicAPI sonic-v6, generated 2026-10-28 from audio/beds/vista.json",
+      "use": "the second take of the swell (Chill)"
+    },
+    {
+      "name": "wind_rising_a",
+      "title": "Wind rising on the water (take A)",
+      "role": "wind",
+      "made": "MusicAPI sonic-v6, generated 2026-10-28 from audio/beds/wind.json",
+      "use": "a low string drone in open fifths, building slowly: the afternoon breeze (Day Sail's wind bed, Chill)"
+    },
+    {
+      "name": "wind_rising_b",
+      "title": "Wind rising on the water (take B)",
+      "role": "wind",
+      "made": "MusicAPI sonic-v6, generated 2026-10-28 from audio/beds/wind.json",
+      "use": "the second take (Chill)"
+    },
+    {
+      "name": "golden_hour_a",
+      "title": "Golden hour on the lake (take A)",
+      "role": "golden",
+      "made": "MusicAPI sonic-v6, generated 2026-10-29 from audio/beds/golden.json (owner-approved spend)",
+      "use": "nylon-guitar harmonics and felt piano over a cello drone: the golden hour (Day Sail 17:30–20:18, Chill)"
+    },
+    {
+      "name": "golden_hour_b",
+      "title": "Golden hour on the lake (take B)",
+      "role": "golden",
+      "made": "MusicAPI sonic-v6, generated 2026-10-29 from audio/beds/golden.json (owner-approved spend)",
+      "use": "the second take (Chill)"
+    },
+    {
+      "name": "dusk_water_a",
+      "title": "Dusk over the water (take A)",
+      "role": "night",
+      "made": "MusicAPI sonic-v6, generated 2026-10-29 from audio/beds/night.json (owner-approved spend)",
+      "use": "one bowed string and muted piano, long silences: dusk and night (Day Sail from 20:18, Chill)"
+    },
+    {
+      "name": "dusk_water_b",
+      "title": "Dusk over the water (take B)",
+      "role": "night",
+      "made": "MusicAPI sonic-v6, generated 2026-10-29 from audio/beds/night.json (owner-approved spend)",
+      "use": "the second take (Chill)"
+    },
+    {
+      "name": "race_prestart_a",
+      "title": "Ten minutes to the gun (race pre-start, take B)",
+      "role": "race",
+      "made": "MusicAPI sonic-v6, generated 2026-10-30 from audio/beds/raceprestart.json (owner-approved spend)",
+      "use": "Regatta's countdown: a pulse that builds for 60 s to the gun; plays once from the top",
+      "min_s": 60
+    },
+    {
+      "name": "race_main_a",
+      "title": "Close reach (race loop, take A)",
+      "role": "race",
+      "made": "MusicAPI sonic-v6, generated 2026-10-30 from audio/beds/racemain.json (owner-approved spend)",
+      "use": "Regatta's race: a driving orchestral-electronic loop (the player loops 24 s to the end with a 2 s crossfade)",
+      "loop": true
+    }
+  ],
+  "birds": [
+    {
+      "name": "osprey_a",
+      "title": "Osprey.ogg",
+      "url": "https://commons.wikimedia.org/wiki/File:Osprey.ogg",
+      "author": "G. McGrane (2004)",
+      "licence": "Public domain (PD-self)",
+      "fetched": "2026-11-05",
+      "start_s": 0,
+      "len_s": 2.3,
+      "use": "a bird call or splash one-shot (src/birds/sound.js), cut by tools/birds_audio_pack.py"
+    },
+    {
+      "name": "osprey_b",
+      "title": "Osprey.ogg",
+      "url": "https://commons.wikimedia.org/wiki/File:Osprey.ogg",
+      "author": "G. McGrane (2004)",
+      "licence": "Public domain (PD-self)",
+      "fetched": "2026-11-05",
+      "start_s": 2.2,
+      "len_s": 2.05,
+      "use": "a bird call or splash one-shot (src/birds/sound.js), cut by tools/birds_audio_pack.py"
+    },
+    {
+      "name": "eagle_a",
+      "title": "Bald_Eagle_Yellowstone_National_Park.ogg",
+      "url": "https://commons.wikimedia.org/wiki/File:Bald_Eagle_Yellowstone_National_Park.ogg",
+      "author": "National Park Service",
+      "licence": "Public domain (PD-USGov-NPS)",
+      "fetched": "2026-11-05",
+      "start_s": 0,
+      "len_s": 2.45,
+      "use": "a bird call or splash one-shot (src/birds/sound.js), cut by tools/birds_audio_pack.py"
+    },
+    {
+      "name": "gull_a",
+      "title": "Western_Gull_Golden_Gate_National_Recreation_Area.ogg",
+      "url": "https://commons.wikimedia.org/wiki/File:Western_Gull_Golden_Gate_National_Recreation_Area.ogg",
+      "author": "National Park Service",
+      "licence": "Public domain (PD-USGov-NPS)",
+      "fetched": "2026-11-05",
+      "start_s": 0,
+      "len_s": 3,
+      "use": "a bird call or splash one-shot (src/birds/sound.js), cut by tools/birds_audio_pack.py"
+    },
+    {
+      "name": "gull_b",
+      "title": "Gull_1.ogg",
+      "url": "https://commons.wikimedia.org/wiki/File:Gull_1.ogg",
+      "author": "avphillips (pdsounds.org)",
+      "licence": "Public domain",
+      "fetched": "2026-11-05",
+      "start_s": 0,
+      "len_s": 2.4,
+      "use": "a bird call or splash one-shot (src/birds/sound.js), cut by tools/birds_audio_pack.py"
+    },
+    {
+      "name": "goose_a",
+      "title": "Yellowstone_sound_library_-_Canada_Geese_-_001.mp3",
+      "url": "https://commons.wikimedia.org/wiki/File:Yellowstone_sound_library_-_Canada_Geese_-_001.mp3",
+      "author": "NPS & MSU Acoustic Atlas (Jennifer Jerrett)",
+      "licence": "Public domain (PD-USGov)",
+      "fetched": "2026-11-05",
+      "start_s": 12.6,
+      "len_s": 2.6,
+      "use": "a bird call or splash one-shot (src/birds/sound.js), cut by tools/birds_audio_pack.py"
+    },
+    {
+      "name": "goose_b",
+      "title": "Yellowstone_sound_library_-_Canada_Geese_-_001.mp3",
+      "url": "https://commons.wikimedia.org/wiki/File:Yellowstone_sound_library_-_Canada_Geese_-_001.mp3",
+      "author": "NPS & MSU Acoustic Atlas (Jennifer Jerrett)",
+      "licence": "Public domain (PD-USGov)",
+      "fetched": "2026-11-05",
+      "start_s": 4.6,
+      "len_s": 2.4,
+      "use": "a bird call or splash one-shot (src/birds/sound.js), cut by tools/birds_audio_pack.py"
+    },
+    {
+      "name": "splash_big",
+      "title": "Freesound 179340 (hq preview)",
+      "url": "https://freesound.org/people/lolamadeus/sounds/179340/",
+      "author": "lolamadeus",
+      "licence": "CC0 1.0",
+      "fetched": "2026-11-05",
+      "start_s": 0,
+      "len_s": 2.2,
+      "use": "a bird call or splash one-shot (src/birds/sound.js), cut by tools/birds_audio_pack.py"
+    },
+    {
+      "name": "splash_small",
+      "title": "Freesound 179340 (hq preview)",
+      "url": "https://freesound.org/people/lolamadeus/sounds/179340/",
+      "author": "lolamadeus",
+      "licence": "CC0 1.0",
+      "fetched": "2026-11-05",
+      "start_s": 6,
+      "len_s": 0.8,
+      "use": "a bird call or splash one-shot (src/birds/sound.js), cut by tools/birds_audio_pack.py"
+    }
+  ],
+  "fireworks": [
+    {
+      "name": "fw_boom",
+      "kind": "bank",
+      "id": 784660,
+      "author": "VanEngelen",
+      "title": "Distant Explosion",
+      "slot_s": 3.5,
+      "fade_in_ms": 2,
+      "highpass_hz": 25,
+      "picks": [
+        [
+          2.3,
+          3.4
+        ]
+      ],
+      "use": "the big shells' far boom with its own roll (10-12 inch), pitched by calibre; src/fireworks/sound.js"
+    },
+    {
+      "name": "fw_bang",
+      "kind": "bank",
+      "id": 158727,
+      "author": "markedit",
+      "title": "Fireworks.wav",
+      "slot_s": 1.25,
+      "fade_in_ms": 2,
+      "highpass_hz": 30,
+      "picks": [
+        [
+          12.03,
+          1.2
+        ],
+        [
+          51.64,
+          1.2
+        ],
+        [
+          44.15,
+          1.2
+        ],
+        [
+          25.64,
+          1.2
+        ],
+        [
+          96.42,
+          1.2
+        ]
+      ],
+      "use": "a lakeside show's single bursts with low centroids (3-6 inch, salutes), 5 one-shots"
+    },
+    {
+      "name": "fw_deep",
+      "kind": "bank",
+      "id": 235338,
+      "author": "jaydawgy",
+      "title": "Fireworks Finale.wav",
+      "slot_s": 1.25,
+      "fade_in_ms": 2,
+      "highpass_hz": 25,
+      "picks": [
+        [
+          4.15,
+          1.2
+        ],
+        [
+          12.5,
+          1.2
+        ],
+        [
+          27,
+          1.2
+        ],
+        [
+          9.37,
+          1.2
+        ]
+      ],
+      "use": "deep finale bursts (7-9 inch), 4 one-shots"
+    },
+    {
+      "name": "fw_launch",
+      "kind": "bank",
+      "id": 158727,
+      "author": "markedit",
+      "title": "Fireworks.wav",
+      "slot_s": 0.75,
+      "fade_in_ms": 2,
+      "highpass_hz": 30,
+      "picks": [
+        [
+          4.48,
+          0.6
+        ],
+        [
+          23.24,
+          0.6
+        ],
+        [
+          53.29,
+          0.6
+        ],
+        [
+          103.85,
+          0.6
+        ]
+      ],
+      "use": "the mortars' lift thumps (short, low, quick decay), 4 one-shots"
+    },
+    {
+      "name": "fw_crackle",
+      "kind": "bank",
+      "id": 158727,
+      "author": "markedit",
+      "title": "Fireworks.wav",
+      "slot_s": 2.5,
+      "fade_in_ms": 20,
+      "highpass_hz": 900,
+      "picks": [
+        [
+          37.52,
+          2.5
+        ],
+        [
+          70.04,
+          2.5
+        ],
+        [
+          82.4,
+          2.5
+        ]
+      ],
+      "use": "crackle and glitter sizzle after a crackle shell (high-passed: the bangs under it removed), 3 one-shots"
+    },
+    {
+      "name": "fw_whistle",
+      "kind": "bank",
+      "id": 186933,
+      "author": "ReadeOnly",
+      "title": "rocket-whistle.wav",
+      "slot_s": 1.5,
+      "fade_in_ms": 8,
+      "highpass_hz": 200,
+      "picks": [
+        [
+          0,
+          1.44
+        ]
+      ],
+      "use": "a whistling riser, now and then"
+    },
+    {
+      "name": "fw_whistle2",
+      "kind": "bank",
+      "id": 140726,
+      "author": "j1987",
+      "title": "tiny_rocket.wav",
+      "slot_s": 1.5,
+      "fade_in_ms": 8,
+      "highpass_hz": 200,
+      "picks": [
+        [
+          0,
+          1.45
+        ]
+      ],
+      "use": "a second whistling riser"
+    },
+    {
+      "name": "fw_cheer",
+      "kind": "bank",
+      "id": 102108,
+      "author": "moxobna",
+      "title": "072510_distant_cheer.wav",
+      "slot_s": 9,
+      "fade_in_ms": 400,
+      "highpass_hz": 120,
+      "picks": [
+        [
+          7,
+          8.8
+        ]
+      ],
+      "use": "a far crowd's cheer from the shore after the finale"
+    },
+    {
+      "name": "fw_finale",
+      "kind": "loop",
+      "id": 235338,
+      "author": "jaydawgy",
+      "title": "Fireworks Finale.wav",
+      "start_s": 21,
+      "len_s": 20,
+      "xfade_s": 3,
+      "min_len_s": 12,
+      "highpass_hz": 25,
+      "use": "the finale's rolling wall under the single bursts (its gain follows the show's burst rate)"
+    }
+  ]
+}

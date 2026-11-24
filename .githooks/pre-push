@@ -1,0 +1,4 @@
+#!/bin/sh
+# The scrub over every commit about to be pushed: its diff, its message and its author (tools/oss/scrub.mjs). Git passes
+# the refs on stdin.
+exec node "$(git rev-parse --show-toplevel)/tools/oss/scrub.mjs" --pre-push

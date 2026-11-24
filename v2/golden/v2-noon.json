@@ -1,0 +1,10 @@
+{
+  "name": "v2-noon",
+  "url": "http://127.0.0.1:5174/?hour=13&cam=B&camyaw=180&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M2: solar noon from cam B, south to the bay's wall: the navy water, the wall mirrored in it, Tallac's snow"
+}

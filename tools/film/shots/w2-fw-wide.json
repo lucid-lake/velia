@@ -1,0 +1,61 @@
+{
+ "name": "w2-fw-wide",
+ "title": "Velia week 2: the show, wide",
+ "about": "Week 2 shot 7a: the show over the boat, both barges, the spectator boats (show 262-265 s); 1 s handles.",
+ "duration": 5,
+ "fps": 30,
+ "warm": 30,
+ "fw": true,
+ "url": {
+  "mode": "sail",
+  "seed": 1,
+  "start": "1350,-960",
+  "heading": 243,
+  "wind": 1,
+  "clouds": 0,
+  "cloudcov": 0,
+  "settle": 4,
+  "hour": 22.02333,
+  "fwt": 261
+ },
+ "camera": {
+  "frame": "boat0",
+  "ease": "linear",
+  "keys": [
+   {
+    "t": 0,
+    "pos": [
+     -8,
+     2.5,
+     -18
+    ],
+    "fov": 72
+   },
+   {
+    "t": 5,
+    "pos": [
+     -7,
+     2.4,
+     -1
+    ],
+    "fov": 72
+   }
+  ],
+  "aim": {
+   "at": [
+    1127,
+    105,
+    -846
+   ],
+   "tau": 1.5
+  }
+ },
+ "formats": {
+  "L": {
+   "w": 1920,
+   "h": 1080,
+   "ss": 1.5,
+   "mbps": 20
+  }
+ }
+}

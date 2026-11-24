@@ -1,0 +1,4 @@
+#!/bin/sh
+# The scrub over the staged changes (tools/oss/scrub.mjs): secrets, local paths, emails, private names, internal names,
+# money, private-note citations. Turn the hooks on once: git config core.hooksPath .githooks
+exec node "$(git rev-parse --show-toplevel)/tools/oss/scrub.mjs" --staged

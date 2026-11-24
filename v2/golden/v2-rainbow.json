@@ -1,0 +1,10 @@
+{
+  "name": "v2-rainbow",
+  "url": "http://127.0.0.1:5174/?hour=18.25&wind=2&start=2300,-1400&heading=330&weather=storm&stormref=2300,-1400&cloudcov=0.6&stormt=240&settle=8&camyaw=140&campitch=12&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M5e: the clearing (240 s): the rainbow over the departing cell east-south-east, the gold grade, the sun low behind the camera"
+}

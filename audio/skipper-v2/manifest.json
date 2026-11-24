@@ -1,0 +1,54 @@
+{
+ "note": "The old skipper's spoken hints (tools/skipper_voice.py): Kokoro-82M (Apache-2.0), voice bm_george, speed 0.88, -19 LUFS. The key is the hash of the spoken text (src/ui/skipperLines.js hashText); each clip is <hash>.opus and <hash>.m4a.",
+ "voice": "bm_george",
+ "speed": 0.88,
+ "lang": "en-gb",
+ "lufs": -19.0,
+ "clips": {
+  "84232df5688": {
+   "text": "Rounding up to anchor.",
+   "ids": [
+    "sea.rounding"
+   ],
+   "dur": 1.88,
+   "opus": 5954,
+   "m4a": 8554
+  },
+  "191e0db0d76": {
+   "text": "Too deep here. There is a good spot on the chart.",
+   "ids": [
+    "sea.deepSpot"
+   ],
+   "dur": 3.47,
+   "opus": 10456,
+   "m4a": 15046
+  },
+  "8406363b0c0": {
+   "text": "Anchor’s holding.",
+   "ids": [
+    "sea.holding"
+   ],
+   "dur": 1.54,
+   "opus": 4751,
+   "m4a": 7060
+  },
+  "2b6b2a83a08": {
+   "text": "We are dragging.",
+   "ids": [
+    "sea.dragging"
+   ],
+   "dur": 1.38,
+   "opus": 4305,
+   "m4a": 6662
+  },
+  "9e55cec92b9": {
+   "text": "Anchor’s up.",
+   "ids": [
+    "sea.up"
+   ],
+   "dur": 1.36,
+   "opus": 4197,
+   "m4a": 6558
+  }
+ }
+}

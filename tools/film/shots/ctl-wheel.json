@@ -1,0 +1,92 @@
+{
+  "name": "ctl-wheel",
+  "title": "Velia: the wheel",
+  "about": "Macro: the dot drags the 3D wheel 60 degrees clockwise (L desktop layout; P the phone layout).",
+  "duration": 4,
+  "settle": 2,
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "gate": 0,
+    "start": "-330,40",
+    "heading": 60
+  },
+  "inputs": [
+    {
+      "t": 0.6,
+      "drag": {
+        "on": "wheel",
+        "path": "arc",
+        "deg": 60,
+        "dur": 2.2
+      }
+    }
+  ],
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "view": [
+        1920,
+        1080
+      ],
+      "dpr": 6,
+      "pixelratio": 3,
+      "mbps": 50,
+      "hide": [
+        ".lk-view",
+        ".lk-dock",
+        ".toast",
+        ".lk-hint",
+        ".lk-guide"
+      ],
+      "crop": {
+        "around": "wheel",
+        "h": 400,
+        "dy": -20
+      }
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "view": [
+        432,
+        768
+      ],
+      "dpr": 8,
+      "pixelratio": 4,
+      "touch": true,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "hide": [
+        ".lk-view",
+        ".lk-dock",
+        ".toast",
+        ".lk-hint",
+        ".lk-guide"
+      ],
+      "crop": {
+        "around": "wheel",
+        "h": 250,
+        "dy": -40
+      }
+    }
+  },
+  "ui": true,
+  "fps": 60,
+  "storage": {
+    "lakeshore.settings.v1": {
+      "welcomed": true,
+      "profile": "new"
+    },
+    "lakeshore.desknote.v1": "1"
+  },
+  "waitFor": "!!window.__lakeshore.station?.shown"
+}

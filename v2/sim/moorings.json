@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "about": "Mooring fields per waters. Each ball: id, number (as painted), at [x, z] (world m). The Boat Camp's field is laid as the 1996 State Parks report describes it (22 balls in two rows parallel to the north shore, odd numbers shoreward, even lakeward; 24-inch balls), on the game's bed: no published positions, so design placements off the OSM camp's shore, each pair moved out until both balls ride in 3.8 m or more of water (the chart's 10 m grid), and the camp's pier left in a gap (every ball 25 m or more from it). The look is the US mooring buoy (33 CFR 62.35; California 14 CCR 7007): white, a blue band round it above the water.",
+  "sources": {
+    "parks-1996": { "title": "California State Parks, Boat Camp Mooring Buoy Maintenance Project (1996 report): 22 buoys (20 plus 2 added in June 1995), two rows parallel to shore, odd numbers shoreward, even lakeward, 24-inch buoy balls, about 1,500 lb cemented anchor bases", "url": "https://www.parks.ca.gov/?page_id=23100", "accessed": "2026-11-18", "licence": "no licence stated; facts only" },
+    "osm-camp": { "title": "OpenStreetMap way 'Boat Camp' (tourism=camp_site), centre about 38.96016, -120.09656", "url": "https://www.openstreetmap.org/", "accessed": "2026-11-18", "licence": "ODbL 1.0, (c) OpenStreetMap contributors" },
+    "cfr-62-35": { "title": "33 CFR 62.35 (mooring buoys: white with a blue horizontal band)", "url": "https://www.law.cornell.edu/cfr/text/33/62.35", "accessed": "2026-11-18", "licence": "US federal regulation, public domain" },
+    "ccr-7007": { "title": "14 CCR 7007 (California waterway marks: mooring buoys white, with a blue band clearly visible above the waterline)", "url": "https://regulations.justia.com/states/california/title-14/division-4/chapter-1/article-6/section-7007", "accessed": "2026-11-18", "licence": "state regulation; fact only" }
+  },
+  "waters": {
+    "tahoe-emerald": {
+      "fields": [
+        { "id": "boat-camp", "name": "Boat Camp moorings", "src": ["parks-1996", "osm-camp", "cfr-62-35", "ccr-7007"],
+          "balls": [[314, -531], [329, -517], [326, -543], [341, -528], [338, -555], [353, -539], [354, -563], [369, -547], [411, -553], [426, -537], [427, -560],
+                    [442, -544], [437, -575], [452, -559], [446, -589], [461, -574], [457, -603], [472, -587], [459, -625], [474, -609], [473, -635], [488, -619]] }
+      ]
+    }
+  }
+}

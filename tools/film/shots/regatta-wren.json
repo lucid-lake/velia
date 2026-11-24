@@ -1,0 +1,84 @@
+{
+  "name": "regatta-wren",
+  "title": "Velia: Regatta",
+  "about": "Regatta: the rival fills the frame; Wren's Osprey tacks, sail number 17, heeled in the breeze.",
+  "duration": 2.2,
+  "fps": 60,
+  "warm": 30,
+  "url": {
+    "mode": "regatta",
+    "hour": 17,
+    "seed": 1,
+    "cloudcov": 0.18,
+    "autoplay": 1,
+    "racet": 62,
+    "diff": "medium"
+  },
+  "camera": {
+    "subject": "wren",
+    "frame": "boat0",
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          18,
+          1.8,
+          26
+        ],
+        "fov": 24
+      }
+    ],
+    "aim": {
+      "at": "boat",
+      "offset": [
+        0,
+        3.5,
+        0
+      ],
+      "tau": 1.0
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "ss": 1.5,
+      "mbps": 50
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "ss": 1.5,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "camera": {
+        "subject": "wren",
+        "frame": "boat0",
+        "keys": [
+          {
+            "t": 0,
+            "pos": [
+              16,
+              1.8,
+              24
+            ],
+            "fov": 38
+          }
+        ],
+        "aim": {
+          "at": "boat",
+          "offset": [
+            0,
+            5,
+            0
+          ],
+          "tau": 1.0
+        }
+      }
+    }
+  }
+}

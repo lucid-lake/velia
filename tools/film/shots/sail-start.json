@@ -1,0 +1,78 @@
+{
+  "name": "sail-start",
+  "title": "Velia: the first instruction",
+  "about": "Entering Sail at 17:00 as a New player, looking east at Fannette with the sun behind: the skipper's first subtitle and the goal chip with the beacon; at 4 s the dot drags the wheel and the bow comes round to the island.",
+  "duration": 10,
+  "settle": 0.2,
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "gate": 0,
+    "start": "-330,40",
+    "heading": 60
+  },
+  "inputs": [
+    {
+      "t": 4.0,
+      "drag": {
+        "on": "wheel",
+        "path": "arc",
+        "deg": 40,
+        "dur": 2.0
+      }
+    }
+  ],
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "view": [
+        1920,
+        1080
+      ],
+      "dpr": 2,
+      "pixelratio": 2,
+      "mbps": 50,
+      "hide": [
+        ".lk-view",
+        ".lk-dock",
+        ".toast"
+      ]
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "view": [
+        432,
+        768
+      ],
+      "dpr": 5,
+      "pixelratio": 4,
+      "touch": true,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "hide": [
+        ".lk-view",
+        ".lk-dock",
+        ".toast"
+      ]
+    }
+  },
+  "ui": true,
+  "fps": 60,
+  "storage": {
+    "lakeshore.settings.v1": {
+      "welcomed": true,
+      "profile": "new"
+    },
+    "lakeshore.desknote.v1": "1"
+  },
+  "waitFor": "!!window.__lakeshore.station?.shown"
+}

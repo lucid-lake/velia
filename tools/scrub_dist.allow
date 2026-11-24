@@ -1,0 +1,3 @@
+# Allow-list for tools/scrub_dist.sh: extended regexes matched against a hit (40 characters either side). Third-party text only.
+# three.js (TSL nodes, in the BufferGeometryUtils chunk): a node's `this.owner` field.
+this\.owner

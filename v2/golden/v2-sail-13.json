@@ -1,0 +1,10 @@
+{
+  "name": "v2-sail-13",
+  "url": "http://127.0.0.1:5174/?hour=13&wind=2&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M3: the sloop from v1's follow camera at 13:00, v1's Sail start (1200, −1050, 251°), level-2 wind, 20 s settled"
+}

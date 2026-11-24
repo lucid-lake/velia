@@ -1,0 +1,41 @@
+{
+  "name": "velia",
+  "version": "0.0.1",
+  "private": true,
+  "description": "A sailing game on a real Lake Tahoe, in a custom WebGPU engine.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "build": "vite build",
+    "build:classic": "VELIA_BASE=/classic/ vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "capture": "node tools/capture.mjs",
+    "diff": "node tools/diff.mjs",
+    "test": "node --test tests/",
+    "test:slow": "node --test \"tests/slow/*.slow.mjs\"",
+    "test:classic": "node --test classic/tests/",
+    "test:pages": "node tools/test_pages.mjs",
+    "test:pages:v2": "node tools/test_pages.mjs --app v2",
+    "goldens": "node tools/goldens.mjs",
+    "scrub:dist": "bash tools/scrub_dist.sh dist",
+    "dev:v2": "vite --config v2/vite.config.js",
+    "build:v2": "vite build --config v2/vite.config.js",
+    "preview:v2": "vite preview --config v2/vite.config.js",
+    "test:v2": "node --test v2/tests/",
+    "test:v2:slow": "node --test \"v2/tests/slow/*.slow.mjs\"",
+    "goldens:v2": "node tools/goldens.mjs --app v2"
+  },
+  "dependencies": {
+    "@takram/three-atmosphere": "0.19.1",
+    "@takram/three-geospatial": "0.9.1",
+    "astronomy-engine": "2.1.19",
+    "three": "0.184.0"
+  },
+  "devDependencies": {
+    "pixelmatch": "7.1.0",
+    "playwright-core": "1.64.1",
+    "pngjs": "7.0.0",
+    "vite": "8.3.5"
+  }
+}

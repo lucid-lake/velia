@@ -1,0 +1,54 @@
+{
+  "glb": "models/boat/hardware.glb",
+  "triangles": 9808,
+  "draw_calls": 11,
+  "bytes": 378664,
+  "socket_hull_frame": [
+    0,
+    0.95,
+    0
+  ],
+  "ladder_hinge_hull_frame": [
+    0,
+    0.3,
+    4.613
+  ],
+  "stanchions_a_side": 4,
+  "lifelines": "double (0.61 and 0.33 m), gates at the cockpit",
+  "anchor_pin_hull_frame": [
+    0.12,
+    1.143,
+    -3.962
+  ],
+  "anchor_roller_axle_hull_frame": [
+    0.12,
+    1.133,
+    -4.492
+  ],
+  "nav_hull_frame": {
+    "navBow": [
+      0,
+      1.722,
+      -4.272
+    ],
+    "navStern": [
+      0.545,
+      1.472,
+      4.283
+    ]
+  },
+  "dims_mismatch": {},
+  "objects": [
+    "aluminium",
+    "anchor",
+    "anchor_chain",
+    "black",
+    "gelcoat_parts",
+    "ladder",
+    "ladder_treads",
+    "lifelines",
+    "perch_pads",
+    "stainless",
+    "stainless_detail"
+  ]
+}

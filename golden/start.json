@@ -1,0 +1,10 @@
+{
+  "name": "start",
+  "url": "http://127.0.0.1:5173/?mode=sail&seed=1&hour=15&wind=2&settle=40&hud=full&birds=0&headless=1&once=0&noload=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "the Sail start, default heading"
+}

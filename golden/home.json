@@ -1,0 +1,10 @@
+{
+  "name": "home",
+  "url": "http://127.0.0.1:5173/?mode=sail&seed=1&hour=15&gate=1&attract=0&hud=full&birds=0&quality=high",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "the home card (loading shell at 100 %, live page: no headless, so the card shows)"
+}

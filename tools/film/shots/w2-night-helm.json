@@ -1,0 +1,52 @@
+{
+ "name": "w2-night-helm",
+ "title": "Velia week 2: night at the helm",
+ "about": "Week 2 shot 6: night under way, the Milky Way over the bow from the helm; 1 s handles.",
+ "duration": 6,
+ "fps": 30,
+ "warm": 40,
+ "url": {
+  "mode": "sail",
+  "hour": 22.5,
+  "seed": 1,
+  "wind": 1,
+  "start": "1708,-1225",
+  "heading": 151,
+  "clouds": 0,
+  "cloudcov": 0,
+  "view": "helm",
+  "helmlook": "-15,24",
+  "settle": 4
+ },
+ "camera": {
+  "rig": true,
+  "keys": [
+   {
+    "t": 0,
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "fov": 62
+   },
+   {
+    "t": 6,
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "fov": 62
+   }
+  ]
+ },
+ "formats": {
+  "L": {
+   "w": 1920,
+   "h": 1080,
+   "ss": 1.5,
+   "mbps": 20
+  }
+ }
+}

@@ -1,0 +1,8 @@
+{
+  "default": "c",
+  "variants": {
+    "a": { "name": "rich navy", "canvas": "#2A4A86", "trim": "#16213A" },
+    "b": { "name": "Pacific blue", "canvas": "#3A6C9A", "trim": "#1A2742" },
+    "c": { "name": "toast", "canvas": "#B49C7E", "trim": "#27324A" }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "name": "storm-arrive",
+  "title": "Velia: the afternoon storm arrives",
+  "about": "wow/storm, part 1 of the storm film (14 s): arc 40–180 s at 10×. Halcyon on a reach off Emerald Bay's mouth; the camera on her starboard side looks across her to the WSW: the cell rolls in over the western ridge, the rain's curtains and the shelf come down the bay, the rain arrives, three bolts on the ridges.",
+  "duration": 14,
+  "fps": 30,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 18.25,
+    "seed": 1,
+    "wind": 2,
+    "start": "2300,-1400",
+    "heading": 330,
+    "weather": "storm",
+    "stormref": "2300,-1400",
+    "cloudcov": 0.6,
+    "stormt": 40,
+    "stormrate": 10,
+    "settle": 8
+  },
+  "camera": {
+    "frame": "boat",
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          26,
+          5,
+          -10
+        ],
+        "fov": 58
+      },
+      {
+        "t": 14,
+        "pos": [
+          24.1,
+          4.5,
+          -8.1
+        ],
+        "fov": 58
+      }
+    ],
+    "aim": {
+      "at": "boat",
+      "offset": [
+        0,
+        9,
+        0
+      ],
+      "tau": 1.5
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 1280,
+      "h": 720,
+      "mbps": 12
+    }
+  }
+}

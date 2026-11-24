@@ -1,0 +1,82 @@
+{
+  "name": "big-wave-surf",
+  "title": "Velia: big water",
+  "about": "H3 17:00, level 4 on the open lake: a broad reach in heavy air, the boat heels hard and surfs down a wave, the bow punching through a crest with spray; whitecaps checked against the snow look.",
+  "duration": 4.4,
+  "fps": 60,
+  "warm": 30,
+  "url": {
+    "mode": "sail",
+    "hour": 17,
+    "seed": 1,
+    "wind": 4,
+    "windref": "start",
+    "cloudcov": 0.18,
+    "start": "4700,-15200",
+    "twa": 135,
+    "settle": 21.4
+  },
+  "camera": {
+    "frame": "boat",
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          -28,
+          3,
+          6
+        ],
+        "fov": 20
+      }
+    ],
+    "aim": {
+      "at": "boat",
+      "offset": [
+        0,
+        2.5,
+        0
+      ],
+      "tau": 1.2
+    }
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "ss": 1.5,
+      "mbps": 50
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "ss": 1.5,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "camera": {
+        "frame": "boat",
+        "keys": [
+          {
+            "t": 0,
+            "pos": [
+              -26,
+              3,
+              6
+            ],
+            "fov": 32
+          }
+        ],
+        "aim": {
+          "offset": [
+            0,
+            4,
+            0
+          ]
+        }
+      }
+    }
+  }
+}

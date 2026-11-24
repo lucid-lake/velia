@@ -1,0 +1,10 @@
+{
+  "name": "v2-hud-calm",
+  "url": "http://127.0.0.1:5174/?hour=15&wind=2&hud=calm&start=1200,-1050&heading=251&filmui=1&once=0&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M4: the same 13 s with the Calm HUD (v1's hud-calm pose): the bar and the cockpit gone after 5 s at rest, the winches a luffing sail calls back"
+}

@@ -1,0 +1,67 @@
+{
+  "name": "cruise-drift",
+  "title": "Velia: Cruise",
+  "about": "Cruise at 17:00: the director's cinematic camera, calm, the island behind.",
+  "duration": 3.4,
+  "fps": 60,
+  "warm": 30,
+  "url": {
+    "mode": "cruise",
+    "hour": 17,
+    "seed": 1,
+    "wind": 3,
+    "cloudcov": 0.18,
+    "start": "250,120",
+    "heading": 300,
+    "settle": 20,
+    "chillsettle": 12,
+    "shot": "pace"
+  },
+  "camera": {
+    "rig": true,
+    "keys": [
+      {
+        "t": 0,
+        "pos": [
+          0,
+          0,
+          0
+        ],
+        "fov": 28
+      }
+    ]
+  },
+  "formats": {
+    "L": {
+      "w": 3840,
+      "h": 2160,
+      "ss": 1.5,
+      "mbps": 50
+    },
+    "P": {
+      "w": 2160,
+      "h": 3840,
+      "ss": 1.5,
+      "mbps": 50,
+      "deliver": [
+        1080,
+        1920,
+        18
+      ],
+      "camera": {
+        "rig": true,
+        "keys": [
+          {
+            "t": 0,
+            "pos": [
+              0,
+              0,
+              0
+            ],
+            "fov": 45
+          }
+        ]
+      }
+    }
+  }
+}

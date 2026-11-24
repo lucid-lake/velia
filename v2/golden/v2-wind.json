@@ -1,0 +1,10 @@
+{
+  "name": "v2-wind",
+  "url": "http://127.0.0.1:5174/?hour=16&cam=B&camyaw=200&windspeed=11&winddir=200&start=1200,-1050&heading=251&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M2: a strong afternoon wind (11 m/s, 21 kn, from 200) at cam B, into it: the sea, the subtle foam, the wall"
+}

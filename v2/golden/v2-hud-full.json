@@ -1,0 +1,10 @@
+{
+  "name": "v2-hud-full",
+  "url": "http://127.0.0.1:5174/?hour=15&wind=2&hud=full&start=1200,-1050&heading=251&filmui=1&once=0&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "M4: Sail with the full HUD (v1's hud-full pose): the top bar, the cream cockpit with its dials and controls, the skipper's line, after 13 s of play on the film clock"
+}

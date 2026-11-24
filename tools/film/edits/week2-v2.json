@@ -1,0 +1,112 @@
+{
+ "name": "velia-social-week2-v2",
+ "title": "Week 2",
+ "about": "v2 (owner OK on v1 as is, 2026-11-11, + music): v1's picture unchanged, with the game's own MusicAPI track \"Dusk over the water (take A)\" (audio/music/dusk_water_a.m4a, audio/sources.json) from 48.68 s: its phrase at 67.38 s lands on the dissolve to night (output 18.7 s). The music fades in over 0.5 s, sits under everything (-24 LUFS stem), ducks 6 dB under the hook's burst and the show's sound, and fades out under the end card to the last frame. Master -14 LUFS, -1 dBTP, AAC 256 kb/s. An ambience-only delivery (v1's mix) beside it. Deliveries: 1920x1080 at 12 Mb/s and a 1280x720 phone preview.",
+ "fps": 30,
+ "formats": {
+  "L": {
+   "w": 1920,
+   "h": 1080,
+   "deliver": [
+    [
+     1920,
+     1080,
+     12
+    ],
+    [
+     1280,
+     720,
+     6
+    ]
+   ]
+  }
+ },
+ "card": {
+  "free": "Free. No login. In your browser."
+ },
+ "segments": [
+  {
+   "clip": "w2-hook-r2",
+   "in": 1.8,
+   "dur": 3.0,
+   "text": "Velia · Week 2",
+   "audio": {
+    "tail": 0.6,
+    "fadeIn": 0.02,
+    "fadeOut": 0.6
+   }
+  },
+  {
+   "clip": "w2-cockpit-jib",
+   "in": 1.0,
+   "dur": 3.0
+  },
+  {
+   "clip": "w2-kayaks-r2",
+   "in": 1.0,
+   "dur": 5.0,
+   "text": "You have company on the lake."
+  },
+  {
+   "clip": "w2-storm-bolt-r2",
+   "in": 1.2,
+   "dur": 2.5,
+   "text": "Pick your weather."
+  },
+  {
+   "clip": "w2-storm-rain",
+   "in": 1.0,
+   "dur": 2.5
+  },
+  {
+   "clip": "w2-rainbow-r2",
+   "in": 1.0,
+   "dur": 3.0
+  },
+  {
+   "clip": "w2-night-helm",
+   "in": 1.0,
+   "dur": 4.0,
+   "dissolve": 12,
+   "text": "Stay out after dark."
+  },
+  {
+   "clip": "w2-fw-wide-r2",
+   "in": 1.0,
+   "dur": 3.0,
+   "text": "And the Fourth of July, any night.",
+   "audio": {
+    "tail": 2.6,
+    "fadeIn": 0.05,
+    "fadeOut": 2.4
+   }
+  },
+  {
+   "card": true,
+   "dur": 3.0,
+   "dissolve": 12
+  }
+ ],
+ "texts": [
+  {
+   "text": "A new cockpit.",
+   "from": 3.08,
+   "to": 5.78,
+   "y": 0.19
+  }
+ ],
+ "metaTitle": "Velia: one evening on the lake — Week 2",
+ "loudness": {
+  "lufs": -14,
+  "tp": -1
+ },
+ "aacKbps": 256,
+ "music": {
+  "file": "audio/music/dusk_water_a.m4a",
+  "start": 48.68,
+  "gainLufs": -24,
+  "fadeIn": 0.5,
+  "fadeOut": 3.0,
+  "duckDb": 6
+ }
+}
