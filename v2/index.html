@@ -481,7 +481,6 @@
     .lk-sheet{position:relative;padding:1.7em 1.9em 0;max-width:calc(100% - 1.6em)}
     .lk-sheet > *{opacity:0;animation:lk-rise .6s var(--lk-ease) both}
     #lk-load[data-pg] .lk-go{visibility:hidden!important}
-    #lk-load[data-pg] .lk-lang{display:none}   /* a page has its own corner (back, esc); Settings › Screen has the language */
     .lk-sheet > .lk-plan{animation:lk-in 0.66s var(--lk-ease) 0.38s both}
     #lk-load .lk-rose{position:absolute;right:1.6em;top:1.5em;width:5.6em;height:auto;opacity:0;animation:lk-in 0.77s var(--lk-ease) 0.29s both}
     .lk-rose .d{fill:var(--paper);fill-opacity:.9;stroke:none}
@@ -521,20 +520,6 @@
     .lk-status{margin:.3em 0 0;display:flex;align-items:flex-start;gap:.6em;animation:lk-in 0.66s var(--lk-ease) 0.52s both}
     .lk-say{display:inline-block;transition:opacity .25s var(--lk-ease)}
     .lk-say.off{opacity:0}
-    /* the language (owner, 2026-11-06): a small "EN ▾" text control in the card's top-right corner, by the compass rose, out of the button row; its list opens downward. Settings has it too */
-    .lk-lang{position:absolute;right:1.5em;top:1.15em;z-index:3}
-    .lk-langbtn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:.3em;padding:.2em .5em;border-radius:.25em;background:rgb(var(--pan) / .82);color:var(--navy);font-family:var(--lk-ui,var(--lk-font));font-weight:var(--lk-medium);font-size:max(.8em,13px);letter-spacing:.08em;white-space:nowrap}
-    .lk-langbtn i{font-style:normal;font-size:.85em}
-    .lk-langbtn:hover,.lk-langbtn[aria-expanded=true]{background:var(--navy);color:var(--onink)}
-    .lk-langbtn:focus-visible,.lk-langlist li:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
-    .lk-langlist{position:absolute;right:0;top:calc(100% + .3em);z-index:3;margin:0;padding:.2em;list-style:none;min-width:100%;border:1px solid var(--navy);border-radius:.2em;background:rgb(var(--pan));color:var(--navy);font-family:var(--lk-ui,var(--lk-font));font-size:max(.8em,13px);letter-spacing:.04em;white-space:nowrap;box-shadow:0 .2em .6em rgb(0 0 0/.3)}
-    .lk-langlist[hidden]{display:none}
-    .lk-langlist li{cursor:pointer;padding:.4em .7em;border-radius:.15em}
-    .lk-langlist li[aria-selected=true]::before{content:'✓ '}
-    .lk-langlist li[aria-selected=false]{padding-left:1.55em}
-    .lk-langlist li:hover:not([aria-disabled=true]),.lk-langlist li:focus-visible{background:rgb(var(--ink3) / .12)}
-    .lk-langlist li[aria-disabled=true]{cursor:not-allowed;font-style:italic;opacity:.7}
-    @media (pointer:coarse){.lk-langbtn,.lk-langlist li{min-height:44px;min-width:44px;display:flex;align-items:center}}
     .lk-links{position:absolute;left:1.6em;right:1.6em;bottom:1.1em;padding-top:.5em;border-top:1px solid rgb(var(--ink3) / .5);display:flex;flex-wrap:wrap;align-items:baseline;gap:.1em 0;opacity:0;animation:lk-in 0.66s var(--lk-ease) 0.61s both}
     .lk-link{all:unset;box-sizing:border-box;cursor:pointer;padding:.25em .3em;color:var(--navy);font-family:var(--lk-ui,var(--lk-font));font-size:max(.8em,13px);letter-spacing:.06em;text-transform:uppercase;transition:background-color .2s}
     .lk-link:hover{background:rgb(var(--ink3) / .1)}
@@ -593,7 +578,6 @@
     html:not([data-card=parchment]) .lk-card .lk-pick[aria-checked=true]{background:rgb(var(--ink3) / .13);color:var(--navy);border-color:rgb(var(--ink3) / .9);font-weight:var(--lk-medium)}
     html:not([data-card=parchment]) .lk-card .lk-link.lk-go{background:transparent;color:var(--navy);border:2px solid var(--navy);font-weight:var(--lk-medium)}
     html:not([data-card=parchment]) .lk-card .lk-link.lk-go:hover,html:not([data-card=parchment]) .lk-card .lk-link.lk-go:focus-visible{background:rgb(var(--ink3) / .16);border-color:var(--navy2)}
-    html:not([data-card=parchment]) .lk-card .lk-langbtn:hover,html:not([data-card=parchment]) .lk-card .lk-langbtn[aria-expanded=true]{background:rgb(var(--ink3) / .16);color:var(--navy)}
     .lk-fail{display:none;margin:1em 0 0;font-size:1.02em;line-height:1.6;letter-spacing:.04em;color:var(--navy)}
     .lk-fail small{display:block;font-size:.88em;font-style:italic;margin-top:.5em}
     /* the foot of the chart: a chart note (the stage), then the plaque once the lake is ready; the soundings note bottom right */
@@ -696,16 +680,23 @@
     :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-sup{grid-area:auto;height:28px;min-height:28px;padding:0 .8em 0 .55em;gap:.4em;font-size:max(.96em,15px);letter-spacing:.03em;background:none;border:1px solid var(--brass)}
     :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-sup .lk-cup{width:14px;height:14px}
     :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-sup:hover,:root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-sup:focus-visible{background:color-mix(in srgb,var(--brass) 14%,transparent);border-color:color-mix(in srgb,var(--brass) 70%,#fff)}
-    /* the right group "EN ▾ · v0.7 · About ›": the language picker moves into the foot (v2/ui/birthplaceCard.js), its list opens upward; one dot between neighbours */
-    :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-foot .lk-lang{position:static;order:0;margin:0 0 0 auto;z-index:3}
-    :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-foot .lk-langbtn{padding:0 .3em;height:28px;font-size:max(.96em,15px);letter-spacing:.06em;opacity:.84;text-shadow:none}
-    :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-foot .lk-langlist{top:auto;bottom:calc(100% + .35em);right:auto;left:0}
-    :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-foot .lk-lang{position:relative;top:auto;right:auto;bottom:auto;display:flex;align-items:center;height:28px}
+    /* the right group "GitHub · v0.8 · About ›": the source link (the GitHub mark and its word, v2/ui/source.js) opens it; one dot between neighbours;
+       28 px like its neighbours, a 44 px hit */
+    :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-foot .lk-gh{position:relative;order:0;margin:0 0 0 auto;height:28px;padding:0 .3em;font-size:max(.96em,15px);letter-spacing:.06em;opacity:.84}
+    :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-foot .lk-gh::after{content:'';position:absolute;inset:-8px 0}
     :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-ver{order:1;grid-area:auto;display:flex;align-items:center;height:28px;margin:0;padding:0;font-size:0;opacity:.62;line-height:1}
     :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-ver::after{content:attr(data-short);font-size:13px;letter-spacing:.04em}
     :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-ver::before,:root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-card .lk-news::before{content:'\00b7';font-size:16px;line-height:1;opacity:.75;margin:0 .45em}
     :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-card .lk-news{order:2;grid-area:auto;justify-self:auto;display:flex;flex-direction:row;align-items:center;height:28px;min-height:28px;margin:0;padding:0 .3em 0 0;opacity:.84}
     :root:not([data-f-phone-card=on]) #lk-load:not([data-pg]):not([data-state=fail]) .lk-card .lk-news .t{font-size:max(.96em,15px);letter-spacing:.06em}
+    /* the source link (v2/ui/source.js): the GitHub mark and its word, in the foot beside Support Velia */
+    .lk-gh{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:.45em;color:var(--navy);font-family:var(--lk-ui,var(--lk-font));font-size:max(.84em,13px);letter-spacing:.04em;white-space:nowrap;border-radius:.25em;transition:background-color .2s,opacity .2s}
+    .lk-gh .lk-ghm{display:block;flex:none;width:1em;height:1em;fill:currentColor}
+    .lk-gh:hover,.lk-gh:focus-visible{background:rgb(var(--ink3) / .14);opacity:1}
+    .lk-gh:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+    #lk-load[data-pg] .lk-gh{display:none}
+    @media (pointer:coarse){.lk-gh{min-height:44px}}
+    #lk-load .lk-foot .lk-gh{grid-row:3;grid-column:1 / -1;justify-self:start;padding:0 .35em}
     /* demo pins (demos/loading.html?state=…): hold one beat still for a capture */
     #lk-load[data-pin],#lk-load[data-pin] *{animation-play-state:paused}
     #lk-load[data-pin] .lk-sloop .b{animation:none}
@@ -838,10 +829,6 @@
     #lk-load .lk-links .lk-best{grid-column:1 / -1;justify-self:center;margin:.2em 0 0;font-size:max(1em,15px);font-style:normal;opacity:.9;letter-spacing:.01em}
     #lk-load .lk-links .lk-best .lk-why{position:relative;margin-left:.35em}
     #lk-load .lk-links .lk-best .lk-why::after{content:'';position:absolute;inset:-12px -10px}   /* a 44 px hit */
-    /* the language: text only in the corner, no box */
-    #lk-load .lk-langbtn{background:none;padding:.2em .3em;font-size:max(1em,15px);opacity:.9;text-shadow:0 0 .4em var(--paper),0 0 .8em var(--paper)}
-    #lk-load .lk-langbtn:hover,#lk-load .lk-langbtn[aria-expanded=true]{background:rgb(var(--ink3) / .12)}
-    #lk-load .lk-lang{right:1.2em;top:.95em}
     /* a phone: two lines of choices (the lake, the boat), the version short (the date is a tap away in What's new); EN sits off the rose,
        level with the lake line, at the right edge */
     @media (max-width:640px),(max-aspect-ratio:4/5){
@@ -855,8 +842,6 @@
       #lk-load .lk-sum .ch{order:0}
       #lk-load .lk-date{display:none}
       #lk-load .lk-sup{padding:0 .85em 0 .6em}
-      #lk-load .lk-lang{top:calc(var(--sum-b,4.2em) - 36px);bottom:auto;right:1.3em}
-      #lk-load .lk-langbtn{min-height:36px}
     }
     /* a phone on its side: the hero on one line, the foot one row (the captions drop), the chart keeps its gap for the sloop */
     @media (max-height:520px) and (min-aspect-ratio:5/4){
@@ -867,7 +852,6 @@
       #lk-load .lk-plan{margin-top:.8em;gap:.5em}
       #lk-load .lk-foot{grid-template-rows:auto;margin-top:.3em;padding-top:.35em}
       #lk-load .lk-supl,#lk-load .lk-ver,#lk-load .lk-links .lk-best{display:none}
-      #lk-load .lk-lang{right:1.3em;top:calc(var(--sum-c,4.2em) - 22px);bottom:auto}   /* off the rose: level with the summary line, at the right edge */
     }
   </style>
   <!-- lk-load:head:end -->
@@ -1022,17 +1006,11 @@
       <div class="lk-voyage">
         <div class="lk-stage" role="status"></div>
       </div>
-      <div class="lk-lang" inert>
-        <button class="lk-langbtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Language"><span class="lk-langname">EN</span> <i aria-hidden="true">▾</i></button>
-        <ul class="lk-langlist" role="listbox" aria-label="Language" hidden>
-          <li role="option" tabindex="-1" data-lang="en" aria-selected="true">English</li>
-          <li role="option" tabindex="-1" data-lang="zh" aria-selected="false" aria-disabled="true" lang="zh">中文 (soon)</li>
-        </ul>
-      </div>
       <nav class="lk-links" aria-label="Pages" inert>
         <button class="lk-link lk-go" type="button" title="enter the mode picked"><span class="pq">ENTER</span></button><button class="lk-link" type="button" data-go="chart">Chart</button><button class="lk-link" type="button" data-go="logbook">Logbook</button><button class="lk-link" type="button" data-go="keys">Keys</button><button class="lk-link" type="button" data-go="settings">Setup</button><button class="lk-link lk-tut" type="button" data-go="tutorials">Tutorial</button>
       <div class="lk-foot">
         <div class="lk-supc"><a class="lk-sup" href="https://ko-fi.com/lucidlake" target="_blank" rel="noopener" data-support="card"><svg class="lk-cup" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 10h11.5v4.2a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5Z"/><path d="M16 11.5h1.4a2.6 2.6 0 0 1 0 5.2H15.6"/><path class="st" d="M8.6 3.6c-.9 1.1.9 2.1 0 3.4M12 3.6c-.9 1.1.9 2.1 0 3.4"/></svg><span>Support Velia</span></a><small class="lk-supl">A coffee keeps the lake open.</small></div>
+        <a class="lk-gh" href="https://github.com/lucid-lake/velia" target="_blank" rel="noopener" aria-label="Velia on GitHub"><svg class="lk-ghm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.07 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3"/></svg><span>GitHub</span></a>
         <button class="lk-ver" type="button" data-go="news" data-from="home">Version 0.8<span class="lk-date"> · 19 November</span></button>
         <button class="lk-news" type="button" data-go="about" data-from="home" aria-label="About"><span class="t">About <i aria-hidden="true">›</i></span></button>
       </div>

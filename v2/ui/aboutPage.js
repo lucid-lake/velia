@@ -12,6 +12,7 @@ import { SUPPORT, CUP_ICON, supportLink } from '../../src/ui/support.js';
 import { CONTACT } from '../../src/ui/feedback.js';
 import { EXPORT_NOTE } from '../../src/ui/playtest.js';
 import { tabList, tabPanel } from '../../src/ui/homePages.js';
+import { SOURCE } from './source.js';
 
 export const ABOUT = Object.freeze({
   lead: 'A sailing game on a real lake, in your browser. Free, no sign-up.',
@@ -30,11 +31,11 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const ic = (paths) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
 const FEEDBACK_IC = '<path d="M12 5c4.7 0 8 2.6 8 5.8s-3.3 5.8-8 5.8c-.9 0-1.8-.1-2.6-.3L5.6 19l.9-3.4C5 14.4 4 12.7 4 10.8 4 7.6 7.3 5 12 5Z"/><path d="M8.8 9.8h6.4M8.8 12.2h4.2"/>';
 
-// Two panels: Velia (the studio, Privacy, the version line) and Get in touch (the address, Send feedback, Support Velia). A wide
+// Two panels: Velia (the studio, the source on GitHub, Privacy, the version line) and Get in touch (the address, Send feedback, Support Velia). A wide
 // screen shows both as one page (the panels are display: contents in one grid, the tab strip hidden); a compact screen (a phone)
 // shows them as the card's own tabs on the title's line, so neither scrolls (menu cards do not scroll)
 export function aboutHtml({ mark = '', playtest = false, versionLine = '' } = {}) {
-  const velia = `<section class="ab-s ab-v">${mark ? `<span class="ab-mk">${mark}</span>` : ''}<div><p class="ab-lead">${esc(ABOUT.lead).replace('no sign-up', '<span class="ab-nw">no sign-up</span>')}</p><p class="ab-by">${esc(ABOUT.by)} <a href="https://lucidlakelabs.com" target="_blank" rel="noopener">${esc(ABOUT.site)}</a></p></div></section>
+  const velia = `<section class="ab-s ab-v">${mark ? `<span class="ab-mk">${mark}</span>` : ''}<div><p class="ab-lead">${esc(ABOUT.lead).replace('no sign-up', '<span class="ab-nw">no sign-up</span>')}</p><p class="ab-by">${esc(ABOUT.by)} <a href="https://lucidlakelabs.com" target="_blank" rel="noopener">${esc(ABOUT.site)}</a></p><p class="ab-by ab-src">${esc(SOURCE.line)} <a href="${SOURCE.url}" target="_blank" rel="noopener" aria-label="${esc(SOURCE.label)}">${esc(SOURCE.short)}</a></p></div></section>
 <section class="ab-s ab-p"><h3 class="ch3">${esc(ABOUT.privacy)}</h3><p class="note">${esc(ABOUT.privacyLine)}</p>${playtest ? `<p class="note">${EXPORT_NOTE}</p><p><button class="pbtn" type="button" data-act="export-session">Export session ↓</button></p>` : ''}</section>
 <p class="stamp-b">${esc(versionLine)} · <button class="ab-news" type="button" data-go="news">${esc(ABOUT.news)}</button></p>`;
   const touch = `<section class="ab-s ab-t"><h3 class="ch3">${esc(ABOUT.touch)}</h3><p>${esc(ABOUT.touchLine)}</p>
@@ -62,6 +63,7 @@ const ABOUT_CSS = `
 #lk-load .pg[data-page=about] .ab-lead{font-family:'Velia Sub A',var(--lk-font);font-size:1.12em;line-height:1.4;margin:0 0 .25em}
 #lk-load .pg[data-page=about] .ab-nw{white-space:nowrap}
 #lk-load .pg[data-page=about] .ab-by{margin:0;color:var(--ink2)}
+#lk-load .pg[data-page=about] .ab-src{margin-top:.2em}
 #lk-load .pg[data-page=about] .ab-by a{color:var(--navy);text-decoration:underline;text-underline-offset:.15em;margin-left:.3em}
 #lk-load .pg[data-page=about] .ch3{margin:0 0 .35em}
 #lk-load .pg[data-page=about] .ab-s p{margin:0 0 .5em}

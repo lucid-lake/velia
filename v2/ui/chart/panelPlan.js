@@ -95,24 +95,26 @@ ${P} .lk-by{order:2;margin:8px 0 0;letter-spacing:.04em}
 ${P} .lk-by .lk-mk,${P} .lk-by > span:not(.lk-free){display:none}
 ${P} .lk-by .lk-free{flex-basis:auto;padding-left:0;margin:0;font-size:14px;opacity:.72}
 /* the foot (owner, 2026-11-19: "four different design languages, quite messy"): four actions in one quiet system, the extras row's tracked
-   type, hairline dividers, no pill, icon, caret or chevron; Support Velia keeps one accent, a small brass dot. Order: Support, EN, v0.7, About */
+   type, hairline dividers, no pill, caret or chevron; Support Velia keeps one accent, a small brass dot; the source link carries the GitHub mark
+   (14 px, the text's ink), the one icon, so a player knows the link. Order: Support, GitHub, v0.8, About */
 ${F}{display:flex;align-items:center;justify-content:space-between;gap:0;margin:4px 0 0!important;padding:4px 0 0}   /* spread across the content width like the extras row; --xg (fitArt) is the gap, so each divider sits at its middle */
 ${F} > *{flex:none;display:flex;align-items:center;justify-content:center;position:relative;min-width:0;margin:0;padding:0;background:none}
-${F} .lk-supl,${F} .lk-sup .lk-cup,${F} .lk-news .t i,${F} .lk-langbtn i{display:none!important}
-${F} .lk-sup,${F} .lk-langbtn,${F} .lk-ver,${F} .lk-news{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:.5em;min-height:40px;padding:0!important;cursor:pointer;white-space:nowrap;font:400 14px/1 var(--lk-ui,var(--lk-font));letter-spacing:.04em;color:var(--navy);opacity:.86;border-radius:4px}
+${F} .lk-supl,${F} .lk-sup .lk-cup,${F} .lk-news .t i{display:none!important}
+${F} .lk-sup,${F} .lk-gh,${F} .lk-ver,${F} .lk-news{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:.5em;min-height:40px;padding:0!important;cursor:pointer;white-space:nowrap;font:400 14px/1 var(--lk-ui,var(--lk-font));letter-spacing:.04em;color:var(--navy);opacity:.86;border-radius:4px}
 ${F} .lk-news .t{font:inherit;letter-spacing:inherit}
 ${F} .lk-supc{order:1}
-${F} .lk-lang{order:2;position:relative;inset:auto;right:auto;top:auto;margin:0!important}
+${F} .lk-gh{order:2;gap:.45em}
+${F} .lk-gh .lk-ghm{width:14px;height:14px}
 ${F} .lk-ver{order:3}
 ${F} .lk-news{order:4}
 ${F} .lk-ver{font-size:0}
-${F} .lk-lang::before,${F} .lk-ver::before,${F} .lk-news::before{content:''!important;position:absolute;left:calc(var(--xg,18px) / -2);top:28%;bottom:28%;width:1px;height:auto;margin:0!important;background:rgb(var(--ink3) / .34)}
-${F} .lk-ver,${F} .lk-news{position:relative}
+${F} .lk-gh::before,${F} .lk-ver::before,${F} .lk-news::before{content:''!important;position:absolute;left:calc(var(--xg,18px) / -2);top:28%;bottom:28%;width:1px;height:auto;margin:0!important;background:rgb(var(--ink3) / .34)}
+${F} .lk-gh,${F} .lk-ver,${F} .lk-news{position:relative}
 ${F} .lk-ver::after{content:attr(data-short)!important;font:400 14px/1 var(--lk-ui,var(--lk-font));letter-spacing:.04em;font-variant-numeric:tabular-nums}
 ${F} .lk-sup::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:var(--brass)}
-${F} .lk-sup:hover,${F} .lk-langbtn:hover,${F} .lk-ver:hover,${F} .lk-news:hover,${F} .lk-sup:focus-visible,${F} .lk-langbtn:focus-visible,${F} .lk-ver:focus-visible,${F} .lk-news:focus-visible,${F} .lk-langbtn[aria-expanded=true]{opacity:1;background:none;color:var(--navy);text-decoration:underline;text-underline-offset:.3em;text-decoration-thickness:1px}
-${F} .lk-sup:focus-visible,${F} .lk-langbtn:focus-visible,${F} .lk-ver:focus-visible,${F} .lk-news:focus-visible{outline:2px solid var(--navy);outline-offset:1px}
-html[data-hand=touch] ${F} .lk-sup,html[data-hand=touch] ${F} .lk-langbtn,html[data-hand=touch] ${F} .lk-ver,html[data-hand=touch] ${F} .lk-news{min-height:44px}
+${F} .lk-sup:hover,${F} .lk-gh:hover,${F} .lk-ver:hover,${F} .lk-news:hover,${F} .lk-sup:focus-visible,${F} .lk-gh:focus-visible,${F} .lk-ver:focus-visible,${F} .lk-news:focus-visible{opacity:1;background:none;color:var(--navy);text-decoration:underline;text-underline-offset:.3em;text-decoration-thickness:1px}
+${F} .lk-sup:focus-visible,${F} .lk-gh:focus-visible,${F} .lk-ver:focus-visible,${F} .lk-news:focus-visible{outline:2px solid var(--navy);outline-offset:1px}
+html[data-hand=touch] ${F} .lk-sup,html[data-hand=touch] ${F} .lk-gh,html[data-hand=touch] ${F} .lk-ver,html[data-hand=touch] ${F} .lk-news{min-height:44px}
 ${P} .lk-links{grid-template-columns:repeat(4,max-content)!important;justify-content:space-between!important;column-gap:0!important;padding:16px 1.5em 1em!important;grid-template-rows:auto auto 1fr!important}
 ${P} .lk-card .lk-links .lk-link[data-go=chart]{display:none!important}
 ${P} .lk-card .lk-links .lk-link.lk-tut{display:inline-flex!important}

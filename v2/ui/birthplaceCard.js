@@ -124,7 +124,6 @@ export function mountBirthplaceCard(root, { service, home = null, touch = () => 
     + '<p class="lk-bp-say" role="status" aria-live="polite"></p>';
   if (desk) { box.classList.add('flow'); const sheet = card.querySelector('.lk-sheet'); sheet.insertBefore(box, sheet.querySelector('.lk-plan')); } else card.appendChild(box);
   const plate = box.querySelector('.lk-bp-plate');
-  { const lang = desk ? card.querySelector('.lk-lang') : null, foot = card.querySelector('.lk-foot'); if (lang && foot) foot.append(lang); }   // the language picker joins the foot's right group (desktop)
   { const ver = desk ? card.querySelector('.lk-ver') : null, m = /([\d.]+)/.exec(ver?.firstChild?.textContent ?? ''); if (ver && m) { ver.dataset.short = `v${m[1]}`; ver.setAttribute('aria-label', `What\u2019s new in v${m[1]}`); } }   // the desktop row's version alone: "v0.7" (the words stay in the DOM)
   let hatch = null;
   if (plate) import('./miniChartData.js').then(({ MINI }) => {
