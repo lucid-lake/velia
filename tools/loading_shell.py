@@ -163,8 +163,8 @@ V2_OUT_CSS = """    #lk-load[data-state=out] .lk-card{animation:none}   /* a mod
     @keyframes lk-cardout{from{opacity:var(--lk-out-op,1)}to{opacity:0}}   /* from what the last frame showed (menuCard.js --lk-out-op): a card still sliding in never jumps to full */"""
 
 
-# v2 only (owner 2026-11-18, the desktop card top to bottom): VELIA; "By Lucid Lake Studio · Free · no sign-up" (the old hero line is
-# gone); the mini chart with the birthplace pins, larger, in the card's own gap (v2/ui/birthplaceCard.js mounts it into the sheet);
+# v2 only (owner 2026-11-18, the desktop card top to bottom): VELIA; "By Lucid Lake Studio" (the old hero line is gone; "Free · no
+# sign-up" left the card on 2026-11-24); the mini chart with the birthplace pins, larger, in the card's own gap (v2/ui/birthplaceCard.js mounts it into the sheet);
 # the voyage line as the chart's caption; the mode row (the primary: one tall segmented pill, the lit cell filled); CHART LOG KEYS SETUP
 # (secondary: quiet text); the foot. The sheet is a column the height of the card; the links and the foot stay at its bottom (--lh).
 # Every rule is for a card that is not the phone's (:root[data-f-phone-card=on], v2/ui/phoneCard.js: untouched), a card showing its
@@ -176,8 +176,6 @@ V2_CARD_CSS = """    /* the desktop card, top to bottom (owner 2026-11-18) */
     __D__ .lk-plan{display:contents}
     __D__ .lk-word{order:1;flex:none;font-size:2.7em}
     __D__ .lk-by{order:2;flex:none;margin:.75em 0 0;gap:.7em;white-space:nowrap}
-    __D__ .lk-by .lk-free{font-size:max(1.05em,15px);letter-spacing:.03em;text-transform:none;opacity:.72;white-space:nowrap}
-    __D__ .lk-by .lk-free::before{content:'\\00b7';margin-right:.7em;opacity:.8}
     __D__ .lk-row.lk-sum{order:4;flex:none;align-self:stretch;width:auto;max-width:none;margin:.15em 0 0;padding:.5em .6em;justify-content:center;gap:0;border-radius:10px;font-size:max(1.08em,16px);color:var(--navy2)}
     __D__ .lk-row.lk-sum .v,__D__ .lk-row.lk-sum .dot,__D__ .lk-row.lk-sum .b{opacity:1;text-shadow:none}
     __D__ .lk-row.lk-sum .dot{opacity:.7}
@@ -284,9 +282,9 @@ def render(auto, v2=False):
         body = body.replace('<button class="lk-link" type="button" data-go="settings">Setup</button>', '<button class="lk-link" type="button" data-go="settings">Setup</button><button class="lk-link lk-tut" type="button" data-go="tutorials">Tutorial</button>', 1)
         body = body.replace('<button class="lk-link" type="button" data-go="about">About</button>', "", 1)
         body = re.sub(r'<button class="lk-news" type="button" data-go="news" data-from="home" aria-label="[^"]*"><span class="t">What’s new ', '<button class="lk-news" type="button" data-go="about" data-from="home" aria-label="About"><span class="t">About ', body, count=1)
-    if v2:   # v2 only (owner 2026-11-18): no hero line on the card; "Free · no sign-up" is a quiet part of the studio line
+    if v2:   # v2 only (owner 2026-11-18): no hero line on the card (owner 2026-11-24: no "Free · no sign-up" on it either)
         body = body.replace('        <p class="lk-sub">__TAGLINE__ <span class="lk-free">__WHAT__</span></p>\n', "", 1)
-        body = body.replace('<p class="lk-by">__LL_MARK__<span>by Lucid Lake Studio</span></p>', '<p class="lk-hero"><span class="hs1">{_H1}</span><svg class="hw" viewBox="0 0 150 9" preserveAspectRatio="none" aria-hidden="true"><path d="M0 5 C8 0 16 0 24 4.5 S40 9 48 4.5 S64 0 72 4.5 S88 9 96 4.5 S112 0 120 4.5 S136 8 146 3.5 c3 -1.5 5 0 3 2"/></svg><span class="hs2">{_H2}</span></p>\n        <p class="lk-by">__LL_MARK__<span>by Lucid Lake Studio</span><span class="lk-free">Free · no sign-up</span></p>', 1)   # owner 2026-11-19 (header A; owner 2026-11-19: the old slogan, the descriptor's tagline, replaces "Sail a real lake in your browser." on the panel): the panel shows VELIA, the hero line, "Free · no sign-up"; the studio line stays in the markup (About reads its mark) and is hidden on the panel (v2/ui/chart/panelPlan.js)
+        body = body.replace('<p class="lk-by">__LL_MARK__<span>by Lucid Lake Studio</span></p>', '<p class="lk-hero"><span class="hs1">{_H1}</span><svg class="hw" viewBox="0 0 150 9" preserveAspectRatio="none" aria-hidden="true"><path d="M0 5 C8 0 16 0 24 4.5 S40 9 48 4.5 S64 0 72 4.5 S88 9 96 4.5 S112 0 120 4.5 S136 8 146 3.5 c3 -1.5 5 0 3 2"/></svg><span class="hs2">{_H2}</span></p>\n        <p class="lk-by">__LL_MARK__<span>by Lucid Lake Studio</span></p>', 1)   # owner 2026-11-19 (header A; owner 2026-11-19: the old slogan, the descriptor's tagline, replaces "Sail a real lake in your browser." on the panel): the panel shows VELIA and the hero line; the studio line stays in the markup (About reads its mark) and is hidden on the panel (v2/ui/chart/panelPlan.js). "Free · no sign-up" left the card (owner, 2026-11-24); the meta description and the share tags keep it
         _t = TAGLINE.split(". ", 1); body = body.replace("{_H1}", _t[0] + ("." if len(_t) > 1 else "")).replace("{_H2}", _t[1] if len(_t) > 1 else "")   # the slogan's two sentences: a script line and a small-caps line (owner 2026-11-19, pick A)
         body = re.sub(r'      <div class="lk-lang" inert>\n.*?\n      </div>\n', "", body, count=1, flags=re.S)   # no language chip on v2's card: the source link takes its place in the foot
         body = body.replace('</small></div>\n        <small class="lk-ver">', '</small></div>\n        ' + source_link() + '\n        <small class="lk-ver">', 1)

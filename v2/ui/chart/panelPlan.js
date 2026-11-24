@@ -85,15 +85,15 @@ ${P}[data-art-low] .lk-card::after{display:none}
 ${P} .lk-card > .lk-sheet,${P} .lk-card > .lk-links{z-index:1}
 #lk-load .lk-hero{display:none}
 @font-face{font-family:'Velia Script';font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/pinyon-script-400.woff2) format('woff2')}
-@font-face{font-family:'Velia Caps';font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/cormorant-sc-600.woff2) format('woff2')}
-${P} .lk-hero{display:block;order:2;margin:6px 0 0;color:var(--navy)}
-/* the slogan (owner, 2026-11-19, pick A): the first line in a copperplate script, a hand-drawn brass wave, the second in small caps; the script is sized by the panel (34 px at 333) */
+${P} .lk-hero{display:block;order:2;margin:8px 0 0;color:var(--navy)}
+/* the header, one type set (owner, 2026-11-24): three faces across the block, the brand's two and the UI's.
+   VELIA and the slogan's second line in Jost (the wordmark's face: tracked capitals, so the two caps lines bracket the script), the first
+   line in the copperplate script (Pinyon Script, the slogan's pick A, 2026-11-19), the rows under it in Atkinson. "Free · no sign-up" left
+   the card. One rhythm: 8 px VELIA to the script, 6 to the wave, 8 to the caps, 20 to the rows (the ledger's own margin) */
 ${P} .lk-hero .hs1{display:block;font:400 calc(var(--lk-panel) * .102)/1.05 'Velia Script','Snell Roundhand',Georgia,serif;font-style:italic;font-synthesis:none;letter-spacing:.01em;white-space:nowrap}
-${P} .lk-hero .hs2{display:block;font:600 calc(var(--lk-panel) * .0375)/1 'Velia Caps','Cormorant SC','Cormorant Garamond',Georgia,serif;letter-spacing:.24em;text-transform:uppercase;white-space:nowrap;opacity:.9}
-${P} .lk-hero .hw{display:block;width:calc(var(--lk-panel) * .45);height:9px;margin:5px 0 7px 2px;fill:none;stroke:var(--brass);stroke-width:1;stroke-linecap:round;opacity:.9;overflow:visible}
-${P} .lk-by{order:2;margin:8px 0 0;letter-spacing:.04em}
-${P} .lk-by .lk-mk,${P} .lk-by > span:not(.lk-free){display:none}
-${P} .lk-by .lk-free{flex-basis:auto;padding-left:0;margin:0;font-size:14px;opacity:.72}
+${P} .lk-hero .hs2{display:block;font:var(--lk-brand) calc(var(--lk-panel) * .039)/1 var(--lk-font);letter-spacing:.3em;text-transform:uppercase;white-space:nowrap;opacity:.9}
+${P} .lk-hero .hw{display:block;width:calc(var(--lk-panel) * .45);height:9px;margin:6px 0 8px 2px;fill:none;stroke:var(--brass);stroke-width:1;stroke-linecap:round;opacity:.9;overflow:visible}
+${P} .lk-by{display:none!important}
 /* the foot (owner, 2026-11-19: "four different design languages, quite messy"): four actions in one quiet system, the extras row's tracked
    type, hairline dividers, no pill, caret or chevron; Support Velia keeps one accent, a small brass dot; the source link carries the GitHub mark
    (14 px, the text's ink), the one icon, so a player knows the link. Order: Support, GitHub, v0.8, About */
@@ -292,7 +292,7 @@ export function mountPanelPlan({ root, services, chart = null, showTessie = () =
   // a press anywhere else closes the plate (not the rows that open it)
   const onDown = (e) => { if (pl.hidden) return; if (pl.contains(e.target) || led.contains(e.target)) return; closePlate(); };
   doc.addEventListener('pointerdown', onDown, true);
-  win.document?.fonts?.load?.("34px 'Velia Script'", 'The water is real.')?.catch?.(() => {}); win.document?.fonts?.load?.("600 12px 'Velia Caps'", 'THE HELM IS YOURS.')?.catch?.(() => {});
+  win.document?.fonts?.load?.("34px 'Velia Script'", 'The water is real.')?.catch?.(() => {});
   // the Set sail ring is for a keyboard player: any key sets the flag, a press clears it (the first focus on load shows no ring)
   const onKey = () => root.setAttribute('data-kbd', ''), onPtr = () => root.removeAttribute('data-kbd');
   doc.addEventListener('keydown', onKey, true); doc.addEventListener('pointerdown', onPtr, true);

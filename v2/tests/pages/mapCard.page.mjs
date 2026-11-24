@@ -63,12 +63,12 @@ const ledger = (page) => page.evaluate(() => [...document.querySelectorAll('#lk-
   check(s.insets.left === Math.round(panel.w) || Math.abs(s.insets.left - panel.w) < 2, `desk: the chart keeps the panel's width clear (inset ${s.insets.left})`);
   const parts = await page.evaluate(() => {
     const vis = (s) => { const e = document.querySelector(s); return !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; };
-    return { word: vis('#lk-load .lk-word'), by: vis('#lk-load .lk-by'), sum: vis('#lk-load .lk-ledger'), picks: vis('#lk-load .lk-picks') || vis('#lk-load .lk-row.plan'),
+    return { word: vis('#lk-load .lk-word'), hero: vis('#lk-load .lk-hero'), free: !!document.querySelector('#lk-load .lk-free'), sum: vis('#lk-load .lk-ledger'), picks: vis('#lk-load .lk-picks') || vis('#lk-load .lk-row.plan'),
       links: [...document.querySelectorAll('#lk-load .lk-links > .lk-link:not(.lk-go)')].filter((b) => b.getClientRects().length).map((b) => [b.getBoundingClientRect(), b.innerText.trim()]).sort((p, q) => p[0].top - q[0].top || p[0].left - q[0].left).map((p) => p[1]),
       oneRow: (() => { const r = [...document.querySelectorAll('#lk-load .lk-links > .lk-link:not(.lk-go)')].filter((b) => b.getClientRects().length).map((b) => b.getBoundingClientRect()); return r.length > 0 && r.every((x) => Math.abs(x.top - r[0].top) < 2 && x.height <= 44); })(), go: document.querySelector('#lk-load .lk-go')?.getClientRects().length ? document.querySelector('#lk-load .lk-go').innerText.trim() : null, sup: vis('#lk-load .lk-sup'), gh: vis('#lk-load .lk-foot .lk-gh'), about: vis('#lk-load .lk-news'),
       ver: document.querySelector('#lk-load .lk-ver')?.dataset.short ?? null, mini: vis('#lk-load .lk-bp') };
   });
-  check(parts.word && parts.by && parts.sum && parts.picks && parts.sup && parts.gh && parts.about && !parts.mini, `desk: VELIA, the studio line, the float plan, the mode pill and the foot are there; the card's mini chart is not (${JSON.stringify(parts)})`);
+  check(parts.word && parts.hero && !parts.free && parts.sum && parts.picks && parts.sup && parts.gh && parts.about && !parts.mini, `desk: VELIA, the slogan (no "Free · no sign-up", 2026-11-24), the float plan, the mode pill and the foot are there; the card's mini chart is not (${JSON.stringify(parts)})`);
   check(parts.links.join(' ').toLowerCase() === 'setup keys tutorial logbook' && parts.oneRow, `desk: SETUP KEYS TUTORIAL LOGBOOK in one row, no CHART (the screen is the chart; owner 2026-11-18) (${parts.links.join(' ')})`);
   check(/^set sail$/i.test(parts.go ?? ''), `desk: Set sail is the panel's one primary action (${parts.go})`);
   const foot = await page.evaluate(() => { const f = document.querySelector('#lk-load .lk-foot'), c = document.querySelector('#lk-load .lk-card').getBoundingClientRect(); return [...f.children].filter((e) => e.getClientRects().length).every((e) => e.getBoundingClientRect().right <= c.right + 1); });
@@ -343,7 +343,7 @@ for (const how of ['button', 'dblclick', 'keyboard']) {
 const stack = (page) => page.evaluate(() => {
   const r = (q) => { const e = document.querySelector(q); const b = e?.getBoundingClientRect(); return b && b.width ? { t: b.top, b: b.bottom } : null; };
   const links = [...document.querySelectorAll('#lk-load .lk-links > .lk-link')].filter((b) => b.getClientRects().length).map((b) => b.getBoundingClientRect());
-  return { by: r('#lk-load .lk-by'), sum: r('#lk-load .lk-ledger'), plan: r('#lk-load .lk-row.plan'), linkT: Math.min(...links.map((l) => l.top)), linkB: Math.max(...links.map((l) => l.bottom)), foot: r('#lk-load .lk-foot'), h: innerHeight };
+  return { by: r('#lk-load .lk-hero'), sum: r('#lk-load .lk-ledger'), plan: r('#lk-load .lk-row.plan'), linkT: Math.min(...links.map((l) => l.top)), linkB: Math.max(...links.map((l) => l.bottom)), foot: r('#lk-load .lk-foot'), h: innerHeight };
 });
 const grouped = (g) => g.by.b <= g.sum.t && g.sum.b <= g.plan.t && g.plan.b <= g.linkT && g.linkB <= g.foot.t && g.foot.b <= g.h && g.foot.b > g.h - 70 && g.sum.t - g.by.b < 70 && g.linkT - g.plan.b < 60;
 for (const [w, h] of [[1280, 720], [1920, 1080], [1280, 650]]) {

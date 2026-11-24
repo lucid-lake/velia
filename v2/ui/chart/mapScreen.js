@@ -54,8 +54,6 @@ ${P} .lk-links{background:none}
 ${P} .lk-sheet{position:relative!important;inset:auto!important;flex:none;padding:1.5em 1.5em 0!important}
 ${P} .lk-word{font-size:2.5em}
 ${P} .lk-by{flex-wrap:wrap;gap:.4em .7em;white-space:normal;letter-spacing:.2em}
-${P} .lk-by .lk-free{flex-basis:100%;padding-left:calc(2.7em + .7em);margin-top:-.2em;font-size:max(1em,14px)}
-${P} .lk-by .lk-free::before{content:none!important}
 ${P} .lk-row.lk-sum{order:3;margin-top:1.8em!important;padding:.45em .5em;justify-content:flex-start;text-align:left;font-size:max(1em,15px)}
 ${P} .lk-row.lk-sum .v{white-space:normal;overflow:visible}
 ${P} .lk-row.plan{order:4;margin-top:.8em}
