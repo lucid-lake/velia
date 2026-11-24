@@ -313,11 +313,12 @@ California gulls' flock round the boat, the Canada geese's raft that runs and li
   direction, two skeins. Each is flown, not placed: it pursues its point through `Bird.steer`, so it flies in and away with no
   jump (a gull more than 320 m off at a visit's start is moved in unseen, 140 m from the camera and 54–74° off its line of sight,
   faded in). The M glide (arm +0.26, hand −0.48 rad) between flaps by a 14–30 s glide gate; the bank is the coordinated turn ×
-  1.5, capped at 0.95 rad (median ≈ 34°). **The 40 m rule holds** (owner, 2026-11-05: no bird within 40 m of the camera): the
-  circuit is laid on the far side of the boat from the camera, squashed ×0.6 along the line of sight, its near edge planned
-  44 m from it; a circling gull is exempt from the 75 m soft push, never from `keepAway`'s floor. In the follow camera they fly
-  44–80 m from it, 10–60 m past the boat, 13–19 m up (over the boat at least 15.5 m: the mast's top + 4 m); scaled 1–1.3×.
-  No landing on the boat. Cries: Poisson flurries of 1–3 (squared count), mean 18 s apart, a 2.5 s floor, none in the first
+  1.5, capped at 0.95 rad. **Closer (owner, 2026-11-24: "allow closer birds", replacing the 40 m rule for these gulls):** a
+  circling gull keeps 15 m from the camera (`GULLS.keepM`, through `keepAway`'s floor); every other bird keeps 40 m. The circuit
+  (radius 17–24 m, 8–13 m up) is centred on the boat's lagged anchor and moved off her only as far as keeps its near edge 16 m
+  from the camera: in the follow camera it sweeps round her (median 25 m from her) and crosses in front of the camera at
+  15–25 m, a near pass ≈ 60–96 px across at 1280 × 720; in the helm view it lies ahead of the bow, never under 15 m; within
+  14 m of the boat a gull holds the mast's top + 4 m (15.5 m). Scaled 1.15–1.3×. No landing on the boat. Cries: Poisson flurries of 1–3 (squared count), mean 18 s apart, a 2.5 s floor, none in the first
   6 s, on a circling gull within 160 m; the gain falls to 0.3 from 6 to 12 m/s of wind and to 0 in the storm's rain; seven CC0
   cries (`audio/birds/gullcry_1–7`) beside v1's two (`engine/birdAudio.js` GULL_CRIES, a 0.5 s gap so answers play).
   Without a boat (v1's scenes, the parity test) the flock is v1's as it was. Tests: `v2/tests/gulls.test.mjs`.

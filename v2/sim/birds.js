@@ -25,8 +25,9 @@ export const ISTRIDE = 24, SSTRIDE = 12, SHADOW_MAX = 12;
 
 // v1's rule (owner, 2026-11-05): birds keep 40 m from the camera (src/birds/index.js keepAway, copied: index.js imports three)
 export const KEEP_M = 40, SOFT_M = 75;
-// soft false: only the 40 m floor (the staged diver, owner 2026-11-17: "Allow close dive")
-export function keepAway(b, cam, dt, soft = true) {
+// soft false: only the floor (the staged diver, owner 2026-11-17: "Allow close dive"; a circling gull). keep: the floor in m
+// (40 for every bird; a circling gull's is sim/gulls.js GULLS.keepM, 15: owner, 2026-11-24 "allow closer birds")
+export function keepAway(b, cam, dt, soft = true, keep = KEEP_M) {
   const dx = b.pos[0] - cam[0], dy = b.pos[1] - cam[1], dz = b.pos[2] - cam[2];
   const d = Math.hypot(dx, dy, dz);
   if (d >= SOFT_M) return d;
@@ -39,8 +40,8 @@ export function keepAway(b, cam, dt, soft = true) {
     b.pos[0] += ux * v; b.pos[2] += uz * v;
   }
   const d2 = Math.hypot(b.pos[0] - cam[0], b.pos[1] - cam[1], b.pos[2] - cam[2]);
-  if (d2 < KEEP_M && b.mode !== 'perch') {
-    const ry = b.pos[1] - cam[1], need = Math.sqrt(Math.max(0, KEEP_M * KEEP_M - ry * ry)) + 0.01;
+  if (d2 < keep && b.mode !== 'perch') {
+    const ry = b.pos[1] - cam[1], need = Math.sqrt(Math.max(0, keep * keep - ry * ry)) + 0.01;
     b.pos[0] = cam[0] + ux * need; b.pos[2] = cam[2] + uz * need;
   }
   return d2;
@@ -418,12 +419,12 @@ export function createBirdSim({ terrain, waterAt = null, wind = null, seed = 1, 
         case 'raft': stepRaft(b, dt, env, b.state, geese); break;
         case 'lowpass': if (stepLowPass(b, dt, env, lowpass.S) === 'done') { b.mode = 'soar'; b.state = { centre: [b.pos[0] + 60, b.pos[2]], top: 160 }; } break;
       }
-      keepAway(b, env.camera, dt, !(b === hunter && dv.active) && b.mode !== 'circle');   // the staged dive and a circling gull: the soft push off (their distance is planned), the floor kept
+      keepAway(b, env.camera, dt, !(b === hunter && dv.active) && b.mode !== 'circle', b.mode === 'circle' ? GULLS.keepM : KEEP_M);   // the staged dive and a circling gull: the soft push off (their distance is planned), the floor kept
       b.update(dt);
     }
     stepFlock(gulls, dt, env, flockGoal);
     circle?.step(dt, simT, { day, shelter });   // the circling gulls (mode 'circle'): stepFlock leaves them out
-    for (const g of gulls) { keepAway(g, env.camera, dt, g.mode !== 'circle'); g.update(dt); }
+    for (const g of gulls) { keepAway(g, env.camera, dt, g.mode !== 'circle', g.mode === 'circle' ? GULLS.keepM : KEEP_M); g.update(dt); }
   }
 
   // --- the frame's draw records (v1's mesh.js push and shadows.js push, as arrays) ---
@@ -479,7 +480,7 @@ export function createBirdSim({ terrain, waterAt = null, wind = null, seed = 1, 
     let n = Math.ceil(dt / H);
     if (n > 40) n = 40;
     for (let i = 0; i < n; i++) stepAll(dt / n);
-    for (const b of birds) { keepAway(b, env.camera, 0); b.update(0); }
+    for (const b of birds) { keepAway(b, env.camera, 0, true, b.mode === 'circle' ? GULLS.keepM : KEEP_M); b.update(0); }
     if (dv.dives.length) { const A = dv.dives[dv.dives.length - 1]; for (const e of events) if (e.kind === 'plunge' && e.id === hunter.id && A.strikeAt == null) { A.strikeAt = +dv.playT.toFixed(2); A.at = [+e.pos[0].toFixed(1), +e.pos[2].toFixed(1)]; } }
 
     for (const name of NAMES) { draw.near[name].n = 0; draw.far[name].n = 0; }

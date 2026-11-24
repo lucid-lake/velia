@@ -15,10 +15,12 @@
 // Bird.steer (the turn limited by the bank a real wing allows), so they fly in from the far flock and away again without a
 // jump; they come and go in visits (a visit of 3–6 gulls every few minutes; the rest stay v1's far flock); the hour, the
 // storm's shelter and the night keep v1's rules.
-// THE RULE (owner, 2026-11-05, option 1; lakeshore research 27 § 2a): "no bird comes within 40 m of the camera in any
-// behaviour". The circuit is laid on the far side of the boat from the camera, its near edge planned at camPlan (44 m), and
-// squashed along the line of sight (×0.6), so it spreads across the view; the 40 m floor (sim/birds.js keepAway) stays the
-// hard stop. A circling gull is exempt from the 75 m soft push (as the staged dive is, owner 2026-11-17), never from the floor.
+// THE RULE (owner, 2026-11-24, after the first stills: "allow closer birds", replacing for these gulls the 2026-11-05 "no bird
+// within 40 m of the camera"): a circling gull keeps keepM (15 m) from the camera, in the follow and the helm views alike; every
+// other bird keeps 40 m (sim/birds.js KEEP_M). The circuit is centred on the boat (its lagged anchor) and moved off her only as
+// far as keeps its near edge camPlan (16 m) from the camera, so it sweeps round her and crosses in front of the follow camera at
+// 15–25 m (a 1.5 m gull ≈ 60–90 px across at 1280 × 720). In the helm view (the camera on the boat) that rule lays it ahead of
+// the bow. A circling gull is exempt from the 75 m soft push, never from its floor (sim/birds.js keepAway).
 // No landing on the boat (that needs the owner's OK). Pure: no GPU, no DOM, no Math.random, no wall clock.
 //   const G = createGulls({ gulls, seed, env, keepM });   G.step(dt, simT, { day, shelter })   (inside the sim's fixed substep)
 //   G.state → { visiting, circling, visits, anchor, centre }; G.calls (every cry it asked for: the tests)
@@ -33,15 +35,16 @@ export const GULLS = Object.freeze({
   on: true,
   lagS: 2.5,                     // s: the anchor's lag behind the boat (W: SHIP_ANCHOR_LAG)
   jumpMps: 30,                   // m/s: a boat moving faster than this jumped (a reset, a cut): the anchor re-seats
-  camPlan: 44,                   // m: the circuit's near edge from the camera (the 40 m floor + a margin for the pursuit)
-  squash: 0.6,                   // the circuit's depth along the line of sight, × its width across it
+  keepM: 15,                     // m: a circling gull's floor from the camera (owner, 2026-11-24: "allow closer birds")
+  camPlan: 16,                   // m: the circuit's near edge from the camera (the floor + a margin for the pursuit)
+  squash: 1,                     // the circuit's depth along the line of sight, × its width across it (round: it circles her)
   helmM: 8,                      // m: a camera this close to the boat (the helm view) lays the circuit ahead of the bow
-  radius: [14, 22],              // m: the circuit's radius (W: ship 16–46)
+  radius: [17, 24],              // m: the circuit's radius round the boat (W: ship 16–46)
   harm2: [0.08, 0.14], harm3: [0.03, 0.06],   // the 2nd and 3rd harmonics' amplitudes, × the radius (W: 0.08–0.22, 0.03–0.08)
-  alt: [13, 19],                 // m over the water: low in the follow camera's frame, not at its top edge (W: 11–34); over the
+  alt: [8, 13],                   // m over the water: low in the follow camera's frame, not at its top edge (W: 11–34); over the
                                  // boat they hold the mast's top + clearM (below)
-  bob: [1, 3],                   // m: the climb and sink twice a lap
-  scale: [1, 1.3],               // × our 1.32 m gull (W: the ship birds' scale, 1.0–1.3 on its 1.3 m gull): they read at 44–80 m
+  bob: [1, 2.5],                 // m: the climb and sink twice a lap
+  scale: [1.15, 1.3],             // × our 1.32 m gull (W: the ship birds' scale, 1.0–1.3 on its 1.3 m gull): they read clearly at 15–25 m
   mastTop: 11.5, clearM: 4,      // m: inside boatR of the boat a gull holds at least mastTop + clearM
   boatR: 14,
   speed: [8, 10],                // m/s: the mean speed round the circuit (our gull cruises at 9.9; W: 8.5–11.5)
@@ -173,11 +176,11 @@ export function createGulls({ gulls, seed = 1, env, D = GULLS } = {}) {
     p.prev = [px, py, pz];
     let vx = pv[0] + (px - b.pos[0]) * D.pursueK, vz = pv[1] + (pz - b.pos[2]) * D.pursueK;
     // round the camera, never at it: inside camPlan + 10 m a closing velocity loses its inward part (the bird slides round the
-    // keep-out and on to its point, instead of pressing on the 40 m floor)
+    // keep-out and on to its point, instead of pressing on its floor)
     const cx = b.pos[0] - cam[0], cz = b.pos[2] - cam[2], ch = Math.hypot(cx, cz) || 1;
-    if (ch < D.camPlan + 10) {
+    if (ch < D.keepM + 4) {
       const nx = cx / ch, nz = cz / ch, vin = vx * nx + vz * nz;
-      if (vin < 0) { vx -= vin * nx; vz -= vin * nz; const k = (D.camPlan + 10 - ch) * 0.3; vx += nx * k; vz += nz * k; }
+      if (vin < 0) { vx -= vin * nx; vz -= vin * nz; const k = (D.keepM + 4 - ch) * 0.3; vx += nx * k; vz += nz * k; }
     }
     const vh = Math.hypot(vx, vz);
     const want = clamp(vh, D.speed[0] * 0.8, D.maxSpeed);
