@@ -221,9 +221,9 @@ test('your mark: the chart\'s checks (dry land, too shallow refused), the naviga
 });
 
 test('chart objects: v2/cruise/chartWorld.json is v1\'s page (the real piers, the harbour) and reads as buildChart\'s rows', async () => {
-  const { bakeChartWorld, stringify, OUT } = await import('../../tools/v2-cruise-bake.mjs');
-  const now = readFileSync(OUT, 'utf8');
-  assert.equal(now, stringify(await bakeChartWorld()), 'stale: run node tools/v2-cruise-bake.mjs');
+  const { bakeChartWorld, staleChart, OUT } = await import('../../tools/v2-cruise-bake.mjs');
+  const now = readFileSync(OUT, 'utf8'), d = staleChart(now, await bakeChartWorld());
+  assert.equal(d, null, `stale (${d}): run node tools/v2-cruise-bake.mjs`);
   const rows = chartInputs(JSON.parse(now));
   assert.ok(rows.shoreline.piers.length > 10 && rows.shoreline.piers.every((p) => Number.isFinite(p.x) && Number.isFinite(p.length)));
   assert.deepEqual(rows.harbour.boats, [], 'the slips empty, as v1\'s page');
