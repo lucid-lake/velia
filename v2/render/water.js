@@ -31,7 +31,7 @@ import { NIGHT_READ } from './night-read.js';   // M5e: the Milky Way in the mir
 import { NIGHT } from '../sim/night.js';   // feat/v2-night-clouds: the night deck's sheen in the mirror (NIGHT.deckMirror)
 import { MIRROR_READ_WGSL, MIRROR } from './towns.js';   // #41c: the shore's mirror (the piers, the boathouses, the harbour)
 import { TREE } from '../terrain/quadtree.js';
-import { N, LENGTHS, CPU_CASCADES, SEA, seaTables, seaWeights, composeSea, bayShares, seaStats, hsLaw, V1_SEA, FADES } from '../sim/spectrum.js';
+import { N, LENGTHS, CPU_CASCADES, SEA, seaTables, seaWeights, composeSea, bayShares, seaStats, hsLaw, V1_SEA, FADES, seaKey, seaState } from '../sim/spectrum.js';
 import { SURF, SURF_WGSL, SURF_FNS_WGSL, SURF_BITS, SURF_ALL, SURF_DEFAULT, FOAM_BAKE_WGSL, FOAM_TEX, whitecapJ0Field, capShare, J0_HIST, j0Glide } from './water-surface.js';   // #56 M1: v1's drawing recipe, Ultra's foam, crest light and glint (MIT)
 import { createSurface, WIN, WINDOW_FLOATS, OFFSETS, COARSE_OFFSETS, COARSE_N, COARSE_C } from '../sim/surface.js';
 import { createSeaField, SEA_FIELD_WGSL, FIELD_BYTES } from '../sim/seaField.js';   // #21, #25: the shallows' calm and the sea across the lake
@@ -1029,7 +1029,8 @@ export function coarseGridIndices(side) {
 }
 
 // --- the GPU side ---
-export function createWater({ liteFirst = false, device, reg, graph, frameBGL, frameBG, U, frameStruct = wgslStruct(), sky, night, terrainBGL, reflectView, hdrTarget, msaa = 1, depthFormat = 'depth32float', seed = 1337, dt = 1 / 120, wake = null, asyncSea = false, groundAt = null, shoreMirror = null, m1 = true, crest = true, jelly = true, shore = null, detail = false, under = false }) {   // crest, jelly: ?crest=0, ?jelly=0 (render/water-surface.js SURF.crest, SURF.jelly)   // under: phase 2a's surface from below (src/core/features.js tessieUnder; its pipeline in the deferred 'under' group)   // shore: #56 M3, render/shore.js createShore (none: the water before M3)   // m1: #56 M1's surface (false: ?m1=0, the water before: M5c's fades and shading)   // shoreMirror: #41c, render/towns.js createShoreMirrorTarget (a zeroed stand-in without it)   // asyncSea: a live page builds the sea's tables in a worker (sim/sea-worker.js); captures and the film clock in the frame   // night: render/night.js (M5e): its record and maps ride the draw group (bindings 4–7)
+export function createWater({ liteFirst = false, device, reg, graph, frameBGL, frameBG, U, frameStruct = wgslStruct(), sky, night, terrainBGL, reflectView, hdrTarget, msaa = 1, depthFormat = 'depth32float', seed = 1337, dt = 1 / 120, wake = null, asyncSea = false, groundAt = null, shoreMirror = null, m1 = true, crest = true, jelly = true, shore = null, detail = false, under = false, sea: seaName = 'big' }) {   // sea: the sea state (?sea=; v2/sim/spectrum.js SEA_STATES)   // crest, jelly: ?crest=0, ?jelly=0 (render/water-surface.js SURF.crest, SURF.jelly)   // under: phase 2a's surface from below (src/core/features.js tessieUnder; its pipeline in the deferred 'under' group)   // shore: #56 M3, render/shore.js createShore (none: the water before M3)   // m1: #56 M1's surface (false: ?m1=0, the water before: M5c's fades and shading)   // shoreMirror: #41c, render/towns.js createShoreMirrorTarget (a zeroed stand-in without it)   // asyncSea: a live page builds the sea's tables in a worker (sim/sea-worker.js); captures and the film clock in the frame   // night: render/night.js (M5e): its record and maps ride the draw group (bindings 4–7)
+  const seaId = seaState(seaName).id;
   const count = C * NN, ST = GPUBufferUsage.STORAGE, CD = GPUBufferUsage.COPY_DST, CS = GPUBufferUsage.COPY_SRC;
   const buf = (label, bytes, usage, init = null) => { const b = device.createBuffer({ label, size: bytes, usage, mappedAtCreation: !!init }); if (init) { new Float32Array(b.getMappedRange()).set(init); b.unmap(); } return b; };
   const h0Buf = buf('water-h0', count * 16, ST | CD);
@@ -1180,7 +1181,7 @@ export function createWater({ liteFirst = false, device, reg, graph, frameBGL, f
     if (!seaWorker) return false;
     if (seaBusy) { seaWant = { kU, travelRad, key }; return true; }
     seaBusy = key; seaJob++;
-    seaWorker.postMessage({ id: seaJob, speedMs: kU, travelRad, seed, fades: m1 ? 'v1' : 'm5c' });
+    seaWorker.postMessage({ id: seaJob, speedMs: kU, travelRad, seed, fades: m1 ? 'v1' : 'm5c', sea: seaId });
     return true;
   };
   const gain = 1;   // v1's two sims' gains are in the composed table (spectrum.js composeSea); F.wind.z stays 1
@@ -1217,13 +1218,13 @@ export function createWater({ liteFirst = false, device, reg, graph, frameBGL, f
     setWind({ speedMs, travelRad, fetchM = V1_SEA.fetchMaxM, x = 0, z = 0, capK = 1 }) {   // capK: the storm's whitecap share × (v2/sim/stormSea.js; 1 fair)
       foamWind.speedMs = speedMs; foamWind.travelRad = travelRad;   // waterDetail: the foam map's drift
       const kU = Math.max(1, Math.round(Math.max(1, speedMs) * 2) / 2);
-      if (kU !== keyU || travelRad !== keyRad) { keyU = kU; keyRad = travelRad; keyStr = `${kU.toFixed(1)}|${travelRad.toFixed(2)}`; }   // refactor-3 B2: the key string only when its inputs move
+      if (kU !== keyU || travelRad !== keyRad) { keyU = kU; keyRad = travelRad; keyStr = seaKey(kU, travelRad, seaId); }   // refactor-3 B2: the key string only when its inputs move
       const key = keyStr;
       let changed = false;
       if (seaReady) { T = seaReady; tKey = T.key; seaReady = null; changed = true; }   // a worker's tables landed (the key it was built for)
       if (key !== tKey) {
         if (asyncSea && T) { if (seaBusy !== key && seaWant?.key !== key) seaPost(kU, travelRad, key); }   // the old tables stand until the new land
-        else { T = seaTables({ speedMs: kU, travelRad, seed, fades: m1 ? FADES.v1 : FADES.m5c }); tKey = key; changed = true; }   // #56 M1: v1's short-wave fades
+        else { T = seaTables({ speedMs: kU, travelRad, seed, fades: m1 ? FADES.v1 : FADES.m5c, sea: seaId }); tKey = key; changed = true; }   // #56 M1: v1's short-wave fades
       }
       const w = seaWeights({ U: speedMs, fetchM, x, z });
       const kT = parseFloat(tKey);   // the speed the tables were built for (kU, or the last a worker built while a new one is under way)

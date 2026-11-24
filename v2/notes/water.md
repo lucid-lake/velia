@@ -383,6 +383,37 @@ integral of 0.03 × the wind (`laneDrift`, `F.spume.zw`), shared by the foam str
 After: 0 m/s across, ≤ 0.5 m/s along (the measure's step), at the start and 5 km out. The lanes still lie within 4° of the
 wind and stay 30 : 1 stretched (`v2/tests/spume.test.mjs`); the new test fails on the old lanes.
 
+## The sea state: a bigger, longer sea (2026-11-24: v2/sim/spectrum.js SEA_STATES, seaRows; ?sea=)
+
+**The ask:** waves as big as web-ocean-3d's, at least on the open lake, bigger in the bay too, and a boat that clearly rides up
+and down. v1's sea is a lake's physical fetch-limited sea (the fetch law × 1.3, its JONSWAP peak from the fetch), short and
+low for a 7.3 m waterline: at 7 m/s Hs 0.73 m, Tp 3.3 s on the open lake, 0.41 m and 2.1 s in Emerald Bay. The competitor's
+default sea (web-ocean-3d `DEFAULT_UI_STATE` 11 m/s, `peakWavelength` 40 m, gamma 3; its JONSWAP with `youngSeaGain`,
+integrated) is Hs 1.49 m, Tp 5.1 s; its 9 m/s, 34 m preset 1.22 m, 4.7 s. The owner's goal wins over the lake's physics here.
+
+**What changed (the row `big`, the default; `?sea=v1` is the sea before, byte for byte):** v1's place weights stay (the fetch
+map, the bay's share, SEA_FEEL, the shallows' calm), so the sea still differs by place; only the two sims' tables change.
+- The lake's wind sea takes the spectrum shape of a 60 km fetch (Tp × 1.33) and 1.4 × its Hs; a long-crested swell rides on
+  the lake's table along the wind, Hs = clamp(0.18 + 0.055 U, 0.25, 0.9) m, peak 40 m (5.1 s), gamma 3.3. It lives in the
+  600 m tile, so the open lake gets all of it, a bay's lee little (v1's m³ on that tile) and the shallows none (v1's damping
+  under 14 m).
+- The bay's wind sea takes a 20 km shape (Tp × 1.5) and 1.6 × its Hs, with its own shorter swell (clamp(0.1 + 0.03 U, 0.15,
+  0.45) m, peak 30 m, inside the bay sim's 85 m band): waves the hull rides over rather than bridges.
+- The two rows of each table are one build (power spectra add: buildH0 sums the rows on the same draws, no extra cost); the
+  swell's scale makes the rows' variances stand as their Hs², and each table's gain takes the pair to its combined target.
+- The shore's trains take the bay sea's period (shoreParams `shapeKm`: the 20 km shape) and the spray its Hs, so the shore
+  break grows with the sea; their amplitude already reads the drawn sea's Hs.
+
+Hs and Tp of the composed table at the boat (4σ over the displacement tiles; Tp the energy peak of its 1-D spectrum), v1 → big:
+
+| Wind | Emerald Bay (fetch 1.5 km) | Bay mouth (4 km) | Open lake (20 km) |
+|---|---|---|---|
+| 3 m/s | 0.17 m, 1.6 s → **0.35 m, 2.4 s** | 0.19 m, 1.6 s → **0.38 m, 2.4 s** | 0.33 m, 2.6 s → **0.64 m, 4.9 s** |
+| 5 m/s | 0.29 m, 1.8 s → **0.54 m, 2.7 s** | 0.45 m, 1.8 s → **0.85 m, 2.7 s** | 0.54 m, 3.0 s → **0.83 m, 4.0 s** |
+| 7 m/s | 0.41 m, 2.1 s → **0.74 m, 3.1 s** | 0.63 m, 2.1 s → **1.15 m, 3.2 s** | 0.73 m, 3.3 s → **1.12 m, 4.5 s** |
+| 9 m/s | 0.52 m, 2.4 s → **0.93 m, 3.4 s** | 0.82 m, 2.4 s → **1.46 m, 3.4 s** | 0.93 m, 3.6 s → **1.41 m, 4.9 s** |
+| 11 m/s | 0.64 m, 2.4 s → **1.13 m, 3.6 s** | 1.00 m, 2.4 s → **1.76 m, 3.6 s** | 1.12 m, 4.0 s → **1.70 m, 5.2 s** |
+
 ## The shore: breakers, swash, wet sand, spray (#56 M3, 2026-11-14: sim/shoreField.js, render/shore.js, render/water.js; tools/v2-shore-bake.mjs)
 
 Ultra-Water's shore (MIT, Humpalumps; `src/water/shoreMap.js`, `OceanSurface.js` SHORE_GLSL / shoreWaves / SWASH_GLSL, `Spray.js`),
