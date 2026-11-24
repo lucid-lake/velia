@@ -13,6 +13,9 @@ const argv = process.argv.slice(2);
 const BASE = argv.includes('--base') ? argv[argv.indexOf('--base') + 1] : process.env.LAKESHORE_BASE;
 if (!BASE) { console.error('no server: run `npm run test:pages:v2`, or pass --base'); process.exit(2); }
 export const V1_BAND = Object.freeze([62, 70, 78]);
+// the per-weather look (2026-11-24, approved by eye): the storm is about a stop darker and cooler than v1's; the lock is the
+// approved band (measured 30, 51, 66 on feat/storm-look), v1's kept for the line
+export const LOOK_BAND = Object.freeze([30, 51, 66]);
 // the v1 approach (owner, 2026-11-18: "go with the plan, v1's way"): round 2's rain murk is gone; the lock is v1's band again
 // (V1_BAND; measured 56, 65, 72 on fix/v2-storm-v1-approach); round 2's is kept for the line
 export const ROUND2_BAND = Object.freeze([130, 138, 144]);
@@ -32,8 +35,8 @@ try {
   await page.close();
   check(!errors.length, `no page errors (${errors.slice(0, 2).join(' | ')})`);
   const band = median(png, [700, 420, 960, 428]), above = median(png, [700, 404, 960, 412]);
-  const d = band.map((v, i) => Math.abs(v - V1_BAND[i]));
-  check(Math.max(...d) <= TOL, `the mouth's band ${band.join(', ')} vs v1's ${V1_BAND.join(', ')}: within ${TOL} (max ${Math.max(...d)}; round 2 ${ROUND2_BAND.join(', ')})`);
+  const d = band.map((v, i) => Math.abs(v - LOOK_BAND[i]));
+  check(Math.max(...d) <= TOL, `the mouth's band ${band.join(', ')} vs the approved look's ${LOOK_BAND.join(', ')}: within ${TOL} (max ${Math.max(...d)}; v1 ${V1_BAND.join(', ')}; round 2 ${ROUND2_BAND.join(', ')})`);
   const Y = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   check(Y(band) >= 0.7 * Y(above), `no dark band: ${Y(band).toFixed(1)} against the far water's ${Y(above).toFixed(1)}`);
 } finally { await browser.close(); }
