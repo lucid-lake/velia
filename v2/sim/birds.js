@@ -17,6 +17,7 @@ import { SPECIES } from '../../src/birds/species.js';
 import { clamp01 } from '../../src/sim/core/math.js';
 
 import { smooth } from '../../src/sim/core/math.js';
+import { createGulls, GULLS } from './gulls.js';
 export const NAMES = ['osprey', 'eagle', 'gull', 'goose'];
 const TAU = Math.PI * 2;
 const wrapPi = (a) => { a = (a + Math.PI) % TAU; if (a < 0) a += TAU; return a - Math.PI; };
@@ -24,8 +25,9 @@ export const ISTRIDE = 24, SSTRIDE = 12, SHADOW_MAX = 12;
 
 // v1's rule (owner, 2026-11-05): birds keep 40 m from the camera (src/birds/index.js keepAway, copied: index.js imports three)
 export const KEEP_M = 40, SOFT_M = 75;
-// soft false: only the 40 m floor (the staged diver, owner 2026-11-17: "Allow close dive")
-export function keepAway(b, cam, dt, soft = true) {
+// soft false: only the floor (the staged diver, owner 2026-11-17: "Allow close dive"; a circling gull). keep: the floor in m
+// (40 for every bird; a circling gull's is sim/gulls.js GULLS.keepM, 15: owner, 2026-11-24 "allow closer birds")
+export function keepAway(b, cam, dt, soft = true, keep = KEEP_M) {
   const dx = b.pos[0] - cam[0], dy = b.pos[1] - cam[1], dz = b.pos[2] - cam[2];
   const d = Math.hypot(dx, dy, dz);
   if (d >= SOFT_M) return d;
@@ -38,8 +40,8 @@ export function keepAway(b, cam, dt, soft = true) {
     b.pos[0] += ux * v; b.pos[2] += uz * v;
   }
   const d2 = Math.hypot(b.pos[0] - cam[0], b.pos[1] - cam[1], b.pos[2] - cam[2]);
-  if (d2 < KEEP_M && b.mode !== 'perch') {
-    const ry = b.pos[1] - cam[1], need = Math.sqrt(Math.max(0, KEEP_M * KEEP_M - ry * ry)) + 0.01;
+  if (d2 < keep && b.mode !== 'perch') {
+    const ry = b.pos[1] - cam[1], need = Math.sqrt(Math.max(0, keep * keep - ry * ry)) + 0.01;
     b.pos[0] = cam[0] + ux * need; b.pos[2] = cam[2] + uz * need;
   }
   return d2;
@@ -50,6 +52,9 @@ export const BIRD_TIERS = {
   high: { gulls: 12, geese: 7, near: 70, cull: 1100, drops: 700, shadows: true },
   balanced: { gulls: 10, geese: 7, near: 55, cull: 900, drops: 500, shadows: true },
   low: { gulls: 6, geese: 5, near: 32, cull: 650, drops: 260, shadows: false },
+  // a phone's light tier (src/core/features.js birds 'gulls', ?birds=gulls; off by default): the gulls only, 3 that come to the
+  // boat; the other species are flown (their CPU is ≈ 0.05 ms) but never drawn or heard, no snag, no shadows
+  phone: { gulls: 3, geese: 0, near: 20, cull: 650, drops: 0, shadows: false, only: 'gull' },
 };
 
 // v1's places (src/birds/index.js bayPlaces), on any v1-shaped terrain ({ heightAt, shoreDistance? }; v1's fallback when
@@ -219,7 +224,8 @@ export function placeDive({ boat, view, wind = [0, 0], terrain, side0 = 1, D = D
 // bird's rank it leaves the air for the shore; 1 empties it (L1)
 export const shelterOf = (rain) => Math.min(1, Math.max(0, (rain ?? 0) * 1.5));
 
-export function createBirdSim({ terrain, waterAt = null, wind = null, seed = 1, tier = 'high', boat = () => null, start = null, dive = BIRDS.diveDefault } = {}) {
+// gulls: the gulls that come to the boat (sim/gulls.js; on with a boat, GULLS.on); false: v1's far flock only
+export function createBirdSim({ terrain, waterAt = null, wind = null, seed = 1, tier = 'high', boat = () => null, start = null, dive = BIRDS.diveDefault, gulls: gullsOn = GULLS.on } = {}) {
   const T = BIRD_TIERS[tier] ?? BIRD_TIERS.high;
   const places = bayPlaces(terrain, seed);
   const counts = { osprey: 3, eagle: 3, gull: T.gulls, goose: T.geese };
@@ -256,7 +262,7 @@ export function createBirdSim({ terrain, waterAt = null, wind = null, seed = 1, 
     waterAt: (x, z) => { try { return waterAt ? waterAt(x, z, simT) : 0; } catch { return 0; } },
     wind: [0, 0], camera: [0, 0, 0], sunElev: 30, shelter: 0, dive,
     boat: () => { const s = boat(); return s && Number.isFinite(s.x) ? { x: s.x, z: s.z, sog: s.sog ?? Math.hypot(s.u ?? 0, s.v ?? 0), heading: s.heading ?? 0 } : null; },
-    emit: (e) => { e.t = simT; events.push(e); log.push(e); if (log.length > 4000) log.splice(0, 1000); },
+    emit: (e) => { if (T.only && e.species !== T.only) return; e.t = simT; events.push(e); log.push(e); if (log.length > 4000) log.splice(0, 1000); },
     thermals: places.thermals.length ? places.thermals : [[0, 600], [1200, 300]],
     nest: places.nest,
     gooseDest: (b) => {
@@ -273,6 +279,9 @@ export function createBirdSim({ terrain, waterAt = null, wind = null, seed = 1, 
     const b = env.boat() ?? { x: s0[0], z: s0[1] };
     return [b.x + Math.sin(simT * 0.031) * 220 + 80, 30 + 12 * Math.sin(simT * 0.05), b.z + Math.cos(simT * 0.023) * 180 - 60];
   };
+
+  // the gulls that come to the boat (sim/gulls.js): the first few of the flock, in visits; without a boat v1's flock as it is
+  const circle = gullsOn ? createGulls({ gulls, seed, env }) : null;
 
   // the staged dive (DIVE): play time, the dive under way, the dives it laid (WHEN is the stage director's: tryDive below)
   const dv = { playT: 0, count: 0, active: null, holdWait: 0, side: hash01(seed, 2) < 0.5 ? 1 : -1, dives: [], why: {}, on: false, turn: 0, lastH: null };
@@ -410,11 +419,12 @@ export function createBirdSim({ terrain, waterAt = null, wind = null, seed = 1, 
         case 'raft': stepRaft(b, dt, env, b.state, geese); break;
         case 'lowpass': if (stepLowPass(b, dt, env, lowpass.S) === 'done') { b.mode = 'soar'; b.state = { centre: [b.pos[0] + 60, b.pos[2]], top: 160 }; } break;
       }
-      keepAway(b, env.camera, dt, !(b === hunter && dv.active));   // the staged dive: the soft push off (its 45–70 m is chosen), the floor kept
+      keepAway(b, env.camera, dt, !(b === hunter && dv.active) && b.mode !== 'circle', b.mode === 'circle' ? GULLS.keepM : KEEP_M);   // the staged dive and a circling gull: the soft push off (their distance is planned), the floor kept
       b.update(dt);
     }
     stepFlock(gulls, dt, env, flockGoal);
-    for (const g of gulls) { keepAway(g, env.camera, dt); g.update(dt); }
+    circle?.step(dt, simT, { day, shelter });   // the circling gulls (mode 'circle'): stepFlock leaves them out
+    for (const g of gulls) { keepAway(g, env.camera, dt, g.mode !== 'circle', g.mode === 'circle' ? GULLS.keepM : KEEP_M); g.update(dt); }
   }
 
   // --- the frame's draw records (v1's mesh.js push and shadows.js push, as arrays) ---
@@ -470,13 +480,14 @@ export function createBirdSim({ terrain, waterAt = null, wind = null, seed = 1, 
     let n = Math.ceil(dt / H);
     if (n > 40) n = 40;
     for (let i = 0; i < n; i++) stepAll(dt / n);
-    for (const b of birds) { keepAway(b, env.camera, 0); b.update(0); }
+    for (const b of birds) { keepAway(b, env.camera, 0, true, b.mode === 'circle' ? GULLS.keepM : KEEP_M); b.update(0); }
     if (dv.dives.length) { const A = dv.dives[dv.dives.length - 1]; for (const e of events) if (e.kind === 'plunge' && e.id === hunter.id && A.strikeAt == null) { A.strikeAt = +dv.playT.toFixed(2); A.at = [+e.pos[0].toFixed(1), +e.pos[2].toFixed(1)]; } }
 
     for (const name of NAMES) { draw.near[name].n = 0; draw.far[name].n = 0; }
     draw.shadows.n = 0;
     let nn = 0, nf = 0;
     for (const b of birds) {
+      if (T.only && b.name !== T.only) continue;   // the phone tier: the gulls only
       const sp = SPECIES[b.name];
       const d = Math.hypot(b.pos[0] - cam[0], b.pos[1] - cam[1], b.pos[2] - cam[2]);
       const nearD = sp.spanM * T.near, cull = sp.spanM * T.cull;
@@ -507,5 +518,6 @@ export function createBirdSim({ terrain, waterAt = null, wind = null, seed = 1, 
     tryDive,     // the stage director's ask: the gates, then startDive → { ok, dive } | { ok: false, why }
     startDive,   // the dive's one entry: startDive({ view }) → its record or null (DIVE; a stage director's handle)
     find: (who) => ({ hunter, osprey2, eagle, perched, gulls, geese: geese.members })[who],
+    circle,      // the gulls at the boat (sim/gulls.js): state, calls, params (the tests, the diag)
   };
 }

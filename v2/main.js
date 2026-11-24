@@ -354,7 +354,7 @@ async function boot() {
   // birds (made below): on a live page unless ?birds=0 (captures: only with ?birds=1); the osprey's dive (desktop only:
   // src/core/features.js ospreyDive; BACKLOG #24) takes the wake's creature map for its rings where Tessie is off (64²)
   //: no birds on a phone (the registry's birds row): none of their code, calls or pipelines there
-  const birdsOn = feature('birds').on && (flags.birds != null ? flags.birds !== '0' : !P.headless && !globalThis.navigator?.webdriver);
+  const birdsOn = feature('birds').tier !== 'off' && (flags.birds != null ? flags.birds !== '0' : !P.headless && !globalThis.navigator?.webdriver);   // 'gulls': a phone's light tier (?birds=gulls)
   const birdsModP = birdsOn ? Promise.all([import('./render/birds.js'), import('./sim/birds.js'), import('./engine/birdAudio.js'), import('../src/birds/sound.js')]) : null;
   const ospreyDiveOn = feature('ospreyDive').on;
   const wakeKnob = (k) => (flags[k] != null && Number.isFinite(parseFloat(flags[k])) ? parseFloat(flags[k]) : undefined);

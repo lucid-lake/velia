@@ -600,6 +600,83 @@
       "start_s": 6,
       "len_s": 0.8,
       "use": "a bird call or splash one-shot (src/birds/sound.js), cut by tools/birds_audio_pack.py"
+    },
+    {
+      "name": "gullcry_1",
+      "title": "Solo seagull sound effects (Seagull Ambient 1.wav), as trimmed in Web Ocean 3D (public/audio/gull-1.ogg)",
+      "url": "https://opengameart.org/content/solo-seagull-sound-effects",
+      "author": "rango-mango (OpenGameArt); trim by the Web Ocean 3D contributors",
+      "licence": "CC0 1.0",
+      "fetched": "2026-11-24",
+      "start_s": 0,
+      "len_s": 3.81,
+      "use": "a gull's cry at the boat (v2/sim/gulls.js, v2's gull sound), loudness-normalised to -20 LUFS, Opus 40 kb/s + AAC 64 kb/s"
+    },
+    {
+      "name": "gullcry_2",
+      "title": "Solo seagull sound effects (Seagull Ambient 2.wav), as trimmed in Web Ocean 3D (public/audio/gull-2.ogg)",
+      "url": "https://opengameart.org/content/solo-seagull-sound-effects",
+      "author": "rango-mango (OpenGameArt); trim by the Web Ocean 3D contributors",
+      "licence": "CC0 1.0",
+      "fetched": "2026-11-24",
+      "start_s": 0,
+      "len_s": 1.33,
+      "use": "a gull's cry at the boat (v2/sim/gulls.js, v2's gull sound), loudness-normalised to -20 LUFS, Opus 40 kb/s + AAC 64 kb/s"
+    },
+    {
+      "name": "gullcry_3",
+      "title": "Solo seagull sound effects (Seagull Ambient 3.wav), as trimmed in Web Ocean 3D (public/audio/gull-3.ogg)",
+      "url": "https://opengameart.org/content/solo-seagull-sound-effects",
+      "author": "rango-mango (OpenGameArt); trim by the Web Ocean 3D contributors",
+      "licence": "CC0 1.0",
+      "fetched": "2026-11-24",
+      "start_s": 0,
+      "len_s": 0.88,
+      "use": "a gull's cry at the boat (v2/sim/gulls.js, v2's gull sound), loudness-normalised to -20 LUFS, Opus 40 kb/s + AAC 64 kb/s"
+    },
+    {
+      "name": "gullcry_4",
+      "title": "Solo seagull sound effects (Seagull Ambient 4.wav), as trimmed in Web Ocean 3D (public/audio/gull-4.ogg)",
+      "url": "https://opengameart.org/content/solo-seagull-sound-effects",
+      "author": "rango-mango (OpenGameArt); trim by the Web Ocean 3D contributors",
+      "licence": "CC0 1.0",
+      "fetched": "2026-11-24",
+      "start_s": 0,
+      "len_s": 0.87,
+      "use": "a gull's cry at the boat (v2/sim/gulls.js, v2's gull sound), loudness-normalised to -20 LUFS, Opus 40 kb/s + AAC 64 kb/s"
+    },
+    {
+      "name": "gullcry_5",
+      "title": "Solo seagull sound effects (Seagull Ambient 5.wav), as trimmed in Web Ocean 3D (public/audio/gull-5.ogg)",
+      "url": "https://opengameart.org/content/solo-seagull-sound-effects",
+      "author": "rango-mango (OpenGameArt); trim by the Web Ocean 3D contributors",
+      "licence": "CC0 1.0",
+      "fetched": "2026-11-24",
+      "start_s": 0,
+      "len_s": 1.26,
+      "use": "a gull's cry at the boat (v2/sim/gulls.js, v2's gull sound), loudness-normalised to -20 LUFS, Opus 40 kb/s + AAC 64 kb/s"
+    },
+    {
+      "name": "gullcry_6",
+      "title": "Solo seagull sound effects (Seagull Ambient 6.wav), as trimmed in Web Ocean 3D (public/audio/gull-6.ogg)",
+      "url": "https://opengameart.org/content/solo-seagull-sound-effects",
+      "author": "rango-mango (OpenGameArt); trim by the Web Ocean 3D contributors",
+      "licence": "CC0 1.0",
+      "fetched": "2026-11-24",
+      "start_s": 0,
+      "len_s": 0.64,
+      "use": "a gull's cry at the boat (v2/sim/gulls.js, v2's gull sound), loudness-normalised to -20 LUFS, Opus 40 kb/s + AAC 64 kb/s"
+    },
+    {
+      "name": "gullcry_7",
+      "title": "Solo seagull sound effects (Seagull Ambient 7.wav), as trimmed in Web Ocean 3D (public/audio/gull-7.ogg)",
+      "url": "https://opengameart.org/content/solo-seagull-sound-effects",
+      "author": "rango-mango (OpenGameArt); trim by the Web Ocean 3D contributors",
+      "licence": "CC0 1.0",
+      "fetched": "2026-11-24",
+      "start_s": 0,
+      "len_s": 0.7,
+      "use": "a gull's cry at the boat (v2/sim/gulls.js, v2's gull sound), loudness-normalised to -20 LUFS, Opus 40 kb/s + AAC 64 kb/s"
     }
   ],
   "fireworks": [

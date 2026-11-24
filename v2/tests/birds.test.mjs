@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createBirdSim, bayPlaces, snagMesh, KEEP_M, ISTRIDE, NAMES, BIRD_TIERS } from '../sim/birds.js';
+import { GULLS } from '../sim/gulls.js';
 import { build, STRIDE, OFF } from '../../src/birds/build.js';
 import { birdGeometry, speciesConsts } from '../render/birds.js';
 
@@ -51,13 +52,13 @@ test('the snag: v1\'s perch and its mesh; the places on a terrain without a shor
   assert.deepEqual(q.raft, [1020, -1240], 'no shore distance: v1\'s raft fallback');
 });
 
-test('the keep-away floor holds (40 m) and the night empties the air; the tiers set the counts', () => {
+test('the keep-away floor holds (40 m; a gull circling the boat 15 m) and the night empties the air; the tiers set the counts', () => {
   const B = createBirdSim({ terrain, seed: 5, start: [1000, -1000], boat: () => ({ x: 1000, z: -1000, sog: 3, heading: 0 }) });
   B.setDaylight(25, [0.4, 0.8, 0.2]);
   for (let t = 0; t <= 40; t += 1 / 30) {
     const cam = [1000 + Math.sin(t * 0.2) * 100, 4, -1000 + Math.cos(t * 0.2) * 100];
     B.update(t, cam);
-    for (const b of B.birds) if (b.mode !== 'perch') assert.ok(Math.hypot(b.pos[0] - cam[0], b.pos[1] - cam[1], b.pos[2] - cam[2]) >= KEEP_M - 1e-6);
+    for (const b of B.birds) if (b.mode !== 'perch') assert.ok(Math.hypot(b.pos[0] - cam[0], b.pos[1] - cam[1], b.pos[2] - cam[2]) >= (b.mode === 'circle' ? GULLS.keepM : KEEP_M) - 1e-6);
   }
   B.setDaylight(-10, [0.4, -0.2, 0.2]);
   for (let t = 40; t <= 60; t += 1 / 30) B.update(t, [1000, 4, -1000]);
