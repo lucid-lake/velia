@@ -1,5 +1,5 @@
-// The forest's data (M5b): the shipped files are the pack tool's output byte for byte (v1's own lidar placement, packed
-// by tools/v2-forest-pack.mjs); they decode to v1's crowns within the 0.25 m lattice and the height quantum; every crown
+// The forest's data (M5b): the shipped files decode to the pack tool's output byte for byte (v1's own lidar placement,
+// packed by tools/v2-forest-pack.mjs; the gzip bytes differ between zlib builds, so they are not compared); they decode to v1's crowns within the 0.25 m lattice and the height quantum; every crown
 // stands on land by v1's heightAt (≥ 1 m above the lake: the guard, "trees never stand in the lake"); the phone set's
 // coarser heights drop only a sliver (the GPU place pass drops those); the bytes stay inside the budget.
 import test from 'node:test';
@@ -18,10 +18,9 @@ const file = (f) => readFileSync(resolve(ROOT, 'v2/forest/data', f));
 const decoded = (f) => decodeForest(gunzipSync(file(f)));
 const packedP = packForest();
 
-test('the shipped files are the pack tool\'s output, byte for byte (deterministic, from v1\'s placement)', async () => {
+test('the shipped files are the pack tool\'s output, decoded byte for byte (deterministic, from v1\'s placement)', async () => {
   const p = await packedP;
-  assert.ok(Buffer.compare(p.files['trees.vft'], file('trees.vft')) === 0, 'trees.vft: re-run node tools/v2-forest-pack.mjs');
-  assert.ok(Buffer.compare(p.files['shrubs.vft'], file('shrubs.vft')) === 0, 'shrubs.vft: re-run node tools/v2-forest-pack.mjs');
+  for (const f of ['trees.vft', 'shrubs.vft']) assert.ok(Buffer.compare(gunzipSync(p.files[f]), gunzipSync(file(f))) === 0, `${f}: re-run node tools/v2-forest-pack.mjs`);
 });
 
 test('the files decode to v1\'s crowns: the same count, each within the lattice and the height quantum, in the box', async () => {
