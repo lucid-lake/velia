@@ -415,6 +415,28 @@ Hs and Tp of the composed table at the boat (4σ over the displacement tiles; Tp
 | 9 m/s | 0.52 m, 2.4 s → **0.93 m, 3.4 s** | 0.82 m, 2.4 s → **1.46 m, 3.4 s** | 0.93 m, 3.6 s → **1.41 m, 4.9 s** |
 | 11 m/s | 0.64 m, 2.4 s → **1.13 m, 3.6 s** | 1.00 m, 2.4 s → **1.76 m, 3.6 s** | 1.12 m, 4.0 s → **1.70 m, 5.2 s** |
 
+**The boat feels it** (the page's own sail, 60 s after a 20 s settle, the pilot on and the crew's trim, `?sea=v1` → default; heave
+from the float, pitch and the waves' roll in degrees, sd / max):
+
+| Where, wind | Drawn Hs at the boat | Heave sd / max (m) | Pitch sd / max | Waves' roll max | Heel max (physics) | Knockdowns (warnings) | Speed |
+|---|---|---|---|---|---|---|---|
+| Sail start, the default wind (level 3) | 0.38 → 0.67 m | 0.037 / 0.105 → 0.080 / 0.226 | 0.99 / 3.0° → 1.23 / 4.1° | 4.9 → 6.4° | 8.6 → 8.7° | 0 (0) → 0 (0) | 3.98 → 3.99 m/s |
+| Sail start, level 4 | 0.52 → 0.91 m | 0.069 / 0.201 → 0.142 / 0.427 | 1.27 / 4.8° → 1.41 / 4.3° | 4.9 → 6.1° | 46.6 → 46.6° | 0 (4) → 0 (4) | 3.07 → 3.06 m/s |
+| Open lake (20 km fetch), 7 m/s, broad reach | 0.74 → 1.12 m | 0.132 / 0.439 → 0.218 / 0.608 | 2.28 / 7.2° → 2.71 / 7.7° | 6.0 → 6.2° | 2.4 → 2.5° | 0 → 0 | 3.08 → 3.06 m/s |
+| Open lake, 10 m/s, beam reach | 1.05 → 1.60 m | 0.210 / 0.807 → 0.359 / 1.20 | 2.33 / 7.1° → 2.64 / 7.8° | 11.5 → 12.8° | 23.1 → 21.9° | 0 → 0 | 3.39 → 3.33 m/s |
+
+The heave about doubles; pitch grows less (the hull already followed v1's 85 m tile's slopes; the swell's are gentler); the
+physics' heel, the knockdown watch and the speed do not move (the waves' roll is drawn on top of the heel and never feeds the
+watch; the surge from the slopes averages out). The kayaks at the kayaks golden's start (60 s, 14 out): levels 3 and 4,
+v1 0 and 1 capsizes (an Eskimo roll), the big sea 0 and 0, no contacts. The cameras: the Boat view follows only the slow part
+of the heave (tau 2.5 s, the bob capped at 0.18 m) and never the pitch or roll; the Helm view's auto-steady takes the rougher
+sea (the heel and pitch rate) toward its steadier end; Reduce Motion as before. The phone draws the same sea (the lite water
+skips only the 2.1 m ripples).
+
+**The settle (fix, same day):** a capture's 20 s settle runs the boat's clock ahead of the waves', so she sailed over one held
+moment of the sea; on the big sea's back slopes the surge held her astern (−1.7 m/s at the first frame). The settle now skips
+the sea's surge and orbital current (v2/sim/boat.js `settle`); the moving sea meets her at the first frame.
+
 ## The shore: breakers, swash, wet sand, spray (#56 M3, 2026-11-14: sim/shoreField.js, render/shore.js, render/water.js; tools/v2-shore-bake.mjs)
 
 Ultra-Water's shore (MIT, Humpalumps; `src/water/shoreMap.js`, `OceanSurface.js` SHORE_GLSL / shoreWaves / SWASH_GLSL, `Spray.js`),
