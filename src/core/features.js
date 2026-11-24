@@ -217,9 +217,12 @@ export const POLICIES = Object.freeze({
     why: 'the clearing\'s rainbow (the composite\'s bow variant and the stored depth) on a tablet or a desktop; a phone\'s storm clears without it',
     tier: (p, c) => (phoneOnly(p, c) ? 'off' : 'on') },
   // --- round 2 (owner, 2026-11-17: "cut all six on phones"): the same rule, the same 0 cost where off ---
-  birds: { fixed: true, axes: 'form', aliases: '?birds=0 (off everywhere: the plug-in\'s own rule), ?profile=form:phone',
-    why: 'the birds (gulls, geese, eagles, the osprey: their chunk, sim, draws, 4 pipelines and calls) on a tablet or a desktop; never on a phone',
-    tier: (p, c) => (phoneOnly(p, c) ? 'off' : 'on') },
+  // gulls (feat/gulls, 2026-11-24): a light phone tier, OFF by default (the owner's 2026-11-17 rule stands): ?birds=gulls on a
+  // phone loads the chunk with v2/sim/birds.js's 'phone' tier only: 3 gulls that come to the boat, no other species, no snag,
+  // no shadows, no dive (v2/notes/living.md § the gulls at the boat: its cost)
+  birds: { fixed: true, axes: 'form', aliases: '?birds=0 (off everywhere: the plug-in\'s own rule), ?birds=gulls (a phone: the light gulls), ?profile=form:phone',
+    why: 'the birds (gulls, geese, eagles, the osprey: their chunk, sim, draws, 4 pipelines and calls) on a tablet or a desktop; never on a phone by default (?birds=gulls: 3 gulls at the boat, tier gulls)',
+    tier: (p, c) => (phoneOnly(p, c) ? (c.flags.birds === 'gulls' ? 'gulls' : 'off') : 'on') },
   farTowns: { fixed: true, axes: 'form', aliases: '?profile=form:phone',
     why: 'the ski runs and the far towns\' decks on a tablet or a desktop; a phone loads the bay\'s set (its piers, boathouses, tower, harbour and Hwy 89\'s cut)',
     tier: (p, c) => (phoneOnly(p, c) ? 'off' : 'on') },

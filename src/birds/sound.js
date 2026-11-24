@@ -26,19 +26,20 @@ export function soundFor(e) {
   return null;
 }
 // the level at a distance: inverse from 25 m (the Web Audio "inverse" model), cut at the range
-export function levelAt(kind, d, gain = 1) {
-  const S = BIRD_SOUNDS[kind];
+export function levelAt(kind, d, gain = 1, sounds = BIRD_SOUNDS) {
+  const S = sounds[kind];
   if (!S || d > S.range) return 0;
   return S.level * gain * 25 / Math.max(25, d);
 }
 
-export function createBirdSound({ audio, base = '/audio/birds/', fetchFn = cardFetch } = {}) {   // fetchFn: on a phone, once the card is live (src/ui/deferLoad.js)
+// sounds: the table to play (BIRD_SOUNDS; v2 passes its own gull row: v2/engine/birdAudio.js withGullCries)
+export function createBirdSound({ audio, base = '/audio/birds/', fetchFn = cardFetch, sounds = BIRD_SOUNDS } = {}) {   // fetchFn: on a phone, once the card is live (src/ui/deferLoad.js)
   let ctx = null, out = null;
   const buffers = {}, last = {};
   let pick = 0;
   audio?.attach?.(({ ctx: c, master }) => {
     ctx = c; out = c.createGain(); out.gain.value = 1; out.connect(master);
-    for (const S of Object.values(BIRD_SOUNDS)) for (const n of S.clips) {
+    for (const S of Object.values(sounds)) for (const n of S.clips) {
       if (buffers[n]) continue;
       buffers[n] = decodeFile(ctx, fetchFn, `${base}${n}.opus`).catch(() => null);
     }
@@ -58,10 +59,10 @@ export function createBirdSound({ audio, base = '/audio/birds/', fetchFn = cardF
       for (const ev of events) {
         const kind = soundFor(ev); if (!kind) continue;
         const d = Math.hypot(ev.pos[0] - L.x, ev.pos[1] - L.y, ev.pos[2] - L.z);
-        const g = levelAt(kind, d, ev.gain ?? 1);
-        if (g < 0.003 || (last[kind] != null && t - last[kind] < BIRD_SOUNDS[kind].gap && t >= last[kind])) continue;
+        const g = levelAt(kind, d, ev.gain ?? 1, sounds);
+        if (g < 0.003 || (last[kind] != null && t - last[kind] < sounds[kind].gap && t >= last[kind])) continue;
         last[kind] = t;
-        const S = BIRD_SOUNDS[kind], name = S.clips[(pick++) % S.clips.length];
+        const S = sounds[kind], name = S.clips[(pick++) % S.clips.length];
         Promise.resolve(buffers[name]).then((buf) => {
           if (!buf || !ctx) return;
           const src = ctx.createBufferSource(); src.buffer = buf;

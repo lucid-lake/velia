@@ -285,7 +285,7 @@ export function createBirdsRender({ device, reg, frameBGL, frameStruct, sky, sha
     // the flock is made (its snag on the real ground): the snag's positions rewritten in place (the same topology)
     setSim(s) {
       if (s.snag.idx.length !== S.idx.length) throw new Error('snag topology');
-      sim = s; device.queue.writeBuffer(snagPos, 0, s.snag.pos); snagOn = true;
+      sim = s; device.queue.writeBuffer(snagPos, 0, s.snag.pos); snagOn = !s.tier?.only;   // the phone tier: no snag
     },
     // after the sim's update: the records into the one buffer (one writeBuffer), the shadows (one more when any)
     upload() {

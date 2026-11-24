@@ -97,11 +97,11 @@ const BIRDS = {
   id: 'birds', group: 'birds', createAt: 'birds', statsAt: 'birds',
   on: (c) => c.birdsOn,
   load: (c) => c.birdsModP,
-  create: (c, [{ createBirds }, { shelterOf }, { createAudio }, { createBirdSound }]) => {
+  create: (c, [{ createBirds }, { shelterOf }, { createAudio, withGullCries }, { createBirdSound, BIRD_SOUNDS }]) => {
     const { P } = c;
     const audio = createAudio({ on: !P.headless });   // the birds' own sound door (v2/engine/birdAudio.js)
-    const sound = !P.headless ? createBirdSound({ audio, base: new URL('audio/birds/', document.baseURI).href, fetchFn: (u, o) => fetch(u, o) }) : null;
-    const b = createBirds({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: P.msaa, depthFormat: c.depthFormat, tier: c.feature('birdsTier').tier, sound, wake: c.wake, dive: c.ospreyDiveOn, seed: P.seed });
+    const sound = !P.headless ? createBirdSound({ audio, base: new URL('audio/birds/', document.baseURI).href, fetchFn: (u, o) => fetch(u, o), sounds: withGullCries(BIRD_SOUNDS) }) : null;
+    const b = createBirds({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: P.msaa, depthFormat: c.depthFormat, tier: c.feature('birds').tier === 'gulls' ? 'phone' : c.feature('birdsTier').tier, sound, wake: c.wake, dive: c.ospreyDiveOn, seed: P.seed });
     BIRD.set(b, { audio, shelterOf, making: false });
     return b;
   },
@@ -127,7 +127,7 @@ const BIRDS = {
       wind: c.windField,   // v1's WindField (the one wind: the birds read it twice a second, as v1's)
       boat: () => c.hook.boat?.state ?? null, dive: c.ospreyDiveOn });
   } },
-  stats: (b, c) => ({ birds: b ? { ...b.stats, sim: b.sim ? { ...b.sim.stats } : null, tier: c.feature('birdsTier').tier, dive: b.sim?.director ?? null, splash: b.splash ? { ...b.splash.stats } : null, ospreyDive: c.ospreyDiveOn } : null }),   // #24: the dive director and its splash
+  stats: (b, c) => ({ birds: b ? { ...b.stats, sim: b.sim ? { ...b.sim.stats } : null, tier: c.feature('birds').tier === 'gulls' ? 'phone' : c.feature('birdsTier').tier, gulls: b.sim?.circle?.state ?? null, dive: b.sim?.director ?? null, splash: b.splash ? { ...b.splash.stats } : null, ospreyDive: c.ospreyDiveOn } : null }),   // #24: the dive director and its splash
   // the flock for the harness (v1's director cues through sim.cue, find); frame(dt, aim): a capture's film step on the scene clock, then
   // the camera aimed by aim() → { pos, target, fov } (the goldens' birds recipe, v1's long lens)
   hook: (b, c) => ({ birds: b ? { get sim() { return b.sim; }, stats: () => b.stats, splash: b.splash, async frame(dt, aim) {

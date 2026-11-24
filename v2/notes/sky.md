@@ -306,6 +306,23 @@ California gulls' flock round the boat, the Canada geese's raft that runs and li
 - **Harness.** `__velia.birds.sim` (cues, `find`), `__velia.birds.frame(dt, aim)`: a film step on the scene clock, then the
   camera aimed by `aim(sim) → { pos, target, fov }` (the goldens' `birds-v2` recipe: v1's `birds` recipe on v2's hook).
   `stats().birds`: draws, birds, triangles, the sim's near/far/shadows and its CPU ms.
+- **The gulls at the boat (`sim/gulls.js`, feat/gulls 2026-11-24).** Web Ocean 3D's ship circlers (MIT, `ATTRIBUTION.md`) on
+  our gulls, mesh and flight model: in visits (the first 8 s into play, then 70–120 s stays 60–150 s apart, 3–6 of the first 6
+  gulls; the rest stay v1's far flock) they fly in and circle the boat on a circle plus a second and third harmonic, round an
+  anchor that follows her with a 2.5 s lag, the lap rate from a mean speed of 8–10 m/s (slowed as the boat speeds up), one
+  direction, two skeins. Each is flown, not placed: it pursues its point through `Bird.steer`, so it flies in and away with no
+  jump (a gull more than 320 m off at a visit's start is moved in unseen, 140 m from the camera and 54–74° off its line of sight,
+  faded in). The M glide (arm +0.26, hand −0.48 rad) between flaps by a 14–30 s glide gate; the bank is the coordinated turn ×
+  1.5, capped at 0.95 rad (median ≈ 34°). **The 40 m rule holds** (owner, 2026-11-05: no bird within 40 m of the camera): the
+  circuit is laid on the far side of the boat from the camera, squashed ×0.6 along the line of sight, its near edge planned
+  44 m from it; a circling gull is exempt from the 75 m soft push, never from `keepAway`'s floor. In the follow camera they fly
+  44–80 m from it, 10–60 m past the boat, 13–19 m up (over the boat at least 15.5 m: the mast's top + 4 m); scaled 1–1.3×.
+  No landing on the boat. Cries: Poisson flurries of 1–3 (squared count), mean 18 s apart, a 2.5 s floor, none in the first
+  6 s, on a circling gull within 160 m; the gain falls to 0.3 from 6 to 12 m/s of wind and to 0 in the storm's rain; seven CC0
+  cries (`audio/birds/gullcry_1–7`) beside v1's two (`engine/birdAudio.js` GULL_CRIES, a 0.5 s gap so answers play).
+  Without a boat (v1's scenes, the parity test) the flock is v1's as it was. Tests: `v2/tests/gulls.test.mjs`.
+  **Phones:** the `birds` row stays off on a phone; `?birds=gulls` is a light tier (sim/birds.js `phone`: 3 gulls, the gulls
+  only drawn and heard, no snag, no shadows, no dive), off by default.
 - **Not ported (v1 differences).** The dive's water (v1's `spray.js` crown, spout and foot slaps, and `water.js`'s rings and
   marks in the water shader): the osprey still plunges and the geese still run and lift, but leave no splash or ring. v1's
   phone-deferred fetch (`cardFetch`) for the calls: v2 fetches them when the sound starts. The cloud deck's `nearSky` trail

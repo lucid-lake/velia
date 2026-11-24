@@ -42,3 +42,9 @@ export function listenerCamera() {
   const e = new Float32Array(16);
   return { matrixWorld: { elements: e }, set(eye, fwd, up) { e[12] = eye[0]; e[13] = eye[1]; e[14] = eye[2]; e[8] = -fwd[0]; e[9] = -fwd[1]; e[10] = -fwd[2]; e[4] = up[0]; e[5] = up[1]; e[6] = up[2]; return this; } };
 }
+
+// v2's gull row (feat/gulls, 2026-11-24): the gulls at the boat cry in flurries (v2/sim/gulls.js), so an answer 0.6–2 s after a
+// cry must not fall in the row's gap; seven CC0 cries (audio/birds/gullcry_1–7, ATTRIBUTION.md) beside v1's two. Level as v1's
+// gull at 25 m: a gull circling 46–90 m off plays at 0.06–0.12 (the inverse law), a thing you notice, not a soundtrack.
+export const GULL_CRIES = Object.freeze({ clips: ['gullcry_1', 'gullcry_2', 'gullcry_3', 'gullcry_4', 'gullcry_5', 'gullcry_6', 'gullcry_7', 'gull_a', 'gull_b'], level: 0.22, gap: 0.5, range: 400 });
+export const withGullCries = (table) => ({ ...table, gull: GULL_CRIES });
