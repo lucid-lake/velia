@@ -35,7 +35,7 @@ const CSS = `#lk-load .lkc-fact{all:unset;box-sizing:border-box;position:absolut
 #lk-load .lk-card > .lkc-fact{left:16px;bottom:10px;width:calc(100% - var(--lk-rc,34%) - 48px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #lk-load .lk-card > .lkc-fact::after{inset:-10px 0}`;
 
-export function mountChartFact(parent, { doc = parent?.ownerDocument ?? globalThis.document, date = () => new Date(), list = FACTS } = {}) {
+export function mountChartFact(parent, { doc = parent?.getRootNode?.() ?? globalThis.document, date = () => new Date(), list = FACTS } = {}) {
   if (!parent || !doc || !list.length) return null;
   if (!doc.getElementById('lk-chartfact-css')) { const s = doc.createElement('style'); s.id = 'lk-chartfact-css'; s.textContent = CSS; doc.head.appendChild(s); }
   let d = null; try { d = date?.() ?? null; } catch { d = null; }
