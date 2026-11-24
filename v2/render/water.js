@@ -859,16 +859,52 @@ ${lite ? '' : `  // feat/v2-look-ponlai: the far body takes the hue of the sky o
 `}  // #56 M1: Ultra's crest subsurface (its k1): sun through a thin crest seen against the sun, the crest's height in Hs units
   // (a lake's crest is a tenth of Ultra's ocean's), thin folding crests more (v1's), in the body's own colour per unit light
   var sss = vec3f(0.0);
-  if (suOn(${SURF_BITS.sss}u)) {
+  // web-ocean-3d's crest light and wave body (render/water-surface.js SURF.crest, SURF.jelly; MIT, LICENSES/web-ocean-3d-MIT.txt).
+  // Every input is smooth in space and time: the long tiles' height (eta) over the sea's Hs here, the footprint's mean normal
+  // (the mirror's steady ray's, slC), the view and the sun; the pixel's own ripples never reach them, so the glow and the body
+  // hold still (no twinkle). Nothing new is carried through the shader (a long-lived slope of its own cost 0.7 ms at 2560 x 1600)
+  // The wind gates them (CR_W0..CR_W1 of the local wind): glassy water has no crests to light
+  let nB = normalize(vec3f(-slC.x, 1.0, -slC.y));
+  let windK = smoothstep(CR_W0, CR_W1, localU);
+  let hRel = eta / max(hsLoc, CR_HSMIN);
+  let hA = clamp(hRel, 0.0, 1.0);
+  let awayS = clamp((CR_WRAP - dot(nB, s)) / (1.0 + CR_WRAP), 0.0, 1.0);   // the face turned from the sun, wrapped (no crawl along the crest)
+  let acrossV = clamp(1.0 - abs(V.y), 0.0, 1.0);
+  var crestB = 0.0; var crestC = vec3f(0.0);
+  if (suOn(${SURF_BITS.jelly}u) && windK > 0.0) {
+    // the column's light by the long waves' facing to the sun (centred on the sun's height) and by the wave's height
+    body *= clamp(1.0 + JE_RELIEF * (dot(nB, s) - max(s.y, 0.0)), JE_RLO, JE_RHI) * (1.0 + JE_TROUGH * clamp(hRel, -1.0, 1.0) * windK);
+    // the thin upper water carries skylight sideways (by height², more at grazing views and turned from the sun); it goes with the sky
+    sss += JE_GLOW * windK * hA * hA * (0.4 + 0.6 * acrossV) * (0.4 + 0.6 * awayS) * CR_HUE * exp(-WK * CR_THIN) * eSkyB * 0.98 / PI;
+    // the crest blend: a crest seen toward the light goes toward the scatter hue at the sky's brightness behind it, over the mirror too
+    let lb = normalize(s.xz + vec2f(1e-5, 0.0)); let vb = normalize(-V.xz + vec2f(1e-5, 0.0));
+    let tl = 0.5 + 0.5 * dot(vb, lb);
+    let lobe = mix(JE_CROSS, 1.0, tl * tl * tl);
+    let hue = CR_HUE * exp(-WK * CR_THIN);
+    // at the brightness of the sky the surface already mirrors here (skyR: filtered, steady; no second sky read)
+    crestC = hue / max(dot(hue, LUMA), 1e-4) * dot(skyR, LUMA) * JE_LIFT;
+    crestB = clamp(smoothstep(JE_P0, JE_P1, hRel) * lobe * (0.5 + 0.5 * awayS) * (0.4 + 0.6 * acrossV) * JE_BLEND * windK * (1.0 - nk), 0.0, JE_MAX);
+  }
+  if (suOn(${SURF_BITS.crest}u)) {
+    if (windK > 0.0) {
+      // the backlit glow: the HG lobe toward the sun × the face turned from it × Beer-Lambert through the water the light crossed
+      // (thin at the crest, thick down the face) × the crest's share of the wave, thin folding crests more (v1's), in the sun's light
+      let thick = mix(CR_THICK, CR_THIN, hA);
+      sss += CR_K * windK * crestPhase(dot(-V, s)) * awayS * hA * (1.0 + SU_THIN * (1.0 - smoothstep(0.45, 0.95, jac))) * sunPerp * CR_HUE * exp(-WK * thick) / PI;
+    }
+  } else if (suOn(${SURF_BITS.sss}u)) {
     let k1 = SU_SSS * SU_CREST * clamp(eta / max(hsLoc, 0.03), 0.0, 1.5) * pow(clamp(dot(s, -V), 0.0, 1.0), 4.0) * pow(0.5 - 0.5 * dot(n, s), 3.0) * (1.0 + SU_THIN * (1.0 - smoothstep(0.45, 0.95, jac)));
     sss = k1 * sunPerp * WUP * 0.98 * RINF / PI;
   }
   // #56 M3: the breaking lip, sun through its thin water (Ultra's lip glow), strongest looking into the sun; the lake's blue-green
   if (shAct && shW.lip > 0.0) { sss += shW.lip * sunPerp * vec3f(0.012, 0.055, 0.065) * (0.3 + 2.5 * pow(clamp(dot(s, -V), 0.0, 1.0), 3.0)) / PI; }
-  let a = ((fres + (1.0 - fres) * deep) * (1.0 - foam) + foam) * soft;
+  // the crest blend (SURF.jelly) makes that share of the surface the crest's colour, opaque: over the bed as over the mirror
+  let a0 = mix(fres + (1.0 - fres) * deep, 1.0, crestB);
+  let r0 = mix(fres * skyR + (1.0 - fres) * (deep * body + sss), crestC, crestB);
+  let a = (a0 * (1.0 - foam) + foam) * soft;
   var Tair = vec3f(1.0);
   let inS = aerialParts(v.pos.xy, v.world, &Tair);
-  let col = (Tair * ((fres * skyR + glint + (1.0 - fres) * (deep * body + sss)) * (1.0 - foam) + foamCol * foam) + inS * a / max(soft, 1e-4)) * soft;
+  let col = (Tair * ((r0 + glint) * (1.0 - foam) + foamCol * foam) + inS * a / max(soft, 1e-4)) * soft;
   // v1's approach (2026-11-18): the water stays physical under a storm; its colour changes only through its inputs (the
   // mirror's dark grey lid, stormSky; the cell's shade on the sun and the glint; the rain's rings and roughness); its veil is the
   // height fog every draw shares (aerialParts), and the steel and the dark are the frame's grade (render/shaders.js stormGrade)
@@ -894,8 +930,8 @@ ${lite ? '' : `  // feat/v2-look-ponlai: the far body takes the hue of the sky o
     }
     // over the bed: the foam reaches the waterline (the surface's soft fade is the calm water's edge)
     let sfo = max(soft, smoothstep(0.0, 0.03, depth));
-    let aS = (fres + (1.0 - fres) * deep) * (1.0 - foam) * soft + foam * sfo;
-    let colS = Tair * (fres * skyR + glint + (1.0 - fres) * (deep * body + sss)) * (1.0 - foam) * soft + Tair * foamCol * foam * sfo + inS * aS;
+    let aS = a0 * (1.0 - foam) * soft + foam * sfo;
+    let colS = Tair * (r0 + glint) * (1.0 - foam) * soft + Tair * foamCol * foam * sfo + inS * aS;
     let capS = select(vec3f(0.0), Tair * capCol * (foam - min(wakeF, foam)) * sfo, suOn(${SURF_BITS.foam}u));
     return vec4f(colS * keep + capS * (1.0 - keep), aS) * hullK;
   }
@@ -985,7 +1021,7 @@ export function coarseGridIndices(side) {
 }
 
 // --- the GPU side ---
-export function createWater({ liteFirst = false, device, reg, graph, frameBGL, frameBG, U, frameStruct = wgslStruct(), sky, night, terrainBGL, reflectView, hdrTarget, msaa = 1, depthFormat = 'depth32float', seed = 1337, dt = 1 / 120, wake = null, asyncSea = false, groundAt = null, shoreMirror = null, m1 = true, shore = null, detail = false, under = false }) {   // under: phase 2a's surface from below (src/core/features.js tessieUnder; its pipeline in the deferred 'under' group)   // shore: #56 M3, render/shore.js createShore (none: the water before M3)   // m1: #56 M1's surface (false: ?m1=0, the water before: M5c's fades and shading)   // shoreMirror: #41c, render/towns.js createShoreMirrorTarget (a zeroed stand-in without it)   // asyncSea: a live page builds the sea's tables in a worker (sim/sea-worker.js); captures and the film clock in the frame   // night: render/night.js (M5e): its record and maps ride the draw group (bindings 4–7)
+export function createWater({ liteFirst = false, device, reg, graph, frameBGL, frameBG, U, frameStruct = wgslStruct(), sky, night, terrainBGL, reflectView, hdrTarget, msaa = 1, depthFormat = 'depth32float', seed = 1337, dt = 1 / 120, wake = null, asyncSea = false, groundAt = null, shoreMirror = null, m1 = true, crest = true, jelly = true, shore = null, detail = false, under = false }) {   // crest, jelly: ?crest=0, ?jelly=0 (render/water-surface.js SURF.crest, SURF.jelly)   // under: phase 2a's surface from below (src/core/features.js tessieUnder; its pipeline in the deferred 'under' group)   // shore: #56 M3, render/shore.js createShore (none: the water before M3)   // m1: #56 M1's surface (false: ?m1=0, the water before: M5c's fades and shading)   // shoreMirror: #41c, render/towns.js createShoreMirrorTarget (a zeroed stand-in without it)   // asyncSea: a live page builds the sea's tables in a worker (sim/sea-worker.js); captures and the film clock in the frame   // night: render/night.js (M5e): its record and maps ride the draw group (bindings 4–7)
   const count = C * NN, ST = GPUBufferUsage.STORAGE, CD = GPUBufferUsage.COPY_DST, CS = GPUBufferUsage.COPY_SRC;
   const buf = (label, bytes, usage, init = null) => { const b = device.createBuffer({ label, size: bytes, usage, mappedAtCreation: !!init }); if (init) { new Float32Array(b.getMappedRange()).set(init); b.unmap(); } return b; };
   const h0Buf = buf('water-h0', count * 16, ST | CD);
@@ -1029,7 +1065,8 @@ export function createWater({ liteFirst = false, device, reg, graph, frameBGL, f
   // whitecaps' J0, the slope gain's reach on the 85 and 12 m tiles), written
   // when the sea moves; Ultra's foam is baked into the slope array's last layer on the first frame (run)
   const surfBuf = device.createBuffer({ label: 'water-surface', size: 48, usage: GPUBufferUsage.UNIFORM | CD });
-  const surfU = new Float32Array(12); surfU[3] = m1 ? SURF_DEFAULT : 0; surfU[8] = SURF.boostReach[0]; surfU[9] = SURF.boostReach[1]; surfU[10] = SURF.tileSlope[0] ** 2 - 1; surfU[11] = SURF.tileSlope[1] ** 2 - 1;
+  const surfDef = SURF_DEFAULT & ~(crest ? 0 : SURF_BITS.crest) & ~(jelly ? 0 : SURF_BITS.jelly);
+  const surfU = new Float32Array(12); surfU[3] = m1 ? surfDef : 0; surfU[8] = SURF.boostReach[0]; surfU[9] = SURF.boostReach[1]; surfU[10] = SURF.tileSlope[0] ** 2 - 1; surfU[11] = SURF.tileSlope[1] ** 2 - 1;
   const jHist = new Uint32Array(J0_HIST.bins); let jNext = 1, jSeen = false, jAim = 0, jRead = 0;   // the whitecaps' J0 (setWind): no allocation a frame
   device.queue.writeBuffer(surfBuf, 0, surfU);
   const surfLayout = [{ binding: SURF_BINDING, visibility: VF, buffer: { type: 'uniform' } }];
@@ -1156,7 +1193,7 @@ export function createWater({ liteFirst = false, device, reg, graph, frameBGL, f
     // #56 M1's shading on (true) or the water before (false), live: the in-page A/B (tools/v2-ab-m1.mjs). The fades are the h0
     // table's (fixed at load: ?m1=0 builds M5c's); this switch is the shading's (the slope gain, MTF, mirror ray, foam, crest, glint)
     get m1() { return surfU[3] > 0.5; },
-    set m1(v) { surfU[3] = v ? SURF_DEFAULT : 0; device.queue.writeBuffer(surfBuf, 0, surfU); },
+    set m1(v) { surfU[3] = v ? surfDef : 0; device.queue.writeBuffer(surfBuf, 0, surfU); },
     // the parts one by one (render/water-surface.js SURF_BITS: the ablations, the per-part A/B)
     get m1bits() { return surfU[3]; },
     set m1bits(b) { surfU[3] = b & SURF_ALL; device.queue.writeBuffer(surfBuf, 0, surfU); },

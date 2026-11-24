@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FADES, seaTables, buildH0, spectrumFor, LENGTHS, N } from '../sim/spectrum.js';
-import { SURF, slopeBoost, modulate, nearRay, foamCover, foamDensity, foamWind, capCover, turbStep, foamLace, monahan, whitecapJ0, foldCell, whitecapJ0Field, capShare, J0_HIST, j0Glide, foldGate } from '../render/water-surface.js';
+import { SURF, slopeBoost, modulate, nearRay, foamCover, foamDensity, foamWind, capCover, turbStep, foamLace, monahan, whitecapJ0, foldCell, whitecapJ0Field, capShare, J0_HIST, j0Glide, foldGate, crestPhase, crestBacklit } from '../render/water-surface.js';
 
 const NN = N * N;
 const tileEnergy = (h0, c) => { let v = 0; for (let i = c * NN * 4, e = i + NN * 4; i < e; i++) v += h0[i] * h0[i]; return v; };
@@ -177,4 +177,15 @@ test('each world cell lets its fold through on its own clock: faded in and out, 
   assert.ok(soft / (steps * cells.length) > 0.15, 'part of the time a cell is fading, not on or off');
   // no step: a cell's gate moves little in 1/60 s
   for (const [x, z] of cells.slice(0, 20)) for (let t = 0; t < 10; t += 0.05) assert.ok(Math.abs(foldGate(x, z, t + 1 / 60) - foldGate(x, z, t)) < 0.06);
+});
+
+test('the backlit crest glow: a lobe peaking at 1 into the sun, none on glassy water, more in more wind, thin crests over the body, low sun over noon', () => {
+  assert.ok(Math.abs(crestPhase(1) - 1) < 1e-9);
+  assert.ok(crestPhase(0.9) < 1 && crestPhase(0) < crestPhase(0.5) && crestPhase(-1) > 0);   // a tail off-axis: never snaps off
+  const dusk = { hRel: 0.6, cosT: 0.97, nDotS: -0.1 };
+  assert.equal(crestBacklit({ ...dusk, U: 1 }), 0);   // glassy water: no crests to light
+  assert.ok(crestBacklit({ ...dusk, U: 4 }) < crestBacklit({ ...dusk, U: 8 }));
+  assert.ok(crestBacklit({ ...dusk, U: 8, hRel: 0 }) === 0 && crestBacklit({ ...dusk, U: 8, hRel: 0.3 }) < crestBacklit({ ...dusk, U: 8, hRel: 0.9 }));
+  // noon: the sun 70 deg up, a level eye looking along the water: cos 0.34 off the view, the face's normal toward the sun
+  assert.ok(crestBacklit({ hRel: 0.6, U: 8, cosT: 0.34, nDotS: 0.94 }) < 0.05 * crestBacklit({ ...dusk, U: 8 }));
 });

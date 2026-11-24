@@ -19,6 +19,8 @@
 //   6. Ultra's crest subsurface: sun through thin crests seen against the sun (its k1 term, the crest's height in Hs units).
 //   7. Ultra's glint: its height-correlated Smith term over the slope variance from the mips (on v1's Beckmann lobe: GGX's tails
 //      greyed the navy), its facet glitter with the twinkle smoothed (a slow crossfade, a capped count, cells of 4 px and more), rolled off as before.
+//   8. web-ocean-3d's backlit crest glow (bit crest, ?crest=0 the A/B: Ultra's k1 of step 6 in its place) and its wave body,
+//      the "jelly" (bit jelly, ?jelly=0): SURF.crest and SURF.jelly below. Port of web-ocean-3d (MIT, LICENSES/web-ocean-3d-MIT.txt).
 // Not here: step 4 (gust patches and v1's two fine gust ripples) is the spume and wind helper's (W1).
 
 export const SURF = Object.freeze({
@@ -51,6 +53,21 @@ export const SURF = Object.freeze({
   sssPeak: 1.6, crestM: 3.0, thin: 2.2,
   // the glint (Ultra's GGX floor 0.015; FACETS 2e4 per m²); the twinkle smoothed: 0.4 draws a second (Ultra 3), crossfaded,
   // the count's ratio capped at 3 (Ultra 300), cells 4 footprints and up (Ultra 2), weight 0.35 (Ultra 0.6)
+  // the backlit crest glow (web-ocean-3d, https://github.com/2600th/web-ocean-3d @ 9a165f2, src/ocean/OceanMaterial.ts
+  // 1020-1090 and its SSS block, MIT, copyright (c) 2026 Pranshul Chandhok and the Web Ocean 3D contributors;
+  // LICENSES/web-ocean-3d-MIT.txt): sun through the thin top of a wave toward an eye looking into the light. A Henyey-Greenstein
+  // lobe (g 0.72, normalised to peak 1) times a wrapped away-from-sun term on the footprint's mean normal (no crawl along the crest
+  // line), times Beer-Lambert through the water the light crossed (thin at the crest, thick down the face, by the wave's height
+  // over the sea's Hs here) with Tahoe's own K. The hue is Tahoe's: a clear blue-cyan, never the ocean's teal.
+  // wind: none under w0 m/s (glassy water has no crests), full from w1. k: its brightness against the sun's light on white
+  crest: Object.freeze({ g: 0.72, wrap: 0.45, thin: 0.22, thick: 4.2, hsMin: 0.05, hue: Object.freeze([0.16, 0.64, 0.95]), k: 1.6, wind: Object.freeze([1.5, 7.0]) }),
+  // the wave's body ("jelly"; web-ocean-3d's body terms, same source and notice): the column's light follows the long waves'
+  // facing to the sun (relief, centred on the sun's height so a flat sea keeps its value, clamped) and the wave's height (troughs
+  // darker, faces lighter, by the height over Hs); the thin upper water carries skylight sideways whatever the sun does (glow,
+  // by height squared); and the crest blend (after Sea of Thieves, SIGGRAPH 2018): a crest seen toward the light goes toward
+  // the scatter hue at the sky's own brightness, over the mirror as well as the body (peak: where on the wave it starts and is
+  // full, height over Hs; cross: the lobe's share cross-lit; blend, max: how far). The deep navy is the trough's colour
+  jelly: Object.freeze({ relief: 3.0, reliefClamp: Object.freeze([0.4, 1.6]), trough: 0.3, glow: 0.9, peak: Object.freeze([0.12, 0.75]), cross: 0.32, blend: 0.32, lift: 1.0, max: 0.5 }),
   glintFloor: 0.015, facets: 2e4, rate: 0.4, mMax: 3, cellLog: 2, glitter: 0.35, glitterNear: Object.freeze([4, 30]),
   // the whitecaps' folds of the 12 m tile read through world cells (foldCells): every copy of the tile folded in step, so its
   // foam drew white dots on a 12 m lattice that flashed together (seen at dusk, 2026-11-15). Cells of 6.1 m (no common
@@ -166,6 +183,15 @@ export function foamLace(u, v) {
 }
 
 // the shader's side: SURF_WGSL needs PI (render/water.js) and the frame's F
+// the crest glow's JS twins (render/water.js WGSL: crestPhase and its crest block): the Henyey-Greenstein lobe normalised to
+// peak 1, and the backlit term's scalar (no colour, no sun): hRel the long waves' height over Hs, U the local wind (m/s),
+// cosT the view ray against the sun (1: looking into it), nDotS the footprint's mean normal against the sun, thick-path transmittance
+// on Tahoe's green K (0.089 /m: the brightest channel of the hue)
+export function crestPhase(cosT, g = SURF.crest.g) { const gg = g * g, d = Math.max(1 + gg - 2 * g * cosT, 1e-4); return (1 - gg) / (4 * Math.PI * d * Math.sqrt(d)) * (4 * Math.PI * (1 - g) ** 3 / (1 - gg)); }
+export function crestBacklit({ hRel, U, cosT, nDotS, K = 0.089 }) {
+  const C = SURF.crest, hA = sat(hRel), windK = smooth(C.wind[0], C.wind[1], U), away = sat((C.wrap - nDotS) / (1 + C.wrap));
+  return C.k * windK * crestPhase(cosT) * away * hA * Math.exp(-K * (C.thick + (C.thin - C.thick) * hA));
+}
 export const SURF_WGSL = `
 const SU_MTF = ${SURF.mtf.toFixed(3)}; const SU_MTF_LO = ${SURF.mtfLo.toFixed(3)}; const SU_MTF_HI = ${SURF.mtfHi.toFixed(3)};
 const SU_NEAR0 = ${SURF.nearRay[0].toFixed(3)}; const SU_NEAR1 = ${SURF.nearRay[1].toFixed(3)};
@@ -175,6 +201,12 @@ const SU_FB0 = ${SURF.foamBias[0].toFixed(3)}; const SU_FB1 = ${SURF.foamBias[1]
 const SU_ON0 = ${SURF.onset[0].toFixed(2)}; const SU_ON1 = ${SURF.onset[1].toFixed(2)};
 const SU_FTINT = vec3f(${SURF.foamTint.map((v) => v.toFixed(3)).join(', ')}); const SU_FBRIGHT = ${SURF.foamBright.toFixed(3)};
 const SU_SSS = ${SURF.sssPeak.toFixed(3)}; const SU_CREST = ${SURF.crestM.toFixed(3)}; const SU_THIN = ${SURF.thin.toFixed(3)};
+const CR_G = ${SURF.crest.g.toFixed(4)}; const CR_NORM = ${(4 * Math.PI * (1 - SURF.crest.g) ** 3 / (1 - SURF.crest.g ** 2)).toFixed(6)}; const CR_WRAP = ${SURF.crest.wrap.toFixed(3)};
+const CR_THIN = ${SURF.crest.thin.toFixed(3)}; const CR_THICK = ${SURF.crest.thick.toFixed(3)}; const CR_HSMIN = ${SURF.crest.hsMin.toFixed(3)}; const CR_K = ${SURF.crest.k.toFixed(4)};
+const CR_HUE = vec3f(${SURF.crest.hue.map((v) => v.toFixed(3)).join(', ')}); const CR_W0 = ${SURF.crest.wind[0].toFixed(2)}; const CR_W1 = ${SURF.crest.wind[1].toFixed(2)};
+const JE_RELIEF = ${SURF.jelly.relief.toFixed(3)}; const JE_RLO = ${SURF.jelly.reliefClamp[0].toFixed(3)}; const JE_RHI = ${SURF.jelly.reliefClamp[1].toFixed(3)}; const JE_TROUGH = ${SURF.jelly.trough.toFixed(3)};
+const JE_GLOW = ${SURF.jelly.glow.toFixed(4)}; const JE_P0 = ${SURF.jelly.peak[0].toFixed(3)}; const JE_P1 = ${SURF.jelly.peak[1].toFixed(3)}; const JE_CROSS = ${SURF.jelly.cross.toFixed(3)};
+const JE_BLEND = ${SURF.jelly.blend.toFixed(4)}; const JE_LIFT = ${SURF.jelly.lift.toFixed(3)}; const JE_MAX = ${SURF.jelly.max.toFixed(3)};
 const SU_GFLOOR = ${SURF.glintFloor.toFixed(4)}; const SU_FACETS = ${SURF.facets.toFixed(1)}; const SU_RATE = ${SURF.rate.toFixed(3)};
 const SU_MMAX = ${SURF.mMax.toFixed(2)}; const SU_CELL = ${SURF.cellLog.toFixed(1)}; const SU_GLITTER = ${SURF.glitter.toFixed(3)};
 const SU_GN0 = ${SURF.glitterNear[0].toFixed(1)}; const SU_GN1 = ${SURF.glitterNear[1].toFixed(1)}; const SU_MASK = ${SURF.maskFloor.toFixed(3)};
@@ -184,13 +216,16 @@ const SU_FFAR0 = ${SURF.foldFar[0].toFixed(3)}; const SU_FFAR1 = ${SURF.foldFar[
 struct Surf { hs: vec4f, share: vec4f, reach: vec4f }   // hs.xyz each displacement tile's Hs at the boat (m), hs.w the parts on (SURF_BITS; 0: the water before); share.xyz the boat's bay shares, share.w the whitecaps' J0; reach.xy the slope gain's reach on the 85 and 12 m tiles (m of footprint)
 fn suOn(bit: u32) -> bool { return (u32(SU.hs.w) & bit) != 0u; }`;
 // the parts, one bit each (render/water.js water.m1bits: the ablations and the per-part A/B; water.m1 = true sets them all)
-export const SURF_BITS = Object.freeze({ boost: 1, mtf: 2, near: 4, mask: 8, glint: 16, glitter: 32, foam: 64, sss: 128, boostMirror: 256 });
+export const SURF_BITS = Object.freeze({ boost: 1, mtf: 2, near: 4, mask: 8, glint: 16, glitter: 32, foam: 64, sss: 128, boostMirror: 256, crest: 512, jelly: 1024 });
 export const SURF_ALL = Object.values(SURF_BITS).reduce((a, b) => a | b, 0);
 // the default: every part but boostMirror (the slope gain on the mirror's mean ray too, v1's: the reflection's lookups then
 // swing with the doubled slope and the flicker metric's jumps at the 12 m start pose rose 0.53 % → 1.86 %; on the Fresnel, the
 // glint and the roughness alone, 0.54 %: the broad, steady mirror the owner asked for keeps its ray)
 export const SURF_DEFAULT = SURF_ALL & ~SURF_BITS.boostMirror;
 export const SURF_FNS_WGSL = `
+// web-ocean-3d's scattering lobe (MIT, notice above): Henyey-Greenstein at CR_G, normalised so its peak (looking straight into
+// the sun) is 1; its tail keeps a little glow off-axis, so the term never snaps off as the sun leaves the frame's back half
+fn crestPhase(cosT: f32) -> f32 { let gg = CR_G * CR_G; let d = max(1.0 + gg - 2.0 * CR_G * cosT, 1e-4); return (1.0 - gg) / (4.0 * 3.14159265 * d * sqrt(d)) * CR_NORM; }
 fn slopeBoost(s: f32, k2m1: f32) -> f32 { return sqrt(1.0 + k2m1 * clamp(s, 0.0, 1.0)); }   // k2m1: the gain² − 1 (SU.reach.zw)
 fn mtfMod(eta: f32, hs: f32) -> f32 { return clamp(1.0 + SU_MTF * eta / max(hs, 0.03), SU_MTF_LO, SU_MTF_HI); }
 // v1's Smith masking for Beckmann slopes on the mirror (src/water.js: Λ by Abramowitz–Stegun 7.1.26's erf), floored at 0.45 (the

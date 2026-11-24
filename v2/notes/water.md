@@ -334,6 +334,39 @@ deep-12m, deep-4m, shore (the owner's helm pose), golden-crests, golden-helm, wh
 `clip-deep-v1-vs-m1.mp4` (10 s, the deep water at a 1.6 m eye, v1 | after). Tools: `tools/v2-water-m1.mjs` (shots, stacks,
 spectra), `tools/v2-ab-m1.mjs`, `tools/v2-flicker.mjs --m1bits / --m1reach`.
 
+## The crest glow and the wave body (2026-11-24: render/water-surface.js SURF.crest, SURF.jelly; render/water.js)
+
+Ported from web-ocean-3d (https://github.com/2600th/web-ocean-3d @ 9a165f2, MIT, `LICENSES/web-ocean-3d-MIT.txt`): its
+`src/ocean/OceanMaterial.ts` constants (lines 1020-1097), its scattering (2709-2851) and its body and crest blend (3405-3478),
+TSL to WGSL. Their crest glow is their own rewrite (Noniv/web-ocean's crest term is a pow-4 lobe, the same as Ultra's k1).
+`?crest=0` puts Ultra's k1 back; `?jelly=0` the body before. Bits `crest` and `jelly` in SURF_BITS.
+
+**What the "jelly" is in their water.** Not their spectrum (JONSWAP, as ours) and not their refraction. It is four body terms:
+the body's light follows the swell's facing to the sun (`SWELL_RELIEF` 4, centred on the sun's height, on the swell cascade
+only, so the body has the big waves' shape and none of the ripples'); troughs darker and faces lighter by height over Hs
+(`BODY_TROUGH_CONTRAST` 0.3); the thin upper water carries skylight sideways whatever the sun does (`crestGlow` 0.55 × height²);
+and a crest blend after Sea of Thieves (SIGGRAPH 2018) that takes a crest seen toward the light to the scatter hue at the sky's
+brightness, over the mirror as well as the body (`CREST_BLEND` 0.6). Together they read as a lit, translucent volume.
+
+**The crest glow.** A Henyey-Greenstein lobe (g 0.72, normalised to peak 1) × a wrapped away-from-sun term (0.45) × Beer-Lambert
+through the water the light crossed (0.22 m at the crest to 4.2 m down the face, by the wave's height over the sea's Hs here) ×
+the crest's share of the wave × v1's thin-crest gain, in the sun's light (`sunPerp`: none at night, shaded by a storm cell).
+Tahoe's own K, and a blue-cyan scatter hue (0.16, 0.64, 0.95), not their teal; the deep navy stays the trough's colour.
+
+**Steady by construction.** Every input is smooth: the long tiles' height (eta), the footprint's mean normal (the mirror's own
+steady `slC`), the view and the sun. Wind-driven: none under 1.5 m/s of local wind, full from 7. The lobe puts the glow on low sun
+behind the crests at dawn and dusk; at noon the sun sits 70° off the view and the face turns toward it, so the glow is gone and
+only the body terms remain (soft).
+
+**Checks** (the M5 Pro Mac, headless Chrome; `?crest=0&jelly=0` as before):
+- Flicker (60 frames, 1280 × 720): dusk into the sun (19:36, cam B, 8 m/s) tstd 13.25 → 13.72 levels, jumps 4.16 → 4.09 %; the
+  noon follow camera 11.54 → 11.45, 0.47 → 0.46 %.
+- Cost (interleaved ABBA, 120 frames a round, GPU timer medians, main 29bdca6 vs the branch): 2560 × 1600 at 19:36 wind 8,
+  6 rounds, 18.67 → 18.90 ms (+0.22); at 13:00 wind level 2, 4 rounds, +0.23; phone L2 (844 × 390 at DPR 3, the lite water),
+  6 rounds, 2.82 → 2.86 ms (+0.03). Pipelines 0 added. A first build that carried its own long-wave slope through the
+  shader and read the sky LUT again cost +0.7 to +0.9 ms at 2560: register pressure, not the terms' work.
+- The phone takes the same terms (all ALU, no texture read).
+
 ## The shore: breakers, swash, wet sand, spray (#56 M3, 2026-11-14: sim/shoreField.js, render/shore.js, render/water.js; tools/v2-shore-bake.mjs)
 
 Ultra-Water's shore (MIT, Humpalumps; `src/water/shoreMap.js`, `OceanSurface.js` SHORE_GLSL / shoreWaves / SWASH_GLSL, `Spray.js`),

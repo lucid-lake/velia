@@ -8,6 +8,7 @@ The texts that must travel with third-party works in this repository (`ATTRIBUTI
 | `three.js-MIT.txt` | the files copied from three.js (the transcoder's wrapper); three.js itself is an npm dependency of the classic version |
 | `takram-three-geospatial-MIT.txt` | `classic/src/core/celestial.js` (ported), `classic/src/core/stbn.bin` and `v2/assets/night/stars.bin` (copied from the @takram packages) |
 | `feather-MIT.txt` | the Settings gear icon (Feather Icons, Cole Bemis) |
+| `web-ocean-3d-MIT.txt` | the backlit crest glow and the wave body ported into `v2/render/water-surface.js` and `v2/render/water.js` (web-ocean-3d, Pranshul Chandhok and the Web Ocean 3D contributors) |
 | `hoskins-hash-MIT.txt` | the hash in `v2/render/terrain.js` (Dave Hoskins, "Hash without Sine") |
 | `OFL-jost.txt` | `fonts/jost-latin.woff2`, `fonts/jost-italic-latin.woff2` (the other fonts' OFL texts are in `fonts/`) |
 

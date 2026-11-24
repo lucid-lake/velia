@@ -14,6 +14,7 @@ Every `##` section of the old `v2/README.md` and the note file that holds it (re
 | The island and the shore, round 5 (M5d, 2026-11-13: render/water.js, terrain.js, forest.js, bed.js) | `terrain.md` |
 | The water's reflection and its filtering (M5c, 2026-11-13: render/water.js, render/water-aa.js) | `water.md` |
 | The water's surface (#56 M1, 2026-11-14: render/water-surface.js, render/water.js, sim/spectrum.js FADES, sim/seaField.js) | `water.md` |
+| The crest glow and the wave body (2026-11-24: render/water-surface.js SURF.crest, SURF.jelly; render/water.js) | `water.md` |
 | The shore: breakers, swash, wet sand, spray (#56 M3, 2026-11-14: sim/shoreField.js, render/shore.js, render/water.js; tools/v2-shore-bake.mjs) | `water.md` |
 | The wake and the spray (render/wake.js, sim/wake.js, sim/spray.js) | `water.md` |
 | The birds (render/birds.js, sim/birds.js, engine/birdAudio.js) | `sky.md` |
