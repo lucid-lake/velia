@@ -42,8 +42,8 @@ run test:v2 npm run -s test:v2
 run build:v2 npm run -s build:v2
 run scrub bash tools/scrub_dist.sh dist-v2
 if [ "$V1" = yes ]; then
-  run v1 node --test tests/
-  run classic node --test classic/tests/
+  run v1 npm run -s test
+  run classic npm run -s test:classic
   [ -z "$SKIPG" ] && run goldens:v1 node tools/goldens.mjs
 fi
 [ -n "$PAGES" ] && run pages node tools/test_pages.mjs --app v2 $PAGES

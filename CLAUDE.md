@@ -13,7 +13,7 @@ Read first: `README.md` (run, test, folder map), `v2/README.md` (the engine's ma
 
 ## Gates
 
-- Fast: `npm run test:v2` (about 20 s) and `node --test tests/` (about 25 s). Both run in CI with the two builds.
+- Fast: `npm run test:v2` (about 20 s) and `npm test` (about 25 s). Both run in CI with the two builds.
 - Slow lanes before a change to physics, wind, Cruise, the bottom or the Regatta: `npm run test:v2:slow`, `npm run test:slow`.
 - With a GPU: `npm run test:pages:v2` (page tests on a private Vite) and `npm run goldens:v2` (golden frames; `-- --bless <name>` only for a look that was reviewed by eye). `bash tools/gate.sh` runs the local set and prints one line.
 - Tests check behaviour (call the module, read its output, DOM or state), never the source text.

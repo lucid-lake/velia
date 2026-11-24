@@ -27,7 +27,7 @@ npm run build       # dist/: the classic version
 
 ```sh
 npm run test:v2     # v2's fast suite (v2/tests/, no browser, about 20 s)
-node --test tests/  # the shared modules and both trees (about 25 s)
+npm test  # the shared modules and both trees (about 25 s)
 ```
 
 Slower lanes: `npm run test:v2:slow`, `npm run test:slow`, `npm run test:classic`. The page tests (`npm run test:pages:v2`) and the golden frames (`npm run goldens:v2`) drive a headless browser and need a GPU. CI runs the fast suites and the build on every push and pull request (`.github/workflows/ci.yml`).
