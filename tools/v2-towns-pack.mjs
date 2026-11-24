@@ -9,13 +9,18 @@
 // v1's page draws the towns' decks outside the shoreline module's region and the shoreline's piers inside it (src/towns.js
 // dMat); so does this pack. v1's meshes and colours (src/shoreline.js, src/towns.js) become v2's instanced meshes.
 // Output: v2/assets/towns/shore.vsh.gz and mask.vtm.gz (v2/towns/format.js), and the phone's set derived from them (
-// § Round 2: shore-phone.vsh.gz, the bay's instances only; mask-phone.vtm.gz, Hwy 89's window without the ski runs). Deterministic:
-// --check demands the bytes.
+// § Round 2: shore-phone.vsh.gz, the bay's instances only; mask-phone.vtm.gz, Hwy 89's window without the ski runs).
+// --check (and v2/tests/towns.test.mjs) compares the decoded content, not the gzip bytes (zlib builds differ: Node 24's own
+// against a system zlib 1.2.12): the masks byte for byte; the shore's counts, indices, normals, colours and tints exactly,
+// its float32 planes (the instances' matrices, each mesh's box and the positions) within 4e-6 of each number. V8's Math
+// functions differ in the last bit between platforms, which flips a matrix entry by a few float32 steps (a Linux x64 pack
+// against a Mac's); a moved pier moves it by metres.
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync, gunzipSync } from 'node:zlib';
-import { encodeMask, encodeShore, filterShore, filterMask, RASTER, MESH, CHUNK, matByte } from '../v2/towns/format.js';
+import { encodeMask, encodeShore, decodeShore, filterShore, filterMask, RASTER, MESH, CHUNK, matByte } from '../v2/towns/format.js';
+import { nearDiff } from './near.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, 'v2/assets/towns');
@@ -158,6 +163,15 @@ export async function packTowns() {
   return { files, raw: { shore: shore.length, mask: mask.length }, counts, layout: L, shoreline: SH };
 }
 
+// a fresh file against the committed one, both gunzipped: null when the same content, else the first mismatch
+export function townsDiff(name, fresh, committed) {
+  if (!name.startsWith('shore')) return Buffer.compare(Buffer.from(fresh), Buffer.from(committed)) === 0 ? null : 'the bytes differ';
+  const A = decodeShore(fresh), B = decodeShore(committed);
+  const ints = (S) => ({ instances: S.instances, tints: S.tints, meshes: S.meshes.map((m) => ({ verts: m.verts, nrm: m.nrm, col: m.col, idx: m.idx, first: m.first, count: m.count, flags: m.flags })) });
+  const f32 = (S) => ({ mats: S.mats, meshes: S.meshes.map((m) => ({ lo: m.lo, hi: m.hi, pos: m.pos })) });
+  return nearDiff(ints(A), ints(B), { rel: 0 }) ?? nearDiff(f32(A), f32(B), { rel: 4e-6 });
+}
+
 async function main() {
   const check = process.argv.includes('--check');
   const p = await packTowns();
@@ -166,8 +180,8 @@ async function main() {
   for (const [name, bytes] of Object.entries(p.files)) {
     const f = resolve(OUT, name);
     if (check) {
-      const same = existsSync(f) && Buffer.compare(gunzipSync(readFileSync(f)), gunzipSync(bytes)) === 0;
-      console.log(`${name}: ${bytes.length} B ${same ? 'matches' : 'DIFFERS'}`); if (!same) bad++;
+      const d = existsSync(f) ? townsDiff(name, gunzipSync(bytes), gunzipSync(readFileSync(f))) : 'missing';
+      console.log(`${name}: ${bytes.length} B ${d ? `DIFFERS (${d})` : 'matches'}`); if (d) bad++;
     } else { writeFileSync(f, bytes); console.log(`${f}: ${bytes.length} B`); }
   }
   console.log(`raw shore ${p.raw.shore} B, mask ${p.raw.mask} B;`, JSON.stringify(p.counts));

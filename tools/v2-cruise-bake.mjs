@@ -7,10 +7,13 @@
 // Only what buildChart reads is kept. The shore and the depth come from v2's own lake terrain (v2/sim/lake.js) on the page.
 //   node tools/v2-cruise-bake.mjs            write v2/cruise/chartWorld.json
 //   node tools/v2-cruise-bake.mjs --check    exit 1 if the committed file differs from a fresh bake
-// v2/tests/cruise.test.mjs runs the same check (bakeChartWorld).
+// v2/tests/cruise.test.mjs runs the same check (staleChart). The check compares the numbers within 1e-8 of each (tools/near.mjs),
+// not the text: V8's Math functions differ in the last bit between platforms, so a bake on Linux x64 and one on a Mac agree
+// to about 4e-11 of each number, never digit for digit. The file is written on the machine that re-bakes it.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { nearDiff } from './near.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const OUT = resolve(ROOT, 'v2/cruise/chartWorld.json');
@@ -48,11 +51,15 @@ export { chartInputs } from '../v2/cruise/chartRows.js';   // the baked rows as 
 
 export const stringify = (w) => JSON.stringify(w) + '\n';
 
+// the committed file's text against a fresh bake: null when current, else the first mismatch
+export const staleChart = (now, fresh) => { try { return nearDiff(JSON.parse(now), fresh, { rel: 1e-8 }); } catch (e) { return `unreadable: ${e.message}`; } };
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const fresh = stringify(await bakeChartWorld());
+  const baked = await bakeChartWorld(), fresh = stringify(baked);
   if (process.argv.includes('--check')) {
     let now = ''; try { now = readFileSync(OUT, 'utf8'); } catch { /* none yet */ }
-    if (now !== fresh) { console.error('v2/cruise/chartWorld.json is stale: run node tools/v2-cruise-bake.mjs'); process.exit(1); }
+    const d = staleChart(now, baked);
+    if (d) { console.error(`v2/cruise/chartWorld.json is stale (${d}): run node tools/v2-cruise-bake.mjs`); process.exit(1); }
     console.log('v2/cruise/chartWorld.json is current');
   } else {
     writeFileSync(OUT, fresh);
