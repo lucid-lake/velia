@@ -734,13 +734,16 @@ fn glintOf(n: vec3f, v: vec3f, l: vec3f, s2: f32) -> f32 {
         // the streaks on two fixed directions (spume.js SPUME.binDeg apart) cross-faded by the wind, riding the foam's drift
         // (F.spume.zw: the same 3 % of the wind as the map's): turned with the wind about the world's origin, they swept
         // sideways at the boat's distance from it × the turn's rate during a shift (the lanes' fault, render/spume.js laneAt)
-        let fb = F.wind.y / FM_BIN; let fk = floor(fb); let fw1 = fb - fk; let fw0 = 1.0 - fw1;
+        let fb = F.wind.y / FM_BIN; let fk = floor(fb); let fw1 = smoothstep(FM_FADE.x, FM_FADE.y, fb - fk); let fw0 = 1.0 - fw1;
         var st = 0.0;
         for (var j = 0; j < 2; j++) {
-          let a = (fk + f32(j)) * FM_BIN; let wd = vec2f(cos(a), sin(a)); let wp = vec2f(-wd.y, wd.x); let ux = v.uv0 - F.spume.zw;
-          let su = vec2f(dot(ux, wd), dot(ux, wp)) * FM_STREAK;
-          let sgx = vec2f(dot(fgx, wd), dot(fgx, wp)) * FM_STREAK; let sgy = vec2f(dot(fgy, wd), dot(fgy, wp)) * FM_STREAK;
-          st += (textureSampleGrad(tSlope, sRep, su, FOAM_LAYER, sgx, sgy).r - 0.5) * select(fw0, fw1, j == 1);
+          let wj = select(fw0, fw1, j == 1);
+          if (wj > 0.0) {   // one tap inside a bin's middle, two only across its fade
+            let a = (fk + f32(j)) * FM_BIN; let wd = vec2f(cos(a), sin(a)); let wp = vec2f(-wd.y, wd.x); let ux = v.uv0 - F.spume.zw;
+            let su = vec2f(dot(ux, wd), dot(ux, wp)) * FM_STREAK;
+            let sgx = vec2f(dot(fgx, wd), dot(fgx, wp)) * FM_STREAK; let sgy = vec2f(dot(fgy, wd), dot(fgy, wp)) * FM_STREAK;
+            st += (textureSampleGrad(tSlope, sRep, su, FOAM_LAYER, sgx, sgy).r - 0.5) * wj;
+          }
         }
         st = 0.5 + st / sqrt(fw0 * fw0 + fw1 * fw1);
         let freshK = clamp(fm.y * 2.0, 0.0, 1.0);

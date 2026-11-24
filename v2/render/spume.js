@@ -31,6 +31,7 @@ export const SPUME = Object.freeze({
   warpRate: 0.004, evolve: 0.02, // the meander's and the lanes' slow change (1/s)
   drift: 0.03,                   // the lanes drift downwind at 3 % of the wind (integrated: laneDrift)
   binDeg: 10,                    // the lane sets' fixed directions, this far apart; the local wind cross-fades the nearest two
+  binFade: [0.35, 0.65],         // the cross-fade's span inside a bin (one set outside it: each set lies within 3.5° of the wind)
   anchor: CURRENT_WATERS.terrain.bayCentre,   // the lanes' origin (v1's bay centre: fp32 keeps centimetres)
   look: { extentM: 256, ahead: 0.3, fade: [0.78, 0.96] },   // v1's look map square round a point ahead of the camera
   albedo: 0.9, shade: [0.8, 0.25],                          // v1's foam colour (as render/wake.js WAKE_FOAM)
@@ -78,9 +79,10 @@ function laneBin(rx, rz, a, t, drift) {
 }
 export function laneAt(x, z, U, travelRad, t, drift = [0, 0]) {
   const S = SPUME, Ue = Math.max(U, 0.1), step = S.binDeg * Math.PI / 180;
-  const b = travelRad / step, k = Math.floor(b), w1 = b - k, w0 = 1 - w1;
+  const b = travelRad / step, k = Math.floor(b), w1 = smooth(S.binFade[0], S.binFade[1], b - k), w0 = 1 - w1;
   const rx = x - S.anchor[0], rz = z - S.anchor[1];
-  const v = (laneBin(rx, rz, k * step, t, drift) * w0 + laneBin(rx, rz, (k + 1) * step, t, drift) * w1) / Math.sqrt(w0 * w0 + w1 * w1);
+  // one set inside a bin's middle, both only across its fade (the cost of one set over most of the turn)
+  const v = ((w0 > 0 ? laneBin(rx, rz, k * step, t, drift) * w0 : 0) + (w1 > 0 ? laneBin(rx, rz, (k + 1) * step, t, drift) * w1 : 0)) / Math.sqrt(w0 * w0 + w1 * w1);
   return Math.min(1, Math.max(-1, v)) * smooth(S.laneOnset[0], S.laneOnset[1], Ue);
 }
 // the lanes' drift: SPUME.drift × the frame's wind (U m/s along travelRad) over dt sim s (at most 1 s a call) added into d ([x, z] m)
@@ -139,9 +141,12 @@ fn spLaneBin(r: vec2f, a: f32, t: f32, drift: vec2f) -> f32 {
 }
 fn spLane(xz: vec2f, U0: f32, travel: f32, t: f32, drift: vec2f) -> f32 {
   let U = max(U0, 0.1); let step = ${(SPUME.binDeg * Math.PI / 180).toFixed(8)};
-  let b = travel / step; let k = floor(b); let w1 = b - k; let w0 = 1.0 - w1;
+  let b = travel / step; let k = floor(b); let w1 = smoothstep(${SPUME.binFade[0]}, ${SPUME.binFade[1]}, b - k); let w0 = 1.0 - w1;
   let r = xz - vec2f(${f(SPUME.anchor[0])}, ${f(SPUME.anchor[1])});
-  let v = (spLaneBin(r, k * step, t, drift) * w0 + spLaneBin(r, (k + 1.0) * step, t, drift) * w1) / sqrt(w0 * w0 + w1 * w1);
+  var v = 0.0;
+  if (w0 > 0.0) { v += spLaneBin(r, k * step, t, drift) * w0; }
+  if (w1 > 0.0) { v += spLaneBin(r, (k + 1.0) * step, t, drift) * w1; }
+  v /= sqrt(w0 * w0 + w1 * w1);
   return clamp(v, -1.0, 1.0) * smoothstep(${f(SPUME.laneOnset[0])}, ${f(SPUME.laneOnset[1])}, U);
 }
 // v1's foam colour: albedo 0.9 under the sky's and the sun's light, shaded a little by the normal n against the sun s

@@ -19,6 +19,7 @@ export const FOAM_MAP = Object.freeze({
   cap: 1.6,                // the foam's ceiling (web-ocean's)
   streak: [0.035, 0.11],   // the streaks' scale per m: along and across the wind (web-ocean's)
   binDeg: 10,              // the streaks lie on fixed directions this far apart, the two nearest the wind cross-faded (as render/spume.js's lanes)
+  binFade: [0.35, 0.65],   // the cross-fade's span inside a bin (one tap outside it)
   film: 0.35,              // the aged foam's translucent film (web-ocean's soft margin), at most this cover
   gain: 3.0,               // the remembered foam's weight on the caps' density (v2's cover erodes thin foam to nothing under about 0.3)
 });
@@ -80,6 +81,7 @@ const FM_F0 = ${f(FOAM_MAP.fade[0])}; const FM_F1 = ${f(FOAM_MAP.fade[1])};
 const FM_GAIN = ${f(FOAM_MAP.gain)}; const FM_FILM = ${f(FOAM_MAP.film)};
 const FM_STREAK = vec2f(${f(FOAM_MAP.streak[0])}, ${f(FOAM_MAP.streak[1])});
 const FM_BIN = ${(FOAM_MAP.binDeg * Math.PI / 180).toFixed(8)};   // the streaks' fixed directions, this far apart (render/water.js)
+const FM_FADE = vec2f(${f(FOAM_MAP.binFade[0])}, ${f(FOAM_MAP.binFade[1])});   // the cross-fade's span inside a bin
 fn fmWrap(i: i32) -> i32 { return ((i % FM_RES) + FM_RES) % FM_RES; }
 fn fmTexel(l: u32, g: vec2i) -> vec2f { return unpack2x16float(fmB[l * u32(FM_RES * FM_RES) + u32(fmWrap(g.y) * FM_RES + fmWrap(g.x))]); }
 fn fmLevel(l: u32, xz: vec2f, ts: f32) -> vec2f {

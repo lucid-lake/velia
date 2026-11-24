@@ -378,7 +378,8 @@ load. Measured on the JS twin with the page's own wind at the boat (`windField.s
 Sail start 565 m from the anchor, 0.1 s pairs): the lanes moved 5.5–6 m/s across the wind and 20–50 m/s along it; 5 km
 out, 45–60 and over 100 m/s. Their own drift is 0.03 × U = 0.38 m/s; the sea's peak waves run 4–6 m/s.
 **The fix:** each lane set lies along a fixed direction, 10° apart (`SPUME.binDeg`), and the local wind cross-fades the
-nearest two (the blend keeps the variance), so a turn fades one set into the next in place; the drift is the frame's own
+nearest two (the blend keeps the variance; only across the middle 30 % of each bin, `SPUME.binFade`, so one set is
+evaluated over most of a turn and each lies within 3.5° of the wind), so a turn fades one set into the next in place; the drift is the frame's own
 integral of 0.03 × the wind (`laneDrift`, `F.spume.zw`), shared by the foam streaks (the foam map drifts at the same 3 %).
 After: 0 m/s across, ≤ 0.5 m/s along (the measure's step), at the start and 5 km out. The lanes still lie within 4° of the
 wind and stay 30 : 1 stretched (`v2/tests/spume.test.mjs`); the new test fails on the old lanes.
