@@ -118,6 +118,24 @@ try {
     check(errors.length === 0, `no page errors (${errors.slice(0, 2).join(' | ')})`);
     await page.close();
   }
+  // the bar spans the screen (owner, 2026-11-25: "the loading bar does not start from far left, and end at far right"): the track
+  // runs the full width, the fill starts at its left end (≤ 2 % early) and reaches its right end (≥ 98 %) before the screen leaves
+  for (const [name, vp] of [['desktop 1280 x 720', { width: 1280, height: 720 }], ['phone 844 x 390', { width: 844, height: 390 }]]) {
+    const page = await browser.newPage({ viewport: vp });
+    await page.addInitScript(PERSON); await page.addInitScript(RETURNING);
+    await page.addInitScript(() => { window.__span = []; const tick = () => { const L = document.querySelector('#lk-load .lk-line'), F = document.querySelector('#lk-load .lk-sailed');
+      if (L && F) { const a = L.getBoundingClientRect(), f = F.getBoundingClientRect(); window.__span.push({ tl: a.left, tr: a.right, fl: f.left, fr: f.right, st: document.getElementById('lk-load')?.dataset.state }); }
+      if (window.__veliaLoading?.state !== 'home') requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
+    await page.goto(`${BASE}/?hour=15&seed=1&attract=0`, { waitUntil: 'load' });
+    await page.waitForFunction(() => window.__veliaLoading?.state === 'home', null, { timeout: 240000 });
+    const sp = await page.evaluate(() => window.__span);
+    const frac = (r) => (r.fr - r.fl) / (r.tr - r.tl), live = sp.filter((r) => r.st === 'company');
+    const early = live.find((r) => frac(r) > 0 && frac(r) <= 0.02), maxF = Math.max(...live.map(frac));
+    check(live.length > 0 && live.every((r) => Math.abs(r.tl) <= 1 && Math.abs(r.tr - vp.width) <= 1), `${name}: the track spans the screen, left 0 to right ${vp.width} (${live[0]?.tl} to ${live[0]?.tr})`);
+    check(live.every((r) => Math.abs(r.fl - r.tl) <= 0.5) && !!early, `${name}: the fill starts at the track's left edge and is seen early (≤ 2 %: ${early ? (frac(early) * 100).toFixed(1) : 'never'} %)`);
+    check(maxF >= 0.98 && live.some((r) => frac(r) >= 0.98 && Math.abs(r.fr - r.tr) <= 1), `${name}: the fill reaches the track's right edge (${(maxF * 100).toFixed(1)} %) before the screen leaves`);
+    await page.close();
+  }
 } finally { await browser.close(); }
 console.log(fails ? `${fails} FAILED` : 'all pass');
 process.exit(fails ? 1 : 0);

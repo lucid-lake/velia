@@ -4,6 +4,7 @@
 // (navy hulls and sails drawn in cream ink, panel seams, a gold sheer line) and Tessie's humps surface and sink in its wake (the
 // chart mark's style: cream ink, gold scutes). Calm, never a cartoon: one slow bob, one slow surfacing; under reduced motion
 // nothing moves but the position. Inline SVG and CSS only: no request, it paints with the shell before any script.
+// The line spans the whole width of its box (owner, 2026-11-25: the bar starts at the far left and ends at the far right): no side margin.
 // Single source: tools/loading_shell.py inlines VOYAGE_CSS and VOYAGE_SVG (between their backticks) into the shell, so the boot
 // screen of index.html, demos/loading.html and v2/index.html carry it; another screen (a card's loading line) builds the same
 // markup with voyageBarHtml() and moves it with setVoyage().
@@ -11,7 +12,7 @@
 //   VOYAGE_SVG                    the sloop and Tessie (in .lk-psloop)
 //   voyageBarHtml()               '<div class="lk-line">…</div>' (the line, the sailed part, the boat and Tessie)
 //   setVoyage(el, p)              sets --p on el (the bar or any ancestor) and aria-valuenow on the nearest [role=progressbar]
-export const VOYAGE_CSS = `.lk-line{position:relative;height:2px;margin:0 var(--lk-mx);background:rgb(var(--lk-cream) / .3);border-radius:1px;box-shadow:0 4px 0 -1.5px rgb(var(--lk-cream) / .14)}
+export const VOYAGE_CSS = `.lk-line{position:relative;height:2px;margin:0;background:rgb(var(--lk-cream) / .3);border-radius:1px;box-shadow:0 4px 0 -1.5px rgb(var(--lk-cream) / .14)}
     .lk-line::before{content:'';position:absolute;left:0;right:0;top:-3px;height:8px;background:repeating-linear-gradient(90deg,rgb(var(--lk-cream) / .28) 0 1px,transparent 1px 10%);pointer-events:none}
     .lk-sailed{position:absolute;left:0;top:0;bottom:0;width:100%;background:rgb(var(--lk-cream) / .92);transform-origin:0 50%;transform:scaleX(var(--p));border-radius:1px}
     .lk-psloop{position:absolute;left:calc(var(--p) * 100%);top:50%;width:clamp(28px,3.2vh,40px);height:auto;transform:translate(-50%,-78%);color:var(--lk-ink);filter:drop-shadow(0 1px 4px rgb(var(--lk-brand-navy) / .6))}
