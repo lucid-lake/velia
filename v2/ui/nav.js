@@ -11,6 +11,8 @@
 // settings: the page's store (settingsStore.js), read through setup.js v2Settings: v2 has no edge instruments row (owner, 2026-11-17),
 // so a stored edgeInstruments (an old 'off' hid the column with Pro on) reads as 'auto' and the column follows the PRO switch;
 // ?navcol=0|1 stays (0 never, 1 always).
+// On a desktop cockpit the column also follows the cockpit-up rule (2026-11-25; ui/cockpitUp.js, set in ui/sail.js as column.hidden):
+// folded, Clear, Instruments or Tessie played takes it; the helm view keeps it.
 //   const nav = mountNav({ services, settings, getMode: () => 'sail' });   each frame: nav.update()
 import { createNavColumn } from '../../src/ui/navColumn.js';
 import { createPassage } from '../../src/ui/passage.js';

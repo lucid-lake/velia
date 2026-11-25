@@ -270,9 +270,11 @@ export function createKeyLegend({ services, settings, getMode, doc = globalThis.
   const api = { el, update, get counts() { return { ...counts }; }, recall: () => { recallUntil = now() + RECALL_S * 1000; },
     // a test or a capture may stand in for the live sailing facts (windKn, reefed, twaDeg, shoreM, depthM, harbour, landmarkInView); null clears
     override: null,
+    // the host's own veto on top of the rules (v2's cockpit-up rule: v2/ui/cockpitUp.js through v2/ui/sail.js); v1 never sets it
+    hidden: false,
     dispose() { win.removeEventListener('keydown', onKey, true); el.remove(); doc.getElementById('lk-keys-css')?.remove(); } };
   function update() {
-    const keys = keyMode(), recalling = now() < recallUntil, vis = visible(facts());
+    const keys = keyMode(), recalling = now() < recallUntil, vis = !api.hidden && visible(facts());
     if (vis) {
       const t = now() / 1000;
       if (api.override) { mf = api.override; factsAt = t; moments = stepMoments(moments, mf, t); }

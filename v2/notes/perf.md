@@ -2,6 +2,23 @@
 
 Moved verbatim from `v2/README.md` on 2026-11-23 (refactor round 3 D1). The map is `v2/README.md`; the section list is `INDEX.md`.
 
+
+## The performance stats panel (2026-11-25: ui/perfHud.js, main.js; ui/cockpitUp.js)
+
+A small glass plate at the top-right (16 px in, at the top bar's 14 px top; 16.8 em wide, 15 px tabular type), desktop only
+(`src/core/features.js` perfHud: not a tablet or a phone), while the cockpit is up in Sail and Regatta (`ui/cockpitUp.js`: not folded,
+not Clear or Instruments, not Cruise, nothing played in the boat's place, no menu or page over it; the helm view keeps it). Lines: FPS
+over the last ~1 s and the mean interval (amber under 30 fps, never red, never flashing); the worst interval of the last 5 s; the
+level and the governor's scale ("L1 · 0.85×"); draws · triangles · pipelines built; the GPU memory tally (engine/device.js); the
+adapter, short. GPU time is a seventh line only with `?diag` (the timer stays diag and bench only). The frame feeds a ring of twenty
+250 ms buckets (typed arrays, no allocation); the text is rebuilt at 3 Hz and only while shown, each cell written only on a change.
+Measured on the M5 Pro Mac, 1280 × 720, headless Chrome under load (load average ≈ 49): **0.009-0.015 ms a frame** all in (meter, rule
+and the paints' share), 0.09-0.16 ms a paint. Setup › Screen › performance stats (on · off, its own key `lakeshore.v2.perfhud`);
+`?perfhud=1` shows it for one load whatever Setup holds, `=0` never. Off in a capture, a `?filmui` film, a `?shot` and an automated
+browser unless `?perfhud=1`, so the goldens are unchanged. The Pro nav column and the key legend follow the same cockpit-up rule on a
+desktop cockpit (their own rules stay: Pro, key hints, the legend leaves in the helm view). Tests: `v2/tests/perf-hud.test.mjs`,
+`v2/tests/pages/perfHud.page.mjs`.
+
 ## MSAA live (BACKLOG-v2 #31, 2026-11-14: engine/pipelines.js, frame.js, quality.js, diag.js; main.js, render/forest.js)
 
 Before: MSAA sized every scene pipeline, so a ladder step across L1 ↔ L2 listed "MSAA" as pending until the next load

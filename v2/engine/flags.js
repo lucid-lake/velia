@@ -95,6 +95,7 @@ export const V2_ROWS = Object.freeze([
   str('phoneclouds', 'the clouds (render/clouds.js; src/core/features.js \'phoneClouds\'): ?phoneclouds=off no clouds (no key, no cloud pipeline, a clean sky: a phone\'s default), =full the live march into the sky key (a tablet\'s and a desktop\'s default; a phone too: the A/B)'),
   on('dither', 'the final pass\'s dither (render/bloom.js: a fixed ±1 LSB triangular pattern before the 8-bit output, so no bands in the dusk and night sky, the navy, the fog); ?dither=0 none: the A/B'),   // owner, 2026-11-18
   str('cinema', 'the cinematic intro on the first Sail or Cruise of a page load (ui/cinematicIntro.js; src/core/features.js \'cinematicIntro\': a desktop only): ?cinema=0 never, =1 on (a capture or an automated browser too; never on a phone or a tablet); unset: on a live desktop page, off in a capture and an automated browser'),   // owner, 2026-11-18
+  str('perfhud', 'the performance stats panel top-right (v2/ui/perfHud.js; src/core/features.js perfHud: a desktop only, with the cockpit up in Sail and Regatta): ?perfhud=1 shows it for this load (a capture, a film or an automated browser too) whatever Setup holds, =0 never; unset: Setup › Screen › performance stats (on by default), off in a capture, a ?filmui film, a ?shot and an automated browser'),
   num('filmrate', 0,'M5e: a headless film\'s day clock, game seconds per sim second (tools/v2-film.mjs --timerate; 0: frozen, as every capture)'),
 ]);
 
