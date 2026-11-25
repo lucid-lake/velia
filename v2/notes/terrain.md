@@ -707,3 +707,7 @@ same records. Desktop and tablet only: `src/core/features.js` `buildings` (off o
   × 150 frames, the median of the rounds' differences; the GPU shared with other helpers, load average 12.6–20.4): at the
   Ski Run pin (1,496 boxes kept, 36 chunks) the scene pass +0.02 to +0.03 ms and the grounding +0.007 to +0.009 ms; in
   Emerald Bay (17 boxes) within the noise. Pipelines +2 at load, none after the first frame.
+- **Emerald Bay's goldens** (not re-blessed): all pass at their 0.1 % tolerance. A start in the bay loads the lake set only
+  (7–132 boxes kept by the goldens' cameras). With the buildings off and on in the same capture, the pixels they change sit
+  only in the far-shore bands where a building stands: cam A 123 px, cam B 244, dusk 202, cam B at dusk 237, Sail 13:00 33,
+  the rainbow 490, the binoculars 3,049 (magnified), the night 52, the birds 576; the other frames none.
