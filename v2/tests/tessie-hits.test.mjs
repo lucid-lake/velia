@@ -7,6 +7,7 @@
 //   she never enters the hull she lunges at (the sim's hold), and the system costs under 0.3 ms a frame with 6 boats
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -145,7 +146,7 @@ test('the lunge at a boat: she never enters its hull; the system under 0.3 ms wi
   const t0 = performance.now();
   for (let i = 0; i < N; i++) { H.aim({ x: 0, z: 0, psi: 0 }, list, i); H.splash(0, -5, list); H.holdOff(spine, 19, list, (s) => reachAt(s, 19)); if (i % 60 === 0) H.fall({ x: 0, z: -10, psi: 0 }, list, -1e9); }
   const ms = (performance.now() - t0) / N;
-  assert.ok(ms < 0.3, `${ms.toFixed(4)} ms a frame`);
+  budget(ms, 0.3, 'the hits system a frame (6 boats, 3 kayaks)');
 });
 
 test('the hold-off: her spine is pushed out of a kayak near the surface, never deep', () => {

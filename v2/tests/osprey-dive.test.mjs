@@ -4,6 +4,7 @@
 // (v2/living/birds-splash.js) from the strike's own events.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { makeTerrain } from './helpers/ground.mjs';
 import { createBirdSim, placeDive, DIVE } from '../sim/birds.js';
 import { createBirdWaterFx, BIRD_SPLASH } from '../living/birds-splash.js';
@@ -204,5 +205,5 @@ test('cost: the splash\'s CPU step stays under 0.1 ms a frame while it splashes'
   const t0 = performance.now(); let n = 0;
   for (; n < 300; n++) { fx.step(1 / 60); fx.sources(); }
   const ms = (performance.now() - t0) / n;
-  assert.ok(ms < 0.1, `${ms.toFixed(4)} ms a frame`);
+  budget(ms, 0.1, 'the splash step a frame');
 });

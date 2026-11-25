@@ -5,6 +5,7 @@
 // minute, tacking toward one upwind; Cruise's voyage (v2/cruise/voyage.js) taking a chart target past the old bay chart.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { OUT } from '../../tools/v2-plan-bake.mjs';
@@ -59,7 +60,7 @@ test('long routes from Emerald Bay\'s mouth to the south, east and north shores:
     assert.ok(A.shore >= NAV.hard.shore, `${name}: ${A.shore.toFixed(0)} m off the shore at the closest (≥ ${NAV.hard.shore})`);
     assert.ok(A.depth >= NAV.hard.depth, `${name}: ${A.depth.toFixed(1)} m of water at the shoalest (≥ ${NAV.hard.depth})`);
     assert.ok(L < 1.35 * D, `${name}: ${(L / 1000).toFixed(1)} km sailed for ${(D / 1000).toFixed(1)} km straight`);
-    assert.ok(ms < 250, `${name}: planned in ${ms.toFixed(1)} ms`);
+    budget(ms, 250, `${name}: planned`);
   }
 });
 

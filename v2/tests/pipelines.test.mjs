@@ -2,6 +2,7 @@
 // declaration, build or unknown get after seal() is a loud, counted error.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { createPipelineRegistry } from '../engine/pipelines.js';
 
 const fakeDevice = ({ failOn = null } = {}) => {
@@ -271,5 +272,5 @@ test('perf(v2) phone build: delayMs (?pipedelay=) waits before each build, one a
   const fast = createPipelineRegistry(fakeDevice());
   for (const n of ['a', 'b', 'c', 'd']) fast.add(n, { vertex: {} });
   const t1 = performance.now(); await fast.buildAll();
-  assert.ok(performance.now() - t1 < 40, 'no delay by default');
+  budget(performance.now() - t1, 40, 'no delay by default');
 });

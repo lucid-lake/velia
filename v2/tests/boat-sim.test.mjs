@@ -4,6 +4,7 @@
 // two runs with the same inputs are identical (the fixed step).
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { createBoatSim, waterFor, START, KN } from '../sim/boat.js';
 import { WindField } from '../../src/sim/wind.js';
 import { steadyWind } from '../../src/sim/boat.js';
@@ -104,5 +105,5 @@ test('the shared wind: a WindField (the day\'s base, a terrain height) drives it
   const c = a.cam, s = a.rows.at(-1)[0];
   assert.ok(Math.hypot(c.pos[0] - s.x, c.pos[2] - s.z) > 15 && Math.hypot(c.pos[0] - s.x, c.pos[2] - s.z) < 60, 'the follow camera stands 15–60 m off the boat');
   assert.ok(c.pos[1] > 3 && c.fov > 38 && c.fov < 46, 'above the water, v1\'s lens');
-  assert.ok(Math.min(a.ms, b.ms) < 2, `${Math.min(a.ms, b.ms).toFixed(3)} ms a frame on this machine (the fastest batch)`);
+  budget(Math.min(a.ms, b.ms), 2, 'a boat-sim frame (the fastest batch)');
 });

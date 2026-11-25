@@ -5,6 +5,7 @@
 // true wind angle, searched in 1° steps.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from './helpers/budget.mjs';
 import { bestOf } from './helpers/bestOf.mjs';
 import { BoatPhysics, Helm, SheetHand, SHEET_HAND, steadyState, steadyWind, CONTROLS, BOAT, KN, DT, JIB_CLEW_MAX_DEG, MAIN_BOOM_MIN_DEG, MAIN_TWIST_DEG } from '../src/sim/boat.js';
 import { STATE } from '../src/sim/boat/contract.js';
@@ -234,7 +235,7 @@ test('13. cost: under 0.2 ms per boat per tick in plain JS', () => {
   for (let i = 0; i < 2000; i++) boat.step(DT, { ...CONTROLS, rudder: helm.toTWA(boat.state, 0.7, 0) }, env);   // warm up
   // the fastest of 30 batches of 240 ticks (the same 7200 ticks): the step's own cost, not the machine's load (v2 #29)
   const ms = bestOf(() => boat.step(DT, { ...CONTROLS, rudder: helm.toTWA(boat.state, 0.7, 0) }, env), { batches: 30, per: 240 });
-  assert.ok(ms < 0.2, `${f(ms, 4)} ms per tick`);
+  budget(ms, 0.2, 'a boat tick');
 });
 
 test('the contract: every STATE field, the sign conventions, sub-stepping is deterministic', () => {

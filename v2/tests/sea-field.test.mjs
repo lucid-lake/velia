@@ -4,6 +4,7 @@
 // page's spread build giving the same map as a capture's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { createSeaField, pointWeights, toHalf, fromHalf, FIELD, SEA_FIELD_WGSL } from '../sim/seaField.js';
 import { seaTables, seaWeights, fetchAt, hsLaw, V1_SEA } from '../sim/spectrum.js';
 import { cascadeDamp } from '../sim/surface.js';
@@ -19,7 +20,7 @@ test('the f16 round trip the GPU samples (metres of fetch: 0 to 20 km)', () => {
 });
 
 test(`the fetch map: 128² over the lake from a 512² land mask, built in ${buildMs.toFixed(0)} ms; within a cell of the exact trace`, () => {
-  assert.ok(buildMs < 400, `${buildMs.toFixed(0)} ms`);
+  budget(buildMs, 400, 'the fetch map build');
   assert.equal(field.ready, true); assert.equal(field.version, 1);
   for (const [x, z] of [[2500, -1500], [4000, -8000], [8000, -20000], [3000, -3500]]) {
     const exact = fetchAt(heightAt, x, z, DW), map = field.fetchAt(x, z);
