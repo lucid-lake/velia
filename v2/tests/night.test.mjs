@@ -121,6 +121,8 @@ test('the render module on a fake device: the record, the caps, the glow modes, 
   const night = createNight({ device, reg, frameBGL: {}, frameBG: {}, U: {}, frameStruct: 'struct Frame { a: vec4f }', hdrTarget: { format: 'rgba16float' } });
   night.attach({ skyBGL: {}, skyBG: {} });
   assert.deepEqual(made.pipelines, ['night-stars', 'night-glows']);
+  night.attachTerrain({});   // the streaks, once the terrain's heights group exists
+  assert.deepEqual(made.pipelines, ['night-stars', 'night-glows', 'night-streaks']);
   assert.equal(made.textures, 2, 'the two maps, at their full size, before any load');
   const wb = night.waterBind(4);
   assert.deepEqual(wb.layout.map((e) => e.binding), [4, 5, 6, 7]); assert.equal(wb.entries.length, 4);

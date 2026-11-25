@@ -360,6 +360,7 @@ async function boot() {
   clouds.attach(sky); inGroup('night', () => night.attach(sky));   // perf(v2) iOS pipelines: the night's two draws are a group
   const terrain = createTerrain({ device, reg, frameBGL, frameBG, U, frameStruct, sky, hdrTarget, msaa: P.msaa, depthFormat, H: fullM.height, season: day.season,
     treeline: CURRENT_WATERS.treeline, surfaceY0: fullM.y0, errors, granite: feature('islandGranite').tier, bedBoulders: feature('bedBoulders').tier, rock: feature('rockDetail').tier, under: underOn });   // the bed's big boulders; Fannette's granite: the detailed rock on a desktop, the colours on a phone (src/core/features.js)
+  inGroup('night', () => night.attachTerrain(terrain.hbgl));   // the town lights' glitter streaks: their shore test reads the heights
   // perf/v2-phone-load: the terrain's first stage (1.36 MB on a phone) asked for now, and one yield so the requests and its
   // worker leave before the world build below holds the main thread (requests made inside it went out only at its end)
   const variant = pickVariant(flags);
@@ -643,7 +644,7 @@ async function boot() {
     if (L.sky) { if (uw && underBack?.drawBack(pass, c)) { /* phase 2a: the water's own light in the sky's place */ } else sky.draw(pass, c); }   // only where nothing was drawn (reversed depth still 0)
     if (uw && underLight) underLight.drawSprites(pass, c);   // phase 2b: the specks drifting round the eye, the bubbles (depth-tested, no depth written)
     plugins.run('scene.light', pass, c, S);                  // the fireworks: the stars and their reflection, the smoke, the glow, the lamps (additive)
-    if (L.sky && L.night && nightOn && PG.night && !uw) night.draw(pass, c, sky);          // M5e: the stars where the sky is, then the towns' and the boat's lights (depth-tested)
+    if (L.sky && L.night && nightOn && PG.night && !uw) night.draw(pass, c, sky, terrain.heightsBindGroup);          // M5e: the stars where the sky is, then the towns' and the boat's lights (depth-tested)
     plugins.run('scene.clear', pass, c, S);                  // the glass boat: the clear hulls, her windows and glass panel, the LEDs' pools, her wake (premultiplied, no depth written)
     if (L.towns && !uw) landmarks.drawBlend(pass, c);               // G1: the waterfall's streaming ribbon and its plunge foam (blended, no depth written)
     if (L.storm && PG.storm && stormDraw && !uw) stormDraw.draw(pass, c, sky);               // M5e: the rain (the sky shows through it), the bolt's core and glow
