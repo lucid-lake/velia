@@ -23,8 +23,10 @@ level's last 12 texels blend into the basin where the basin covers it and into t
 (`tests/region-level.test.mjs`: no step in the heights or the shore distance across its edges). A start in the bay or elsewhere
 fetches none of a region's files; a home-card pick of another level's birthplace reloads the page; no mid-sail swap (the hook is
 in `terrain/region.js`). Load at a Ski Run start: desktop 2.26 MB of `terrain/south/`, a phone 0.76 MB
-(`tests/pages/southStart.page.mjs`). The bay-only layers (the lidar trees, the shore rocks, the bed's stones, the shore break, the
-drawn chart) have nothing there yet.
+(`tests/pages/southStart.page.mjs`). The bay-only layers (the lidar trees, the shore rocks, the bed's stones, the shore break) have
+nothing there yet. The drawn chart does: its sheets past the bay (`ui/chart/ground.js` SHEETS, `tools/v2-chart-bake.mjs`) are baked
+from the lake's grids with this level set in, the lake's overview (16 m a pixel, 145 kB by day) shipped with the bay's ground, the
+south's detail (6.25 m, 67 kB) fetched only when the chart comes close to it or the start is there (`tests/chart-all-births.test.mjs`).
 
 **Streaming (a level clipmap, not tiles):** the data are already a clipmap: five nested grids, finest round the bay where
 every camera starts. Re-cutting them into tiles would need a new build step and a second 12 MB copy, for no gain at
