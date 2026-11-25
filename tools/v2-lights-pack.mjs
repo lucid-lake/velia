@@ -8,6 +8,9 @@
 // Stars: @takram/three-atmosphere's stars.bin (MIT; the Yale Bright Star Catalog v5's 9,096 stars as J2000 directions,
 // magnitudes and black-body colours, 10 bytes a star: int16 × 3 position, uint8 magnitude, uint8 × 3 colour) copied as
 // it is to v2/assets/night/stars.bin (v1 draws the same file through the library's StarsNode). ATTRIBUTION.md lists both.
+// The south's own lights (Phase B of the South Lake birthplace): the Stateline high-rises' lit facades and a lamp along every
+// dock of the marina (tools/v2-buildings-pack.mjs southLights, on OSM's footprints and docks) → v2/assets/night/lights-south.bin,
+// the same format; the page adds them after the lake's only when it loads the south's buildings (v2/render/night.js addLights).
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,7 +50,9 @@ async function main() {
   const lights = packLights(L.lights);
   const stars = readFileSync(resolve(ROOT, 'node_modules/@takram/three-atmosphere/assets/stars.bin'));
   mkdirSync(OUT, { recursive: true });
-  const files = { 'lights.bin': lights, 'stars.bin': new Uint8Array(stars) };
+  const { inputs, southLights } = await import('./v2-buildings-pack.mjs');
+  const south = southLights(await inputs());
+  const files = { 'lights.bin': lights, 'stars.bin': new Uint8Array(stars), 'lights-south.bin': packLights(south) };
   let bad = 0;
   for (const [name, bytes] of Object.entries(files)) {
     const p = resolve(OUT, name);
@@ -56,7 +61,7 @@ async function main() {
       console.log(`${name}: ${bytes.length} B ${same ? 'matches' : 'DIFFERS'}`); if (!same) bad++;
     } else { writeFileSync(p, bytes); console.log(`${p}: ${bytes.length} B`); }
   }
-  console.log(`lights ${L.lights.count}, stars ${stars.length / 10}`);
+  console.log(`lights ${L.lights.count}, stars ${stars.length / 10}, south ${south.count}`);
   if (bad) process.exit(1);
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

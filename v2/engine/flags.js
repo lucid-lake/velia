@@ -32,6 +32,7 @@ export const V2_ROWS = Object.freeze([
   str('tessie', 'Tessie (desktop only: v2/living/tessie-policy.js): ?tessie=0 off; =1 on (a capture too: captures leave her out without it); =now a sighting at the first frame, 11 s into it (captures, films); =breach one breaching at once; =<s> the first sighting\'s humps break at that play time (25 s by default)'),
   str('teahouse', 'Fannette Island\'s tea house (desktop only: src/core/features.js teaHouse): ?teahouse=0 off (v1\'s simple ruin stays on the summit, as on a phone or a tablet)'),
   str('oldruin', 'v1\'s simple box ruin on Fannette Island (src/core/features.js oldRuin): ?oldruin=1 shows it where the tea house is off (a phone, a tablet, ?teahouse=0)'),
+  str('buildings', 'the lake\'s buildings, the Stateline towers, the gondola and the marina\'s boats (v2/render/buildings.js; src/core/features.js buildings): ?buildings=0 off, =1 on (a phone too)'),
   str('anchored', 'boats at anchor in the bay\'s anchorages and on a Boat Camp ball (src/core/features.js anchoredBoats): ?anchored=0 off, =1 on (a phone too)'),
   str('mirrors', 'the boats\' mirrors in the water (src/core/features.js boatMirrors): ?mirrors=0 off, =1 the glass boat\'s (a phone too), =all every boat\'s and kayak\'s (parked)'),
   str('regionkayaks', 'the regions\' own kayakers (v2/living/busyLake.js residentKayaks; src/core/features.js regionKayaks): ?regionkayaks=0 off (v1\'s day kayakers and the staged pairs), =1 on (a phone too)'),

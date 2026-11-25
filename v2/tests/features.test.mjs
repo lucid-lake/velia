@@ -109,15 +109,15 @@ test('the six devices: the bed\'s big boulders (a desktop or a tablet at L0-L1)'
 
 // (owner, 2026-11-17: "No fireworks, Milky Way, rainbow [on phones]. The phone is mainly for the sail sim."): desktop only on a phone
 const WANT_P = {
-  //                fireworks milkyWay rainbow birds  farTowns lightningBolts storm bloom anchorDetail anchoredBoats lensRain   (round 2, owner 2026-11-17; storm, bloom and the ground tackle 2026-11-18; the boats at anchor 2026-11-18)
-  ipadTrackpad:    ['on',     'on',    'on',   'on',  'on',    'on',          'on', 'on', 'on', 'on', 'on'],
-  touchLaptop:     ['on',     'on',    'on',   'on',  'on',    'on',          'on', 'on', 'on', 'on', 'on'],
-  smallDesktop:    ['on',     'on',    'on',   'on',  'on',    'on',          'on', 'on', 'on', 'on', 'on'],
-  iphoneTurned:    ['off',    'off',   'off',  'off', 'off',   'off',         'off', 'off', 'off', 'off', 'off'],
-  androidSideways: ['off',    'off',   'off',  'off', 'off',   'off',         'off', 'off', 'off', 'off', 'off'],
-  desktop:         ['on',     'on',    'on',   'on',  'on',    'on',          'on', 'on', 'on', 'on', 'on'],
+  //                fireworks milkyWay rainbow birds  farTowns lightningBolts storm bloom anchorDetail anchoredBoats lensRain buildings   (round 2, owner 2026-11-17; storm, bloom and the ground tackle 2026-11-18; the boats at anchor 2026-11-18)
+  ipadTrackpad:    ['on',     'on',    'on',   'on',  'on',    'on',          'on', 'on', 'on', 'on', 'on', 'on'],
+  touchLaptop:     ['on',     'on',    'on',   'on',  'on',    'on',          'on', 'on', 'on', 'on', 'on', 'on'],
+  smallDesktop:    ['on',     'on',    'on',   'on',  'on',    'on',          'on', 'on', 'on', 'on', 'on', 'on'],
+  iphoneTurned:    ['off',    'off',   'off',  'off', 'off',   'off',         'off', 'off', 'off', 'off', 'off', 'off'],
+  androidSideways: ['off',    'off',   'off',  'off', 'off',   'off',         'off', 'off', 'off', 'off', 'off', 'off'],
+  desktop:         ['on',     'on',    'on',   'on',  'on',    'on',          'on', 'on', 'on', 'on', 'on', 'on'],
 };
-const NAMES_P = ['fireworks', 'milkyWay', 'rainbow', 'birds', 'farTowns', 'lightningBolts', 'storm', 'bloom', 'anchorDetail', 'anchoredBoats', 'lensRain'];  // lensRain: rain on the lens (owner 2026-11-24), only where the storm is
+const NAMES_P = ['fireworks', 'milkyWay', 'rainbow', 'birds', 'farTowns', 'lightningBolts', 'storm', 'bloom', 'anchorDetail', 'anchoredBoats', 'lensRain', 'buildings'];  // lensRain: rain on the lens (owner 2026-11-24), only where the storm is
 
 test('the six devices: the phone is for the sail sim (no fireworks, Milky Way, rainbow, birds, ski runs and far towns, or lightning bolts on a phone)', () => {
   for (const [dev, want] of Object.entries(WANT_P)) {
