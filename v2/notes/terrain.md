@@ -666,3 +666,44 @@ shore + 150.6 kB mask, gzip; a host that sends them with Content-Encoding gzip i
   16 kB (the proxies).
 - The harbour's boats stay deleted, as in v1.
 - The cut reads thinner than v1's at the bay's walls: v2's slopes carry the photo and denser cards; the corridor is v1's.
+
+## The buildings (Phase B of the South Lake birthplace: render/buildings.js, towns/buildings.js, tools/v2-buildings-pack.mjs)
+
+OpenStreetMap's footprints (`data/geo/tahoe-towns.json`, ODbL: each an oriented box with its eaves' height from
+`building:levels` or `height`, else a default by type, a ridge height, a kind, and a facade on the Stateline high-rises,
+whose towers' floors come from public sources) drawn as boxes with gables, plus the south shore's landmarks as boxes in the
+same records. Desktop and tablet only: `src/core/features.js` `buildings` (off on a phone; `?buildings=0|1`).
+
+- **One draw.** One unit mesh (a box with a ridge along its length: 18 triangles), one pipeline, one `drawIndexed` a frame.
+  The records sit in 1 km chunks in two classes: the buildings draw within 4 km of the eye, the landmarks (the high-rises,
+  anything 40 m or taller, the gondola's terminals, pylons and cables) within 16 km, so a 60 m tower never pops in at 4 km.
+  The chunks in range and in the frustum are kept; their records' indices go to a list (rewritten only when the kept set
+  changes) and the vertex stage reads each instance through it.
+- **Grounded on the drawn terrain.** A compute pass (in the forest pass, one thread a kept box) samples the terrain's own
+  height function (`TERRAIN_HEIGHT`: the finest held level, so the coarse levels today and the south level once it is in)
+  at the box's four corners and gives its foot and eaves by v1's rule: the walls from below the low corner (at most 6 m under
+  the mean ground, 0.5 m under) to `h` over the mean, up to 4 m more uphill. `groundBox` is the CPU's twin; the page test
+  reads the GPU's numbers back and matches them to 0.000 m on the page's drawn ground. A pylon's foot is grounded and its
+  head absolute; a cable span, a cabin and a boat are absolute.
+- **The look.** Lit as the piers are (`SHORE_LIGHT_WGSL`: the sun through the transmittance, the terrain's shadow, the sky's
+  diffuse and reflection, roughness 0.85; the aerial perspective; the clouds in front). No texture: v1's earth-tone walls and
+  roofs (the basin's design standards), the high-rises' four facades, a window grid on the low, mid- and high-rise boxes
+  (3 m × 3.2 m cells, dark glass by day, filtered to its mean under a few pixels). At night a share of the windows is lit
+  (low 0.3, mid 0.4, high-rise 0.7 at three times the radiance: the brighter facades), and `v2/assets/night/lights-south.bin`
+  (871 glows: the towers' facades and a lamp every 10 m along the marina's docks) joins the lake's lights in the same draw.
+- **The landmarks.** The Stateline high-rises are OSM's footprints with the data's towers (18 and 19 floors: 59.5 m and 63 m;
+  two more at 50 m; no names, no signs). The gondola follows OSM's aerialway from the shore at Stateline to the summit (3.7
+  km): 16 pylons every ~220 m, raised until both cables clear the ground by 10 m (18–36 m over their feet), two 0.5 m cables
+  6 m apart (one sheared box a span), a cabin every 110 m under each, a terminal at each end. The marina's boats lie bow-on in
+  the slips along OSM's docks inside the marina's ring, where the water is 1.2 m deep and no other dock or boat is in the way
+  (39 boats: hull, cabin, a mast on 40 %).
+- **Load: two sets, per region.** `lake` (25.7 kB gzip, 2,036 records: Emerald Bay's own buildings within 4 km of its
+  regions, every big building round the lake, footprint ≥ 600 m² or a mid- or high-rise, and the gondola) loads after the
+  first frame on every desktop start; `south` (61.9 kB gzip, 5,852 records: the south shore's other buildings and the marina's
+  boats) and its lights (10.5 kB) load only for a start or a birthplace move inside the south box (x 6,000–19,000, z −6,000–4,500).
+  The whole lake's footprints in one set would be about 220 kB for every start; the other shores' 12,909 small houses are
+  left out until their regions get birthplaces.
+- **Budgets** (2026-11-24, M5 Pro Mac, headless Chrome, 2560 × 1600, in-page ABBA: `?buildings` off and on in place, 10 rounds
+  × 150 frames, the median of the rounds' differences; the GPU shared with other helpers, load average 12.6–20.4): at the
+  Ski Run pin (1,496 boxes kept, 36 chunks) the scene pass +0.02 to +0.03 ms and the grounding +0.007 to +0.009 ms; in
+  Emerald Bay (17 boxes) within the noise. Pipelines +2 at load, none after the first frame.

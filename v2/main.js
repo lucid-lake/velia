@@ -103,7 +103,9 @@ import { feelQ, leeFoam } from './sim/speedFeel.js';   // the speed feel's lee f
 import { kdMix, kdRoll, KD_Q, KD_LIFT } from './sim/knockdownFx.js';
 import { createKnockdownGame } from './sim/knockdownGame.js';   // K3: the game end's timeline (the warning, the slow, the card, Start again)   // K2: the knockdown's look: the water's hull mask, the spray's share
 import { stageOf } from './ui/frontPlan.js';   // the front door: the loading stages
-import { createTowns, createShoreMirrorTarget } from './render/towns.js';   // 10a: the piers, the harbour, the ski runs and the Hwy 89 cut (render/towns.js)
+import { createTowns, createShoreMirrorTarget } from './render/towns.js';
+import { createBuildings } from './render/buildings.js';   // Phase B of the South Lake birthplace: the buildings, the Stateline towers, the gondola, the marina's boats
+import { setsFor as buildingSets } from './towns/buildings.js';   // 10a: the piers, the harbour, the ski runs and the Hwy 89 cut (render/towns.js)
 import { createLandmarks } from './render/landmarks.js';   // G1, G2: v1's ruin, stone house and waterfall, and its five shore flags (render/landmarks.js)
 import { createSeamanship, piersOf, hullToWorld } from './sim/seamanship.js';
 import { createIntro, ndcYMax, bandShare } from './ui/cinematicIntro.js';   // the cinematic intro (owner, 2026-11-18): the first Sail or Cruise of a page load, desktop only
@@ -435,6 +437,19 @@ async function boot() {
   // lawns, so a race cuts them with the towns (the landmarks stay)
   const landmarks = inGroup('towns', () => createLandmarks({ device, reg, frameBGL, frameStruct, sky, shadow: tshadow, hdrTarget, msaa: P.msaa, depthFormat, errors, seed: P.seed }));
   let landmarksLoad = null;
+  // the buildings (desktop and tablet: src/core/features.js buildings): OSM's footprints, the Stateline towers, the gondola and the
+  // marina's boats, one instanced draw grounded on the drawn terrain by a compute pass; their sets load after the first frame (a
+  // capture: before it), the south's only for a start or a move inside its box (the owner's rule: a birthplace outside the bay
+  // loads its region's detail only when it is picked), with the south's own night lights
+  const buildings = feature('buildings').on ? inGroup('towns', () => createBuildings({ device, reg, frameBGL, frameStruct, sky, shadow: tshadow, terrain, hdrTarget, msaa: P.msaa, depthFormat, errors })) : null;
+  let buildingsLoad = null;
+  const loadBuildings = (x, z) => {
+    if (!buildings) return Promise.resolve();
+    const sets = buildingSets(x, z);
+    const p = buildings.load(sets);
+    if (sets.includes('south')) night.addLights(new URL('./assets/night/lights-south.bin', import.meta.url));
+    return p;
+  };
   // Fannette Island's tea house (owner, 2026-11-18: desktop only; src/core/features.js teaHouse): its mesh is its own chunk, fetched
   // after the landmarks (a live page: after the first frame, behind the home card; a capture: before its first frame) and drawn by
   // the landmarks' own pipeline in place of v1's ruin; a phone and a tablet never fetch it
@@ -575,7 +590,7 @@ async function boot() {
   const PG = { post: !pipesDefer, rocks: !pipesDefer, forest: !pipesDefer, fireworks: !pipesDefer, night: !pipesDefer, storm: !pipesDefer, regatta: !pipesDefer, boatfx: !pipesDefer, kayaks: !pipesDefer, tessie: !pipesDefer, sweep: !pipesDefer };
   let pgAll = !pipesDefer;
   const readPG = () => { if (pgAll) return; let all = true; for (const g of Object.keys(PG)) { PG[g] = PG[g] || reg.ready(g); all &&= PG[g]; } pgAll = all; };
-  graph.addPass({ name: 'forest', kind: 'compute', run(pass, ctx, c) { if (PG.forest) forest?.run(pass, c); if (rocksOn()) rocks.run(pass, c); plugins.run('compute.forest', pass, c); } });   // the fireworks: v1's star step   // M5b: its one-offs, then the cull; M5c: the boulders' scatter and cull
+  graph.addPass({ name: 'forest', kind: 'compute', run(pass, ctx, c) { if (PG.forest) forest?.run(pass, c); if (rocksOn()) rocks.run(pass, c); plugins.run('compute.forest', pass, c); if (L.towns && !regatta?.on) buildings?.run(pass, c); } });   // the fireworks: v1's star step   // M5b: its one-offs, then the cull; M5c: the boulders' scatter and cull
   graph.addPass({ name: 'scene', target: 'hdr', clear: [0, 0, 0, 1], depth: true, depthStore: () => ((storm.weather.on > 0.5 && bowNow() > 0) || plugins.some('scene.depth') || (UNDER_STATE.on && underLight?.wantsDepth()) ? 'store' : 'discard'), draw: sceneDraw });   // phase 2b: the shafts read the depth (only while the eye is under)
   const S = { race: false, uw: false };   // the plug-ins' draw slots: this pass's race and eye-under (living/lakePlugins.js)
   function sceneDraw(pass, ctx, c) {
@@ -587,6 +602,7 @@ async function boot() {
     if (L.rocks && rocksOn()) rocks.draw(pass, c);                        // M5c: the boulders, opaque, one indirect draw
     if (L.towns && !regatta?.on && !uw) towns.draw(pass, c);        // 10a: the piers, the boathouses, the harbour, the breakwaters (opaque, before the water)
     if (L.towns && !uw) landmarks.draw(pass, c, { flags: !regatta?.on });   // G1, G2: the ruin, the stone house; the flags' poles and cloth (not in a race)
+    if (L.towns && !regatta?.on && !uw) buildings?.draw(pass, c);   // the buildings, the towers, the gondola, the marina's boats (one draw; a race cuts them with the towns)
     if (L.forest && PG.forest && !uw) forest.draw(pass, c);                      // M5b: the trees, opaque (alpha to coverage), one indirect draw
     if (L.boat) boatR.draw(pass, c);                         // the sloop, opaque: the water's blend then covers its hull below the waterline (v1's order)
     if (L.boat && PG.boatfx) anchorGear?.draw(pass, c);      // the anchor, the chain's links, the windlass (desktop and tablet)
@@ -1081,6 +1097,7 @@ async function boot() {
       svc?.get?.('passage')?.replan?.();   // the leg to the player's own target from here (the target itself stays)
       svc?.get?.('captainTools')?.setLatch?.(false);   // the binoculars down
       Object.assign(startPose, p);   // Start again (after a knockdown) goes back here
+      if (buildingsLoad) loadBuildings(p.x, p.z);   // a move into the south loads its buildings and lights (a set is fetched once)
     },
   }) : null;
   // Cruise takes the player's own pick as the voyage's first pose; a first visit with no pick keeps Cruise's chooseStart
@@ -1344,6 +1361,7 @@ async function boot() {
     if (rocks) { const d = B ? stoneRegion.at(B.state.x, B.state.z) : stoneRegion.at(eye[0], eye[2]); if (d) rocks.setRegion(d); }   //: a new region set re-places the bed's stones
     rocks?.update(eye, viewProj, 0.5 * h / Math.tan(0.5 * fovDeg * DEG));
     towns.update(eye, viewProj);   // 10a: the shore's chunks in range and view
+    buildings?.update(eye, viewProj);   // the buildings' chunks in range and view (their list rewritten only when the kept set changes)
     landmarks.update({ wind: windField, windT: clock.t, waveT: livingNow(), flagsOn: !regatta?.on });   // G1: the waterfall's clock; G2: the flags from the local wind on the scene's clock (v1's ctx.t: 5 Hz a flag, eased)
     // M5e: the moon (v2/sim/moon.js), the night's levels (v2/sim/night.js), the night record and the boat's lights
     const moonNow = night.moon.moonAt(clock.hour);
@@ -1533,7 +1551,8 @@ async function boot() {
     if (!nightLoad && !P.headless && cockpitIn && nightLoadDue(sunNow.elevDeg)) nightLoad = night.load();   // M5e: the night's data once the sun is low (never in the first frame's way);: only then (a day page fetched it after the terrain's stream)
     if (!townsLoad && !P.headless && cockpitIn && pipeQ.has('towns')) { townsLoad = towns.load(); Promise.resolve(townsLoad).catch(() => {}).finally(() => { townsDone = true; }); }   // 10a: after the first frame
     if (shore && !shoreLoad && !P.headless && cockpitIn && pipeQ.has('shore')) shoreLoad = shore.load().catch((e) => errors.push(`shore: ${e?.message ?? e}`));   // #56 M3: the baked field after the first frame
-    if (!landmarksLoad && !P.headless && cockpitIn && pipeQ.has('towns')) { landmarksLoad = landmarks.load(); landmarksLoad.then(teaHouseLoad); }   // G1, G2: after the first frame; the tea house after them (a desktop)
+    if (!landmarksLoad && !P.headless && cockpitIn && pipeQ.has('towns')) { landmarksLoad = landmarks.load(); landmarksLoad.then(teaHouseLoad); }
+    if (buildings && !buildingsLoad && !P.headless && cockpitIn && pipeQ.has('towns')) buildingsLoad = loadBuildings(startPose.x, startPose.z);   // after the first frame: the sets of the start   // G1, G2: after the first frame; the tea house after them (a desktop)
     lateBuilds = reg.late;
     if (diag.on) { const nowD = performance.now(); diag.frame(lastDrawAt == null ? null : nowD - lastDrawAt, graph.gpuMs(), nowD, cpu); lastDrawAt = nowD; }   // the phone pass: the frame's numbers into the panel's rings (perf(v2): the span, the passes, the CPU)
     label();
@@ -1618,6 +1637,7 @@ async function boot() {
       ...plugins.stats('birds'),   // birds; #24: the dive director and its splash
       ...plugins.stats('show'),   // the fireworks
       towns: { ...towns.stats, log: undefined },   // 10a
+      buildings: buildings ? { ...buildings.stats } : null,
       shore: shore ? { ...shore.stats } : null,   // #56 M3
       landmarks: { ...landmarks.stats },   // G1, G2
       night: { ...night.stats, moonAltDeg: +night.moon.moonAt(clock.hour).altDeg.toFixed(2), moonLit: +night.moon.moonAt(clock.hour).lit.toFixed(3) },   // M5e
@@ -1672,6 +1692,8 @@ async function boot() {
   hook.night = night;   // M5e: the night's stats, its moon and loader
   hook.landmarks = landmarks;   // G1, G2: the landmarks' stats, the flags' sim (flight(i), sites)
   hook.shore = shore;   // #56 M3: the shore's stats, the field, on (the in-page A/B: tools/v2-ab-shore.mjs)
+  hook.buildings = buildings;   // the buildings' stats, sets, records and the GPU's ground (readGround)
+  hook.setBuildingsDraw = (on) => buildings?.setOn(on);   // the in-page A/B: the buildings' cull, grounding and draw off and on in place
   hook.towns = towns;   // 10a: the shore's stats and arrays; setTownsDraw: the in-page A/B (the shore's draw and the ground's marks off and on)
   hook.setTownsDraw = (on) => { L.towns = !!on && layer('towns'); towns.setMarks(!!on); };
   hook.setTownsShadow = (on) => towns.setShadow(on);
@@ -1704,6 +1726,7 @@ async function boot() {
     probeResult = await terrain.runProbe();
     await towns.prime();                // 10a: the shore and the ground's marks in first (the forest's place and scatter read the marks)
     await landmarks.prime();            // G1, G2: the landmarks and the flags before the first frame
+    buildingsLoad = loadBuildings(startPose.x, startPose.z); await buildingsLoad;   // the buildings of the start's sets before the first frame
     await teaHouseLoad();               // the tea house (a desktop's) before the first frame
     if (shore) await shore.prime();     // #56 M3: the shore field before the first frame (deterministic)
     if (forest) await forest.prime();   // M5b: the forest's files, atlas, place and scatter before the first frame
@@ -1742,6 +1765,7 @@ async function boot() {
     if (modelOn) await boatR.models.loadAll(modelUrls, modelOpts);
     townsLoad = towns.prime(); await townsLoad;   // 10a: before the forest (its keep-out)
     landmarksLoad = landmarks.prime(); await landmarksLoad; await teaHouseLoad();   // G1, G2; the tea house (a desktop's)
+    buildingsLoad = loadBuildings(startPose.x, startPose.z); await buildingsLoad;   // the buildings of the start's sets
     if (shore) { shoreLoad = shore.prime(); await shoreLoad; }   // #56 M3
     if (forest) { await forest.prime(); forestLoad = Promise.resolve(); }   // M5b's capture path: the whole forest in first
     await plugins.prime('terrain', 'filmui');   // birds: the film's flock on the whole terrain

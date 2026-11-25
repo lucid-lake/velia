@@ -226,6 +226,12 @@ export const POLICIES = Object.freeze({
   farTowns: { fixed: true, axes: 'form', aliases: '?profile=form:phone',
     why: 'the ski runs and the far towns\' decks on a tablet or a desktop; a phone loads the bay\'s set (its piers, boathouses, tower, harbour and Hwy 89\'s cut)',
     tier: (p, c) => (phoneOnly(p, c) ? 'off' : 'on') },
+  // --- the buildings (owner, 2026-11-24: off on phones; v2/render/buildings.js): OpenStreetMap's footprints as boxes, the Stateline
+  // towers, the gondola and the marina's boats in one instanced draw within 4 km (the landmarks 16 km); a phone keeps the photo and
+  // the night's lights ---
+  buildings: { fixed: true, axes: 'form', aliases: '?buildings=0 (off), ?buildings=1 (on, a phone too), ?profile=form:phone',
+    why: 'the buildings, the Stateline towers, the gondola and the marina\'s boats (one pipeline, one instanced draw, a compute pass to ground them) on a tablet or a desktop; a phone has none (the ground photo and the night\'s lights only)',
+    tier: (p, c) => (c.flags.buildings === '0' || c.flags.buildings === false ? 'off' : c.flags.buildings === '1' || c.flags.buildings === true ? 'on' : phoneOnly(p, c) ? 'off' : 'on') },
   // --- rain on the lens (owner, 2026-11-24: "rain on the lens" per weather; phones only if within budget, behind a policy row): the
   // storm composites' lens pass (render/weatherLook.js: three lattices of drops, one extra texel read a pixel). A phone has no storm
   // (the storm row below), so it never draws; the row keeps the rule in one place if a phone storm comes back ---

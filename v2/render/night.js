@@ -166,11 +166,34 @@ export function createNight({ device, reg, frameBGL, frameBG, U, frameStruct, hd
   const bgRaceR = device.createBindGroup({ layout: glowBGL, entries: [{ binding: 0, resource: { buffer: glowBufs[3] } }, { binding: 1, resource: { buffer: raceBuf } }] });
   const moon = createMoon(place ?? undefined);
   const M = new Float32Array(9);
-  const state = { loaded: false, loading: null, error: null, stars: 0, lights: 0, band: 0, k: 0, bytes: 0, loadMs: 0, race: 0, milkyWay: !!milkyWay };
+  const state = { loaded: false, loading: null, error: null, stars: 0, lights: 0, base: 0, extra: 0, band: 0, k: 0, bytes: 0, loadMs: 0, race: 0, milkyWay: !!milkyWay };
   device.queue.writeBuffer(nuBuf, 0, NU);
   for (let i = 0; i < glowU.length; i++) device.queue.writeBuffer(glowBufs[i], 0, glowU[i]);
 
+  // the lights as glow records: x, y, z, size | r, g, b, the switch-on elevation
+  function glowsOf(L, n) {
+    const G = new Float32Array(n * GLOW_FLOATS);
+    for (let i = 0; i < n; i++) { const k = i * LIGHT_FLOATS, o = i * GLOW_FLOATS; G[o] = L.data[k]; G[o + 1] = L.data[k + 1]; G[o + 2] = L.data[k + 2]; G[o + 3] = L.data[k + 6]; G[o + 4] = L.data[k + 3]; G[o + 5] = L.data[k + 4]; G[o + 6] = L.data[k + 5]; G[o + 7] = L.data[k + 7]; }
+    return G;
+  }
+  // a region's own lights (the south's facades and docks: v2/assets/night/lights-south.bin, loaded with its buildings), after the
+  // lake's in the same list: one draw as before, a few hundred more glows
+  let extra = null, extraP = null;
+  function writeExtra() {
+    if (!state.loaded || !extra || extra.done) return;
+    const m = Math.min(extra.count, CAPS.lights - state.base);
+    if (m > 0) device.queue.writeBuffer(lightsBuf, state.base * GLOW_FLOATS * 4, glowsOf(extra, m));
+    state.lights = state.base + m; state.extra = m; extra.done = true;
+  }
   return {
+    // url: a VLT1 file (tools/v2-lights-pack.mjs); idempotent; the lake's lights may come before or after it
+    addLights(url) {
+      return (extraP ??= (async () => {
+        const r = await fetchImpl(url); if (!r.ok) throw new Error(`${url}: ${r.status}`);
+        const a = new Uint8Array(await r.arrayBuffer()); state.bytes += a.byteLength;
+        extra = decodeLights(a); writeExtra(); return true;
+      })().catch((e) => { errors.push(`night: ${e?.message ?? e}`); return false; }));
+    },
     bgl, bg, moon, stats: state, textures: { tMW, tMWt }, buffers: { nuBuf, starsBuf, lightsBuf, navBuf, raceBuf },
     // step D: a night race's lit marks for this frame (GLOW_FLOATS each); n 0 draws none (a day race, outside a race)
     setRace(f32, n = 0) {
@@ -209,11 +232,9 @@ export function createNight({ device, reg, frameBGL, frameBG, U, frameStruct, hd
         const S = decodeStars(st), L = decodeLights(li);
         state.stars = Math.min(S.count, CAPS.stars); state.lights = Math.min(L.count, CAPS.lights);
         device.queue.writeBuffer(starsBuf, 0, S.data, 0, state.stars * STAR_FLOATS);
-        // the lights as glow records: x, y, z, size | r, g, b, the switch-on elevation
-        const G = new Float32Array(state.lights * GLOW_FLOATS);
-        for (let i = 0; i < state.lights; i++) { const k = i * LIGHT_FLOATS, o = i * GLOW_FLOATS; G[o] = L.data[k]; G[o + 1] = L.data[k + 1]; G[o + 2] = L.data[k + 2]; G[o + 3] = L.data[k + 6]; G[o + 4] = L.data[k + 3]; G[o + 5] = L.data[k + 4]; G[o + 6] = L.data[k + 5]; G[o + 7] = L.data[k + 7]; }
-        device.queue.writeBuffer(lightsBuf, 0, G);
-        state.loaded = true; state.loadMs = +(performance.now() - t0).toFixed(1);
+        device.queue.writeBuffer(lightsBuf, 0, glowsOf(L, state.lights));
+        state.base = state.lights; state.loaded = true; state.loadMs = +(performance.now() - t0).toFixed(1);
+        writeExtra();   // a region's own lights that came first (addLights)
         return true;
       })().catch((e) => { state.error = String(e?.message ?? e); errors.push(`night: ${state.error}`); return false; });
       return state.loading;
