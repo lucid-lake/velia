@@ -12,6 +12,8 @@ The MIT licence covers the code and the data written by Lucid Lake Labs. It does
 - `LICENSES/` holds the licence texts that must travel with them (Apache-2.0 for the Basis Universal transcoder in `public/basis/`, the MIT notices of the code we ported or adapted (web-ocean-3d among them), the Jost font's OFL). Other notices sit beside their files: `src/waters/ultra/LICENSE`, `v2/render/LICENSE-*.txt`, `v2/render/web-ocean/LICENSE`, `fonts/OFL-*.txt`.
 - `data/geo/NOTICE-ODbL.md`: the map data derived from OpenStreetMap stays under the Open Database License.
 
+The album pictures in `docs/album/` are our own renders of the game, under the MIT licence. They show no AI-generated image. The Velia mark on the sails in them is a trademark (above).
+
 ## AI-generated files
 
 These files are AI-generated. They are part of the game and are distributed under their providers' terms. **They are not covered by the MIT licence, and no licence to reuse them separately is granted.**
