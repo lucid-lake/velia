@@ -964,7 +964,7 @@ async function boot() {
   }).catch((e) => { errors.push(`autoNav: ${e?.stack ?? e}`); autoNavP = null; return null; }));
   const streamWhole = new Promise((r) => { streamDone = r; });
   const cruiseLoad = () => (cruiseP ??= CRUISE.chunk().then(({ createCruise }) => {
-    cruise = createCruise({ B, windField, clock, terrain, kayaks: plug('kayaks'), tBase, manifest: fullM, flags, P, m4, canvas,
+    cruise = createCruise({ B, windField, clock, terrain, kayaks: plug('kayaks'), tBase, manifest: fullM, flags, P, m4, canvas, played: () => player.played,   // as Tessie a click bites: no double-click mark
       sun: () => ({ elevDeg: sunNow.elevDeg, x: sunNow.x, y: sunNow.y, z: sunNow.z }), aspect: () => canvas.width / Math.max(1, canvas.height),
       view: () => ({ pos: [...eye], target: [eye[0] + fwd[0] * 10, eye[1] + fwd[1] * 10, eye[2] + fwd[2] * 10], up: [...up], fov: fovDeg, near }),
       hands: () => handsNow, onMode: (m) => modes.landed(m), music, weather: wx, birth: () => cruiseBirth(), stars: () => ({ band: bandNow, coverage: coverNow, storm: !!storm.running, sun: sunNow.elevDeg }) });   // stars: v1's night-sky line in Cruise's quiet line   // music: Cruise's playlist (v2/audio/music.js setMode)
@@ -1641,7 +1641,7 @@ async function boot() {
   hook.regatta = { get r() { return regatta; }, load: () => regattaLoad(), state: () => regatta?.state() ?? null, get lines() { return raceLines; }, get props() { return raceProps; }, kit: () => raceKit() };   // Regatta
   if (beacon && B) {   // Sail's double-tap mark: Sail only (Cruise's own double-tap sets its navigator's mark; a race has its marks)
     beacon.mark = createSailMark({ waterAt: (x, y) => waterUnder(invVP, canvas.getBoundingClientRect(), x, y), depthAt: (x, z) => -terrain.field.height(x, z), boat: () => B.state,
-      active: () => !cruise?.on && !regatta?.on, say: (text, kind = 'reply') => m4.ui?.services?.get('hint')?.flash?.(text, { secs: 4, kind }),
+      active: () => !cruise?.on && !regatta?.on && !player.played, say: (text, kind = 'reply') => m4.ui?.services?.get('hint')?.flash?.(text, { secs: 4, kind }),
       nav: () => ({ on: !!m4.ui?.services?.get('pilot')?.engaged, touch: !!m4.ui?.services?.get('modality')?.touch }), onSet: (navOn) => { if (!navOn) m4.ui?.services?.get('navPulse')?.(); } });   // the line names NAV ("Mark set. Click NAV to sail there.") and NAV pulses once   // reply: the double-tap's answer (a phone keeps it); refuse.mark: a refusal (the lean skipper's MUST)
     beacon.mark.attach(canvas);
   }

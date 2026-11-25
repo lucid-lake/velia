@@ -56,7 +56,7 @@ html:not(.v2-cruise) .lk-view.cruisecam{display:none!important}
 
 // sun(): { elevDeg, x, y, z } (main.js's sunNow); aspect(): the canvas's; view(): main's camera now { pos, target, up, fov };
 // hands(): main's hands this frame ({ steer, pull, orbit, zoom }: v2/ui/touch.js and the keys)
-export function createCruise({ B, windField, clock, terrain, kayaks = null, tBase, manifest, flags, P, m4 = null, canvas = null, sun = () => ({ elevDeg: 20, x: 0, y: 1, z: 0 }), aspect = () => 16 / 9, view = () => null, hands = () => null, onMode = () => {}, music: pageMusic = null, weather = null, stars = () => null, birth = () => null }) {   // birth(): the player's birthplace pose or null (v2/sim/birthplace.js; main.js)   // stars(): { band, coverage, storm, sun } (main.js: the night's levels) for v1's night-sky line   // weather: the Weather menu's state (ENG-5: Cruise's own Storm landing second)   // music: the page's (v2/audio/music.js; null on a capture)
+export function createCruise({ B, windField, clock, terrain, kayaks = null, tBase, manifest, flags, P, m4 = null, canvas = null, sun = () => ({ elevDeg: 20, x: 0, y: 1, z: 0 }), aspect = () => 16 / 9, view = () => null, hands = () => null, onMode = () => {}, music: pageMusic = null, weather = null, stars = () => null, birth = () => null, played = () => false }) {   // birth(): the player's birthplace pose or null (v2/sim/birthplace.js; main.js)   // stars(): { band, coverage, storm, sun } (main.js: the night's levels) for v1's night-sky line   // weather: the Weather menu's state (ENG-5: Cruise's own Storm landing second)   // music: the page's (v2/audio/music.js; null on a capture)
   const live = !P.headless;
   const errors = [];
   let V = null, on = false, lake = null, ui = null, blend = null, handed = false, begun = false;
@@ -214,7 +214,7 @@ export function createCruise({ B, windField, clock, terrain, kayaks = null, tBas
     canvas.addEventListener('pointerup', (e) => {
       if (!on || !press || press.id !== e.pointerId) return;
       const p = press; press = null;
-      if (p.moved) { dbl.reset(); return; }
+      if (p.moved || played()) { dbl.reset(); return; }   // played(): as Tessie a click bites (living/tessiePlayer.js), never a mark
       if ((p.button ?? 0) === 0 && dbl.tap({ x: e.clientX, y: e.clientY, t: e.timeStamp || performance.now() })) markAt(e.clientX, e.clientY);
     }, { signal });
     addEventListener('keydown', (e) => {

@@ -29,7 +29,7 @@ export const HUD = Object.freeze({
 export const LEGEND = Object.freeze([
   Object.freeze({ id: 'swim', word: 'Swim', caps: Object.freeze(['W', 'A', 'S', 'D']), codes: Object.freeze(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) }),
   Object.freeze({ id: 'dash', word: 'Dash', caps: Object.freeze(['1', '⇧']), sep: '/', codes: Object.freeze(['Digit1', 'ShiftLeft', 'ShiftRight']) }),   // the slot's number, or Shift (owner, 2026-11-21; ⇧ as Sail's Pro rows)
-  Object.freeze({ id: 'bite', word: 'Bite', caps: Object.freeze(['Space']), codes: Object.freeze(['Space', 'KeyF']) }),
+  Object.freeze({ id: 'bite', word: 'Bite', caps: Object.freeze(['Space', 'click']), sep: '/', codes: Object.freeze(['Space']) }),   // or a left click on the water (living/tessiePlayer.js createClickBite)
   Object.freeze({ id: 'updown', word: 'Up / Down', caps: Object.freeze(['E', 'Q']), codes: Object.freeze(['KeyE', 'KeyQ']) }),
   Object.freeze({ id: 'view', word: 'View', caps: Object.freeze(['C']), codes: Object.freeze(['KeyC']) }),
   Object.freeze({ id: 'boat', word: 'Halcyon', caps: Object.freeze(['T']), codes: Object.freeze(['KeyT']) }),   // back to your boat: its name, as the top bar's switch

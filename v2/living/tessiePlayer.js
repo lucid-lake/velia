@@ -2,10 +2,10 @@
 // (living/tessie.js re-exports it), made by main.js where feature('playTessie') is on: a phone never loads a line of it.
 //   the swap      one state (as 'boat' | 'tessie', entered from the menu's Boat plate, T (or a tap on the skipper's line
 //                 "Tessie's up." on a tablet) while she shows herself, or "Be Tessie" on her chart mark); the skipper sails the Halcyon away from her while you are her (sim/tessieFlee.js); T swaps back
-//   her hands     W S A D / arrows, Space (held: deep), F or a click (the lunge), T (back), C (first ↔ third person); the boat's keys do nothing
+//   her hands     W S A D / arrows, Space or a left click on the water (the bite), T (back), C (first ↔ third person); the boat's keys do nothing
 //                 while you are her (one key map per vessel). The owner's final scheme (2026-11-20): drag to look (the camera's pitch steers
-//                 her depth), W A S D swim about the camera, Shift dashes (a press, 1.8 s, then a 4.5 s cooldown), Space (or F)
-//                 bites, C first ↔ third person, T back; a tablet: a floating thumbstick, a drag outside it looks, one big Bite button (feature('tessieTouch'))
+//                 her depth), W A S D swim about the camera, Shift dashes (a press, 1.8 s, then a 4.5 s cooldown), Space (or a
+//                 left click: createClickBite) bites, C first ↔ third person, T back; a tablet: a floating thumbstick, a drag outside it looks, one big Bite button (feature('tessieTouch'))
 //   the camera    behind her neck (ui/tessieCam.js), the swap's glide under 120 m, the veil over it or under reduced motion
 //   the hits      the corners on the boat ahead, the fall's hit, the knockdowns (the lake's sailboats, the glass boat, your Halcyon),
 //                 the kayakers splashed and spooked only (sim/tessieHits.js)
@@ -33,11 +33,12 @@ import { heightAt as tessieHeightAt, reachAt } from '../sim/tessie.js';
 import { tessieSettings } from '../ui/tessieSettings.js';   // phase 2a: Invert up/down, Camera follows her
 import { mountHud, hudLayout, capLine } from '../ui/tessieHud.js';   //: the sonar, the skills row, her keys on the right edge
 import { skillOfCode } from '../sim/tessieSkills.js';   // the dash's keys: the slot's 1 and Shift
+import { Press } from '../../src/ui/pointer.js';   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
 
 const DEG = Math.PI / 180;
-export const TESSIE_KEYS = new Set(['ShiftLeft', 'ShiftRight', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyF', 'KeyT', 'KeyC', 'KeyE', 'KeyQ', 'Digit1']);   // phase 2a: E rises, Q sinks
-// the boat's keys: nothing while you are her (R, Q, E, Z, X, Y, K, G, I, J, U, + and −; B, ` and 0 too)
-const INERT = new Set(['KeyR', 'KeyZ', 'KeyX', 'KeyY', 'KeyK', 'KeyG', 'KeyI', 'KeyJ', 'KeyU', 'Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract', 'Digit0', 'KeyB', 'Backquote', 'Digit2', 'Digit3', 'Digit4']);   // Digit2 … 4: the skills row's reserved slots do nothing yet (owner, 2026-11-21)
+export const TESSIE_KEYS = new Set(['ShiftLeft', 'ShiftRight', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyT', 'KeyC', 'KeyE', 'KeyQ', 'Digit1']);   // phase 2a: E rises, Q sinks
+// the boat's keys: nothing while you are her (F: the bite's old second key, owner 2026-11-24: Space and the click are enough; R, Q, E, Z, X, Y, K, G, I, J, U, + and −; B, ` and 0 too)
+const INERT = new Set(['KeyF', 'KeyR', 'KeyZ', 'KeyX', 'KeyY', 'KeyK', 'KeyG', 'KeyI', 'KeyJ', 'KeyU', 'Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract', 'Digit0', 'KeyB', 'Backquote', 'Digit2', 'Digit3', 'Digit4']);   // Digit2 … 4: the skills row's reserved slots do nothing yet (owner, 2026-11-21)
 const COUNT_KEY = 'lakeshore.tessie.knocks.v1';   // her lines' once-ever marks are the lean skipper's store now (v2/ui/leanSkipper.js 'tip.tessie.*')
 const HALCYON = { L: 8.5, B: 3.0 }, BUSY_HULL = { L: 8.5, B: 3.0 }, GLASS = { L: 12.2, B: 3.8 };
 export const PLAYER = Object.freeze({ offM: 150, veilOut: 0.22, veilIn: 0.4, reachDelayS: 2, reachM: [100, 90, 115, 80, 125], reachConeDeg: 20, holdNearM: 30, dialM: 20, arrowV: 0.2, lookUpM: 6, fastS: 3, chevV: Object.freeze([1.5, 6.5, 15]), dashLineS: 2 });   // dashLineS: a boat in her corners out of reach this long, once ever: the dash's line   //: the fast line after 3 s swimming at the surface; the speed chevrons lit past 1.5, 6.5 and 15 m/s   // phase 2a: the dial's 0–20 m, its ▲/▼ past 0.2 m/s, the first dive's line, the first time past 6 m
@@ -161,6 +162,41 @@ export function createBeLine({ hint = () => null, touch = () => false, onTap = n
   };
 }
 
+// The click to bite (owner, 2026-11-24): a left-mouse press on the canvas, released within 250 ms and under 5 px of travel, bites
+// on its release. The rule is the look drag's own (src/ui/pointer.js Press, read by v2/ui/touch.js): a press is a click until it
+// travels 5 px, then a drag that looks, so one press is never both. On the release, not the press: every look drag starts with a
+// press, and a bite fired then could not be taken back (the lunge, the snap's sound); the release costs only the click's own
+// down-up time (about 0.1 s). Only the canvas's own presses count (the bar, the menus, the chart, the skipper's line and the HUD's
+// buttons are DOM over it and take their own); the right button, a Ctrl-, Cmd- or Alt-click, a finger and a pen never bite.
+//   const K = createClickBite({ on, bite, now }); K.down(e) / K.move(e) / K.up(e) → true when it bit / K.cancel(e); K.attach(canvas) → off()
+export function createClickBite({ on = () => true, bite = () => {}, now = () => globalThis.performance?.now?.() ?? 0 } = {}) {
+  let press = null, canvas = null;
+  const at = (e) => (Number.isFinite(e.timeStamp) && e.timeStamp > 0 ? e.timeStamp : now());
+  const api = {
+    down(e) {
+      press = null;
+      if (!on() || (e.button ?? 0) !== 0 || (e.pointerType ?? 'mouse') !== 'mouse' || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (canvas && e.target && e.target !== canvas) return;   // a press on something over the water
+      press = new Press(e.clientX, e.clientY, at(e), 0); press.id = e.pointerId;
+    },
+    move(e) { if (press && e.pointerId === press.id) press.move(e.clientX, e.clientY); },
+    up(e) {
+      const p = press; if (!p || e.pointerId !== p.id) return false;
+      press = null;
+      if (!on() || p.end(e.clientX, e.clientY, at(e)) !== 'click') return false;
+      bite(); return true;
+    },
+    cancel(e) { if (press && e.pointerId === press.id) press = null; },
+    attach(c) {
+      canvas = c;
+      const fns = { pointerdown: api.down, pointermove: api.move, pointerup: api.up, pointercancel: api.cancel };
+      for (const [t, f] of Object.entries(fns)) c.addEventListener(t, f);
+      return () => { for (const [t, f] of Object.entries(fns)) c.removeEventListener?.(t, f); canvas = null; };
+    },
+  };
+  return api;
+}
+
 export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, birthplaces = null, veil = null,
   project = null, focal = () => 600, canvas = null, mode = () => 'sail', race = () => false, knocked = () => false, reduced = () => false,
   services = () => null, touch = () => false, headless = false, storage = (() => { try { return globalThis.localStorage ?? null; } catch { return null; } })(),
@@ -252,13 +288,17 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       e.preventDefault(); e.stopImmediatePropagation();
       if (e.repeat) return;
       held.add(e.code); hud?.count(e.code);   // the legend learns
-      if (e.code === 'KeyF' || e.code === 'Space') pulse = true;   // the bite: a tap shorter than a frame still bites
+      if (e.code === 'Space') pulse = true;   // the bite: a tap shorter than a frame still bites
       if (skillOfCode(e.code) === 'dash') dashPulse = true;   // the dash: Shift or the slot's 1 (owner, 2026-11-21: the skills row is an RPG bar)   // the dash: a press, even one shorter than a frame
       if (e.code === 'KeyT') self.back();
       else if (e.code === 'KeyC') view = view === 'first' ? 'third' : 'first';   //: C toggles her eyes and the view behind her; kept for the visit
     } else if (INERT.has(e.code)) { e.preventDefault(); e.stopImmediatePropagation(); }
   };
   const onKeyUp = (e) => { held.delete(e.code); };
+  // the left click on the water bites, as Space (owner, 2026-11-24; desktop only: a tablet has its Bite button); the same pulse, so
+  // the same buffer, cooldown, lunge, events and sound
+  const clickBite = createClickBite({ on: () => W.as === 'tessie' && !touch() && !cardUp(), bite: () => { pulse = true; hud?.count('Space'); } });   // the legend's Bite line learns
+  if (doc && canvas?.addEventListener) clickBite.attach(canvas);
   if (doc) {
     globalThis.addEventListener('keydown', onKey, true); globalThis.addEventListener('keyup', onKeyUp, true);
     globalThis.addEventListener('blur', () => held.clear());
@@ -287,7 +327,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const h = { move: mv, camYaw: cam.yaw, pitch: cam.pitch, look: cam.look, drag: dragYaw,   // the look: its yaw (W's way, turned by the drag); phase 2a: the player's look steers her climb
       rise: has('KeyE') || touchIn.up, sink: has('KeyQ') || touchIn.down, lookSteers: !tablet, diveTo: tapDive,   // E / Q, ▲ / ▼ (3.6); a tablet: the look only looks; ▼ tapped: a dive to 6 m
       sprint: has('ShiftLeft', 'ShiftRight'), dash: dashPulse || touchIn.dash,   // the dash: Shift's press (the controller reads its edge), or the tablet's DASH slot
-      bite: has('Space', 'KeyF') || touchIn.lunge || pulse };
+      bite: has('Space') || touchIn.lunge || pulse };
     pulse = false; dashPulse = false; touchIn.dash = false; dragYaw = 0;
     if (tapDive && (h.rise || h.sink || C.state.nose >= tapDive - 0.15)) tapDive = 0;
     h.move = h.move.map((v) => Math.max(-1, Math.min(1, v)));

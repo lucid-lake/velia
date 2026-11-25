@@ -219,6 +219,20 @@ try {
     const sg = await stats(page);
     check(!sg.ctl.lunge && sg.ctl.bite?.kind === 'snap' && sg.ctl.steer >= 0.3, `bite: Space with nothing in reach is the snap, never an attack (${JSON.stringify({ lunge: sg.ctl.lunge, bite: sg.ctl.bite, steer: sg.ctl.steer })})`);
     await page.waitForTimeout(1500);
+    // a left click on the water bites as Space does (owner, 2026-11-24): the bite's 'bite' event (the strike) on the controller; a drag only looks
+    await page.evaluate(() => { window.__clickBites = []; const P = window.__velia.tessiePlay, step = P.step.bind(P); P.step = (dt) => { step(dt); for (const e of P.ctl.events) if (e.type === 'bite') window.__clickBites.push(e.kind); }; });
+    await page.mouse.click(640, 400, { delay: 60 }); await page.waitForTimeout(400);
+    const cb = await page.evaluate(() => ({ ev: [...window.__clickBites], bite: window.__velia.tessiePlay.stats().ctl.bite }));
+    check(cb.ev.length === 1 && cb.ev[0] === 'snap' && cb.bite?.kind === 'snap', `click: a left click on the water bites, the strike event fired (${JSON.stringify(cb)})`);
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => { window.__clickBites.length = 0; });
+    await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(720, 400, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(400);
+    const cd = await page.evaluate(() => window.__clickBites.length);
+    check(cd === 0, `click: a drag only looks, never bites (${cd} bites)`);
+    await page.keyboard.press('KeyF'); await page.waitForTimeout(400);
+    const cf = await page.evaluate(() => window.__clickBites.length);
+    check(cf === 0, `keys: F no longer bites (${cf} bites)`);
+    await page.waitForTimeout(1500);
     // a sailboat of the busy lake laid 17 m ahead of her, head to wind (all but still); W, and Space once she is locked:
     // the rail bite
     const laid = await page.evaluate(() => {

@@ -85,6 +85,8 @@ try {
   await page.click('#lk-load .pg.on [data-tab=tessie]'); await page.waitForTimeout(200);
   const ts = await fit('tessie');
   check(['t-swim', 't-dash', 't-bite', 't-updown', 't-view', 't-swap'].every((r) => ts.rows.includes(r)) && ts.over <= 1, `Keys › Tessie: her keys, T included, no scroll (${ts.rows.join(' ')}, over ${ts.over})`);
+  const biteCaps = await page.evaluate(() => [...document.querySelectorAll('#lk-load .pg.on [data-row=t-bite] .cap')].filter((c) => c.getClientRects().length).map((c) => c.textContent.trim()));
+  check(biteCaps.join('|') === 'Space|click', `Keys › Tessie: bite is Space or click, no F (${biteCaps.join(' ')})`);
   await page.click('#lk-load .pg.on [data-tab=hand]'); await page.waitForTimeout(200);
   const hd = await fit('hand');
   check(['mark', 'jib-hand', 'reef-hand', 'wind-hand', 'moor-hand', 'log-hand', 'sound-hand', 'vhf-hand', 'cruise-hand'].every((r) => hd.rows.includes(r)), `Mouse, touch: every function that left the keyboard has its way (${hd.rows.length} rows)`);
