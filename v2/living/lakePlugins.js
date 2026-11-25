@@ -15,6 +15,7 @@
 //   stats.<x>    its keys in hook._stats at the same place
 import { createKayaksPlugin } from './kayaks.js';
 import { createTourBoatPlugin } from './tourBoat.js';
+import { createPaddlePlugin } from './paddleWheeler.js';
 import { pageSettings } from '../ui/settingsStore.js';   // Tessie's row: her sound's switches, her key hints
 import { reducedNow } from '../sim/steadyCamera.js';
 import { createBusyLake, BUSY, bumpAt } from './busyLake.js';
@@ -86,6 +87,30 @@ const TOUR = {
   prime: { stage: 'boat', paths: ['capture', 'filmui'], run: (t) => t.prime() },   // her paddlers' asset in
   stats: (t) => ({ tour: t?.stats() ?? null }),
   hook: (t) => ({ tour: t }),
+};
+
+// the paddle-wheeler (South Lake's birthplace, phase C part 1): a generic 46 m stern-wheeler, one model for every paddle-wheeler on the
+// lake; one pipeline and one draw in the boat effects' group, her wake in the vessels' map (yielding it to the glass boat when hers is
+// live), her nav lights. Off in play until her routes come: ?paddle=x,z,heading[,kn] places her under way for review
+// (src/core/features.js paddleWheeler: full on a desktop or a tablet at L0-L1; lite, the mid and far LODs only, at L2-L3 and on a phone)
+const PADDLE = {
+  id: 'paddle', group: 'boatfx', createAt: 'living', statsAt: 'lake',
+  on: (c) => c.boatOn && c.feature('paddleWheeler').tier !== 'off',
+  create: (c) => createPaddlePlugin({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: c.P.msaa, depthFormat: c.depthFormat, flags: c.flags, tier: c.feature('paddleWheeler').tier, wake: c.wake }),
+  at: {
+    boat: (p, c) => {
+      const { B } = c;
+      if (!B) return;
+      p.attach({ depthAt: (x, z) => -c.terrain.field.height(x, z) });
+      B.sea?.addPost?.((st, dt) => p.post(dt));
+    },
+    'compute.water': (p, c, pass, cc) => { if (c.PG.boatfx) p.runWater(pass, cc); },   // her wake map (after the glass boat's)
+    'fill.boats': (p, c, f) => p.fill(f.eye, f.sun.elevDeg, { heightAt: (x, z) => c.water.heightAt(x, z), race: f.race, wakeBusy: !!c.plugins.get('tour')?.wakeStats?.on }),
+    'night.lights': (p, c, n, out, o) => (o.on && !c.regatta?.on ? n + p.lights(out, n * 8, { sunElevDeg: o.sunElevDeg, heightAt: o.heightAt }) : n),   // her nav lights (0 by day)
+    'scene.solid3': (p, c, pass, cc, s) => { if (!s.race && c.PG.boatfx) p.draw(pass, cc); },   // her hull, decks and wheel (opaque, one draw)
+  },
+  stats: (p) => ({ paddle: p?.stats() ?? null }),
+  hook: (p) => ({ paddle: p }),
 };
 
 // birds: v1's ospreys, eagles (one on the snag), gulls and geese (render/birds.js, sim/birds.js). ?birds=0 off; captures and automated
@@ -426,15 +451,15 @@ export const FIREWORKS = {
   hook: (fw) => ({ fireworks: fw }),   // the show (stats, the state, the GPU side)
 };
 
-export const LAKE_PLUGINS = [KAYAKS, TOUR, TESSIE, FIREWORKS, BIRDS, ANCHORED, BUSY_LAKE];
+export const LAKE_PLUGINS = [KAYAKS, TOUR, PADDLE, TESSIE, FIREWORKS, BIRDS, ANCHORED, BUSY_LAKE];
 
 export const ORDER = {
-  'create.living': ['kayaks', 'tour'],
+  'create.living': ['kayaks', 'tour', 'paddle'],
   'create.birds': ['birds'],
   'create.tessie': ['tessie'],
   'create.fireworks': ['fireworks'],
   'create.anchorage': ['anchored', 'busy'],
-  boat: ['anchored', 'tour', 'busy'],
+  boat: ['anchored', 'tour', 'busy', 'paddle'],
   'boot.night': ['fireworks'],
   'boot.pipes': ['fireworks'],
   'graph.post': ['fireworks'],
@@ -446,14 +471,14 @@ export const ORDER = {
   'audio.late': ['tour'],
   'audio.prepare': ['birds'],
   music: ['birds'],
-  'compute.water': ['tessie', 'tour', 'birds'],
-  'fill.boats': ['anchored', 'busy', 'tour'],
+  'compute.water': ['tessie', 'tour', 'paddle', 'birds'],
+  'fill.boats': ['anchored', 'busy', 'tour', 'paddle'],
   'fill.living': ['kayaks', 'tessie'],
   'fill.birds': ['birds'],
-  'night.lights': ['anchored', 'tour'],
+  'night.lights': ['anchored', 'tour', 'paddle'],
   'scene.solid': ['kayaks', 'tessie'],
   'scene.solid2': ['birds', 'fireworks'],
-  'scene.solid3': ['tour'],
+  'scene.solid3': ['tour', 'paddle'],
   'scene.water': ['birds', 'tour'],
   'scene.mirror': ['kayaks', 'tessie'],
   'scene.light': ['fireworks'],
@@ -474,5 +499,5 @@ export const ORDER = {
   'stats.tessie': ['tessie'],
   'stats.birds': ['birds'],
   'stats.show': ['fireworks'],
-  'stats.lake': ['anchored', 'busy', 'tour'],
+  'stats.lake': ['anchored', 'busy', 'tour', 'paddle'],
 };

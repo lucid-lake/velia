@@ -7,8 +7,9 @@
 // can be emitters: the map follows a focus, the boats inside its 128 m are drawn; a scattered fleet needs a map per cluster).
 //   sources(emitters, focus) → { box, kelvin [x, z, tau, amp], strips [(x0, z0, x1, z1), (age0, age1, halfWidth, strength)],
 //                                noses [x, z, radius, strength] }   (pure: the tests)
-//   const VW = createVesselWake({ device, reg, wake })   (its compute in the caller's group; nothing when wake.sizes.vessel is 0)
+//   const VW = createVesselWake({ device, reg, wake, name })   (its compute in the caller's group, named name; nothing when wake.sizes.vessel is 0)
 //   VW.update(emitters, focus)   once a frame before the water-sim pass (sets wake.vessel);   VW.run(pass, c)   in the water-sim pass
+//   VW.pause()   stand down for a frame without touching wake.vessel (another owner's map holds it: the paddle-wheeler yields to the glass boat)
 // An emitter: { trail: [{ age, x, z, fx, fz, v, churn }] newest first (sampled every VESSEL.dt s), length, lines: [{ x (m to starboard),
 // aft (m aft of the middle), w (m wide), foam, life (s) }] (the props' wash, a hull's tails), noses: [[fwd, stbd]] (the bows), noseR,
 // noseFoam, kelvinAmp (0: no V), kelvinAge, arms: { foam, w, life, x0 } (the V's arms breaking white) }
@@ -139,7 +140,7 @@ ${MX_NOISE_WGSL}
   M[OFF + g.y * S + g.x] = vec2u(pack2x16float(sl), pack2x16float(vec2f(clamp(foam, 0.0, 1.0), clamp(rough, 0.0, 1.0))));
 }`;
 
-export function createVesselWake({ device, reg, wake, V = VESSEL }) {
+export function createVesselWake({ device, reg, wake, V = VESSEL, name = 'vessel-wake' }) {
   const size = wake?.sizes?.vessel ?? 0;
   if (!size) return null;
   const CP = GPUShaderStage.COMPUTE, NSRC = V.maxK + 2 * V.maxS + V.maxN;
@@ -147,9 +148,10 @@ export function createVesselWake({ device, reg, wake, V = VESSEL }) {
   const ubuf = device.createBuffer({ label: 'vessel-wake', size: u.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   const bgl = device.createBindGroupLayout({ label: 'vessel-wake', entries: [{ binding: 0, visibility: CP, buffer: { type: 'uniform' } }, { binding: 1, visibility: CP, buffer: { type: 'storage' } }] });
   const bg = device.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer: ubuf } }, { binding: 1, resource: { buffer: wake.mapsBuffer } }] });
-  reg.add('vessel-wake', { layout: device.createPipelineLayout({ bindGroupLayouts: [bgl] }), compute: { module: reg.shader('vessel-wake', VESSEL_COMPUTE_WGSL({ size, offset: wake.vesselOffset }, V)), entryPoint: 'main' } });
+  reg.add(name, { layout: device.createPipelineLayout({ bindGroupLayouts: [bgl] }), compute: { module: reg.shader(name, VESSEL_COMPUTE_WGSL({ size, offset: wake.vesselOffset }, V)), entryPoint: 'main' } });
   const groups = Math.ceil(size / 8);
   let live = false, due = false, frame = 0;
+  const box = [0, 0, V.extent];   // the last frame's box (re-stated on the frames between runs: another emitter's owner may have cleared the map's switch)
   const stats = { kelvin: 0, strips: 0, noses: 0, on: false, dispatches: 0 };
   const self = {
     stats, repeat: 1,   // repeat: the cost probe's dispatches a run (tools/v2-glass-boat-shots.mjs cost wakex20); 1 in play
@@ -158,10 +160,11 @@ export function createVesselWake({ device, reg, wake, V = VESSEL }) {
       if (!emitters?.length || !focus) { live = false; due = false; wake.vessel.on = 0; stats.on = false; return; }
       // at half the frame rate (the map keeps its last frame and its box in between: her V moves ≈ 7 cm a frame): the cost halved
       due = !live || (frame++ & 1) === 0;
-      if (!due) return;
+      if (!due) { wake.vessel.on = 1; wake.vessel.x0 = box[0]; wake.vessel.z0 = box[1]; wake.vessel.extent = box[2]; return; }
       const s = sources(emitters, focus, V);
       live = s.kelvin.length + s.strips.length + s.noses.length > 0;
       wake.vessel.on = live ? 1 : 0; wake.vessel.x0 = s.box[0]; wake.vessel.z0 = s.box[1]; wake.vessel.extent = s.box[2];
+      box[0] = s.box[0]; box[1] = s.box[1]; box[2] = s.box[2];
       stats.kelvin = s.kelvin.length; stats.strips = s.strips.length; stats.noses = s.noses.length; stats.on = live;
       if (!live) return;
       u.fill(0);
@@ -171,10 +174,12 @@ export function createVesselWake({ device, reg, wake, V = VESSEL }) {
       s.noses.forEach((e, i) => u.set(e, 8 + (V.maxK + 2 * V.maxS + i) * 4));
       device.queue.writeBuffer(ubuf, 0, u);
     },
+    // stand down without touching the map (another boat's map holds it this frame: one vessels' map on the page)
+    pause() { live = false; due = false; stats.on = false; },
     run(pass, c) {
       if (!live || !due) return;
       stats.dispatches++;
-      pass.setBindGroup(0, bg); pass.setPipeline(reg.get('vessel-wake'));
+      pass.setBindGroup(0, bg); pass.setPipeline(reg.get(name));
       for (let i = 0; i < self.repeat; i++) { pass.dispatchWorkgroups(groups, groups); c.dispatches++; }
     },
   };

@@ -8,12 +8,12 @@ import { LAKE_PLUGINS, ORDER } from '../living/lakePlugins.js';
 
 // boot()'s order at each anchor before the move (Tessie moved in at C3; the fireworks at the round 3 follow-up, from main.js at cf282a91)
 const RECORDED = {
-  'create.living': ['kayaks', 'tour'],
+  'create.living': ['kayaks', 'tour', 'paddle'],
   'create.birds': ['birds'],
   'create.tessie': ['tessie'],
   'create.fireworks': ['fireworks'],
   'create.anchorage': ['anchored', 'busy'],
-  boat: ['anchored', 'tour', 'busy'],
+  boat: ['anchored', 'tour', 'busy', 'paddle'],
   'boot.night': ['fireworks'],
   'boot.pipes': ['fireworks'],
   'graph.post': ['fireworks'],
@@ -25,14 +25,14 @@ const RECORDED = {
   'audio.late': ['tour'],
   'audio.prepare': ['birds'],
   music: ['birds'],
-  'compute.water': ['tessie', 'tour', 'birds'],
-  'fill.boats': ['anchored', 'busy', 'tour'],
+  'compute.water': ['tessie', 'tour', 'paddle', 'birds'],
+  'fill.boats': ['anchored', 'busy', 'tour', 'paddle'],
   'fill.living': ['kayaks', 'tessie'],
   'fill.birds': ['birds'],
-  'night.lights': ['anchored', 'tour'],
+  'night.lights': ['anchored', 'tour', 'paddle'],
   'scene.solid': ['kayaks', 'tessie'],
   'scene.solid2': ['birds', 'fireworks'],
-  'scene.solid3': ['tour'],
+  'scene.solid3': ['tour', 'paddle'],
   'scene.water': ['birds', 'tour'],
   'scene.mirror': ['kayaks', 'tessie'],
   'scene.light': ['fireworks'],
@@ -53,7 +53,7 @@ const RECORDED = {
   'stats.tessie': ['tessie'],
   'stats.birds': ['birds'],
   'stats.show': ['fireworks'],
-  'stats.lake': ['anchored', 'busy', 'tour'],
+  'stats.lake': ['anchored', 'busy', 'tour', 'paddle'],
 };
 
 test('the lake list: every plug-in and anchor in ORDER, the order as boot() had it', () => {

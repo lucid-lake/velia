@@ -38,6 +38,7 @@ export const V2_ROWS = Object.freeze([
   str('regionkayaks', 'the regions\' own kayakers (v2/living/busyLake.js residentKayaks; src/core/features.js regionKayaks): ?regionkayaks=0 off (v1\'s day kayakers and the staged pairs), =1 on (a phone too)'),
   str('traffic', 'the busy lake\'s sailboats (v2/living/busyLake.js; src/core/features.js busyLake): ?traffic=0 off, =full|lite|phone that tier (=1: full, a phone too)'),
   str('glassboat', 'the glass boat, "Velia Travel", and her clear kayaks (src/core/features.js glassBoat): ?glassboat=0 off, =1 full (a phone too), =lite the weak GPU\'s'),
+  str('paddle', 'the paddle-wheeler placed for review (src/core/features.js paddleWheeler; off without it): ?paddle=x,z,heading[,kn] (world m, m, degrees true, knots: 8 by default; 0 lies stopped), under way along the heading'),
   str('tourt', 'the glass boat\'s timetable pinned: s into her loop (0: arriving at the head of the bay\'s stop; v2/sim/tourBoat.js tourPhase) in place of the clock\'s natural schedule (the evidence\'s stills)'),
   str('anchordetail', 'the ground tackle seen close (src/core/features.js anchorDetail): ?anchordetail=0 off (a phone\'s plain anchor and line), =1 on (a phone too)'),
   str('granite', 'Fannette Island\'s granite look (src/core/features.js islandGranite): ?granite=full the detailed rock, =lite the colours alone (a phone\'s), =off the photo alone (the A/B)'),

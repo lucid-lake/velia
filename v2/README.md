@@ -63,7 +63,7 @@ A new mode (School) in 4 steps, 3 files before its first line (the audit counted
 
 ### The plug-in list (refactor round 3 C2, 2026-11-23: engine/plugins.js, living/lakePlugins.js)
 
-The living lake's features are rows of one list: kayaks, the glass boat, the birds, the boats at anchor, the busy lake. A row is
+The living lake's features are rows of one list: kayaks, the glass boat, the paddle-wheeler, the birds, the boats at anchor, the busy lake. A row is
 `{ id, on(ctx), group, fetch?, load?, create(ctx, mods), createAt, at: { [anchor]: fn }, prime?, statsAt, stats, hook }`
 (engine/plugins.js has the contract). `ctx` is the bag `boot()` builds once (`plugCtx`: device, layouts, flags, P, feature,
 inGroup, terrain, water, and getters for what boot makes later: B, regatta, eye, clock …); `ctx.plugins.get(id)` is how one row

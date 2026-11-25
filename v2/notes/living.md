@@ -128,3 +128,15 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
   kayakers (they read v1's three-bound spectators), the notice camera (off by default in v1: Settings `kayakCam`), the
   Cruise navigator's traffic and the chart marks (`fleet.marks()` is there for them).
 - The kayak's hardware shows to 90 m (v1: 60 m); its shell is a middle one (v1's near shell is 76 k triangles).
+
+## The paddle-wheeler (living/paddleWheeler.js, sim/paddleWheeler.js, render/paddleWheeler.js, render/paddleWheelerMesh.js)
+
+- One generic, unnamed 46 m stern-wheeler for every paddle-wheeler on the lake, built by code (no asset): a white hull with a sheer and
+  a dark-red boot top, guards, three decks with cabins and window bands, railings, a pilothouse with wings, twin stacks, a mast, a plain
+  navy-and-cream stern flag and a dark-red stern wheel turned in the vertex shader by her speed (about 15.7 rpm at 8 kn).
+- One pipeline (`paddle-solid`, boat effects' group) and one draw a frame. LODs by distance: near within 330 m (10,368 triangles), mid to
+  1.5 km (2,104), far to 7 km (592). The lite tier (L2-L3, a phone) never takes near and stops at 3.5 km.
+- Off in play until her routes come (`src/core/features.js` paddleWheeler). `?paddle=x,z,heading[,kn]` places her under way at a set
+  speed along the heading (8 kn by default); she eases to a stop short of water under 3.2 m within 80 m of her bow.
+- She rides the drawn water (the mean of four points, a share of its slope), her nav lights are glow records, and her wake is an
+  emitter in the vessels' map (render/vesselWake.js, full tier): she yields that one map to the glass boat while the glass boat's is live.
