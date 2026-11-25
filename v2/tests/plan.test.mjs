@@ -21,7 +21,7 @@ import { createPlanner, ensureCourse } from '../../src/sail/passagePlan.js';
 import { sheetRows } from '../../src/sail/passageSheet.js';
 import { createPassage } from '../../src/ui/passage.js';
 import { createServices } from '../../src/sim/core/services.js';
-import { makeTerrain } from '../../src/sim/terrain.js';
+import { makeTerrain } from './helpers/ground.mjs';   // v2's own lake (v2/sim/lake.js over v2/terrain/sample.js, the lake-wide shore grids)
 import { makeGeo } from '../../src/sim/geo.js';
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
 import { loadTownsData, buildTownsLayout } from '../../classic/src/towns-layout.js';

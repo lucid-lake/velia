@@ -112,8 +112,8 @@ test('the cycle check fails on a cycle (a made-up a → b → a is caught)', () 
 
 // classic/ is v1's private code (refactor round 3 C7b): nothing v2 runs and no shared
 // src/ module may import from it (static, dynamic or new URL(…, import.meta.url)). The exceptions are the v2 tests that
-// compare v2's copy against v1's original on purpose (parity tests, or v1's lake-wide ground as the reference); a new one
-// needs a line here.
+// compare v2's copy against v1's original on purpose (parity tests: v1's options, tables, towns and words; the ground they
+// read is v2's own, tests/helpers/ground.mjs, with the lake-wide shore grids); a new one needs a line here.
 export const CLASSIC_PARITY = Object.freeze([
   'v2/tests/birds.test.mjs', 'v2/tests/captain.test.mjs', 'v2/tests/cockpit-rig.test.mjs', 'v2/tests/day-clock.test.mjs',
   'v2/tests/frame-look.test.mjs', 'v2/tests/front-door.test.mjs', 'v2/tests/plan.test.mjs', 'v2/tests/sea-parity.test.mjs',

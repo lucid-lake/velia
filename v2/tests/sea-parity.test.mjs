@@ -68,11 +68,12 @@ test('the hull\'s filters (v1\'s surface weights): the Smith effect per tile, no
   assert.ok(Math.abs(S.heightAt(0, 0, { depthM: d }) - (Math.exp(-2 * Math.PI / 40 * d) + Math.exp(-2 * Math.PI / 4 * d))) < 1e-6, 'the bay sim: its 4 m k, its 12 m tile never read on the CPU');
 });
 
-test('the fetch on v2\'s heights is v1\'s fetch on its shore map (the Sail start, the bay, the mouth, the open lake)', async () => {
-  const { heightAt, shoreDistance } = await import('../../src/sim/terrain.js');
+test('the fetch on v2\'s heights is v1\'s fetch on the lake\'s shore map (the Sail start, the bay, the mouth, the open lake, the south shore)', async () => {
+  const { heightAt, shoreDistance } = await import('./helpers/ground.mjs');   // v2's own lake: its heights and its lake-wide shore grids
   for (const dirDeg of [200, 315]) {
     const dw = downwind(dirDeg);
-    for (const [x, z] of [[1200, -1050], [600, -650], [1500, -800], [2500, -1500], [4000, -3000]]) {
+    // the south shore (off Ski Run, off Camp Richardson, off the Tahoe Keys) reads the basin's and the lake's grids
+    for (const [x, z] of [[1200, -1050], [600, -650], [1500, -800], [2500, -1500], [4000, -3000], [12000, -250], [5900, 1500], [9000, 800]]) {
       const v1 = fetchTrace(shoreDistance, x, z, dirDeg), v2 = fetchAt(heightAt, x, z, dw);
       assert.ok(Math.abs(v2 - v1) < Math.max(30, 0.03 * v1), `(${x}, ${z}) from ${dirDeg}°: v2 ${v2.toFixed(0)} m, v1 ${v1.toFixed(0)} m`);
     }
@@ -89,7 +90,7 @@ test('the Sail wind\'s options are v1\'s (src/sail/options.js): the level, its r
 });
 
 test('the sailing trace: v2\'s boat on v1\'s wind, start and film helm sails v1\'s hull frame\'s trace (40 s, the real terrain)', async () => {
-  const { heightAt } = await import('../../src/sim/terrain.js');
+  const { heightAt } = await import('./helpers/ground.mjs');   // v2's own heights (v2/terrain/sample.js)
   const { createHull } = await import('../../src/sim/craft/hull.js');
   const { CRAFTS } = await import('../../src/sim/craft/index.js');
   const { vesselDims } = await import('../../src/sim/boat/dims.js');

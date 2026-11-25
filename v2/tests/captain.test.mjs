@@ -29,7 +29,7 @@ import { WindField } from '../../src/sim/wind.js';
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
 import { sailWindOptions } from '../sim/wind.js';
 import { heightAt } from './helpers/ground.mjs';   // v2's own heights (v2/terrain/sample.js)
-import { shoreDistance } from '../../src/sim/terrain.js';   // the parity reference: v1's lake-wide shore distance (v2's lake has the bay's grid only)
+import { shoreDistance } from './helpers/ground.mjs';   // v2's own lake's shore distance (v2/sim/lake.js: the lake-wide grids), v1's on the water
 import { createSettings } from '../../src/ui/settings.js';
 import { WORLD, terrainFor } from '../ui/logbook.js';
 import { installDom, memStorage } from '../../tests/helpers/dom-helm.mjs';
@@ -229,7 +229,7 @@ test('the radio on v2\'s state: the forecast by itself 20 s in, sampled a frame 
   assert.deepEqual(log.at(-1).play, fc.tokens.map((x) => x.id ?? x.pause), 'played: the forecast\'s tokens');
   assert.equal(cap.channel, 'WX 1');
   // v1's forecast from the same field at the same time
-  assert.equal(fc.text, forecastFor({ wind: forecastWind(wind(), B.t), t: B.t, terrain: { heightAt, shoreDistance } }).text, 'the same words as v1\'s forecast on v1\'s shore distance');
+  assert.equal(fc.text, forecastFor({ wind: forecastWind(wind(), B.t), t: B.t, terrain: { heightAt, shoreDistance } }).text, 'the same words as v1\'s forecast on the lake\'s shore distance');
   // the radio's own clock: played out, the LCD back to 16 after 4 s
   for (let i = 0; i < 60 * (fc.tokens.length + 6); i++) cap.update(1 / 60);
   assert.equal(cap.channel, '16'); assert.equal(cap.radio.state.playing, false);
@@ -305,7 +305,7 @@ test('the frozen clock (v2\'s live timerate 0): v1\'s forecast in milliseconds; 
   const f1 = forecastFor({ wind: w1, t: 10, terrain: { heightAt, shoreDistance } });
   assert.equal(f0.facts.window, 'afternoon'); assert.ok(f0.facts.hi >= f0.facts.lo + 4, `${f0.text}`);
   assert.equal(f0.facts.lo, f1.facts.lo, 'the same next hour as a running clock\'s (the day\'s base barely moves in an hour)');
-  // the waves' fetch: v2's heights alone against v1's shore-distance grid, every 45°
+  // the waves' fetch: v2's heights alone against the lake's shore-distance grids (v1's grids, lake-wide), every 45°
   const sd = shoreFromHeights(heightAt);
   for (let d = 0; d < 360; d += 45) {
     const a = fetchTraceOf(shoreDistance, d), b = fetchTraceOf(sd, d);
