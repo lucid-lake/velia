@@ -3,6 +3,7 @@
 // per state, Setup's stored choice, the update rate and the per-frame cost. The live page: v2/tests/pages/perfHud.page.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { PERF_HUD, PERF_LEVELS, MARK, createFrameMeter, perfLines, perfLevels, createLevelHold, createPipeWatch, perfHudAllowed, adapterName, perfHudSettings, createPerfHud, mountPerfRow } from '../ui/perfHud.js';
 import { cockpitUp } from '../ui/cockpitUp.js';
 import { POLICIES } from '../../src/core/features.js';
@@ -198,8 +199,7 @@ test('the cost: the frame\'s part (meter and rule) stays far under 0.05 ms', () 
   let t = 0;
   for (let i = 0; i < 3000; i++) { t += 1000 / 60; H.tick(t, 1000 / 60); }
   const s = H.state;
-  assert.ok(s.msPerTick < 0.05, `${s.msPerTick.toFixed(4)} ms a frame`);
-  assert.ok(s.msPerPaint < 0.5, `${s.msPerPaint.toFixed(4)} ms a paint`);
+  budget(s.msPerTick, 0.05, 'the hud a frame'); budget(s.msPerPaint, 0.5, 'the hud a paint');
 });
 
 test('the ×: a labelled button that calls onClose; its click never reaches the page', () => {

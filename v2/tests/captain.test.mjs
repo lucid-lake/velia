@@ -12,6 +12,7 @@
 // The browser half: v2/tests/pages/captain.page.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { bestOf, bestOfEach } from '../../tests/helpers/bestOf.mjs';
 import { readFileSync } from 'node:fs';
 import { createCaptain, AIM, forecastWind, shoreFromHeights, cameraShim, radioAudio, AUTO_FORECAST_S, CHATTER, VHF_BUS } from '../ui/captain.js';
@@ -301,7 +302,7 @@ test('the frozen clock (v2\'s live timerate 0): v1\'s forecast in milliseconds; 
   const w0 = wind(0), w1 = wind(1);
   assert.equal(forecastWind(w1, 10), w1, 'a running day clock: the field as it is');
   const t0 = performance.now(), f0 = forecastFor({ wind: forecastWind(w0, 10), t: 10, terrain: { heightAt, shoreDistance } });
-  assert.ok(performance.now() - t0 < 2000, 'quick (it ran out to 10^13 s and exhausted the page before)');
+  budget(performance.now() - t0, 2000, 'the frozen-clock forecast (it ran out to 10^13 s and exhausted the page before)');
   const f1 = forecastFor({ wind: w1, t: 10, terrain: { heightAt, shoreDistance } });
   assert.equal(f0.facts.window, 'afternoon'); assert.ok(f0.facts.hi >= f0.facts.lo + 4, `${f0.text}`);
   assert.equal(f0.facts.lo, f1.facts.lo, 'the same next hour as a running clock\'s (the day\'s base barely moves in an hour)');
@@ -347,11 +348,11 @@ test('the page\'s CPU: the radio\'s frame without a job is a few µs; a forecast
   const log = [], B = boat(), cap = createCaptain({ B, windField: wind(), terrain, settings: settingsMem(), live: true, auto: false, dom: false, makeRadio: fakeRadio(log) });
   // load-proof (v2 #29): the fastest of 20 batches of 300 idle frames; each forecast step's fastest of 5 jobs
   const idleUs = bestOf(() => cap.update(1 / 60), { batches: 20, per: 300 }) * 1000;
-  assert.ok(idleUs < 50, `${idleUs.toFixed(1)} µs a frame idle`);
+  budget(idleUs, 50, 'the radio\'s idle frame', 'µs');
   cap.listen(); while (cap.job) cap.update(1 / 60);
   // warm (the second forecast: the first pays the JIT), each step one time step of the bay's wind
   const steps = bestOfEach((time) => { cap.listen(); cap.listen(); while (cap.job) time(() => cap.update(1 / 60)); }, { batches: 5 });
   steps.sort((a, b) => a - b);
-  assert.ok(steps[steps.length >> 1] < 8 && steps.at(-1) < 20, `forecast steps: median ${steps[steps.length >> 1].toFixed(1)} ms, worst ${steps.at(-1).toFixed(1)} ms`);
+  budget(steps[steps.length >> 1], 8, 'forecast step, median'); budget(steps.at(-1), 20, 'forecast step, worst');
   assert.equal(dirOf(0, 0)[2], -1);
 });

@@ -6,6 +6,7 @@
 // render's checks (peak, silence, clicks, loudness) are v2/tests/pages/beds.page.mjs in Chrome.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { bestOf } from '../../tests/helpers/bestOf.mjs';
 import { BedsMix, BEDS } from '../audio/bedsMix.js';
 import { createBeds } from '../audio/beds.js';
@@ -162,7 +163,7 @@ test('main thread: the mixer and the parameter pass cost well under 0.1 ms a fra
   const rest = fr.length - 600;
   let i = 600;
   const per = bestOf(() => { beds.update(mix.step(fr[i]), i / 60); i = i + 1 < fr.length ? i + 1 : 600; }, { batches: 15, per: Math.floor(rest / 15) });
-  assert.ok(per < 0.05, `${(per * 1000).toFixed(1)} µs a frame`);
+  budget(per * 1000, 50, 'the beds mixer a frame', 'µs');
 });
 
 test('the material: deterministic, bounded, the loops seamless; the patter soft-limited; the lfo unit variance', () => {

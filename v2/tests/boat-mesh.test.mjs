@@ -3,6 +3,7 @@
 // lines and wires fill one ribbon buffer; the spars are v1's own arrays.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { bestOf } from '../../tests/helpers/bestOf.mjs';
 import { hullShape, hullParams } from '../render/boat/hullShape.js';
 import { buildHull, buildRigParts, sailGrid, fillSail, mainPoint, jibPoint, sailParams, SAIL_GRIDS, lineSet, ribbonArrays, fillRibbons, wireLines } from '../render/boat/mesh.js';
@@ -103,7 +104,7 @@ test('the line set and the wires fill one ribbon buffer; the sheets move with th
   // the cost: the fastest of 15 batches of 10 frames after 10 warm ones (one cold 50-frame batch read over 2 ms at load
   // ≈ 44 with the code unchanged; the rest of this test is pure and order-free: v2 #29)
   const ms = bestOf((k) => { lineSet(stubState({ awaDeg: 45 + (k % 50) })); fillRibbons(R, [...a, ...wireLines(r.wires)]); }, { batches: 15, per: 10, warm: 10 });
-  assert.ok(ms < 2, `a frame's lines in ${ms.toFixed(2)} ms`);
+  budget(ms, 2, 'a frame\'s lines');
 });
 
 // #43: v2's lazy jacks (its own line set) meet the main only at the mast (src/boat/rig.js insideMain): no crossing more

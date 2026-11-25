@@ -2,6 +2,7 @@
 // on a timer (never from the frame), at most 4 a second, off by default.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { windowStats, shortUA, diagLines, createDiag, createCrashLog, CRASH_KEY, DIAG, verdictOf } from '../engine/diag.js';
 import { textureBytes } from '../engine/device.js';
 
@@ -104,7 +105,7 @@ test('on: one panel, updated on a 250 ms timer (≤ 4 a second), the frame only 
   // the fastest of 9 updates: the update's own cost, not the machine's load (v2 #29)
   let upd = d.stats.lastUpdateMs;
   for (let i = 0; i < 8; i++) { timers.fns[0](); upd = Math.min(upd, d.stats.lastUpdateMs); }
-  assert.ok(upd < 1, `an update costs ${upd} ms`);
+  budget(upd, 1, 'a diag update');
   d.stop(); assert.equal(timers.fns[0], null);
 });
 

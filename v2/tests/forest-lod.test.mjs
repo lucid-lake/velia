@@ -5,6 +5,7 @@
 // in range has its tile picked); its CPU cost.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { bestOf } from '../../tests/helpers/bestOf.mjs';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -110,7 +111,7 @@ test('the tile pick is complete: every crown in range and in view has its tile p
   }
 });
 
-test('the pick\'s CPU cost: ≤ 0.5 ms a frame on the desktop set (the stats show ≈ 4.6 k box tests)', async () => {
+test('the pick\'s work: under 5.5 k box tests on the desktop set (3982 on 2026-11-25); its CPU ≤ 0.5 ms a frame only when strict', async () => {
   const B = await boundsP, L = FOREST.desktop;
   const P = createTilePicker({ L, ground: groundOf(B), boxInFrustum, offsets: OFF });
   P.src.trees = T; P.src.shrubs = S; P.src.region = true;
@@ -119,5 +120,6 @@ test('the pick\'s CPU cost: ≤ 0.5 ms a frame on the desktop set (the stats sho
   // the fastest of 40 short batches (8 picks, ≈ 2 ms): the pick's own cost, not other processes' (a loaded machine made
   // one 200-pick run read 2.9 ms; the best of 9 batches of 40 still read 0.547 ms at load 43 on 18 cores: v2 #29)
   const ms = bestOf(() => P.pick(eye, planes), { batches: 40, per: 8 });
-  assert.ok(ms < 0.5, `${ms.toFixed(3)} ms a pick (${P.tested} boxes)`);
+  assert.ok(P.tested > 1000 && P.tested < 5500, `${P.tested} box tests (the work, not the clock)`);
+  budget(ms, 0.5, `the pick (${P.tested} boxes)`);
 });

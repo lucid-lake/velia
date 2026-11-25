@@ -3,6 +3,7 @@
 // /classic/ (the asset paths prefixed, nothing else). No browser: the page half is v2/tests/pages/launchGate.page.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { budget } from '../../tests/helpers/budget.mjs';
 import { checkGpu, gateKind, GATE_TIMEOUT_MS } from '../engine/gpuCheck.js';
 import { GATE_TEXT, CLASSIC_URL } from '../engine/device.js';
 import { CALM, AUTO, roughOf, autoAt, createSeaSense, calmPose, reducedNow } from '../sim/steadyCamera.js';
@@ -35,7 +36,7 @@ test('gate: a null adapter → the page (no-adapter); a throw → the page (erro
 test('gate: an adapter that never answers stops at the timeout (no blank page)', async () => {
   const t0 = Date.now();
   const r = await checkGpu({ nav: { gpu: { requestAdapter: () => new Promise(() => {}) } }, timeoutMs: 60 });
-  assert.equal(r.kind, 'timeout'); assert.ok(Date.now() - t0 < 1000, 'stopped near the timeout');
+  assert.equal(r.kind, 'timeout'); budget(Date.now() - t0, 1000, 'stopped near the timeout (60 ms asked)');
   assert.ok(GATE_TIMEOUT_MS >= 2000 && GATE_TIMEOUT_MS <= 8000, `the page's timeout ${GATE_TIMEOUT_MS} ms`);
 });
 

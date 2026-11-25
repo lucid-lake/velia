@@ -3,6 +3,10 @@
 Moved verbatim from `v2/README.md` on 2026-11-23 (refactor round 3 D1). The map is `v2/README.md`; the section list is `INDEX.md`.
 
 
+## Wall-time budgets in the tests (2026-11-25)
+
+A time limit in a fast test reads the machine's load as much as the code (load average 20-45 on this Mac failed the forest pick, the long-route planner and the wind texture with the code unchanged). So every wall-clock limit goes through `budget(value, limit, what, unit)` in `tests/helpers/budget.mjs`: the test's correctness part always runs; the limit asserts only with `LAKESHORE_STRICT=1` (run it on a quiet machine: `LAKESHORE_STRICT=1 npm run test:v2`); otherwise one line (`time: ...` or `over budget, not gated: ...`) is logged so drift stays visible. A budget about work done is a count, asserted always (the forest pick: 1000 < box tests < 5500; 3982 on the desktop set on 2026-11-25). `tests/budget-lint.test.mjs` fails a test file that asserts on a clock read, or times with `bestOf` without importing `budget`. The page suite has the same switch (`--strict`).
+
 ## The performance stats panel (2026-11-25: ui/perfHud.js, main.js; ui/cockpitUp.js)
 
 A small glass plate at the top-right (16 px in, at the top bar's 14 px top; 16.8 em wide, 15 px tabular type), desktop only
