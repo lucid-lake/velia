@@ -81,6 +81,7 @@ import { createStageDirector } from './stage/director.js';   // the opening stag
 import { areaOf, distToArea } from './stage/areas.js';   // the stage's named areas (an act's nearby row: Tessie by her water)
 import { stageOptions } from './stage/options.js';   // ?stage= and ?tessie=<s> (the opening's Tessie at that play time; a capture's pin)
 import { features, feature } from '../src/core/features.js';   // (the phone's build gate below: engine/buildGate.js)
+import { createPerfHud, perfHudAllowed, perfHudSettings, adapterName } from './ui/perfHud.js';   // the performance stats panel (a desktop, the cockpit up)
 import { buildGate, PHONE_ORDER } from './engine/buildGate.js';   // owner 2026-11-17: a phone builds every pipeline, then presents the modes   // the feature registry: each device-dependent feature's policy, once
 import { RETRY_SLOW_MS } from './engine/quality.js';
 import { shotPose } from './sim/shots.js';
@@ -1845,6 +1846,18 @@ async function boot() {
   let sweepSeq = -1;
   hook.sweep = { start() { sweep = makeSweep(); sweep.start(performance.now()); }, get running() { return !!sweep?.running; }, get done() { return !!sweep?.done; }, results: () => sweep?.results() ?? null, lines: () => sweep?.lines() ?? [] };   // perf(v2) phone: tools/v2-phone-sweep.mjs
   if (raceBoot) modes.go(bootId).catch((e) => errors.push(`regatta: ${e?.stack ?? e}`));   // a page opened in Regatta: in the box at −0:45 from the first frames
+  // the performance stats panel (ui/perfHud.js): a desktop with the cockpit up (ui/cockpitUp.js, read off Sail's UI); the frame feeds
+  // its meter, the text is rebuilt 3 times a second while it shows. GPU time only with ?diag (the timer is a diag and bench tool)
+  const perfPolicy = feature('perfHud').on, perfDiag = flags.diag != null && flags.diag !== '0', perfStore = perfHudSettings();
+  const perfNow = { fps: 0, ms: 0, worst: 0, level: 0, pinned: false, pipeLate: false, scale: 1, draws: 0, tris: 0, pipes: 0, mb: 0, adapter: adapterName(gpu.info), gpuMs: null };
+  let perfClosed = false;   // the panel's ×: Setup's off, and closed for this load even under ?perfhud=1 (Setup's on opens it again)
+  if (perfPolicy) perfStore.listen((on) => { perfClosed = !on; });
+  const perfHud = perfPolicy ? createPerfHud({ diag: perfDiag, onClose: () => perfStore.set(false),
+    shown: () => !perfClosed && perfHudAllowed({ policy: perfPolicy, flag: flags.perfhud, stored: perfStore.on }) && !!m4.ui?.cockpitUp,
+    read: () => { const g = perfDiag ? graph.gpuMs() : null;
+      perfNow.level = Q.level; perfNow.pinned = Q.source === 'pinned' || Q.source === 'setup'; perfNow.scale = scale; perfNow.draws = graph.counters.calls; perfNow.tris = graph.counters.triangles; perfNow.pipes = reg.built;
+      perfNow.mb = gpu.mem?.mb ?? 0; perfNow.gpuMs = g ? g.total : null; return perfNow; } }) : null;
+  hook.perfHud = perfHud;
   idleStop = true; probe.setIdle(idleBudget(idleDts));   // perf(v2) phone round 2: the refresh as measured during the load
   const tick = (ts) => {
     if (pacer && !pacer.due(ts ?? performance.now())) { requestAnimationFrame(tick); return; }   // perf(v2) phone 30 fps: an even 33.3 ms (the sim reads the real time between drawn frames)
@@ -1856,6 +1869,7 @@ async function boot() {
     graph.setTag(sweep?.running ? sweep.next(now) : 0);   // perf(v2) phone round 2: the sweep's case and state ride this frame's timestamps
     if (document.documentElement.hasAttribute('data-lake-paused')) { requestAnimationFrame(tick); return; }   // a phone's menu map is opaque over the lake: the lake sleeps under it, the sim runs on (ui/chart/mapScreen.js)
     drawFrame();
+    perfHud?.tick(now, dtMs);   // ui/perfHud.js: the meter each frame, the text at 3 Hz while it shows
     busyProbe?.sample();   // #32: no GPU timer: submit → the queue's work done (one in flight)
     const g = graph.gpuMs();
     if (MS.switches.length) { const s = MS.switches.at(-1); if (g?.tag === MSAA_TAG && s.gpuMs == null) s.gpuMs = +g.work.toFixed(3); }   // #31: the switch frame's GPU work

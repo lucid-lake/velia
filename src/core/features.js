@@ -299,6 +299,13 @@ export const POLICIES = Object.freeze({
   buildAllFirst: { fixed: true, axes: 'form', aliases: '?profile=form:phone (on), ?pipes=all (off: all before the first frame)',
     why: 'a phone builds every pipeline behind the home card before Sail, Cruise or Regatta can start (none in play); a tablet and a desktop start at once',
     tier: (p, c, m, get) => (p.form === 'phone' && get('pipelineDeferral') === 'on' ? 'on' : 'off') },
+  // the performance stats panel (2026-11-25; v2/ui/perfHud.js): a layout row (the top-right corner beside the desktop's top bar and
+  // cockpit), so a desktop only, not a tablet; never in a capture, a ?filmui film, a ?shot or an automated browser (the goldens and the
+  // page tests' frames) unless ?perfhud=1. On: the page may show it (Setup's stored choice and the cockpit decide the rest)
+  perfHud: { fixed: true, axes: 'form', aliases: '?perfhud=0 (off), ?perfhud=1 (on: a capture or an automated browser too), ?profile=form:tablet',
+    why: 'the performance stats top-right (FPS, the worst frame, the level and scale, draws, GPU memory, the adapter) with the cockpit up, a desktop only',
+    tier: (p, c) => (c.flags.perfhud === '0' || p.form !== 'desktop' ? 'off' : c.flags.perfhud === '1' ? 'on'
+      : c.headless || c.flags.filmui === true || c.flags.filmui === '1' || (c.flags.shot != null && c.flags.shot !== '') || globalThis.navigator?.webdriver ? 'off' : 'on') },
   levelRetry: { fixed: true, axes: 'quirks', aliases: '',
     why: 'a level settled on the frame interval alone is retried one up, unless this GPU compiles slowly (slow-compiler)',
     tier: (p) => (p.quirks.includes('slow-compiler') ? 'off' : 'on') },

@@ -2,6 +2,41 @@
 
 Moved verbatim from `v2/README.md` on 2026-11-23 (refactor round 3 D1). The map is `v2/README.md`; the section list is `INDEX.md`.
 
+
+## The performance stats panel (2026-11-25: ui/perfHud.js, main.js; ui/cockpitUp.js)
+
+A small glass plate at the top-right (16 px in, at the top bar's 14 px top; 16.8 em wide, 15 px tabular type), desktop only
+(`src/core/features.js` perfHud: not a tablet or a phone), while the cockpit is up in Sail and Regatta (`ui/cockpitUp.js`: not folded,
+not Clear or Instruments, not Cruise, nothing played in the boat's place, no menu or page over it; the helm view keeps it). Lines: FPS
+over the last ~1 s and the mean interval (amber under 30 fps, never red, never flashing); the worst interval of the last 5 s; the
+level and the governor's scale ("L1 · 0.85×"); draws · triangles · pipelines built; the GPU memory tally (engine/device.js); the
+adapter, short. GPU time is a seventh line only with `?diag` (the timer stays diag and bench only). The frame feeds a ring of twenty
+250 ms buckets (typed arrays, no allocation); the text is rebuilt at 3 Hz and only while shown, each cell written only on a change.
+Measured on the M5 Pro Mac, 1280 × 720, headless Chrome under load (load average ≈ 49): **0.009-0.015 ms a frame** all in (meter, rule
+and the paints' share), 0.09-0.16 ms a paint. Setup › Screen › performance stats (on · off, **off by default**, its own key `lakeshore.v2.perfhud`); a small × in the plate's top-right corner (a 24 px target in its own gutter right of the numbers, "Close performance stats") is the same as Setup's off;
+`?perfhud=1` shows it for one load whatever Setup holds, `=0` never. Off in a capture, a `?filmui` film, a `?shot` and an automated
+browser unless `?perfhud=1`, so the goldens are unchanged. The Pro nav column and the key legend follow the same cockpit-up rule on a
+desktop cockpit (their own rules stay: Pro, key hints, the legend leaves in the helm view). Tests: `v2/tests/perf-hud.test.mjs`,
+`v2/tests/pages/perfHud.page.mjs`.
+
+**Colours (2026-11-25; `PERF_LEVELS` in ui/perfHud.js).** Three calm levels, never flashing: cream (normal), amber (watch), a soft
+coral rgb(240 140 120) (a problem; not the port red). An amber or coral value starts with a small ▲ (colour-blind safe). A line
+changes colour only once its new level has held 1 s (a value at a threshold keeps its colour).
+
+| Line | Cream | Amber | Coral |
+|---|---|---|---|
+| FPS (and its frame time) | ≥ 50 fps | 30–50 fps | < 30 fps |
+| Worst frame (5 s) | ≤ 50 ms | 50–100 ms | > 100 ms (a stutter) |
+| Quality | L0 at 1.00×, or a level the player or URL holds | the governor lowered the level or the scale | L3, or scale < 0.7× |
+| Draws · tris · pipelines | ≤ 400 draws, ≤ 6 M tris | > 400 draws, > 6 M tris, or a pipeline built after the load settled (the count held 10 s), for 5 s | > 700 draws, > 10 M tris |
+| GPU memory | ≤ 1.5 GB | > 1.5 GB | > 2.5 GB |
+| GPU time (`?diag`) | ≤ 16.7 ms | > 16.7 ms | > 33 ms |
+
+Typical today (M5 Pro Mac, headless Chrome, load average about 15; Sail at 13:00 at 1280 × 720 and 1920 × 1080, and Regatta): 52–60
+fps with a busy machine's dips, the worst frame 18–35 ms once loaded (110–320 ms in the first 10 s of the load), L0 at 1.00×,
+194–248 draws, 1.1–2.0 M triangles, 233 pipelines (settled about 10 s after the first frame), 706–783 MB. All cream; no threshold
+needed moving.
+
 ## MSAA live (BACKLOG-v2 #31, 2026-11-14: engine/pipelines.js, frame.js, quality.js, diag.js; main.js, render/forest.js)
 
 Before: MSAA sized every scene pipeline, so a ladder step across L1 ↔ L2 listed "MSAA" as pending until the next load

@@ -60,7 +60,7 @@ test('the six devices: the behaviours (binoculars, the desk\'s trim and Enter, t
 // owner, 2026-11-18: "Tablets get desktop features, scaled by GPU power". Every feature row for a tablet at L0 and at L3 (and L1, L2),
 // against a desktop at the same level: the same tier on every row except the layout/input rows and terrainSet (a memory row).
 const TABLETS = ['ipadTrackpad', 'ipadPro', 'ipadOld', 'androidTablet'];
-const LAYOUT_ROWS = new Set(['tessieTouch', 'flatControls', 'touchHands', 'fingerTargets', 'cockpitModel', 'deskTrim', 'binoculars', 'deskEnter', 'quietSkipper', 'phoneCard']);
+const LAYOUT_ROWS = new Set(['tessieTouch', 'flatControls', 'touchHands', 'fingerTargets', 'cockpitModel', 'deskTrim', 'binoculars', 'deskEnter', 'quietSkipper', 'phoneCard', 'perfHud']);   // perfHud: the top-right panel beside the desktop's top bar and cockpit (v2/tests/perf-hud.test.mjs)
 const MEMORY_ROWS = new Set(['terrainSet']);
 test('the tablet rule: every feature row for a tablet equals a desktop\'s at the same GPU level (layout, input and memory rows aside)', () => {
   for (const tab of TABLETS) for (const lvl of [0, 1, 2, 3]) {
@@ -213,7 +213,7 @@ test('rockDetail: the close rock on a desktop or a tablet at L0-L1, none on a ph
 });
 test('every policy is named in a six-device table, with its axes and a reason', () => {
   for (const [n, P] of Object.entries(POLICIES)) {
-    assert.ok(NAMES.includes(n) || NAMES_B.includes(n) || NAMES_P.includes(n) || n === 'phoneCard' || n === 'loadPhoneAdvice' || n === 'chartGlass' || n === 'bedBoulders' || n === 'busyLake' || n === 'boatMirrors' || n === 'waterDetail' || n === 'rockDetail' || n === 'regionKayaks' || n === 'stagedKayaks' || n === 'phoneClouds' /* v2/tests/phone-clouds.test.mjs */ || n === 'gennakerCloth' /* v2/tests/gennaker.test.mjs */ || n === 'paddleWheeler' /* v2/tests/paddle-wheeler.test.mjs */, `${n}: add it to a six-device table`);
+    assert.ok(NAMES.includes(n) || NAMES_B.includes(n) || NAMES_P.includes(n) || n === 'phoneCard' || n === 'loadPhoneAdvice' || n === 'chartGlass' || n === 'bedBoulders' || n === 'busyLake' || n === 'boatMirrors' || n === 'waterDetail' || n === 'rockDetail' || n === 'regionKayaks' || n === 'stagedKayaks' || n === 'phoneClouds' /* v2/tests/phone-clouds.test.mjs */ || n === 'gennakerCloth' /* v2/tests/gennaker.test.mjs */ || n === 'paddleWheeler' /* v2/tests/paddle-wheeler.test.mjs */ || n === 'perfHud' /* v2/tests/perf-hud.test.mjs */, `${n}: add it to a six-device table`);
     assert.ok(P.axes && P.why && typeof P.tier === 'function', n);
   }
 });

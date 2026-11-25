@@ -34,6 +34,7 @@ import { createSkills } from '../../src/sail/skills.js';
 import { createWords } from '../../src/ui/words.js';
 import { createCaptainView } from '../../src/ui/captainView.js';
 import { createChartplotter } from '../../src/ui/chartplotter.js';
+import { cockpitUp } from './cockpitUp.js';   // the cockpit up: the performance stats panel and the nav column follow it
 import { createDialModules } from './dials.js';   // the two dials as 2D modules (?dials=cockpit: the old dials in the cockpit, one release)
 import { showsDials, homeId } from '../engine/modes.js';
 import { luffAwaDeg, BOAT as BOAT_P } from '../../src/sim/boat.js';
@@ -411,6 +412,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
     pageWas.pin = !!tg?.pinned; pageWas.log = logOpen();
   }
   let dialModules = null;   // made below, once calm is
+  let ckUp = false;   // the cockpit up this frame (ui/cockpitUp.js; ui.cockpitUp)
   const dashHidden = () => !sailing() || !!services.get('played')?.played || !!services.get('menu')?.isOpen || logOpen() || hint.current === 'keys' || binoUp() || chartBig() || hubUp();
   // quiet: the one-thumb controls (thumb.js) never fade, so "Tap to show the helm" is stale there; ?thumb=0's grid still fades and keeps it
   const calm = createCalmHud({ services, settings, getOptions: () => services.get('modeOptions') ?? {}, quiet: () => document.documentElement.classList.contains('lk-one-thumb') || document.documentElement.classList.contains('lk-flat'), foldOnDown: true });   // H only folds, on key-down
@@ -636,6 +638,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   // the chart's grid needs the whole terrain: mounted when the stream is done (a capture: at once)
   const ui = {
     services, views, station, calm, hint, viewSwitch, captain, panel, throttle, tackBtn, proRecess, trimPanel, skills, words, pads, dayClock, keyLegend, navColumn, voice, grounding, music, seaUi,
+    get cockpitUp() { return ckUp; },   // ui/cockpitUp.js: the performance stats panel's rule (main.js), the nav column's on a desktop cockpit
     get chart() { return chart; }, get course() { return sailCourse; }, get assist() { return assist; }, get status() { return statusNow; }, chartEsc: () => !!chart?.chart?.toggle?.pinned,   // U8: the card's Esc waits while the enlarged chart is pinned (the card listens in the capture phase, the chart's own Esc unpins after it)
     mountChart, setLevel, setPro, get pro() { return pro; }, weather,
     get mode() { return mode; }, setMode(m) { mode = m === 'cruise' ? 'cruise' : 'sail'; if (mode === 'cruise') { assist?.cancel(); B.station({ free: null }); } H.dataset.lkPlay = mode; /* data-lk-play: Cruise's autopilot sails, so the Tack pill stands down (tackButton.js CSS; owner 2026-11-15) */ services.provide('modeOptions', { hud: 'calm' }); chart?.setMode(mode); if (mode === 'cruise' && sailCourse) { sailCourse.clear(); sailCourse.update(0); } },   // U15: Cruise has no practice marks (v1's Cruise chart has no course tool)   // v2/cruise
@@ -647,6 +650,11 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
       // clean layout never forces one
       calm.update(Math.min(0.1, dt));
       dialModules?.update();
+      // the cockpit up (ui/cockpitUp.js): the performance stats panel reads it (main.js), and the Pro nav column and the key legend
+      // follow it while a desktop cockpit sails (2026-11-25: folded, Clear, Instruments, Tessie take them; the helm view keeps the
+      // column, the legend's own rule takes it there). Cruise, a tablet and a phone (no drawn cockpit) keep their own rules
+      ckUp = cockpitUp({ form: station?.form ?? null, stationShown: !!station?.shown, fold: !!calm.fold, preset: calm.mode, modeDials: showsDials(world.modeId?.() ?? homeId()), played: !!services.get('played')?.played });
+      navColumn.hidden = keyLegend.hidden = station?.form === 'cockpit' && sailing() && !ckUp;   // the key legend too (its own rules stay: key hints, the helm view)
       dayClock.step(dt);   // a time pick's fade and its cut, in every mode (Cruise's sheet picks too), before the frame draws
       if (!sailing()) { thumb?.update(dt, null); flat?.update(dt); keyLegend.update(); navColumn.update(); chart?.update(dt); return; }   // Cruise: the Calm HUD, the edges (they hide by mode), the chart
       thumb?.update(dt, hands);   // the upright phone's steer zone and rope into this frame's hands (before the boat's step)
