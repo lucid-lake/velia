@@ -24,9 +24,10 @@ const IPAD = 'Mozilla/5.0 (iPad; CPU OS 18_1 like Mac OS X) AppleWebKit/605.1.15
 const Q = 'mode=sail&hour=15&seed=1&noload=1&quality=1&kayaks=0&chatter=0&attract=0&fv=1&hm=0&mute=1';
 const browser = await chromium.launch({ executablePath: process.env.LAKESHORE_CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--enable-unsafe-webgpu', '--no-first-run', '--mute-audio'] });
 
-async function open(q, { w = 1280, h = 720, profile = 'new', ctxOpts = {}, ready = 'm4' } = {}) {
+async function open(q, { w = 1280, h = 720, profile = 'new', ctxOpts = {}, ready = 'm4', slow = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, ...ctxOpts });
   await ctx.addInitScript((s) => { try { localStorage.setItem('lakeshore.settings.v1', JSON.stringify(s)); } catch { /* blocked */ } }, SEEN(profile));
+  if (slow) await ctx.route(slow.re, async (r) => { await new Promise((ok) => setTimeout(ok, slow.ms)); await r.continue(); });   // a module that arrives late
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto(`${BASE}/?${q}`, { waitUntil: 'load' });
@@ -142,6 +143,49 @@ try {
     const B = await boxes(page);
     check(B.chart && B.wind && !B.cls.includes('lk-dm-off'), `Regatta: both modules (chart ${fmt(B.chart)}, wind ${fmt(B.wind)})`);
     check(!errors.length, `Regatta: no page errors (${errors.join(' | ').slice(0, 200) || 'none'})`);
+    await ctx.close();
+  }
+
+  // ---------------- a click opens the page (owner 2026-11-25: "click new chart dial does not really open the chart") ----------------
+  // The chart page is the live map under the Menu card: what Menu, Esc and N open (the top bar has no Chart button since 2026-11-18). The
+  // click must open it even in the beat before the map's module has loaded (the old pin drew nothing then); Esc closes; the wind dial's click opens the logbook.
+  {
+    const { ctx, page, errors } = await open(`${Q}&hud=full`);
+    const S = () => page.evaluate(() => { const sv = window.__velia.m4.ui.services, m = sv.get('menu'), lc = document.querySelector('.lk-livechart');
+      return { menu: !!m?.isOpen, state: m?.state, map: !!lc && !lc.hidden && getComputedStyle(lc).display !== 'none', log: !!sv.get('logbook')?.logbook?.isOpen, pinned: !!window.__velia.m4.ui.chart?.chart?.toggle?.pinned }; });
+    const click = async (sel, dx = 0) => { const r = await page.evaluate(([q, f]) => { const b = document.querySelector(q).getBoundingClientRect(); return [b.left + b.width * (0.5 + f), b.top + b.height / 2]; }, [sel, dx]);   // dx: off the centre (the wind dial's centre line is the rudder's drag handle, which a click leaves alone)
+      await page.mouse.click(r[0], r[1]); await page.waitForTimeout(1200); };
+    // the reference: the page Esc opens
+    await page.keyboard.press('Escape'); await page.waitForTimeout(1200);
+    const ref = await S();
+    await page.keyboard.press('Escape'); await page.waitForTimeout(1200);
+    check(ref.menu && ref.map && !(await S()).menu, `the reference chart page (Esc): the map under the Menu card (${JSON.stringify(ref)}); Esc closes it`);
+    await click('.lk-chart .small');
+    let s1 = await S();
+    check(s1.menu && s1.map && s1.state === ref.state && !s1.pinned && !s1.log, `a click on the chart module opens the same chart page (${JSON.stringify(s1)})`);
+    await page.keyboard.press('Escape'); await page.waitForTimeout(1200);
+    s1 = await S();
+    check(!s1.menu && !s1.map, `Escape closes the chart page (${JSON.stringify(s1)})`);
+    await click('.lk-cv .dial', -0.25);
+    s1 = await S();
+    check(s1.log && !s1.menu, `a click on the wind module opens the logbook (${JSON.stringify(s1)})`);
+    await page.keyboard.press('Escape'); await page.waitForTimeout(1000);
+    check(!(await S()).log, 'Escape closes the logbook');
+    check(!errors.length, `click-to-open: no page errors (${errors.join(' | ').slice(0, 200) || 'none'})`);
+    await ctx.close();
+  }
+
+  // the beat before the map's module has loaded (slow network, a cold start): the click opens the Menu card at once; the old pin drew nothing
+  {
+    const { ctx, page, errors } = await open(`${Q}&hud=full`, { slow: { re: /chart\/mapScreen\.js/, ms: 9000 } });
+    const early = await page.evaluate(() => !window.__velia.m4.ui.services.get('mapScreen'));
+    const r = await page.evaluate(() => { const b = document.querySelector('.lk-chart .small').getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; });
+    await page.mouse.click(r[0], r[1]); await page.waitForTimeout(800);
+    const s2 = await page.evaluate(() => ({ menu: !!window.__velia.m4.ui.services.get('menu')?.isOpen, pinned: !!window.__velia.m4.ui.chart?.chart?.toggle?.pinned, map: !!window.__velia.m4.ui.services.get('mapScreen') }));
+    check(early && !s2.map && s2.menu && !s2.pinned, `the map module not yet loaded: a click opens the page at once, pins nothing (${JSON.stringify(s2)})`);
+    await page.waitForFunction(() => window.__velia.m4.ui.services.get('mapScreen'), null, { timeout: 60000 }); await page.waitForTimeout(800);
+    check(await page.evaluate(() => { const lc = document.querySelector('.lk-livechart'); return !!lc && !lc.hidden && getComputedStyle(lc).display !== 'none'; }), 'then the map shows under the card');
+    check(!errors.length, `late map: no page errors (${errors.join(' | ').slice(0, 200) || 'none'})`);
     await ctx.close();
   }
 
