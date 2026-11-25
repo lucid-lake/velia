@@ -29,6 +29,20 @@ export const GROUND = Object.freeze({
   sounding: Object.freeze({ step: 200, minDepth: 4 }),
 });
 
+// The sheets past the bay (the chart from Emerald Bay to South Lake): the same engraving over the lake-wide grids and South Lake's own
+// detail level (terrain/south), baked by tools/v2-chart-bake.mjs into WebPs (v2/assets/chart/<id>-<palette>.webp; sheetData.js). The
+// chart draws them under the bay's ground, which stays as it is where it was:
+//   lake    the overview: the bay to South Lake and the mountains round them, so the entrance's view of every birthplace (the bay's
+//           five and Off Ski Run, chartModel.js frameBirthplaces) lies on paper at every landscape size; shipped with the bay's
+//   south   South Lake at the bay's own scale (6.25 m a pixel): fetched only when the view comes to it close up or the start is
+//           there (chartModel.js sheetWanted), the region-load rule
+export const SHEETS = Object.freeze({
+  lake: Object.freeze({ id: 'lake', box: Object.freeze({ x0: -9600, z0: -9600, x1: 16000, z1: 8000 }), mpp: 16, lazy: false }),
+  south: Object.freeze({ id: 'south', box: Object.freeze({ x0: 4000, z0: -1600, x1: 14600, z1: 3200 }), mpp: 6.25, lazy: true, loadMpp: 12 }),
+});
+// the paper: the widest box any sheet covers (the view's clamp, the zoom-out's limit, where a pin counts as past the chart: edge.js)
+export const PAPER = SHEETS.lake.box;
+
 import { clampT as clamp } from '../../../src/sim/core/math.js';
 import { smooth } from '../../../src/sim/core/math.js';
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];

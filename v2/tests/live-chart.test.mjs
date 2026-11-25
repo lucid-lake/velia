@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chartView, zoomAbout, panBy, clampView, zoomRange, centreFor, classVisible, fadeTo, buildPois, actionFor, aimOf, hitTest, walkOrder,
   layoutLabels, ease, NAMES, SIZES, ZOOM_CLASS, FADE_S, HIT_PX } from '../ui/chart/chartModel.js';
-import { GROUND, groundSize } from '../ui/chart/ground.js';
+import { GROUND, PAPER, groundSize } from '../ui/chart/ground.js';
 import { GROUND_BAKE } from '../ui/chart/groundData.js';
 import { chartActions } from '../ui/chart/liveChart.js';
 import { bakeRaw, staleParts, SHIP_MPP } from '../../tools/v2-chart-bake.mjs';
@@ -65,7 +65,7 @@ test('zoom about the pointer keeps the world point under it; pan follows the dra
   assert.equal(r.min, 1.2); assert.ok(r.max <= 6.5 && r.max > 4, `the widest zoom ${r.max} m/px`);
   const c = clampView({ cx: -99999, cz: 99999, mpp: 99 }, { w: 1280, h: 720, size: 'play' });
   assert.equal(c.mpp, r.max);
-  assert.ok(c.cx - 640 * c.mpp >= GROUND.box.x0 - 1e-6 && c.cz + 360 * c.mpp <= GROUND.box.z1 + 1e-6, 'never past the paper\'s edge');
+  assert.ok(c.cx - 640 * c.mpp >= PAPER.x0 - 1e-6 && c.cz + 360 * c.mpp <= PAPER.z1 + 1e-6, 'never past the paper\'s edge');
   const ce = centreFor(100, 50, 2, { left: 320 });
   assert.deepEqual(chartView({ ...ce, mpp: 2, w: 1280, h: 720 }).toPx(100, 50), [640 + 160, 360], 'a 320 px panel: the boat in the middle of what is left');
   assert.equal(ease(0), 0); assert.equal(ease(1), 1);

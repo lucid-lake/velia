@@ -1,5 +1,5 @@
-// A point past a chart's paper (a birthplace in a region the drawn chart does not cover yet: South Lake's Off Ski Run, east of the
-// bay's chart) is set at the paper's edge, on the line from the paper's centre toward it, `inset` metres in, the way a paper chart
+// A point past a chart's paper (a birthplace in a region the drawn chart's sheets do not cover yet; South Lake's Off Ski Run is on
+// the paper since its sheet came, so no row of today's table is past it) is set at the paper's edge, on the line from the paper's centre toward it, `inset` metres in, the way a paper chart
 // notes a place beyond its border. Pure, no imports: the live chart (chartModel.js buildPois) and the card's mini chart
 // (ui/birthplaceCard.js) read it.
 //   edgePoint(x, z, box, inset) → { x, z, far: false } inside the box (less the inset), else { x, z, far: true, km, dir }

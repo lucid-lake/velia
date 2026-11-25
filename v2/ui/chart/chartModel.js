@@ -4,7 +4,10 @@
 //   chartView({ cx, cz, mpp, w, h })          → { toPx(x, z), toWorld(px, py), … }: world (x east, z south, m) ↔ px, north up
 //   zoomAbout(view, px, py, mpp)               → { cx, cz, mpp }: the world point under (px, py) stays under it
 //   panBy(view, dx, dy)                        → { cx, cz, mpp }: the map moves with a drag of (dx, dy) px
-//   clampView(v, { w, h, size, box, insets })  → v inside the size's zoom range and the ground's box
+//   clampView(v, { w, h, size, box, insets })  → v inside the size's zoom range and the paper (ground.js PAPER)
+//   frameBirthplaces(list, { w, h, insets, size, card })  → { center: { x, z }, mpp }: the entrance's first view, every birthplace (where
+//                                              the chart draws it) inside what the insets leave, with a margin
+//   sheetWanted(sheet, v, { w, h, lit })      a lazy sheet's fetch: the view on it at its loadMpp or closer, or the start on it
 //   classVisible(cls, mpp, maxClass)           A always, B at mpp ≤ 6, C at mpp ≤ 2.5 (the size's maxClass caps it)
 //   fadeTo(a, target, dt)                      a name's alpha one step toward its target (0.2 s for the whole way)
 //   buildPois(src, { mode })                   → [{ id, kind, x, z, name, line, zoomClass, action }]
@@ -13,8 +16,8 @@
 //   walkOrder(rows, cx, cz, mpp)               → the shown rows, nearest the centre first (the Tab walk)
 //   layoutLabels(labels, toPx, measure, o)     → [{ id, x, y, w, h, shown }]: by class, then by distance to the centre, no overlaps
 //   ease(t)                                    cubic-bezier(.2, 0, 0, 1), the zoom's and the glide's curve
-import { GROUND } from './ground.js';
-import { edgePoint, farName, farLine } from './edge.js';   // a pin past the paper (South Lake's) at its edge
+import { GROUND, PAPER } from './ground.js';
+import { edgePoint, farName, farLine } from './edge.js';   // a pin past the paper (a region the chart's sheets do not cover) at its edge
 import { CURRENT_WATERS } from '../../../src/sim/waters/current.js';
 import { regionLabelsOf, regionNamesOf } from '../../sim/regions.js';
 
@@ -23,13 +26,15 @@ export const ZOOM_CLASS = Object.freeze({ A: Infinity, B: 6, C: 2.5 });
 const RANK = { A: 0, B: 1, C: 2 };
 export const FADE_S = 0.2;
 // the three sizes of the one component: the card's map, the full-window menu map, the in-play chart.
-//   minMpp, maxMpp   the zoom range (1.2 m a pixel: a cove, the tea house about 4 px; the widest: the whole bay, kept inside the ground)
+//   minMpp, maxMpp   the zoom range (1.2 m a pixel: a cove, the tea house about 4 px; the widest: the card and the menu out to every
+//                    birthplace, the bay to South Lake, kept inside the paper; in play the whole bay)
 //   maxClass         the closest names this size shows (the card: A and B, as a phone's)
 //   follow           the view follows the boat until a pan (in play)
+//   bayWide          the widest zoom is the bay's ground's (in play: the whole bay at most, as before the sheets; it pans the paper)
 export const SIZES = Object.freeze({
-  card: Object.freeze({ minMpp: 2.5, maxMpp: 9, maxClass: 'B', follow: false }),
-  menu: Object.freeze({ minMpp: 1.2, maxMpp: 6.5, maxClass: 'C', follow: false }),
-  play: Object.freeze({ minMpp: 1.2, maxMpp: 6.5, maxClass: 'C', follow: true }),
+  card: Object.freeze({ minMpp: 2.5, maxMpp: 48, maxClass: 'B', follow: false }),
+  menu: Object.freeze({ minMpp: 1.2, maxMpp: 48, maxClass: 'C', follow: false }),
+  play: Object.freeze({ minMpp: 1.2, maxMpp: 6.5, maxClass: 'C', follow: true, bayWide: true }),
 });
 // the bookmarks (keys 1 · 2 · 3): the whole bay, mid, a cove
 export const BOOKMARKS = Object.freeze([6.5, 3, 1.4]);
@@ -59,12 +64,12 @@ export function zoomAbout(v, px, py, mpp) {
 export const panBy = (v, dx, dy) => ({ cx: v.cx - dx * v.mpp, cz: v.cz - dy * v.mpp, mpp: v.mpp });
 
 // the widest mpp at which a w × h view still lies inside the box
-const fitMpp = (w, h, box = GROUND.box) => Math.min((box.x1 - box.x0) / Math.max(1, w), (box.z1 - box.z0) / Math.max(1, h));
-export function zoomRange(w, h, size = 'play', box = GROUND.box) {
-  const S = SIZES[size] ?? SIZES.play, hi = Math.min(S.maxMpp, fitMpp(w, h, box));
+const fitMpp = (w, h, box = PAPER) => Math.min((box.x1 - box.x0) / Math.max(1, w), (box.z1 - box.z0) / Math.max(1, h));
+export function zoomRange(w, h, size = 'play', box = PAPER) {
+  const S = SIZES[size] ?? SIZES.play, hi = Math.min(S.maxMpp, fitMpp(w, h, box), S.bayWide ? fitMpp(w, h, GROUND.box) : Infinity);
   return { min: Math.min(S.minMpp, hi), max: hi };
 }
-export function clampView(v, { w, h, size = 'play', box = GROUND.box } = {}) {
+export function clampView(v, { w, h, size = 'play', box = PAPER } = {}) {
   const r = zoomRange(w, h, size, box), mpp = clamp(v.mpp, r.min, r.max);
   const hw = (w / 2) * mpp, hh = (h / 2) * mpp;
   const cx = box.x1 - box.x0 <= 2 * hw ? (box.x0 + box.x1) / 2 : clamp(v.cx, box.x0 + hw, box.x1 - hw);
@@ -75,6 +80,37 @@ export function clampView(v, { w, h, size = 'play', box = GROUND.box } = {}) {
 export function centreFor(x, z, mpp, insets = {}) {
   const l = insets.left ?? 0, r = insets.right ?? 0, t = insets.top ?? 0, b = insets.bottom ?? 0;
   return { cx: x - ((l - r) / 2) * mpp, cz: z - ((t - b) / 2) * mpp };
+}
+
+// The entrance's first view (owner, 2026-11-24: the default chart view includes every birthplace): the birthplaces of every region row
+// (list: [{ x, z, locked? }], the service's), each where the chart draws it (a pin past the paper at its edge), framed in what the insets
+// leave less a margin a side, 12 % more round them, at the size's zoom range; centred in that free part. The margins (px):
+//   panel   the desktop's and the tablet's map beside the panel: 95 each side for the names, 75 top and bottom (the layer bar, the fact)
+//   card    a phone's box: 24 on the left, 76 on the right (its layers, + and − column, 44 px buttons), 28 top and bottom
+export const FRAME = Object.freeze({ panel: Object.freeze({ l: 95, r: 95, t: 75, b: 75 }), card: Object.freeze({ l: 24, r: 76, t: 28, b: 28 }), k: 1.12 });
+export function frameBirthplaces(list, { w, h, insets = {}, size = 'menu', card = false, box = PAPER } = {}) {
+  const pts = (list ?? []).filter((r) => !r.locked && Number.isFinite(r.x) && Number.isFinite(r.z)).map((r) => edgePoint(r.x, r.z, box));
+  if (!pts.length || !w) return null;
+  const m = card ? FRAME.card : FRAME.panel;
+  const ins = { left: (insets.left ?? 0) + m.l, right: (insets.right ?? 0) + m.r, top: (insets.top ?? 0) + m.t, bottom: (insets.bottom ?? 0) + m.b };
+  const freeW = Math.max(120, w - ins.left - ins.right), freeH = Math.max(120, h - ins.top - ins.bottom);
+  const xs = pts.map((p) => p.x), zs = pts.map((p) => p.z);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+  const { min, max } = zoomRange(w, h, size, box);
+  const mpp = clamp(Math.max((x1 - x0) / freeW, (z1 - z0) / freeH, 0.001) * FRAME.k, min, max);
+  const c = centreFor((x0 + x1) / 2, (z0 + z1) / 2, mpp, ins);
+  return { center: { x: c.cx, z: c.cz }, mpp };
+}
+
+// a lazy sheet (ground.js SHEETS.south) is fetched when the view (w × h px) overlaps its box at its loadMpp or closer, or when the lit
+// birthplace (the start: lit { x, z }) is on it; never for a view of the whole lake or a start elsewhere
+export function sheetWanted(sheet, v, { w = 0, h = 0, lit = null } = {}) {
+  if (!sheet?.lazy) return true;
+  const B = sheet.box, inB = (x, z) => x >= B.x0 && x <= B.x1 && z >= B.z0 && z <= B.z1;
+  if (lit && Number.isFinite(lit.x) && inB(lit.x, lit.z)) return true;
+  if (!v || !(v.mpp <= (sheet.loadMpp ?? Infinity))) return false;
+  const hw = (w / 2) * v.mpp, hh = (h / 2) * v.mpp;
+  return v.cx + hw > B.x0 && v.cx - hw < B.x1 && v.cz + hh > B.z0 && v.cz - hh < B.z1;
 }
 
 export const classVisible = (cls, mpp, maxClass = 'C') => RANK[cls] <= RANK[maxClass] && mpp <= ZOOM_CLASS[cls];
@@ -126,9 +162,9 @@ export function actionFor(kind, mode = 'play') {
 export function buildPois(src = {}, { mode = 'play' } = {}) {
   const rows = [];
   const add = (r) => rows.push({ ...r, zoomClass: r.zoomClass ?? KINDS[r.kind].cls, action: actionFor(r.kind, mode) });
-  // a birthplace past the chart's paper (South Lake's, until its chart art comes) stands at the paper's edge toward it, its name
-  // with the continuation mark; a tap picks it as any pin (the service moves her to the real place)
-  for (const b of src.birthplaces ?? []) { const e = edgePoint(b.x, b.z, GROUND.box); add({ id: `bp-${b.id}`, ref: b.id, kind: 'birthplace', x: e.x, z: e.z, name: e.far ? farName(b.name) : b.name, line: e.far ? farLine(b.why, e) : b.why ?? '', lit: b.id === src.current, ...(e.far ? { far: true, at: [b.x, b.z] } : {}) }); }
+  // a birthplace past the chart's paper (a region its sheets do not cover yet; South Lake's is on the paper) stands at the paper's edge
+  // toward it, its name with the continuation mark; a tap picks it as any pin (the service moves her to the real place)
+  for (const b of src.birthplaces ?? []) { const e = edgePoint(b.x, b.z, PAPER); add({ id: `bp-${b.id}`, ref: b.id, kind: 'birthplace', x: e.x, z: e.z, name: e.far ? farName(b.name) : b.name, line: e.far ? farLine(b.why, e) : b.why ?? '', lit: b.id === src.current, ...(e.far ? { far: true, at: [b.x, b.z] } : {}) }); }
   for (const a of src.anchorages ?? []) add({ id: `an-${Math.round(a.x)}-${Math.round(a.z)}`, kind: 'anchorage', x: a.x, z: a.z, name: a.name,
     line: a.depth != null ? `${Math.round(a.depth)} m of water, good holding.` : 'Good holding.', lit: !!a.lit });   // lit: the boat is inside it (the anchorage cue)
   for (const p of src.places ?? []) add({ id: `pl-${p.id}`, ref: p.id, kind: 'place', x: p.x, z: p.z, name: p.name, line: p.line ?? '', zoomClass: p.zoomClass });

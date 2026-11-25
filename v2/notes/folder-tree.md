@@ -29,7 +29,8 @@ v2/index.html ─ main.js (boot: flags → device → manifests → targets → 
   sim/sea-worker.js    the day clock: a live page's sea tables (seaTables) built off the main thread
   terrain/levels.js    M2: the five slots, the stream plan (3 stages), the variant pick, the files a build ships (pure)
   terrain/region.js    the regions' own detail levels (South Lake): which start loads which, the composed level, the files (pure)
-  ui/chart/edge.js     a pin past a chart's paper at its edge (South Lake's on the bay's charts) (pure)
+  ui/chart/edge.js     a pin past a chart's paper at its edge (a region the sheets do not cover; none today) (pure)
+  ui/chart/sheetData.js the chart's sheets past the bay (the lake's overview, South Lake's detail): baked meta (tools/v2-chart-bake.mjs)
   terrain/decode.js    M2: .lsh inflate + unpredict (a copy of v1's maths: § Shared modules), per-cell min/max (pure)
   terrain/worker.js    M2: fetch → inflate → unpredict → bounds, off the main thread; the codes come back transferred
   terrain/sample.js    M2: the CPU twin of the WGSL height function (v1's heightAt with every full grid in)

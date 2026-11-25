@@ -42,12 +42,12 @@ test("Fannette Island is land at the summit (0, 0), a small closed loop of its o
   assert.ok(w > 60 && w < 400 && h > 60 && h < 400, `an island of 60 to 400 m (${w} x ${h} m)`);
 });
 
-test('every birthplace pin is on water inside the window, with room for its name (a pin past it: at its edge, on water)', async () => {
+test('every birthplace pin of the region table is on water inside the window, with room for its name (none past it)', async () => {
   const [x0, z0, w, h] = MINI_BOX;
   const { edgePoint } = await import('../ui/chart/edge.js');
   for (const b of BIRTHPLACES) {
     const e = edgePoint(b.x, b.z, { x0, z0, x1: x0 + w, z1: z0 + h }, 0.06 * w), r = { ...b, x: e.x, z: e.z };
-    assert.equal(e.far, b.id === 'ski-run', `${b.id}: past the window only South Lake's pin`);
+    assert.equal(e.far, false, `${b.id}: inside the window (the window frames every birthplace)`);
     assert.ok(r.x > x0 + 0.04 * w && r.x < x0 + 0.96 * w && r.z > z0 + 0.04 * h && r.z < z0 + 0.96 * h, `${r.id} inside the window`);
     assert.ok(!onLand([r.x, r.z]), `${r.id} is on water`);
   }
@@ -58,6 +58,15 @@ test('the pins keep their real places: Off Fannette and Tessie\'s water east of 
   assert.ok(by.fannette.x > 0 && by.tessie.x > by.fannette.x, 'east of the island, Tessie\'s further');
   assert.ok(by.vikingsholm.x < 0 && by.vikingsholm.x < by.fannette.x, 'Vikingsholm west, at the head');
   assert.ok(by.narrows.z < by.tessie.z && by.lake.z < by.narrows.z, 'north is up: the narrows, then the open lake, out toward the mouth');
+});
+
+test('the window frames every birthplace of any region table: a region added (a north-shore pin) widens it', async () => {
+  const { miniBoxOf } = await import('../ui/birthplaceCard.js');
+  const rows = [...BIRTHPLACES, { id: 'fake-north', x: 4200, z: -9000 }, { id: 'fake-west', x: -3000, z: 900 }];
+  const [x0, z0, w, h] = miniBoxOf(rows);
+  for (const r of rows) assert.ok(r.x > x0 + 0.04 * w && r.x < x0 + 0.96 * w && r.z > z0 + 0.04 * h && r.z < z0 + 0.96 * h, `${r.id} inside ${[x0, z0, w, h]}`);
+  assert.deepEqual(miniBoxOf(BIRTHPLACES), [...MINI_BOX], 'the card\'s window is the region table\'s');
+  assert.ok(MINI_BOX[2] / MINI_BOX[3] <= 2.4 + 1e-9, `no flatter than 2.4 : 1 (${MINI_BOX})`);
 });
 
 test('the shoreline has the rings the card draws and the file is a fresh bake', () => {

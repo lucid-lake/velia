@@ -52,10 +52,9 @@ test('the region row: South Lake Tahoe, its level, the pin, neighbours both ways
   for (const t of ['South Lake Tahoe', 'Ski Run', 'Tahoe Keys', 'Camp Richardson']) assert.ok(NAMES.some((n) => n.text === t), t);
   assert.deepEqual(regionNamesOf(W).map((n) => n.text), ['Ski Run', 'Tahoe Keys', 'Camp Richardson']);
   assert.ok(listBirthplaces(W).some((b) => b.id === 'ski-run' && b.region === 'south-lake' && !b.locked), 'the pin is on the list (the card, the chart)');
-  // the chart's pin: past the bay's chart paper, so it stands at the paper's east edge with the continuation mark; a tap picks ski-run
+  // the chart's pin: on the chart's paper since its south sheet (ui/chart/ground.js SHEETS), a plain pin at its own place; a tap picks ski-run
   const pin = buildPois({ birthplaces: listBirthplaces(W) }).find((r) => r.ref === 'ski-run');
-  assert.ok(pin.far && pin.name === 'Off Ski Run \u203a' && pin.x > 3500 && pin.x < 4000 && Math.abs(pin.z + 800) < 200 && /km east/.test(pin.line), JSON.stringify(pin));
-  assert.deepEqual(pin.at, [11800, -875]);
+  assert.ok(!pin.far && pin.name === 'Off Ski Run' && pin.x === 11800 && pin.z === -875 && pin.action === 'sail' && !pin.at, JSON.stringify(pin));
 });
 
 test('the loader picks a region\'s level only for a start at one of its birthplaces', () => {

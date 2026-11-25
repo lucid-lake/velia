@@ -42,16 +42,22 @@
 //   chart.show(on), chart.setMode(mode), chart.setInsets(insets), chart.resize()
 //   chart.state, chart.stats(), chart.toClient(x, z), chart.destroy()
 import { TOKENS, FONT, UI, ensureTokens } from '../../../src/ui/tokens.js';
-import { GROUND, GROUND_PALETTES, groundSteps, groundSize } from './ground.js';
+import { GROUND, SHEETS, GROUND_PALETTES, groundSteps, groundSize } from './ground.js';
 import { GROUND_BAKE } from './groundData.js';
+import { SHEET_BAKE } from './sheetData.js';
 import { REFUSALS } from '../birthplaceCard.js';
 import { SIZES, BOOKMARKS, INK, NIGHT_INK, HIT_PX, ACTION_WORDS, namesFor, chartView, zoomAbout, panBy, clampView, zoomRange, centreFor, classVisible,
-  fadeTo, buildPois, aimOf, poiShown, hitTest, walkOrder, layoutLabels, ease } from './chartModel.js';
+  fadeTo, buildPois, aimOf, poiShown, hitTest, walkOrder, layoutLabels, ease, sheetWanted } from './chartModel.js';
 import { mountMapUx, drawWake, UX } from './mapUx.js';   // ?mapux=1 only ('s mock): the eased crosshair, the layers, your wake
 
 const GROUND_URLS = Object.freeze({
   day: new URL('../../assets/chart/emerald-bay-day.webp', import.meta.url).href,
   night: new URL('../../assets/chart/emerald-bay-night.webp', import.meta.url).href,
+});
+// the sheets past the bay (ground.js SHEETS), drawn under the bay's ground: the lake's at once, the south's when sheetWanted says
+const SHEET_URLS = Object.freeze({
+  lake: Object.freeze({ day: new URL('../../assets/chart/lake-day.webp', import.meta.url).href, night: new URL('../../assets/chart/lake-night.webp', import.meta.url).href }),
+  south: Object.freeze({ day: new URL('../../assets/chart/south-day.webp', import.meta.url).href, night: new URL('../../assets/chart/south-night.webp', import.meta.url).href }),
 });
 const WATER_WORDS = Object.freeze({ waterTarget: 'Set as target', waypoint: 'Add waypoint', setCourse: 'Set course', clearRoute: 'Clear route', clearTarget: 'Clear target' });
 export const CHART_TIMING = Object.freeze({ zoomS: 0.25, glideS: 0.4, focusS: 0.5, hz: 10, sliceMs: 4, tapPx: 6, dblMs: 320, trackMin: 20 });
@@ -173,7 +179,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   el.classList.add('lkc');
   el.tabIndex = 0;
   el.setAttribute('role', 'application');
-  el.setAttribute('aria-label', 'Chart of Emerald Bay: drag or arrow keys to pan, wheel or plus and minus to zoom, Tab walks the places, Enter opens one');
+  el.setAttribute('aria-label', 'Chart of Emerald Bay and South Lake: drag or arrow keys to pan, wheel or plus and minus to zoom, Tab walks the places, Enter opens one');
   const cv = document.createElement('canvas'); el.appendChild(cv);
   const card = document.createElement('div'); card.className = 'lkc-card'; card.hidden = true; card.setAttribute('role', 'dialog');
   card.innerHTML = '<b class="t"></b><span class="w"></span><button type="button" class="go"></button><span class="more"></span><i class="say" role="status" aria-live="polite"></i>';
@@ -258,6 +264,22 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     };
     setTimeout(run, 0);
   }
+  // the sheets: { [id]: { day, night } } images, each fetched once (a lazy sheet only when wanted)
+  const sheetImgs = Object.fromEntries(Object.keys(SHEETS).map((id) => [id, { day: null, night: null }]));
+  function loadSheet(id, p) {
+    if (sheetImgs[id][p] || typeof Image === 'undefined') return;
+    const im = new Image(); im.decoding = 'async'; im.src = SHEET_URLS[id][p];
+    sheetImgs[id][p] = im; im.onload = () => { dirty = true; };
+  }
+  const sheetOf = (id, p) => { const im = sheetImgs[id][p]; return im?.complete && im.naturalWidth ? im : null; };
+  const litAt = () => { const r = rows.find((q) => q.kind === 'birthplace' && q.lit); return r ? (r.at ? { x: r.at[0], z: r.at[1] } : { x: r.x, z: r.z }) : null; };
+  function wantSheets(night) {
+    const v = { ...view }, lit = litAt();
+    for (const S of Object.values(SHEETS)) {
+      if (!sheetWanted(S, v, { w: W, h: H, lit })) continue;
+      loadSheet(S.id, 'day'); if (night > 0.02) loadSheet(S.id, 'night');
+    }
+  }
   const groundOf = (p) => (live[p] ? { src: live[p], mpp: GROUND.liveMpp, kind: 'live' } : imgs[p]?.complete && imgs[p].naturalWidth ? { src: imgs[p], mpp: GROUND_BAKE.mpp, kind: 'webp' } : null);
 
   // ---- the points of interest and the names ----
@@ -278,7 +300,9 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     const out = namesFor(rows.filter((r) => r.kind === 'birthplace')).map((n) => ({ ...n }));
     for (const r of rows) {
       if (LABEL_OF[r.id]) continue;
-      if (r.kind === 'birthplace') out.push({ id: `n-${r.id}`, text: r.name, x: r.x, z: r.z, cls: r.lit ? 'A' : 'B', kind: 'water', dx: 13, dy: 0, align: 'left', poi: r.id, altPx: [[0, 19, 'center'], [0, -19, 'center'], [13, 19, 'left'], [13, -19, 'left'], [-13, 0, 'right']] });   // a pin's name: right, else below, above, left before it yields (hover or focus always shows it)
+      // a pin's name: class A at the entrance (the pins are what the first view is for: every birthplace, so the far zoom keeps them), the
+      // lit one first; in play and the hub class B but the lit one
+      if (r.kind === 'birthplace') out.push({ id: `n-${r.id}`, text: r.name, x: r.x, z: r.z, cls: r.lit || curMode === 'entrance' ? 'A' : 'B', pri: r.lit ? -2 : curMode === 'entrance' ? -1.5 : 0, kind: 'water', dx: 13, dy: 0, align: 'left', poi: r.id, altPx: [[0, 19, 'center'], [0, -19, 'center'], [13, 19, 'left'], [13, -19, 'left'], [-13, 0, 'right']] });   // a pin's name: right, else below, above, left before it yields (hover or focus always shows it)
       else if (r.kind === 'anchorage') out.push({ id: `n-${r.id}`, text: r.name, x: r.x, z: r.z, cls: 'B', kind: 'water', dx: 11, dy: 0, align: 'left', poi: r.id });
       else if (r.kind === 'racePin') out.push({ id: `n-${r.id}`, text: r.name, x: r.x, z: r.z, cls: 'A', kind: 'water', dx: 14, dy: 0, align: 'left', poi: r.id, altPx: [[0, 20, 'center'], [0, -20, 'center'], [-14, 0, 'right']] });
       else if (r.kind === 'place') out.push({ id: `n-${r.id}`, text: r.name, x: r.x, z: r.z, cls: r.zoomClass, kind: 'land', dx: 9, dy: 0, align: 'left', poi: r.id });
@@ -291,7 +315,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
 
   // ---- drawing ----
   const stats = { draws: 0, ms: [], max: 0 };
-  const drawn = { pois: [], labels: [], ground: 'none' };
+  const drawn = { pois: [], labels: [], ground: 'none', sheets: [] };
   const P = [0, 0];
   function fontSize(n) {
     const t = touch();
@@ -309,23 +333,32 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     if (glass < 1) g.clearRect(0, 0, W, H);
     g.fillStyle = rgba(deep, glass); g.fillRect(0, 0, W, H);
     let kind = 'none';
+    const sheets = [];
+    // one raster over its box at mpp m a pixel: the visible part only (a cove's zoom draws a small crop, scaled)
+    const raster = (src, B, mpp, a) => {
+      const k = mpp / v.mpp;
+      const [wx0, wz0] = v.toWorld(0, 0), [wx1, wz1] = v.toWorld(W, H);
+      const sx0 = clamp((wx0 - B.x0) / mpp - 1, 0, src.width), sy0 = clamp((wz0 - B.z0) / mpp - 1, 0, src.height);
+      const sx1 = clamp((wx1 - B.x0) / mpp + 1, 0, src.width), sy1 = clamp((wz1 - B.z0) / mpp + 1, 0, src.height);
+      if (sx1 - sx0 < 1 || sy1 - sy0 < 1) return false;
+      v.toPx(B.x0 + sx0 * mpp, B.z0 + sy0 * mpp, P);
+      g.globalAlpha = a * glass;
+      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = k > 1.5 ? 'high' : 'medium';
+      g.drawImage(src, sx0, sy0, sx1 - sx0, sy1 - sy0, P[0], P[1], (sx1 - sx0) * k, (sy1 - sy0) * k);
+      g.globalAlpha = 1;
+      return true;
+    };
     for (const [p, a] of [['day', 1], ['night', night]]) {
       if (a <= 0.01) continue;
+      // the sheets past the bay first (the lake's overview, then the south's detail), the bay's own ground over them
+      for (const S of Object.values(SHEETS)) { const im = sheetOf(S.id, p); if (im && raster(im, S.box, S.mpp, a) && p === 'day') sheets.push(S.id); }
       const gd = groundOf(p);
       if (!gd) continue;
       kind = gd.kind;
-      const B = GROUND.box, k = gd.mpp / v.mpp;
-      // the visible part of the raster only (a cove's zoom draws a small crop, scaled)
-      const [wx0, wz0] = v.toWorld(0, 0), [wx1, wz1] = v.toWorld(W, H);
-      const sx0 = clamp((wx0 - B.x0) / gd.mpp - 1, 0, gd.src.width), sy0 = clamp((wz0 - B.z0) / gd.mpp - 1, 0, gd.src.height);
-      const sx1 = clamp((wx1 - B.x0) / gd.mpp + 1, 0, gd.src.width), sy1 = clamp((wz1 - B.z0) / gd.mpp + 1, 0, gd.src.height);
-      if (sx1 - sx0 < 1 || sy1 - sy0 < 1) continue;
-      v.toPx(B.x0 + sx0 * gd.mpp, B.z0 + sy0 * gd.mpp, P);
-      g.globalAlpha = a * glass;
-      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = k > 1.5 ? 'high' : 'medium';
-      g.drawImage(gd.src, sx0, sy0, sx1 - sx0, sy1 - sy0, P[0], P[1], (sx1 - sx0) * k, (sy1 - sy0) * k);
-      g.globalAlpha = 1;
+      raster(gd.src, GROUND.box, gd.mpp, a);
     }
+    drawn.sheets = sheets;
+    if (kind === 'none' && sheets.length) kind = 'sheet';
     drawn.ground = kind;
     if (kind === 'none') { g.font = `400 15px ${UI}`; g.textAlign = 'center'; g.fillStyle = rgba(TOKENS.cream, 0.7); g.fillText('charting…', W / 2, H / 2); }
   }
@@ -375,6 +408,12 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       default: { g.beginPath(); g.rect(x - 1.6, y - 1.6, 3.2, 3.2); g.strokeStyle = I(0.75); g.lineWidth = 1; g.stroke(); }
     }
     if (lifted) { g.beginPath(); g.arc(x, y, r.kind === 'birthplace' ? 11.5 : r.kind === 'racePin' ? 13 : 9.5, 0, Math.PI * 2); g.strokeStyle = rgba(TOKENS.amber, 0.95); g.lineWidth = 1.1; g.stroke(); }
+  }
+  // the scale bar's length in nautical miles (the nearest of ¼, ½, 1 … to 110 px) and its place, with north beside it, bottom-right
+  function scaleGeo(mpp) {
+    const nmM = 1852, opts = [0.1, 0.25, 0.5, 1], target = 110 * mpp, nm = opts.reduce((a, o) => (Math.abs(o * nmM - target) < Math.abs(a * nmM - target) ? o : a), opts[0]);
+    const bar = (nm * nmM) / mpp, x1 = W - ins.right - 18, x0 = x1 - bar, y = H - ins.bottom - 20;
+    return { nm, x0, x1, y, nx: x0 - 70 };
   }
   let lastT = now();
   function draw(dt, t0 = now()) {
@@ -439,6 +478,9 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     // the boat (kept clear of names)
     const b = boat();
     if (b) { v.toPx(b.x, b.z, P); keep.push([P[0] - 13, P[1] - 13, P[0] + 13, P[1] + 13]); }
+    // the scale and north (bottom-right, drawn last) keep their corner clear of names too
+    const sc = scaleGeo(mpp);
+    keep.push([sc.nx - 12, sc.y - 32, sc.x1 + 4, sc.y + 6]);
     // the names: laid out by class, then nearest the centre; each fades to its target over 0.2 s; a lifted name at 94 %
     const nl = names(), meas = (n) => { const s = spriteOf(n, ink); return { w: s.w, h: s.h }; };
     const lay = layoutLabels(nl, (x, z, o) => v.toPx(x, z, o), meas, { w: W, h: H, mpp, maxClass: mc, keep, cx: v.cx, cz: v.cz });
@@ -453,7 +495,8 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
         boxes.push([Math.min(...pts.map((q) => q[0])) - 6, Math.min(...pts.map((q) => q[1])) - 4, Math.max(...pts.map((q) => q[0])) + 6, Math.max(...pts.map((q) => q[1])) + 4]);
       }
       g.font = `italic 400 11px ${UI}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = rgba(ink, INK.sounding + (NIGHT_INK.sounding - INK.sounding) * night);
-      for (const [x, z, d] of GROUND_BAKE.soundings) {
+      const south = sheetOf('south', 'day') ? SHEET_BAKE.south?.soundings ?? [] : [];   // the south's numerals once its sheet is in
+      for (const [x, z, d] of [...GROUND_BAKE.soundings, ...south]) {
         if (!inView(x, z, 10)) continue;
         const sx = P[0], sy = P[1];
         if (boxes.some((bx) => sx + 8 > bx[0] && sx - 8 < bx[2] && sy + 6 > bx[1] && sy - 6 < bx[3])) continue;
@@ -507,12 +550,11 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     }
     // the scale in nautical miles and north, bottom-right
     {
-      const nmM = 1852, opts = [0.1, 0.25, 0.5, 1], target = 110 * mpp, nm = opts.reduce((a, o) => (Math.abs(o * nmM - target) < Math.abs(a * nmM - target) ? o : a), opts[0]);
-      const bar = (nm * nmM) / mpp, x1 = W - ins.right - 18, x0 = x1 - bar, y = H - ins.bottom - 20;
+      const { nm, x0, x1, y, nx } = sc;
       g.beginPath(); g.moveTo(x0, y - 5); g.lineTo(x0, y); g.lineTo(x1, y); g.lineTo(x1, y - 5); g.strokeStyle = I(0.7); g.lineWidth = 1.2; g.stroke();
       g.font = `500 12px ${UI}`; g.textAlign = 'right'; g.textBaseline = 'alphabetic'; g.fillStyle = I(0.66);
       g.fillText(`${nm === 0.25 ? '¼' : nm === 0.5 ? '½' : nm} nm`, x0 - 8, y + 1);
-      const nx = x0 - 70, ny = y;
+      const ny = y;
       g.beginPath(); g.moveTo(nx, ny); g.lineTo(nx, ny - 14); g.moveTo(nx - 3.5, ny - 9); g.lineTo(nx, ny - 14); g.lineTo(nx + 3.5, ny - 9); g.strokeStyle = I(0.66); g.lineWidth = 1.2; g.stroke();
       g.textAlign = 'center'; g.fillText('N', nx, ny - 18);
     }
@@ -710,6 +752,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     if (layout()) placeCard();
     const night = clamp(+src('night', 0) || 0, 0, 1);
     loadImg('day'); if (night > 0.02) loadImg('night');
+    wantSheets(night);
     bakeLive('day'); if (night > 0.02 && live.day) bakeLive('night');
     const animating = stepAnim();
     if (following && !animating && !press && !pinch) { const f = followTarget(); if (f && (Math.abs(f.cx - view.cx) > 0.01 || Math.abs(f.cz - view.cz) > 0.01)) { view = clampView(f, { w: W, h: H, size }); dirty = true; } }
@@ -797,7 +840,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     openWater: (x, z) => { const q = visView().toPx(x, z); return openWater(q[0], q[1]); },   // a test's and a probe's way to the water card
     get state() {
       return { water: waterRow ? { x: +waterRow.x.toFixed(1), z: +waterRow.z.toFixed(1), actions: [...waterRow.actions] } : null, size, mode: curMode, view: { ...view }, following, hover, focus: focusId, selected: selId, card: card.hidden ? null : { name: cardT.textContent, action: cardGo.hidden ? null : cardGo.textContent, say: cardSay.textContent },
-        ground: drawn.ground, live: { day: !!live.day, night: !!live.night }, pois: drawn.pois.map((p) => ({ ...p })), labels: drawn.labels.map((l) => ({ ...l })), w: W, h: H, insets: { ...ins }, zoom: zoomRange(W, H, size) };
+        ground: drawn.ground, sheets: [...drawn.sheets], sheetsLoaded: Object.keys(SHEETS).filter((id) => !!sheetImgs[id].day), live: { day: !!live.day, night: !!live.night }, pois: drawn.pois.map((p) => ({ ...p })), labels: drawn.labels.map((l) => ({ ...l })), w: W, h: H, insets: { ...ins }, zoom: zoomRange(W, H, size) };
     },
     stats() {
       const a = [...stats.ms].sort((x, y) => x - y), pct = (p) => (a.length ? a[Math.min(a.length - 1, Math.floor(p * a.length))] : 0);

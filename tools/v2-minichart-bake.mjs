@@ -15,9 +15,11 @@ import { MINI_BOX } from '../v2/ui/birthplaceCard.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, 'v2/ui/miniChartData.js');
-// the chart's window in the world's metres (x0, z0, width, height): v2/ui/birthplaceCard.js MINI_BOX (the pins and their names inside it)
+// the chart's window in the world's metres (x0, z0, width, height): v2/ui/birthplaceCard.js MINI_BOX (every birthplace of the region
+// table and its name inside it). The grid's step and the lines' tolerance grow with the window (the bay alone, 3.5 km: 10 m and 4 m), so
+// a card-sized chart of the bay to South Lake keeps the same detail a pixel and a small file
 const BOX = MINI_BOX;
-const STEP = 10, PAD = 2;
+const SCALE = Math.max(1, BOX[2] / 3500), STEP = 10 * Math.max(1, Math.round(SCALE / 2)), PAD = 2;
 const LEVELS = [{ at: 0, tol: 4 }, { at: 35, tol: 8 }, { at: 85, tol: 11 }, { at: 160, tol: 14 }];
 
 const g = decodePlanGrid(new Uint8Array(gunzipSync(readFileSync(resolve(ROOT, 'v2/ui/planChart.bin')))));
@@ -112,8 +114,8 @@ const path = (lines, tol) => {
   return d;
 };
 
-const out = { box: BOX, coast: path(contours(0), 4), rings: LEVELS.slice(1).map((l) => path(contours(l.at), l.tol)) };
-const text = `// The home card's mini chart: the shoreline of Emerald Bay and its mouth, baked by tools/v2-minichart-bake.mjs from the planner's grid
+const out = { box: BOX, coast: path(contours(0), 4 * SCALE), rings: LEVELS.slice(1).map((l) => path(contours(l.at), l.tol * SCALE)) };
+const text = `// The home card's mini chart: the shoreline from Emerald Bay to South Lake (every birthplace), baked by tools/v2-minichart-bake.mjs from the planner's grid
 // (v2/ui/planChart.bin). World metres: x east, z south, Fannette Island's summit at 0, 0. box = [x0, z0, width, height].
 // coast: closed loops (land); rings: the engraver's lines in the water at 35, 85 and 160 m off the shore. Do not edit by hand.
 export const MINI = ${JSON.stringify(out)};
