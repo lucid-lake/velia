@@ -16,7 +16,7 @@
 //   TB.update(T, { eye, heightAt, sunElevDeg, depthAt, focalPx, clips, lite })   once a frame (T: the sim)
 //   TB.drawSolid(pass, c)   before the water;   TB.drawClear(pass, c)   after the sky
 import { COMMON, IREC, SLOTS } from './kayaks.js';
-import { buildTourMeshes, VF, SLOT, PONTOON, CLEAR_KAYAK, LOD_M, GLYPH_SEGS, STROKE } from './tourBoatMesh.js';
+import { buildTourMeshes, VF, SLOT, PONTOON, CLEAR_KAYAK, LOD_M, GLYPH_SEGS, STROKE, VALANCE } from './tourBoatMesh.js';
 import { poseRows } from '../sim/kayak-clip.js';
 import { TOUR } from '../sim/tourBoat.js';
 import { navLevel } from '../sim/night.js';
@@ -25,7 +25,7 @@ const MAX_FIGURES = 4;                 // the paddlers drawn at full detail (the
 const MAX_INST = 1 + 5 + 160;          // the pontoon, the kayaks, the spots
 const FIGURE_PX = 14;                  // a kayak this long on screen or more carries its paddlers (px)
 const KAYAK_DRAW_M = 900, SPOT_DRAW_M = 1200, MIRROR_M = 450;   // m: her mirror in the water drawn within MIRROR_M of the eye
-export const LED = Object.freeze({ pool: 0.03, hull: 0.3, deck: 0.35, under: 0.01, poolR: 2.2 });   // the night LEDs' radiances and the pool's radius (m, over 1 m of water)
+export const LED = Object.freeze({ pool: 0.03, hull: 0.3, deck: 0.35, under: 0.01, poolR: 2.2, cabin: 0.012, courtesy: 0.6, spill: 0.004 });   // the night LEDs' radiances and the pool's radius (m, over 1 m of water); cabin: the roof strip's warm fill under the roof; spill: the cabin's light on the water beside her
 const REC = 5;                                // vec4 per instance record
 const DEG = Math.PI / 180;
 const lin = (hex) => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255].map((v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
@@ -163,6 +163,14 @@ fn solidLit(v: TV, ff: bool) -> vec3f {
     case ${SLOT.led}u: { alb = vec3f(0.08, 0.09, 0.1); rough = 0.3; emit = p1.rgb * night * ${(LED.hull * 3).toFixed(2)}; }   // the kayak's LED strip
     case ${SLOT.cord}u: { alb = vec3f(0.03, 0.03, 0.032); rough = 0.8; spK = 0.4; }
     case ${SLOT.blade}u: { alb = vec3f(0.03, 0.04, 0.07); rough = 0.35; }
+    case ${SLOT.canvas}u: {   // navy acrylic canvas: a soft weave, faded on the sun side, the cream piping along the valance's foot
+      let weave = vn3(vec3f(lp.x * 160.0, lp.y * 160.0, lp.z * 160.0));
+      alb = ${v3(NAVY, 1.15)} * (0.9 + 0.14 * lo) * (0.96 + 0.08 * weave); rough = 0.9; spK = 0.25;
+      let foot = ${(PONTOON.roofY + 0.005 - VALANCE.drop).toFixed(3)};
+      let pipe = 1.0 - smoothstep(${VALANCE.pipe.toFixed(3)}, ${(VALANCE.pipe + 0.008).toFixed(3)}, lp.y - foot);
+      alb = mix(alb, ${v3(CREAM, 0.8)}, pipe * step(foot - 0.001, lp.y)); rough = mix(rough, 0.5, pipe);
+    }
+    case ${SLOT.courtesy}u: { alb = vec3f(0.5, 0.52, 0.55); rough = 0.3; emit = vec3f(0.75, 0.88, 1.0) * ${LED.courtesy.toFixed(2)} * night; }   // the cool courtesy strips under the cap rail
     default: {}
   }
   // the roof's shadow on her (the pontoon only): the sun's ray from the point meets the roof's plane inside its rectangle
@@ -179,7 +187,14 @@ fn solidLit(v: TV, ff: bool) -> vec3f {
     // the roof's outline, the outer sides too, took 0.4-0.75 of the sky)
     let nLoc = toLocal(I, n);
     let outward = nLoc.x * sign(lp.x) > 0.35 || abs(nLoc.z) > 0.6;
-    if (inside && !outward) { skyK = mix(0.4, 0.75, smoothstep(1.2, 1.9, abs(lp.x))); }
+    if (inside && !outward) {
+      skyK = mix(0.4, 0.75, smoothstep(1.2, 1.9, abs(lp.x)));
+      // at night the roof's warm strip and the courtesy strips light the cabin: the deck, the benches and the inner faces take a warm
+      // fill that falls off toward the deck's middle (a lit tour boat on dark water), the deck's edge a touch cooler from the courtesy strips
+      let edge = smoothstep(0.6, 1.5, abs(lp.x));
+      let fill = mix(0.45, 1.0, edge) * (0.6 + 0.4 * smoothstep(0.0, 1.6, lp.y - ${PONTOON.deckY.toFixed(2)}));
+      emit += alb * mix(vec3f(1.0, 0.8, 0.58), vec3f(0.8, 0.9, 1.0), 0.35 * edge * (1.0 - smoothstep(0.2, 0.6, lp.y - ${PONTOON.deckY.toFixed(2)}))) * ${LED.cabin.toFixed(3)} * night * fill;
+    }
   }
   return shadeK(v.world, n, alb, rough, metal, sunK, skyK, spK) + emit;
 }
@@ -222,9 +237,10 @@ fn finishClear(rgb: vec3f, a: f32, px: vec2f, world: vec3f) -> vec4f {
       return finishClear(vec3f(0.0), p1.x * (1.0 - smoothstep(1.0 - p1.y, 1.0, r)), v.pos.xy, v.world);
     }
     if (r2 > 1.0) { discard; }
-    if (kind == 2u) {   // a light's pool on the water and the bed under it (additive)
-      let f = exp(-r2 * 4.0) * (1.0 - r2) * (1.0 - r2);
-      return finishClear(p1.rgb * p1.w * f, 0.0, v.pos.xy, v.world);
+    if (kind == 2u) {   // a light's pool on the water and the bed under it (additive): a bright core right under the hull, a wide soft halo
+      let core = exp(-r2 * 22.0);
+      let f = exp(-r2 * 4.0) * (1.0 - r2) * (1.0 - r2) + 0.9 * core * (1.0 - r2);
+      return finishClear(mix(p1.rgb, vec3f(dot(p1.rgb, vec3f(0.3333))) * 1.15, 0.35 * core) * p1.w * f, 0.0, v.pos.xy, v.world);
     }
     if (kind == 3u) {   // the wake's foam: a soft patch, broken by noise, lit as the water's white is
       let s = normalize(F.sun.xyz);
@@ -249,15 +265,19 @@ fn finishClear(rgb: vec3f, a: f32, px: vec2f, world: vec3f) -> vec4f {
     // polycarbonate (n 1.585, F0 0.051): the sky's reflection by Fresnel, a sharp sun glint, the thin shell denser edge-on, a faint
     // cool body; fine scratches along the hull and a few across it (where the paddles and the beach rub) catching the light
     let scr = smoothstep(0.86, 0.97, vn3(vec3f(lp.x * 220.0, lp.y * 220.0, lp.z * 6.0))) * 0.6 + smoothstep(0.9, 0.98, vn3(vec3f(lp.z * 160.0, lp.y * 30.0, lp.x * 9.0))) * 0.4;
-    let edge = pow(1.0 - nv, 2.0);
-    a = clamp(0.13 + 0.82 * fres + 0.18 * edge + 0.10 * scr, 0.0, 0.88);
-    rgb = skyRadiance(R) * (fres + 0.05 * scr) + ggxSpec(n, V, s, 0.06 + 0.2 * scr, vec3f(0.051)) * eSun;
-    rgb += a * (ambientAt(n) + eSun * nl * 0.3) / PI * vec3f(0.16, 0.2, 0.21) + (eSun * nl / PI) * vec3f(0.05, 0.06, 0.06) * scr;   // the shell's milky body, lit (the photos: a pale ghost of the hull over the bed)
+    // two skins (render/tourBoatMesh.js SKIN_T): each a Fresnel surface, so the shell darkens and brightens as a sheet where it turns
+    // edge-on; the rim's roll a lit line; the edge carries the sheet's own cool green (polycarbonate's absorption seen along the sheet)
+    let edge = pow(1.0 - nv, 1.6);
+    a = clamp(0.10 + 0.78 * fres + 0.22 * edge + 0.08 * scr, 0.0, 0.9);
+    rgb = skyRadiance(R) * (fres + 0.04 * scr) + ggxSpec(n, V, s, 0.05 + 0.2 * scr, vec3f(0.051)) * eSun + ggxSpec(n, V, s, 0.3, vec3f(0.051)) * eSun * 0.35;
+    rgb += a * (ambientAt(n) + eSun * nl * 0.3) / PI * mix(vec3f(0.14, 0.18, 0.19), vec3f(0.22, 0.34, 0.3), edge) + (eSun * nl / PI) * vec3f(0.05, 0.06, 0.06) * scr;   // the shell's milky body, lit (the photos: a pale ghost of the hull over the bed), greener along the edge
     // its LED strip's light in the shell: brightest low and edge-on (the polycarbonate carries it like a light pipe)
-    rgb += p1.rgb * p0.y * ${LED.hull.toFixed(2)} * (0.2 + 1.2 * edge) * (1.0 - smoothstep(p0.z, p0.z + 0.25, lp.y));
-  } else if (v.slot == ${SLOT.window}u) {   // smoked glass: the sky's reflection, the dim cabin behind it
-    a = clamp(0.5 + 0.45 * fres, 0.0, 0.92);
-    rgb = skyMirror(R) * (0.04 + 0.9 * fres) + ggxSpec(n, V, s, 0.06, vec3f(0.04)) * eSun * 1.3 + a * ambientAt(n) * vec3f(0.012, 0.014, 0.016);
+    rgb += p1.rgb * p0.y * ${LED.hull.toFixed(2)} * (0.25 + 1.3 * edge) * (1.0 - smoothstep(p0.z, p0.z + 0.3, lp.y));
+  } else if (v.slot == ${SLOT.window}u) {   // smoked glass: a dark bronze tint (the benches read through it), the sky's reflection at a slant, the warm cabin glowing through it at night
+    a = clamp(0.34 + 0.56 * fres, 0.0, 0.92);
+    rgb = skyMirror(R) * (0.025 + 0.9 * fres) + ggxSpec(n, V, s, 0.06, vec3f(0.04)) * eSun * 1.3 + a * ambientAt(n) * vec3f(0.012, 0.011, 0.009);
+    let paneTop = smoothstep(${(PONTOON.band[1] + 0.1).toFixed(2)}, ${PONTOON.winTop.toFixed(2)}, lp.y);   // lit from the roof's strip: brighter up the pane
+    rgb += vec3f(1.0, 0.78, 0.5) * p0.y * ${(LED.cabin * 1.1).toFixed(3)} * (0.55 + 0.45 * paneTop) * (0.6 + 0.4 * (1.0 - fres));
   } else {   // the deck's glass panel (her underwater lights under it at night)
     a = clamp(0.12 + 0.6 * fres, 0.0, 0.8);
     rgb = skyRadiance(R) * fres + ggxSpec(n, V, s, 0.07, vec3f(0.05)) * eSun + vec3f(0.35, 0.75, 1.0) * p0.y * ${(LED.under * 0.3).toFixed(2)};
@@ -380,6 +400,9 @@ export function createTourBoatRender({ device, reg, frameBGL, frameStruct, sky, 
         }
         const dep = Math.max(0.5, depthAt(bx, bz)), R = 5.5 * (0.8 + 0.2 * Math.min(8, dep)), I = LED.under * night * Math.exp(-0.09 * Math.min(20, dep));
         spot(bx, bz, b.heading, R * 0.7, R * 1.3, 2, 0.30 * I, 0.72 * I, 1.0 * I, 1);
+        // the lit cabin's warm spill on the water along each side (the roof strip and the courtesy strips through her open sides)
+        const sI = LED.spill * night;
+        for (const s of [-1, 1]) spot(bx - fz * s * 3.4, bz + fx * s * 3.4, b.heading, 3.2, PONTOON.length * 0.48, 2, 1.0 * sI, 0.78 * sI, 0.5 * sI, 1);
       }
       if (!lite && !mapWake) {   // the foam discs (the lite tier; the full tier's wake is the vessels' map: render/vesselWake.js)
         for (const w of T.wake) {
