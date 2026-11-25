@@ -100,12 +100,13 @@ const CSS = `
 .lk-cv .sect .on{stroke:rgb(var(--lk-cream) / .62)}
 /* the Coach (v2's dial modules, owner 2026-11-25): the boat dial as a new sailor's cheat sheet: the book's words on the drawn boat */
 .lk-cv.coach .inr{bottom:8%}
-.lk-cv.coach .rw{gap:.3em}
+.lk-cv.coach .rw{gap:.22em}
+.lk-cv.coach .rw em{margin-left:.15em;padding:.1em .3em}
 .lk-cv.coach .rw b{font-size:var(--lk-fs-label)}
 .lk-cv.coach .rw.c1 b{font-size:var(--lk-fs-caption);letter-spacing:.02em;color:rgb(var(--lk-cream) / .9)}
-.lk-cv.coach .rw i{font-size:var(--lk-fs-caption)}
-.lk-cv.coach .rw i.vm{margin-left:.45em}
-.lk-cv.coach .rw .tw{margin-left:.35em;color:var(--lk-ink-soft)}
+.lk-cv.coach .rw i{font-size:var(--lk-fs-caption);letter-spacing:.03em}
+.lk-cv.coach .rw i.vm{margin-left:.3em}
+.lk-cv.coach .rw .tw{margin-left:.25em;color:var(--lk-ink-soft)}
 .lk-cv.coach .sh.warn{fill:rgb(var(--lk-amber))}
 .lk-cv .cg text{font-family:var(--lk-ui);font-weight:var(--lk-medium);paint-order:stroke;stroke:rgb(var(--lk-brand-navy) / .88);stroke-width:3.2px;stroke-linejoin:round;fill:rgb(var(--lk-cream) / .92);vector-effect:none}
 .lk-cv .cg text.warn{fill:rgb(var(--lk-amber))}
@@ -331,8 +332,8 @@ export function createCaptainView({ root = document.body, state = () => null, on
   const toDial = (p) => [50 + (p[0] - 50) * PLAN_K, PLAN_AT + (p[1] - 50) * PLAN_K];
   // One design for every player (owner, 2026-11-25): a word shows only when something needs doing (a sail luffing or stalled, an
   // overpowered boat, a sheet at its stop, in irons); the colours, the point of sail, the tack, windward and leeward, SPEED, WIND and
-  // "feels" always. coach.pro(): the PRO switch adds AWA by the arrow, TWA by the point of sail and VMG at the foot; coach.race():
-  // VMG at the foot in Regatta.
+  // "feels" always. coach.pro(): the PRO switch adds AWA by the arrow, TWA by the point of sail and VMG beside SPEED; coach.race():
+  // VMG beside SPEED in Regatta.
   let saying = false;
   function drawCoach(s, { awa, aws, twa, bx, by, sm, sj, tx, ty }) {
     const pro = !!coach.pro?.(), race = !!coach.race?.();
@@ -347,7 +348,9 @@ export function createCaptainView({ root = document.body, state = () => null, on
       path.classList.toggle('warn', c.state !== 'draw' || !!heel);
       const word = heel || (c.atStop ? '' : c.word);
       const [cx, cy] = toDial(sh.clew), side = Math.sign(cx - 50) || 1;
-      const ty2 = clamp(cy + FS * (sail === 'jib' ? -0.2 : 1.1), 24, 58);
+      const yMax = PLAN_AT + 30 * PLAN_K - FS * 0.2;   // above the readings at any size (a phone's enlarged dial too)
+      let ty2 = clamp(cy + FS * (sail === 'jib' ? -0.2 : 1.1), Math.min(24, yMax), yMax);
+      if (tagY.some((t) => Math.abs(t - ty2) < FS * 1.1)) ty2 = Math.max(FS, Math.min(...tagY) - FS * 1.15);   // never on the other sail's word
       setT(tag, word, clamp(cx + side * FS * 0.6, 14 + FS * 1.6, 86 - FS * 1.6), ty2);
       if (word) { tagY.push(ty2); said = true; }
     }
@@ -365,7 +368,7 @@ export function createCaptainView({ root = document.body, state = () => null, on
     setT(C.fw, steer ? '' : `feels ${Math.round(KNf(aws))}`, fwx, fwy);
     // PRO: the apparent wind angle on the arrow's other side
     const aw = Math.round(Math.abs(awa) / DEG);
-    setT(C.aw, pro && !steer ? `${aw}°` : '', clamp(tx - ux * 14 - (-uy) * FS * 1.1 * sx, 14 + FS, 86 - FS), clamp(ty - uy * 14 - ux * FS * 1.1 * sx + FS * 0.35, 12, 60));
+    setT(C.aw, pro && !steer ? `${aw}°` : '', clamp(tx - ux * 24 - (-uy) * FS * 1.2 * sx, 14 + FS, 86 - FS), clamp(ty - uy * 24 - ux * FS * 1.2 * sx + FS * 0.35, 12, 60));
     // windward (the side the wind comes from) and leeward, near the rim, clear of the sails' words
     const aft = Math.abs(awa) > 90 * DEG, yW0 = aft ? by - FS * 1.9 : by + FS * 2.6;
     const yW = [yW0, yW0 - FS * 1.3, yW0 - FS * 2.6].find((y) => tagY.every((t) => Math.abs(t - y) > FS * 1.15)) ?? yW0;
@@ -377,9 +380,10 @@ export function createCaptainView({ root = document.body, state = () => null, on
     const tkChip = tk ? `<em class="side ${tk === 'port' ? 'p' : 's'}">${tk === 'port' ? 'port tack' : 'stbd tack'}</em>` : '';
     const twaT = pro ? `<span class="tw">${Math.round(Math.abs(twa) / DEG)}°</span>` : '';
     setH(C.r1, `<b>${pointLabel(posId)}${twaT}</b>${tkChip}`);
-    setH(C.r2, `<i>SPEED</i><b>${sog}</b><small>kn</small>`);
-    const vmg = pro || race ? `<i class="vm">VMG</i><b>${Math.abs(KNf(s.sog ?? 0) * Math.cos(twa)).toFixed(1)}</b>` : '';
-    setH(C.r3, `<i>WIND</i><b>${tws}</b><small>kn</small>${vmg}`);
+    // PRO or Regatta: VMG beside SPEED at the foot (one unit for both, so the row stays inside the circle)
+    const vmg = pro || race ? Math.abs(KNf(s.sog ?? 0) * Math.cos(twa)).toFixed(1) : null;
+    setH(C.r2, vmg != null ? `<i>SPEED</i><b>${sog}</b><i class="vm">VMG</i><b>${vmg}</b><small>kn</small>` : `<i>SPEED</i><b>${sog}</b><small>kn</small>`);
+    setH(C.r3, `<i>WIND</i><b>${tws}</b><small>kn</small>`);
   }
   // the ring: each point of sail an arc on both sides of the true wind (bow up), alternately faint and fainter, the boat's own brighter;
   // the bow's mark at the top falls in the sector she sails

@@ -87,6 +87,8 @@ const CSS = `
 :root.lk-dm.lk-dv2:not(.lk-flat):not(.lk-flat):not(.lk-flat) .lk-cv{--d:var(--lk-dmw);left:calc(var(--lk-dm-wx,calc(100vw - var(--lk-mx) - var(--lk-sar,0px) - var(--lk-dmw) / 2)) - var(--lk-dmw) / 2);bottom:calc(var(--lk-by) + ${DIALS_V2.liftPx}px)}
 :root.lk-dm.lk-dv2:not(.lk-flat):not(.lk-flat):not(.lk-flat):not(.lk-cockpit):has(#hands) .lk-cv{left:calc(100vw - ${DIAL_MODULES.hands}px - var(--lk-sar,0px) - var(--lk-dmw))}
 :root.lk-dm.lk-dv2.lk-flat:not(.lk-fl-wup) .lk-cv.coach :is(.cg,.rw.c1,.rw.c3){display:none}
+/* a phone's enlarged Coach is still small: the words that ask for an action and the point of sail; windward, leeward, feels, the tack chip and PRO's extras stay off */
+:root.lk-dm.lk-dv2.lk-flat .lk-cv.coach :is(.cg .ww,.cg .lw,.cg .fw,.cg .aw,.rw.c1 em,.rw.c1 .tw){display:none}
 :root.lk-dm.lk-dv2.lk-flat .lk-chart .small :is(.poi,.cogr){display:none}
 `;
 export function mountDialsLayout(doc = globalThis.document) {

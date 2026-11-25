@@ -5,7 +5,7 @@
 //     performance panels, the throttle, the fold tabs; no left-edge column
 //   the Coach: the no-go wedge centred on the apparent wind, its half-angle luffAwaDeg; the point of sail and the tack; SPEED and
 //     WIND, "feels N" on the arrow; no sector ring; a word only on the physics' conditions (a drawing boat: none; an eased jib:
-//     "pull in" on the jib, and the skipper's same tip held); PRO adds AWA by the arrow, TWA by the point of sail, VMG at the foot;
+//     "pull in" on the jib, and the skipper's same tip held); PRO adds AWA by the arrow, TWA by the point of sail, VMG beside SPEED;
 //     PRO off takes them away; Regatta shows VMG with PRO off
 //   the Chart: the nearest place (the set mark first, else the nearest birthplace or anchorage past 200 m) as its foot row and
 //     line; the shore arcs within 240 m in a narrow bay; PRO adds COG under HDG and the bearing on the row
@@ -80,13 +80,13 @@ try {
     check(st.dials === 'modules' && st.dm, `${w}×${h}: the cockpit's faces plain (station dials ${st.dials})`);
     noHits(B, ['bar', 'skipper', 'keys', 'pro', 'perf', 'thr', 'fold'], `${w}×${h}`);
     // the dials' text: PRO off is the default design; PRO on adds the extras; off takes them away
-    const txt = () => page.evaluate(() => ({ aw: document.querySelector('.lk-cv .cg .aw')?.textContent ?? '', tw: document.querySelector('.lk-cv .rw.c1 .tw')?.textContent ?? '', c3: document.querySelector('.lk-cv .rw.c3')?.textContent ?? '',
+    const txt = () => page.evaluate(() => ({ aw: document.querySelector('.lk-cv .cg .aw')?.textContent ?? '', tw: document.querySelector('.lk-cv .rw.c1 .tw')?.textContent ?? '', c3: document.querySelector('.lk-cv .rw.c2')?.textContent ?? '',
       cog: (() => { const r = document.querySelector('.lk-chart .small .cogr'); return !!r && !r.hidden && getComputedStyle(r).display !== 'none' ? r.textContent : ''; })(), poi: document.querySelector('.lk-chart .small .poi')?.textContent ?? '' }));
     const t0 = await txt();
     check(!t0.aw && !t0.tw && !/VMG/.test(t0.c3) && !t0.cog && !/°/.test(t0.poi), `${w}×${h} PRO off: no AWA, TWA, VMG, COG or bearing on the dials (${JSON.stringify(t0)})`);
     await page.evaluate(() => window.__velia.m4.ui.setPro(true)); await page.waitForTimeout(2000);
     const t1 = await txt();
-    check(/^\d+°$/.test(t1.aw) && /^\d+°$/.test(t1.tw) && /VMG\d+\.\d/.test(t1.c3) && /^COG\d{3}°$/.test(t1.cog) && /\d{3}°$/.test(t1.poi), `${w}×${h} PRO on: AWA by the arrow, TWA by the point of sail, VMG at the foot, COG under HDG, the bearing on the row (${JSON.stringify(t1)})`);
+    check(/^\d+°$/.test(t1.aw) && /^\d+°$/.test(t1.tw) && /VMG\d+\.\dkn$/.test(t1.c3) && /^COG\d{3}°$/.test(t1.cog) && /\d{3}°$/.test(t1.poi), `${w}×${h} PRO on: AWA by the arrow, TWA by the point of sail, VMG beside SPEED, COG under HDG, the bearing on the row (${JSON.stringify(t1)})`);
     B = await boxes(page);
     noHits(B, ['bar', 'skipper', 'keys', 'pro', 'perf', 'thr', 'fold'], `${w}×${h} PRO`);
     await page.evaluate(() => window.__velia.m4.ui.setPro(false)); await page.waitForTimeout(1200);
@@ -183,8 +183,8 @@ try {
     await page.waitForFunction(() => window.__velia.mode.current === 'regatta', null, { timeout: 60000 }); await page.waitForTimeout(3000);
     const B = await boxes(page);
     check(B.chart && B.wind && !B.cls.includes('lk-dm-off'), `Regatta: both modules (chart ${fmt(B.chart)}, wind ${fmt(B.wind)})`);
-    const rv = await page.evaluate(() => ({ pro: window.__velia.m4.ui.pro, c3: document.querySelector('.lk-cv .rw.c3')?.textContent ?? '' }));
-    check(!rv.pro && /VMG\d+\.\d/.test(rv.c3), `Regatta: VMG on the Coach's foot with PRO off (${JSON.stringify(rv)})`);
+    const rv = await page.evaluate(() => ({ pro: window.__velia.m4.ui.pro, c3: document.querySelector('.lk-cv .rw.c2')?.textContent ?? '' }));
+    check(!rv.pro && /VMG\d+\.\dkn$/.test(rv.c3), `Regatta: VMG on the Coach's foot with PRO off (${JSON.stringify(rv)})`);
     check(!errors.length, `Regatta: no page errors (${errors.join(' | ').slice(0, 200) || 'none'})`);
     await ctx.close();
   }
