@@ -102,8 +102,9 @@ export const groupAt = (x, z, t) => SHORE.group[0] + SHORE.group[1] * vnoise(x *
 // τ of tens to hundreds of seconds, so a period following each gust or the boat's fetch would sweep the crests along the coast
 // every frame (and made the film goldens differ run to run); it changes only when the FFT's tables do
 export const periodKey = (U) => Math.max(1, Math.round(Math.max(1, U) * 2) / 2);
-export function shoreParams({ U, travelRad }) {
-  const T = peakPeriod(periodKey(U), 6000), w0 = 2 * Math.PI / T, w1 = w0 * 1.28;
+// shapeKm: the bay's spectrum's shape fetch (v2/sim/spectrum.js SEA_STATES: v1's 6 km, the big sea's 20 km), so the trains' period is the FFT bay sea's
+export function shoreParams({ U, travelRad, shapeKm = 6 }) {
+  const T = peakPeriod(periodKey(U), shapeKm * 1000), w0 = 2 * Math.PI / T, w1 = w0 * 1.28;
   travelRad = Math.round(travelRad * 50) / 50;   // the exposure's wind on 0.02 rad steps (a step moves an amplitude by ≈ 1 %)
   return { T, w0, w1, f0: tauMix(w0), f1: tauMix(w1), dirX: Math.cos(travelRad), dirZ: Math.sin(travelRad),
     spray: smooth(SHORE.spray.windLo, SHORE.spray.windHi, U), white: smooth(SHORE.whiteWind[0], SHORE.whiteWind[1], U) };

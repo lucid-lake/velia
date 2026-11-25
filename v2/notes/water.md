@@ -334,6 +334,109 @@ deep-12m, deep-4m, shore (the owner's helm pose), golden-crests, golden-helm, wh
 `clip-deep-v1-vs-m1.mp4` (10 s, the deep water at a 1.6 m eye, v1 | after). Tools: `tools/v2-water-m1.mjs` (shots, stacks,
 spectra), `tools/v2-ab-m1.mjs`, `tools/v2-flicker.mjs --m1bits / --m1reach`.
 
+## The crest glow and the wave body (2026-11-24: render/water-surface.js SURF.crest, SURF.jelly; render/water.js)
+
+Ported from web-ocean-3d (https://github.com/2600th/web-ocean-3d @ 9a165f2, MIT, `LICENSES/web-ocean-3d-MIT.txt`): its
+`src/ocean/OceanMaterial.ts` constants (lines 1020-1097), its scattering (2709-2851) and its body and crest blend (3405-3478),
+TSL to WGSL. Their crest glow is their own rewrite (Noniv/web-ocean's crest term is a pow-4 lobe, the same as Ultra's k1).
+`?crest=0` puts Ultra's k1 back; `?jelly=0` the body before. Bits `crest` and `jelly` in SURF_BITS.
+
+**What the "jelly" is in their water.** Not their spectrum (JONSWAP, as ours) and not their refraction. It is four body terms:
+the body's light follows the swell's facing to the sun (`SWELL_RELIEF` 4, centred on the sun's height, on the swell cascade
+only, so the body has the big waves' shape and none of the ripples'); troughs darker and faces lighter by height over Hs
+(`BODY_TROUGH_CONTRAST` 0.3); the thin upper water carries skylight sideways whatever the sun does (`crestGlow` 0.55 × height²);
+and a crest blend after Sea of Thieves (SIGGRAPH 2018) that takes a crest seen toward the light to the scatter hue at the sky's
+brightness, over the mirror as well as the body (`CREST_BLEND` 0.6). Together they read as a lit, translucent volume.
+
+**The crest glow.** A Henyey-Greenstein lobe (g 0.72, normalised to peak 1) × a wrapped away-from-sun term (0.45) × Beer-Lambert
+through the water the light crossed (0.22 m at the crest to 4.2 m down the face, by the wave's height over the sea's Hs here) ×
+the crest's share of the wave × v1's thin-crest gain, in the sun's light (`sunPerp`: none at night, shaded by a storm cell).
+Tahoe's own K, and a blue-cyan scatter hue (0.16, 0.64, 0.95), not their teal; the deep navy stays the trough's colour.
+
+**Steady by construction.** Every input is smooth: the long tiles' height (eta), the footprint's mean normal (the mirror's own
+steady `slC`), the view and the sun. Wind-driven: none under 1.5 m/s of local wind, full from 7. The lobe puts the glow on low sun
+behind the crests at dawn and dusk; at noon the sun sits 70° off the view and the face turns toward it, so the glow is gone and
+only the body terms remain (soft).
+
+**Checks** (the M5 Pro Mac, headless Chrome; `?crest=0&jelly=0` as before):
+- Flicker (60 frames, 1280 × 720): dusk into the sun (19:36, cam B, 8 m/s) tstd 13.25 → 13.72 levels, jumps 4.16 → 4.09 %; the
+  noon follow camera 11.54 → 11.45, 0.47 → 0.46 %.
+- Cost (interleaved ABBA, 120 frames a round, GPU timer medians, main 29bdca6 vs the branch): 2560 × 1600 at 19:36 wind 8,
+  6 rounds, 18.67 → 18.90 ms (+0.22); at 13:00 wind level 2, 4 rounds, +0.23; phone L2 (844 × 390 at DPR 3, the lite water),
+  6 rounds, 2.82 → 2.86 ms (+0.03). Pipelines 0 added. A first build that carried its own long-wave slope through the
+  shader and read the sky LUT again cost +0.7 to +0.9 ms at 2560: register pressure, not the terms' work.
+- The phone takes the same terms (all ALU, no texture read).
+
+## The wind lanes held in the water (2026-11-24: render/spume.js laneAt, spLane, laneDrift; render/water.js foam streaks)
+
+**The fault:** fine streaks slid across the water much faster than the waves, "like another plane under the boat", now and then.
+They were v1's wind lanes (2.2 m across, 30 m along: they roughen the short ripples and the mirror), and, on aged foam, the
+foam map's streaks. Both laid their pattern along the wind by turning world coordinates to it about a fixed point (the lanes
+the bay centre, the streaks the world's origin), so when the wind turned by dθ a lane at the boat moved sideways by its
+distance from that point × dθ; and the lanes' drift was t × U, so a gust (dU) slid them by t × dU, t being seconds since
+load. Measured on the JS twin with the page's own wind at the boat (`windField.sample`, a 0.6°/s shift at wind 9, the
+Sail start 565 m from the anchor, 0.1 s pairs): the lanes moved 5.5–6 m/s across the wind and 20–50 m/s along it; 5 km
+out, 45–60 and over 100 m/s. Their own drift is 0.03 × U = 0.38 m/s; the sea's peak waves run 4–6 m/s.
+**The fix:** each lane set lies along a fixed direction, 10° apart (`SPUME.binDeg`), and the local wind cross-fades the
+nearest two (the blend keeps the variance; only across the middle 30 % of each bin, `SPUME.binFade`, so one set is
+evaluated over most of a turn and each lies within 3.5° of the wind), so a turn fades one set into the next in place; the drift is the frame's own
+integral of 0.03 × the wind (`laneDrift`, `F.spume.zw`), shared by the foam streaks (the foam map drifts at the same 3 %).
+After: 0 m/s across, ≤ 0.5 m/s along (the measure's step), at the start and 5 km out. The lanes still lie within 4° of the
+wind and stay 30 : 1 stretched (`v2/tests/spume.test.mjs`); the new test fails on the old lanes.
+
+## The sea state: a bigger, longer sea (2026-11-24: v2/sim/spectrum.js SEA_STATES, seaRows; ?sea=)
+
+**The ask:** waves as big as web-ocean-3d's, at least on the open lake, bigger in the bay too, and a boat that clearly rides up
+and down. v1's sea is a lake's physical fetch-limited sea (the fetch law × 1.3, its JONSWAP peak from the fetch), short and
+low for a 7.3 m waterline: at 7 m/s Hs 0.73 m, Tp 3.3 s on the open lake, 0.41 m and 2.1 s in Emerald Bay. The competitor's
+default sea (web-ocean-3d `DEFAULT_UI_STATE` 11 m/s, `peakWavelength` 40 m, gamma 3; its JONSWAP with `youngSeaGain`,
+integrated) is Hs 1.49 m, Tp 5.1 s; its 9 m/s, 34 m preset 1.22 m, 4.7 s. The owner's goal wins over the lake's physics here.
+
+**What changed (the row `big`, the default; `?sea=v1` is the sea before, byte for byte):** v1's place weights stay (the fetch
+map, the bay's share, SEA_FEEL, the shallows' calm), so the sea still differs by place; only the two sims' tables change.
+- The lake's wind sea takes the spectrum shape of a 60 km fetch (Tp × 1.33) and 1.4 × its Hs; a long-crested swell rides on
+  the lake's table along the wind, Hs = clamp(0.18 + 0.055 U, 0.25, 0.9) m, peak 40 m (5.1 s), gamma 3.3. It lives in the
+  600 m tile, so the open lake gets all of it, a bay's lee little (v1's m³ on that tile) and the shallows none (v1's damping
+  under 14 m).
+- The bay's wind sea takes a 20 km shape (Tp × 1.5) and 1.6 × its Hs, with its own shorter swell (clamp(0.1 + 0.03 U, 0.15,
+  0.45) m, peak 30 m, inside the bay sim's 85 m band): waves the hull rides over rather than bridges.
+- The two rows of each table are one build (power spectra add: buildH0 sums the rows on the same draws, no extra cost); the
+  swell's scale makes the rows' variances stand as their Hs², and each table's gain takes the pair to its combined target.
+- The shore's trains take the bay sea's period (shoreParams `shapeKm`: the 20 km shape) and the spray its Hs, so the shore
+  break grows with the sea; their amplitude already reads the drawn sea's Hs.
+
+Hs and Tp of the composed table at the boat (4σ over the displacement tiles; Tp the energy peak of its 1-D spectrum), v1 → big:
+
+| Wind | Emerald Bay (fetch 1.5 km) | Bay mouth (4 km) | Open lake (20 km) |
+|---|---|---|---|
+| 3 m/s | 0.17 m, 1.6 s → **0.35 m, 2.4 s** | 0.19 m, 1.6 s → **0.38 m, 2.4 s** | 0.33 m, 2.6 s → **0.64 m, 4.9 s** |
+| 5 m/s | 0.29 m, 1.8 s → **0.54 m, 2.7 s** | 0.45 m, 1.8 s → **0.85 m, 2.7 s** | 0.54 m, 3.0 s → **0.83 m, 4.0 s** |
+| 7 m/s | 0.41 m, 2.1 s → **0.74 m, 3.1 s** | 0.63 m, 2.1 s → **1.15 m, 3.2 s** | 0.73 m, 3.3 s → **1.12 m, 4.5 s** |
+| 9 m/s | 0.52 m, 2.4 s → **0.93 m, 3.4 s** | 0.82 m, 2.4 s → **1.46 m, 3.4 s** | 0.93 m, 3.6 s → **1.41 m, 4.9 s** |
+| 11 m/s | 0.64 m, 2.4 s → **1.13 m, 3.6 s** | 1.00 m, 2.4 s → **1.76 m, 3.6 s** | 1.12 m, 4.0 s → **1.70 m, 5.2 s** |
+
+**The boat feels it** (the page's own sail, 60 s after a 20 s settle, the pilot on and the crew's trim, `?sea=v1` → default; heave
+from the float, pitch and the waves' roll in degrees, sd / max):
+
+| Where, wind | Drawn Hs at the boat | Heave sd / max (m) | Pitch sd / max | Waves' roll max | Heel max (physics) | Knockdowns (warnings) | Speed |
+|---|---|---|---|---|---|---|---|
+| Sail start, the default wind (level 3) | 0.38 → 0.67 m | 0.037 / 0.105 → 0.080 / 0.226 | 0.99 / 3.0° → 1.23 / 4.1° | 4.9 → 6.4° | 8.6 → 8.7° | 0 (0) → 0 (0) | 3.98 → 3.99 m/s |
+| Sail start, level 4 | 0.52 → 0.91 m | 0.069 / 0.201 → 0.142 / 0.427 | 1.27 / 4.8° → 1.41 / 4.3° | 4.9 → 6.1° | 46.6 → 46.6° | 0 (4) → 0 (4) | 3.07 → 3.06 m/s |
+| Open lake (20 km fetch), 7 m/s, broad reach | 0.74 → 1.12 m | 0.132 / 0.439 → 0.218 / 0.608 | 2.28 / 7.2° → 2.71 / 7.7° | 6.0 → 6.2° | 2.4 → 2.5° | 0 → 0 | 3.08 → 3.06 m/s |
+| Open lake, 10 m/s, beam reach | 1.05 → 1.60 m | 0.210 / 0.807 → 0.359 / 1.20 | 2.33 / 7.1° → 2.64 / 7.8° | 11.5 → 12.8° | 23.1 → 21.9° | 0 → 0 | 3.39 → 3.33 m/s |
+
+The heave about doubles; pitch grows less (the hull already followed v1's 85 m tile's slopes; the swell's are gentler); the
+physics' heel, the knockdown watch and the speed do not move (the waves' roll is drawn on top of the heel and never feeds the
+watch; the surge from the slopes averages out). The kayaks at the kayaks golden's start (60 s, 14 out): levels 3 and 4,
+v1 0 and 1 capsizes (an Eskimo roll), the big sea 0 and 0, no contacts. The cameras: the Boat view follows only the slow part
+of the heave (tau 2.5 s, the bob capped at 0.18 m) and never the pitch or roll; the Helm view's auto-steady takes the rougher
+sea (the heel and pitch rate) toward its steadier end; Reduce Motion as before. The phone draws the same sea (the lite water
+skips only the 2.1 m ripples).
+
+**The settle (fix, same day):** a capture's 20 s settle runs the boat's clock ahead of the waves', so she sailed over one held
+moment of the sea; on the big sea's back slopes the surge held her astern (−1.7 m/s at the first frame). The settle now skips
+the sea's surge and orbital current (v2/sim/boat.js `settle`); the moving sea meets her at the first frame.
+
 ## The shore: breakers, swash, wet sand, spray (#56 M3, 2026-11-14: sim/shoreField.js, render/shore.js, render/water.js; tools/v2-shore-bake.mjs)
 
 Ultra-Water's shore (MIT, Humpalumps; `src/water/shoreMap.js`, `OceanSurface.js` SHORE_GLSL / shoreWaves / SWASH_GLSL, `Spray.js`),

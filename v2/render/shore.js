@@ -18,7 +18,7 @@ import { TERRAIN_BIND, TERRAIN_HEIGHT } from './terrain.js';
 import { inflate } from '../terrain/decode.js';
 import { frustumPlanes, boxInFrustum } from '../terrain/quadtree.js';
 import { decodeShore, gpuWords, gpuLayout, SHORE, SHORE_BAKE, PARAM_WORDS, TILE_TEXELS, Q6, shoreParams } from '../sim/shoreField.js';
-import { hsLaw, V1_SEA } from '../sim/spectrum.js';
+import { hsLaw, V1_SEA, seaState } from '../sim/spectrum.js';
 
 export const SHORE_FILE = new URL('../assets/shore/shore.vsf.gz', import.meta.url);
 export const SHORE_CAP = 4 << 20;   // bytes: the buffer, made at load (the field is ≈ 2.9 MB of words; v2/tests/shore.test.mjs checks it fits)
@@ -242,7 +242,8 @@ struct PV { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
 }`;
 
 // --- the GPU side ---
-export function createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrainBGL, hdrTarget, msaa = 1, depthFormat = 'depth32float', on = true }) {
+export function createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrainBGL, hdrTarget, msaa = 1, depthFormat = 'depth32float', on = true, sea = 'big' }) {   // sea: the sea state (?sea=; v2/sim/spectrum.js SEA_STATES): the trains' period and the spray's sea
+  const st = seaState(sea);
   let phone = false;
   const buf = device.createBuffer({ label: 'shore-field', size: SHORE_CAP, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
   const params = new Uint32Array(PARAM_WORDS), pf = new Float32Array(params.buffer);
@@ -282,7 +283,7 @@ export function createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sk
     })());
   }
   const near = new Float32Array(SHORE.spray.maxTiles), nearIx = new Int32Array(SHORE.spray.maxTiles);
-  const hsAt = (U) => hsLaw(U, V1_SEA.bayFetchKm * 1000);   // the spray's sea: the bay's physical Hs (the water's trains read the fetch map)
+  const hsAt = (U) => hsLaw(U, V1_SEA.bayFetchKm * 1000) * st.bayHs;   // the spray's sea: the bay's Hs × the sea state's (the water's trains read the fetch map)
   // a frame: on when a kept tile lies within SHORE.range of the eye and in the frustum (else the shaders skip it all); the
   // spray's near tiles (nearest first, ≤ maxTiles within its range, in view) when the wind blows it
   function update({ eye, viewProj, wind }) {
@@ -308,7 +309,7 @@ export function createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sk
     stats.on = live; stats.inView = inView; stats.nearestM = Number.isFinite(nearest) ? +nearest.toFixed(1) : null;
     params[P.on] = live ? 1 : 0;
     if (live) {
-      const p = shoreParams({ U: wind.speedMs, travelRad: wind.travelRad, fetchM: wind.fetchM ?? V1_SEA.bayFetchKm * 1000 });
+      const p = shoreParams({ U: wind.speedMs, travelRad: wind.travelRad, fetchM: wind.fetchM ?? V1_SEA.bayFetchKm * 1000, shapeKm: st.bayShapeKm });
       pf[P.w0] = p.w0; pf[P.w1] = p.w1; pf[P.f0] = p.f0; pf[P.f1] = p.f1; pf[P.dirX] = p.dirX; pf[P.dirZ] = p.dirZ;
       pf[P.spray] = phone ? 0 : p.spray; pf[P.hsBay] = hsAt(wind.speedMs); pf[P.white] = p.white;
       params[P.parts] = phone ? 0 : PARTS.second | PARTS.lean | PARTS.lace;

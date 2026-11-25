@@ -9,7 +9,7 @@
 The MIT licence covers the code and the data written by Lucid Lake Labs. It does not cover the third-party works in this repository, which keep their own licences:
 
 - `ATTRIBUTION.md` lists every third-party asset (sounds, textures, models, fonts, data) with its source, author and licence.
-- `LICENSES/` holds the licence texts that must travel with them (Apache-2.0 for the Basis Universal transcoder in `public/basis/`, the MIT notices of the code we ported or adapted, the Jost font's OFL). Other notices sit beside their files: `src/waters/ultra/LICENSE`, `v2/render/LICENSE-*.txt`, `v2/render/web-ocean/LICENSE`, `fonts/OFL-*.txt`.
+- `LICENSES/` holds the licence texts that must travel with them (Apache-2.0 for the Basis Universal transcoder in `public/basis/`, the MIT notices of the code we ported or adapted (web-ocean-3d among them), the Jost font's OFL). Other notices sit beside their files: `src/waters/ultra/LICENSE`, `v2/render/LICENSE-*.txt`, `v2/render/web-ocean/LICENSE`, `fonts/OFL-*.txt`.
 - `data/geo/NOTICE-ODbL.md`: the map data derived from OpenStreetMap stays under the Open Database License.
 
 ## AI-generated files

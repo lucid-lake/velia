@@ -457,14 +457,21 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
       return pose;
     },
     // a capture's settle (v1's settleCapture): `seconds` of sim at 1/60 with the pilot on the start heading, no hands
+    // The settle runs the boat's clock `seconds` ahead of the waves' (the readback holds one moment of the sea), so she sails over a
+    // frozen sea: its slopes' surge and its orbital current pushed one way for seconds, and on the big sea's back slopes she slid
+    // astern (−1.7 m/s after 20 s, 2026-11-24). She settles on the wind and the helm alone and meets the moving sea at the first frame
     settle(seconds) {
       const n = Math.round(seconds * 60);
       const helm = new Helm({ rudderMaxDeg: phys.P.rudder.maxDeg });
-      for (let i = 0; i < n; i++) {
-        const rudder = helm.toHeading(phys.state, heading0);
-        sim.step(DT, { ...CONTROLS, rudder });
-        pose = ride.step(null, phys.state, simT, DT);
-      }
+      const sea0 = envObj.sea, cur0 = envObj.currentAt;
+      envObj.sea = null; envObj.currentAt = null;
+      try {
+        for (let i = 0; i < n; i++) {
+          const rudder = helm.toHeading(phys.state, heading0);
+          sim.step(DT, { ...CONTROLS, rudder });
+          pose = ride.step(null, phys.state, simT, DT);
+        }
+      } finally { envObj.sea = sea0; envObj.currentAt = cur0; }
       holdHeading = heading0; hand.sheet = null;   // the hands start fresh: the crew's trim, the pilot on the start heading
       heaveF.reset(pose.heave ?? 0);
       for (let i = 0; i < 120; i++) follow.update(1 / 60, camPose(pose, 1 / 60));

@@ -170,17 +170,55 @@ export function seaWeights({ U, fetchM, x = 0, z = 0 }) {
   return { m, beta, feel, sB, lake: [m * m * m * feel, Math.pow(m, 1.6) * (1 - beta) * feel, (1 + 0.7 * (1 - Math.min(m, 1))) * (1 - beta) * feel, 1],
     bay: beta * sB * feel, hsLake: hsRef * S.hsGain, hsBay: hsBay * S.hsGain };
 }
+// The sea state (2026-11-24, the owner: "make the wave bigger like that competitor repo, at least in open water; in the bay
+// it should be also bigger; in their game we can feel the boat up and down clearly"). v1's sea (the row `v1`) is a lake's
+// physical fetch-limited sea: at 7 m/s Hs 0.73 m, Tp 3.3 s on the open lake, 0.41 m and 2.1 s in Emerald Bay, where the
+// competitor's default sea (web-ocean-3d: 11 m/s, a 40 m peak) is Hs 1.5 m, Tp 5.1 s. The row `big` (the default, ?sea=)
+// keeps v1's weights by place (the fetch map, the bay's share, the shallows' calm) and changes only the two sims' tables:
+//   lakeShapeKm, bayShapeKm: the fetch the spectrum's SHAPE takes (its peak: Tp ∝ F^0.33), v1's 25 and 6 km
+//   lakeHs, bayHs: × each sim's Hs target (v1's 1.3 × the fetch law at 25 and 6 km)
+//   swell: a long-crested swell on the lake's table, along the wind: its Hs (m) = clamp(a + b U, lo, hi), its peak's wavelength
+//     peakM, JONSWAP gamma, the spread's `swell` term (1: long crests). It rides the lake sim's place weights: the open lake gets
+//     all of it, a bay's lee little (the 600 m tile × m³), the shallows none (v1's swell damping under 14 m)
+//   baySwell: the same on the bay's table, shorter (it must fit the bay sim's band, 85 m and under) and lower: the waves a
+//     boat 7 m on the waterline rides over instead of bridging, so the bay's sea is felt, not only seen
+// Numbers per place and wind: water.md § The sea state; `v2/tests/sea-state.test.mjs` holds their bounds.
+export const SEA_STATES = Object.freeze({
+  v1: Object.freeze({ id: 'v1', lakeShapeKm: 25, bayShapeKm: 6, lakeHs: 1, bayHs: 1, swell: null, baySwell: null }),
+  big: Object.freeze({ id: 'big', lakeShapeKm: 60, bayShapeKm: 20, lakeHs: 1.4, bayHs: 1.6,
+    swell: Object.freeze({ a: 0.18, b: 0.055, lo: 0.25, hi: 0.9, peakM: 40, gamma: 3.3, long: 1 }),
+    baySwell: Object.freeze({ a: 0.1, b: 0.03, lo: 0.15, hi: 0.45, peakM: 30, gamma: 3.3, long: 1 }) }),
+});
+export const SEA_DEFAULT = 'big';
+export const seaState = (id) => SEA_STATES[id] ?? SEA_STATES[SEA_DEFAULT];
+export const swellHs = (U, sw) => (sw ? Math.min(sw.hi, Math.max(sw.lo, sw.a + sw.b * Math.max(U, 0))) : 0);
+// a JONSWAP row's variance over ω (the 1-D integral; the directional spread integrates alike for rows of one spread blend)
+function rowVar(a, b) { let v = 0; const dw = 0.004; for (let w = 0.1; w < 30; w += dw) v += jonswap(w, a, b) * dw; return v; }
+// a sim's spectrum rows for a sea state: v1's wind sea at the shape fetch shapeKm, and the swell sw scaled so the two rows'
+// variances stand as their Hs² (wind sea: hsW, swell: swellHs); → { A, B, hs } (hs: the rows' combined target)
+export function seaRows({ speedMs, travelRad = 0, shortFade = SEA.shortWavesFade, shapeKm, sw = null, hsW }) {
+  const wind = spectrumFor({ speedMs, travelRad, fetchKm: shapeKm, shortFade });
+  const hsS = swellHs(speedMs, sw);
+  if (!sw || hsS <= 0) return { A: wind.A, B: wind.B, hs: hsW };
+  const bS = [1, Math.sqrt(G * 2 * PI / sw.peakM), sw.gamma, shortFade], aS = [1, travelRad + PI, SEA.spreadBlend, sw.long];
+  aS[0] = (hsS / hsW) ** 2 * rowVar(wind.A[0], wind.B[0]) / rowVar(aS, bS);
+  return { A: [...wind.A, aS], B: [...wind.B, bS], hs: Math.hypot(hsW, hsS) };
+}
 // the two sims' tables for a wind (the slow part: two buildH0, ≈ 40 ms; rebuilt only when the wind's key moves), each with
 // its gain to its Hs target over its displacement tiles (v1: the lake's 600 / 85 / 12 m, the bay's 85 / 12 m)
-// fades: FADES.v1 (the default since #56 M1) or FADES.m5c (the A/B)
-export function seaTables({ speedMs, travelRad = 0, seed = 1337, fades = FADES.v1 }) {
-  const S = V1_SEA, sp = Math.max(1, speedMs), lastFade = fades.capillary;
-  const lake = spectrumFor({ speedMs: sp, travelRad, fetchKm: S.lakeFetchKm, shortFade: fades.short }), bay = spectrumFor({ speedMs: sp, travelRad, fetchKm: S.bayFetchKm, shortFade: fades.short });
+// fades: FADES.v1 (the default since #56 M1) or FADES.m5c (the A/B); sea: a SEA_STATES id (the pure default is v1's: the page
+// passes ?sea=, `big` unless set)
+// the tables' key: the wind's speed (0.1) and travel (0.01 rad), and the state unless v1's (render/water.js setWind matches it)
+export const seaKey = (sp, travelRad, id = 'v1') => `${sp.toFixed(1)}|${travelRad.toFixed(2)}${id === 'v1' ? '' : `|${id}`}`;
+export function seaTables({ speedMs, travelRad = 0, seed = 1337, fades = FADES.v1, sea = 'v1' }) {
+  const S = V1_SEA, sp = Math.max(1, speedMs), lastFade = fades.capillary, st = SEA_STATES[sea] ?? SEA_STATES.v1;
+  const lake = seaRows({ speedMs: sp, travelRad, shortFade: fades.short, shapeKm: st.lakeShapeKm, sw: st.swell, hsW: hsLaw(speedMs, S.lakeFetchKm * 1000) * S.hsGain * st.lakeHs });
+  const bay = seaRows({ speedMs: sp, travelRad, shortFade: fades.short, shapeKm: st.bayShapeKm, sw: st.baySwell, hsW: hsLaw(speedMs, S.bayFetchKm * 1000) * S.hsGain * st.bayHs });
   const hL = buildH0({ A: lake.A, B: lake.B, seed, lastFade });
   const hB = buildH0({ A: bay.A, B: bay.B, seed: seed + S.baySeed, lastFade, kMin: 2 * PI / LENGTHS[1], kMax: CUTS[2] });
-  const gL = hsLaw(speedMs, S.lakeFetchKm * 1000) * S.hsGain / Math.max(significantHeight(hL, LENGTHS, CPU_CASCADES), 1e-9);
-  const gB = hsLaw(speedMs, S.bayFetchKm * 1000) * S.hsGain / Math.max(significantHeight(hB, LENGTHS, CPU_CASCADES), 1e-9);
-  return { hL, hB, gL, gB, key: `${sp.toFixed(1)}|${travelRad.toFixed(2)}` };
+  const gL = lake.hs / Math.max(significantHeight(hL, LENGTHS, CPU_CASCADES), 1e-9);
+  const gB = bay.hs / Math.max(significantHeight(hB, LENGTHS, CPU_CASCADES), 1e-9);
+  return { hL, hB, gL, gB, sea: st.id, key: seaKey(sp, travelRad, st.id) };
 }
 // the table the FFT runs: per tile c, lake[c] gL hL + bay gB hB (the bay's band only on the displacement tiles), into out
 export function composeSea(T, w, out = new Float32Array(T.hL.length)) {

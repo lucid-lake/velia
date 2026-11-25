@@ -35,6 +35,7 @@ import { HEAD, FULLSCREEN, TONEMAP, TONEMAP_MODES, tonemapMode } from './render/
 import { createPost, BLOOM, DITHER_LSB, bloomGain } from './render/bloom.js';   // the post chain (2026-11-18): the bloom's own pass, the composite's dither
 import { createSky, SUN, nightFloor } from './render/sky.js';
 import { createWater, LOOP } from './render/water.js';
+import { laneDrift } from './render/spume.js';   // the wind lanes' and the foam streaks' drift, integrated each frame
 import { createShore } from './render/shore.js';   // #56 M3: the breakers, the swash, the spray (Ultra-Water's shore, MIT)
 import { createTerrain } from './render/terrain.js';
 import { UNDER_STATE } from './render/underState.js';   // play as Tessie, phase 2a: the eye under the water
@@ -335,6 +336,7 @@ async function boot() {
   const night = createNight({ device, reg, frameBGL, frameBG, U, frameStruct, hdrTarget, msaa: P.msaa, depthFormat, errors, milkyWay: milkyWayOn });   //: no Milky Way on a phone
   let nightOn = flags.night !== false;
   let spumeOn = true;   // the spume (render/spume.js); hook.setSpume, the in-page A/B
+  const laneD = [0, 0, 0];   // the lanes' drift so far (x, z m) and the clock it was integrated to (render/spume.js laneDrift)
   const sky = createSky({ device, reg, frameBGL, frameBG, U, frameStruct, fullscreen: FULLSCREEN, hdrTarget, msaa: P.msaa, depthFormat, clouds, night });
   const underBack = underOn ? createUnderBack({ device, reg, frameBGL, sky, frameStruct, hdrTarget, msaa: P.msaa, depthFormat, hdrFormat: graph.hdrFormat }) : null;   // phase 2a: the background under the water, the waterline's lens
   clouds.attach(sky); inGroup('night', () => night.attach(sky));   // perf(v2) iOS pipelines: the night's two draws are a group
@@ -380,9 +382,9 @@ async function boot() {
   const exhaustFx = flags.boat !== false ? inGroup('boatfx', () => createExhaustFx({ device, reg, frameBGL, frameBG, U, frameStruct, sky, hdrTarget, msaa: P.msaa, depthFormat })) : null;
   const shoreMirror = createShoreMirrorTarget(device);   // #41c: the shore's mirror (the towns fill it in the aerial pass; the water reads it)
   // #56 M3: the shore field (render/shore.js): its buffer and the spray's pipeline now, the baked field after the first frame
-  const shore = flags.shore !== false ? inGroup('shore', () => createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrainBGL: terrain.hbgl, hdrTarget, msaa: P.msaa, depthFormat })) : null;
+  const shore = flags.shore !== false ? inGroup('shore', () => createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrainBGL: terrain.hbgl, hdrTarget, msaa: P.msaa, depthFormat, sea: flags.sea })) : null;
   let shoreLoad = null;
-  const water = createWater({ liteFirst, device, reg, graph, frameBGL, frameBG, U, frameStruct, sky, night, terrainBGL: terrain.hbgl, reflectView: terrain.reflectView, hdrTarget, msaa: P.msaa, depthFormat, seed: 1337 + P.seed, dt: clock.dt, wake: wakeFx, asyncSea: !P.headless && flags.filmui !== true, groundAt: (x, z) => terrain.field.height(x, z), shoreMirror, m1: flags.m1 !== false, shore, detail: feature('waterDetail').tier === 'on', under: underOn });   //: the variation layer and the persistent foam   // #56 M1: ?m1=0 the water before   // #21, #25: the sea field's land mask and the CPU surface's depth   // the day clock: a live page's sea tables built in a worker (a moving wind never stops a frame)
+  const water = createWater({ liteFirst, device, reg, graph, frameBGL, frameBG, U, frameStruct, sky, night, terrainBGL: terrain.hbgl, reflectView: terrain.reflectView, hdrTarget, msaa: P.msaa, depthFormat, seed: 1337 + P.seed, dt: clock.dt, wake: wakeFx, asyncSea: !P.headless && flags.filmui !== true, groundAt: (x, z) => terrain.field.height(x, z), shoreMirror, m1: flags.m1 !== false, crest: flags.crest !== false, jelly: flags.jelly !== false, shore, detail: feature('waterDetail').tier === 'on', under: underOn, sea: flags.sea });   //: the variation layer and the persistent foam   // #56 M1: ?m1=0 the water before   // #21, #25: the sea field's land mask and the CPU surface's depth   // the day clock: a live page's sea tables built in a worker (a moving wind never stops a frame)
   const windBlend = createWindBlend({ device, reg, out: water.windTexture });   // fix(v2) shadow stepping: the wind texture's two newest fills cross-faded a frame (the gust patches drift, never step)
   const boatOn = flags.boat !== false;   // ?boat=0: the scene without it (the frame-time check)
   const boatR = boatOn ? createBoat({ device, reg, frameBGL, frameBG, U, frameStruct, sky, hdrTarget, msaa: P.msaa, depthFormat, errors, shadowSize: LEVELS[Q.level].boatShadow, telltales: flags.telltales, sailArt: flags.sailart, mirrors: feature('boatMirrors').tier === 'all', waterAt: (x, z, o) => water.heightAt(x, z, o), under: underOn, gkGrid: feature('gennakerCloth').tier }) : null;   // the water under her: the keel over or under the drawn surface (render/boat/waterline.js)
@@ -1413,7 +1415,8 @@ async function boot() {
     const windT = B ? B.t : clock.t;
     windTex.update(windT, eye[0], eye[2]); windTex.upload(device.queue, windBlend.slots); windBlend.set(windTex.blend(windT));   // audit W1–W3; fix(v2) shadow stepping: the fill into its slot, this frame's cross-fade
     U.set4('windfx', windTex.centre[0], windTex.centre[1], (windTex.fills > 0 && windFx.tex ? WIND_BITS.tex : 0) | (windFx.gust ? WIND_BITS.gust : 0) | (windFx.lanes ? WIND_BITS.lanes : 0) | (windFx.caps ? WIND_BITS.caps : 0), water.significantHeight);
-    U.set4('spume', 0, spumeOn ? 1 : 0);   // v1's fold threshold for the spume (render/spume.js), from the water's readback; on
+    laneDrift(laneD, windNow.speedMs, windNow.travelRad, clock.t - laneD[2]); laneD[2] = clock.t;   // the lanes' and the foam streaks' drift, integrated (render/spume.js laneDrift)
+    U.set4('spume', 0, spumeOn ? 1 : 0, laneD[0], laneD[1]);   // v1's fold threshold for the spume (render/spume.js), from the water's readback; on
     U.set4('under', underNow.depth, underNow.h, underNow.sx, underNow.sz);   // phase 2a: the eye under the water (0 in the air: the frame's bytes as before)
     U.set4('underK', UNDER_STATE.on ? 1 : 0, underSplitOn ? 1 : 0, UNDER_STATE.on ? (underTier === 'full' ? 2 : 1) : 0, underNow.bed);   // w: the water's depth at the eye (the bed's light back up)
     U.upload(device.queue, ubuf);
