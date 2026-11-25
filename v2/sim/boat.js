@@ -17,7 +17,8 @@ import { CURRENT_VESSEL } from '../../src/sim/vessels/current.js';
 import { vesselDims } from '../../src/sim/boat/dims.js';
 import { BoatOnWater } from '../../src/sim/boat/ride.js';
 import { calmPose, reducedNow } from './steadyCamera.js';   // Reduce Motion (the OS's setting; sim/steadyCamera.js)
-import { createHeaveFilter } from './ease.js';   // step D3: the follow camera rides the slow heave, not each wave
+import { createHeaveFilter, createLowPass } from './ease.js';   // step D3: the follow camera rides the slow heave, not each wave; the cameras' slow speed
+import { wrap } from '../../src/sim/core/math.js';
 import { FollowCamera, FOLLOW } from '../../src/sim/boat/followCamera.js';
 import { createGround } from '../../src/sim/boat/ground.js';
 import { groundTerrain } from '../../src/sim/boat/groundTerrain.js';
@@ -48,6 +49,11 @@ export const START = CURRENT_WATERS.start;
 // held capsized (B.capsize): on her side at lieDeg (± bobDeg), eased there over easeS, her way gone over stopS, drifting at drift × the wind
 export const CAPSIZE_HOLD = Object.freeze({ lieDeg: 86, bobDeg: 2.5, easeS: 0.8, stopS: 2.5, drift: 0.03 });
 export const STEADY_RAMP_S = 1;
+// the follow camera's slow inputs (fix 2026-11-25, the shaking sky; createBoatSim camPose): the low-passes' time constants (s,
+// critically damped: sim/ease.js createLowPass). A sine of period P passes at 1 / (1 + (π · tau / P)²): with tau 3 s a 2.7 s
+// wave's surge reaches the speed camera at under a tenth (under 1/40 with its own ease), a gust's run-up (5–10 s) still breathes
+// heelTau: the heel the page's camera lean reads (v2/sim/gust.js lean, 16 % of it: B.camState); its wave-period part rocked the frame's edges
+export const CAM_SLOW = Object.freeze({ sogTau: 3, surfTau: 3, headingTau: 2, heelTau: 2 });
 const STEADY_LEAD_S = 0.5, STEADY_LEAD_MAX = 10 * Math.PI / 180;   // the let-go heading leads her swing by this (her yaw rate × s), at most 10°   // s: steady hands' grip easing in after a hand lets go (ui/steadyHands.js STEADY.rampS)
 // the island in island radii (≈ 1 at its shore; v1's src/sim/lake.js islandR) from the lake's fitted ellipse { x, z, a, b, rotDeg }
 // (v2/ui/logbookWorld.json terrain.lake.island): the bottom reads it for rock (src/sim/boat/groundTerrain.js)
@@ -144,8 +150,22 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
   if (flags.camyaw != null && num(flags.camyaw) != null) { follow.yaw = heading0 + num(flags.camyaw) * DEG; follow.chase = false; }
   // step D3: the follow (and chase) camera reads the heave high-passed out: its slow part only, solved
   // per step (sim/ease.js), so the eye does not bob with every wave and 30 fps and 120 Hz follow the same curve
+  // fix 2026-11-25 (the sky shook by day and by night): the camera also reads the boat's speed, her surf cue and her heading slow
+  // (CAM_SLOW). Each moves with every wave (the speed ±0.7 m/s at 16 kn on the bigger sea, the surf cue on each face, the heading
+  // ±0.05°), and the follow camera's breath and the speed camera (sim/speedFeel.js) turned them into a lens pumping 0.5° and an aim
+  // swinging 0.1° at the waves' period: the sky far from the frame's centre shook while the horizon held. The boat rides on screen
   const heaveF = createHeaveFilter(), camP = {};
-  const camPose = (p, dt) => { if (!p) return p; Object.assign(camP, p); camP.heave = heaveF.step(p.heave ?? 0, dt); return camP; };
+  const sogF = createLowPass({ tau: CAM_SLOW.sogTau }), surfF = createLowPass({ tau: CAM_SLOW.surfTau }), headF = createLowPass({ tau: CAM_SLOW.headingTau }), heelF = createLowPass({ tau: CAM_SLOW.heelTau });
+  const camState = { heel: 0, heading: 0 };   // B.camState: the physics' heel and heading, slow, for the page's camera lean (main.js gust.lean)
+  let headU = null;   // the heading unwrapped (rad): the low-pass never sees the ±π seam
+  const slowHeading = (h, dt) => { if (!Number.isFinite(h)) return h; headU = headU == null ? h : headU + wrap(h - headU); return wrap(headF.step(headU, dt)); };
+  const camPose = (p, dt) => {
+    if (!p) return p;
+    Object.assign(camP, p);
+    camP.heave = heaveF.step(p.heave ?? 0, dt); camP.sog = sogF.step(p.sog ?? 0, dt); camP.surf = surfF.step(p.surf ?? 0, dt); camP.heading = slowHeading(p.heading, dt);
+    return camP;
+  };
+  const camSlowReset = (p = null) => { heaveF.reset(p ? p.heave ?? 0 : null); sogF.reset(p?.sog ?? null); surfF.reset(p ? p.surf ?? 0 : null); headF.reset(p?.heading ?? null); headU = p?.heading ?? null; heelF.reset(p ? phys.state.heel ?? 0 : null); };
 
   // the hands (src/controllers/sail.js): the helm and the pilot, the sheet and the winch
   const ctl = { ...CONTROLS, autoReef: false, reef: 0 };   // the reef selector A · 0 · 1 · 2 (ui/autoReef.js): a fresh boat is on 0 (Sail); the page sets each mode's own
@@ -333,6 +353,7 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
     get nudge() { return nudge.amount; },
     // the speed camera's amount now (0 … 1; sim/speedFeel.js) and its switch (?speedfeel=0, the A/B: off)
     get speedCam() { return speedCam.amount; },
+    get camState() { return camState; },   // the heel and heading the camera reads (slow: CAM_SLOW), for the page's lean
     speedFeel: flags.speedfeel !== false,
     // G and the trim panel's WING (DRV-2, v1's controllers/sail.js): the jib held out opposite the boom, and back
     wing() { ctl.jibSide = ctl.jibSide ? 0 : -Math.sign(phys.state.boomAngle || 1); carryJib = false; return ctl.jibSide; },
@@ -379,7 +400,8 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
       const o = {};
       if (r.orbit) o.orbit = r.orbit;
       if (r.followZoom) o.zoom = r.followZoom;
-      const c = follow.update(dt, camPose(calmPose(pose, reducedNow()), dt), o);   // Reduce Motion (sim/steadyCamera.js): less heave, no surf breath
+      const c = follow.update(dt, camPose(calmPose(pose, reducedNow()), dt), o);
+      camState.heel = heelF.step(phys.state.heel ?? 0, dt); camState.heading = camP.heading ?? phys.state.heading;   // Reduce Motion (sim/steadyCamera.js): less heave, no surf breath
       helmLook.look = r.helmLook; helmLook.zoom = r.helmZoom;
       // the trim nudge (sim/trimNudge.js): a hand on a sheet, or a Pro control moving (the keys, the PRO panel's drags)
       const proNow = pro ? `${ctl.traveller}|${ctl.twist}|${ctl.backstay}|${ctl.jibLead}` : '';
@@ -389,7 +411,7 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
       trimHand = false;
       input.orbit = null; input.zoom = 0;
       // the speed camera first (the follow pose is this frame's own object: lowered and widened in place), then the nudge on it
-      speedPose(c, speedCam.update(dt, { sog: phys.state.sog ?? 0, view, cruise: !!driver, reduced: reducedNow(), on: B.speedFeel }));
+      speedPose(c, speedCam.update(dt, { sog: sogF.value ?? phys.state.sog ?? 0, view, cruise: !!driver, reduced: reducedNow(), on: B.speedFeel }));
       let out = k ? nudgePose(c, follow.c, k) : c;
       // K2: the knockdown's camera (the Boat view eased out and up; 0 upright) and the Helm view's cut at 45°
       const kf = kdFx.update(dt, { heel: pose.heel ?? phys.state.heel, view, on: knockdownOn && !(driver && !driverSea) });
@@ -433,7 +455,7 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
       const eng = phys.engine, fresh = craftOf(vessel).createPhysics({ x, z, heading: h, speed, vessel });
       Object.assign(phys, fresh); phys.engine = Object.assign(eng, fresh.engine);
       ride.wake?.reset?.();
-      heaveF.reset(); speedCam.reset();
+      camSlowReset(); speedCam.reset();
       Object.assign(follow, new FollowCamera({ hull: sloopCameras(vessel).follow.hull, x, z, heading: h, pitchDeg: num(flags.campitch), dist: num(flags.camdist), pose: BOAT_VIEW }));
       if (flags.camyaw != null && num(flags.camyaw) != null) { follow.yaw = h + num(flags.camyaw) * DEG; follow.chase = false; }   // ?camyaw= holds through a new start (a film's)
       // DRV-8: Setup's rows on ctl (auto-reef) survive the new start; a fresh let-fly (no sheet left flying) and a fresh carry
@@ -473,7 +495,7 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
         }
       } finally { envObj.sea = sea0; envObj.currentAt = cur0; }
       holdHeading = heading0; hand.sheet = null;   // the hands start fresh: the crew's trim, the pilot on the start heading
-      heaveF.reset(pose.heave ?? 0);
+      camSlowReset(pose);
       for (let i = 0; i < 120; i++) follow.update(1 / 60, camPose(pose, 1 / 60));
       speedCam.reset(B.speedFeel && !reducedNow() && !driver && (B.viewOf?.() ?? 'follow') === 'follow' ? speedK(phys.state.sog ?? 0) : 0);   // a capture's camera as settled, not easing in from none
       return pose;
