@@ -354,9 +354,25 @@ for (const [w, h] of [[1280, 720], [1920, 1080], [1280, 650]]) {
   const row1 = await page.evaluate(() => { const r = [...document.querySelectorAll('#lk-load .lk-links > .lk-link:not(.lk-go)')].filter((b) => b.getClientRects().length).map((b) => b.getBoundingClientRect()), c = document.querySelector('#lk-load .lk-card').getBoundingClientRect();
     return { n: r.length, one: r.every((x) => Math.abs(x.top - r[0].top) < 2 && x.height <= 44), inside: r.every((x) => x.left >= c.left && x.right <= c.right) }; });
   check(row1.n === 4 && row1.one && row1.inside, `${w}×${h}: the four extras fit one row inside the panel, no wrap (${JSON.stringify(row1)})`);
-  const named = ['tessie', 'fannette', 'vikingsholm', 'narrows', 'lake'].map((id) => st.labels.find((l) => l.id === `n-bp-${id}`));
-  check(named.every((l) => l?.shown && l.alpha > 0.5), `${w}×${h}: every pin's name is readable at the entrance (${named.map((l) => `${l?.id}:${l?.shown}`).join(' ')})`);
-  check(st.labels.some((l) => l.id === 'n-fannette' && l.shown), `${w}×${h}: Fannette Island is named too`);
+  // the all-birthplaces view (owner, 2026-11-24): every pin drawn and pickable; a crowded bay pin may lose its label but is named on hover
+  // and once zoomed to the bay; the region names and Off Ski Run stay labelled at the default view
+  const ALL = ['tessie', 'fannette', 'vikingsholm', 'narrows', 'lake', 'ski-run'];
+  const lab = (s2, id) => s2.labels.find((l) => l.id === id);
+  check(ALL.every((id) => st.pois.some((p) => p.id === `bp-${id}` && p.px >= 0 && p.px <= w && p.py >= 0 && p.py <= h)), `${w}×${h}: all six pins drawn in the view (${st.pois.filter((p) => p.kind === 'birthplace').map((p) => p.id).join(', ')})`);
+  check(['n-bp-ski-run', 'n-tahoe', 'n-south-lake'].every((id) => lab(st, id)?.shown && lab(st, id).alpha > 0.5), `${w}×${h}: Off Ski Run, Lake Tahoe and South Lake Tahoe labelled at the default view (${['n-bp-ski-run', 'n-tahoe', 'n-south-lake'].map((id) => `${id}:${lab(st, id)?.shown}`).join(' ')})`);
+  const hovers = [];
+  for (const id of ALL.map((q) => `bp-${q}`)) {
+    const at = await page.evaluate((id) => { const c = window.__velia.m4.ui.services.get('liveChart'); const p = c.state.pois.find((q) => q.id === id); if (!p) return null; const r = c.el.getBoundingClientRect(); return { x: r.left + p.px, y: r.top + p.py }; }, id);
+    if (!at) { hovers.push(`${id}:none`); continue; }
+    await page.mouse.move(at.x, at.y); await page.waitForTimeout(450);
+    const s2 = await chartState(page), nid = `n-${id}`;
+    hovers.push(`${id}:${s2.hover === id && (lab(s2, nid)?.alpha ?? 0) > 0.5 ? 'ok' : `hover=${s2.hover} a=${lab(s2, nid)?.alpha}`}`);
+  }
+  await page.mouse.move(w - 5, h - 5); await page.waitForTimeout(300);
+  check(hovers.every((x) => x.endsWith(':ok')), `${w}×${h}: every pin is pickable and named on hover (Fannette Island, a place, is drawn and named from the bay's zoom) (${hovers.join(' ')})`);
+  await page.evaluate(() => window.__velia.m4.ui.services.get('liveChart').setView({ center: { x: 250, z: -350 }, mpp: 3.2, animate: false })); await page.waitForTimeout(900);
+  const sz = await chartState(page), bayNames = ['n-bp-tessie', 'n-bp-fannette', 'n-bp-vikingsholm', 'n-bp-narrows', 'n-fannette'];
+  check(bayNames.every((id) => lab(sz, id)?.shown && lab(sz, id).alpha > 0.5), `${w}×${h}: zoomed to the bay (3.2 m/px) the bay's pins and Fannette Island are labelled (${bayNames.map((id) => `${id}:${lab(sz, id)?.shown}`).join(' ')})`);
   if (h === 650) {
     await sailClick(page); await page.waitForFunction(() => window.__veliaLoading.state === 'gone', null, { timeout: 60000 }); await page.waitForTimeout(3000);
     await page.keyboard.press('Escape'); await page.waitForTimeout(1200);
