@@ -6,9 +6,9 @@
 //   L1          about 1.2 Mpx: the pixel cap, the cloud key 1024 × 256, no shrubs, the terrain shadow every 8th frame
 //   L2          about 0.7 Mpx (DPR cap 1.5), MSAA 1, the cloud key 1024 × 256, the forest's reach × 0.6 (fewer far trees,
 //               thinning sooner), no shrubs, the shadow every 12th frame, the shallows' coarse path (one caustic net, no
-//               cobbles: v1's phone path)
+//               cobbles: v1's phone path), the spray mist at half (sim/mist.js; live: a uniform)
 //   L3          perf(v2) phone, for weak phones: about 0.45 Mpx (DPR cap 1.25), the forest's reach × 0.4, the shadow every
-//               24th frame; L2's rows otherwise
+//               24th frame, no spray mist; L2's rows otherwise
 //
 // What applies when: the caps, the shadow's cadence, the forest's reach and the shallows' detail change live (no pipeline,
 // no new texture); MSAA changes live too (BACKLOG-v2 #31): every scene pipeline is declared at both counts, the start
@@ -44,10 +44,10 @@ export function leverRows(q) {
   return Object.fromEntries(LEVER_ROWS.map((k) => [k, on.has(k) ? PHONE[k] : FULL[k]]));
 }
 export const LEVELS = Object.freeze([
-  Object.freeze({ id: 0, name: 'L0 full', dprCap: 2, maxPx: 3.4e6, msaa: 4, boatShadow: 2048, shadowEvery: 4, cloudKey: 'auto', forestReach: 1, shrubs: true, bedFine: 1, ...FULL }),
-  Object.freeze({ id: 1, name: 'L1', dprCap: 2, maxPx: 1.2e6, msaa: 4, boatShadow: 2048, shadowEvery: 8, cloudKey: 'small', forestReach: 1, shrubs: false, bedFine: 1, ...FULL }),
-  Object.freeze({ id: 2, name: 'L2', dprCap: 1.5, maxPx: 0.7e6, msaa: 1, boatShadow: 1024, shadowEvery: 12, cloudKey: 'small', forestReach: 0.6, shrubs: false, bedFine: 0, ...PHONE }),
-  Object.freeze({ id: 3, name: 'L3', dprCap: 1.25, maxPx: 0.45e6, msaa: 1, boatShadow: 1024, shadowEvery: 24, cloudKey: 'small', forestReach: 0.4, shrubs: false, bedFine: 0, ...PHONE }),   // perf(v2) phone
+  Object.freeze({ id: 0, name: 'L0 full', dprCap: 2, maxPx: 3.4e6, msaa: 4, boatShadow: 2048, shadowEvery: 4, cloudKey: 'auto', forestReach: 1, shrubs: true, bedFine: 1, mist: 1, ...FULL }),
+  Object.freeze({ id: 1, name: 'L1', dprCap: 2, maxPx: 1.2e6, msaa: 4, boatShadow: 2048, shadowEvery: 8, cloudKey: 'small', forestReach: 1, shrubs: false, bedFine: 1, mist: 1, ...FULL }),
+  Object.freeze({ id: 2, name: 'L2', dprCap: 1.5, maxPx: 0.7e6, msaa: 1, boatShadow: 1024, shadowEvery: 12, cloudKey: 'small', forestReach: 0.6, shrubs: false, bedFine: 0, mist: 0.5, ...PHONE }),
+  Object.freeze({ id: 3, name: 'L3', dprCap: 1.25, maxPx: 0.45e6, msaa: 1, boatShadow: 1024, shadowEvery: 24, cloudKey: 'small', forestReach: 0.4, shrubs: false, bedFine: 0, mist: 0, ...PHONE }),   // perf(v2) phone
 ]);
 export const TOP = LEVELS.length - 1;
 export const BUILD_KEYS = Object.freeze(['cloudKey', 'boatShadow']);   // #31: MSAA left this list (live: main.js msaaSwitch)   // perf(v2) phone: the boat's shadow map (2048², 1024² at L2 and L3: 16 MB cleared and stored a frame on a tile GPU, 4 MB)   // the rows a live step cannot change (pipelines are sized by them)

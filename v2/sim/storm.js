@@ -6,19 +6,33 @@
 // from src/weather/lightning.js, which is three-bound). v1's URL rows run it: ?weather=storm&stormt=&stormrate=&stormref=
 // (src/sim/weather/stormSim.js stormFromParams); ?storms=natural lets one come on a summer afternoon.
 //   const S = createStorm({ windField, seed, now, eye, sunDir, exposure, deck });
-//   S.update(hour) → info (each frame, before the water reads the wind)        S.weather (the plain state)
+//   S.update(hour, { steer, cut }) → info (each frame, before the water reads the wind; steer: the one wind's steering flow,
+//   v2/sim/weatherWind.js steerFlow: the running cell turns to it)                                           S.weather (the plain state)
 //   S.fillFrame(U, eye) (the uniform rows)   S.waterWind(w, out) (the outflow on the base wind)   S.frame (the strikes, the bolt)
 //   S.start({ s0, rate, ref, easeS }), S.stop(), S.choose('storm' | 'fair'), S.running, S.strikesFrom(s)
 import { createStormSim, NATURAL, naturalPlan, stormFromParams } from '../../src/sim/weather/stormSim.js';
-import { hash, CELL, DIR, thunderOf, sceneTimeOf, RAINBOW, ARC } from '../../src/sim/weather/stormArc.js';
+import { hash, CELL, thunderOf, sceneTimeOf, RAINBOW, ARC } from '../../src/sim/weather/stormArc.js';
 import { stormWindFrameInto } from '../../src/sim/weather/stormWind.js';
 import { WEATHER_SCALARS, WEATHER_VECTORS } from '../../src/sim/weather/state.js';
 import { EXPOSURE, groundLight } from './exposure.js';
+import { steerFlow } from './weatherWind.js';   // storm round 2: the cell's track rides the one wind's steering flow
 
-export { NATURAL, naturalPlan, stormFromParams, thunderOf, sceneTimeOf, RAINBOW, ARC, WEATHER_SCALARS, WEATHER_VECTORS, DIR, CELL };
+export { NATURAL, naturalPlan, stormFromParams, thunderOf, sceneTimeOf, RAINBOW, ARC, WEATHER_SCALARS, WEATHER_VECTORS, CELL };
 
 import { smooth } from '../../src/sim/core/math.js';
-const DX = Math.sin(70 * Math.PI / 180), DZ = -Math.cos(70 * Math.PI / 180);   // the drift (stormArc.js DIR)
+
+// the cell's track (storm round 2, 2026-11-24: "the storm cell moves with the one wind"): the drift is the one wind's steering
+// flow (v2/sim/weatherWind.js steerFlow), never a bearing of the storm's own. It is set when the storm starts (or on its first
+// frame) and on a time cut; while it runs it turns toward the steering now with this time constant (scene s), so a shift of
+// the day's wind swings the track slowly about the reference point (where the cell still passes overhead at the arc's 165 s)
+export const STORM_TRACK = Object.freeze({ turnS: 45 });
+// ease a unit drift d (in place) toward the unit target by k (0–1) of the angle between them, the short way round
+export function turnToward(d, target, k) {
+  const a0 = Math.atan2(d[1], d[0]), a1 = Math.atan2(target[1], target[0]);
+  const da = ((a1 - a0 + 3 * Math.PI) % (2 * Math.PI)) - Math.PI, a = a0 + da * Math.min(1, Math.max(0, k));
+  d[0] = Math.cos(a); d[1] = Math.sin(a);
+  return d;
+}
 
 // --- the cell's shade of the sun at a point (v1's src/weather/uniforms.js shadowAt, in JS for one point a frame):
 // the point projected along the sun up to the dark base (1000 m; a low sun as if ≥ 15° up), the cell's mask there
@@ -30,7 +44,7 @@ export function vnoise(x, z, seed = 1) {
   return ((a * (1 - su) + b * su) * (1 - sv) + (c * (1 - su) + d * su) * sv) * 2 - 1;
 }
 export function cellMask(x, z, W) {
-  const rx = x - W.cell[0], rz = z - W.cell[1];
+  const rx = x - W.cell[0], rz = z - W.cell[1], DX = W.dir[0], DZ = W.dir[1];   // the drift the cell rides (stormSim writes it)
   const a = rx * DX + rz * DZ, k = Math.min(a, 0) * -0.45;
   const sx = rx + DX * k, sz = rz + DZ * k;
   return (1 - smooth(0.38, 1.0, Math.hypot(sx, sz) / Math.max(W.cell[2], 1))) * W.cover;
@@ -104,24 +118,41 @@ export const rainDropsFor = (pixels) => (pixels < RAIN.phonePx ? RAIN.phone : RA
 // thickness } (m, the clouds' numbers); seed
 export function createStorm({ windField, seed = 1, now = () => 0, eye = () => [0, 0, 0], sunDir = () => ({ x: 0, y: 1, z: 0 }), sunElev = () => 60, exposure = () => EXPOSURE.base, deck = { base: 700, thickness: 900 } }) {
   const env = { sun: { direction: { x: 0, y: 1, z: 0 }, exposure: 6, light: 1 } };
+  // the steering flow's drift (unit x, z) as last handed in (null before the first frame); the state it was set on, the clocks
+  let steerDir = null, steered = null, lastT = null, lastCut = null;
+  // with no steering handed in: the field's own day wind's (the same one wind; main.js hands in the frame's windNow)
+  const baseSteer = () => (Number.isFinite(windField?.base?.dirDeg) ? steerFlow(windField.base.dirDeg).dir : null);
   const eyeXZ = { x: 0, z: 0 };
   const sim = createStormSim({
     wind: windField, seed, now, lum: 0.1, env,
     eye: () => { const e = eye(); eyeXZ.x = e[0]; eyeXZ.z = e[2]; return eyeXZ; },
     deck: { base: () => deck.base, thickness: () => deck.thickness },
+    steer: () => steerDir ?? baseSteer() ?? [0, 0],   // every start (the URL's, the menu's, a natural one) on the steering now ([0, 0]: the first frame's)
   });
   const W = sim.weather;
-  const windO = { gain: 1, fromDeg: CELL.fromDeg, w: 0 };
+  const windO = { gain: 1, fromDeg: 0, w: 0 };
   let begun = false, windAt = null;
   return {
     sim, weather: W, info: sim.info, frame: sim.frame,
     get running() { return sim.running; }, get state() { return sim.state; }, get rain() { return sim.rain; },
+    get steer() { return steerDir; },
     start: (o) => sim.start(o), stop: () => sim.stop(), choose: (w) => sim.choose(w), strikesFrom: (s, n) => sim.strikesFrom(s, n),
     begin({ natural = NATURAL.on } = {}) { begun = true; return sim.begin({ natural }); },
     // each frame, after the sun is known and before the water reads the wind: v1's env (the sun's direction, the
     // exposure in v1's units so the flash's lift scales as v1's, the daylight level), then the sim's step
-    update(hour) {
+    // steer: { dir: [x, z] } (weatherWind.js steerFlow of the day's wind); cut: the clock's cut count (a cut snaps the track)
+    update(hour, { steer = null, cut = 0 } = {}) {
       if (!begun) this.begin();
+      const sd = steer?.dir ?? baseSteer();
+      if (sd) steerDir = [sd[0], sd[1]];
+      const st = sim.state, t = now();
+      if (st && st.dir && steerDir) {
+        const fresh = steered !== st || cut !== lastCut || lastT == null || !(t - lastT >= 0) || t - lastT > 0.25 || (st.dir[0] === 0 && st.dir[1] === 0);
+        if (fresh) { st.dir[0] = steerDir[0]; st.dir[1] = steerDir[1]; }   // a new storm, a cut or a jump: on the steering now
+        else turnToward(st.dir, steerDir, 1 - Math.exp(-(t - lastT) / STORM_TRACK.turnS));   // in place: the wind field's copy shares the array
+        steered = st;
+      }
+      lastT = t; lastCut = cut;
       const s = sunDir(); env.sun.direction.x = s.x; env.sun.direction.y = s.y; env.sun.direction.z = s.z;
       env.sun.exposure = 6 * exposure() / EXPOSURE.base;
       env.sun.light = Math.min(1, groundLight(sunElev()) / groundLight(8.5));
@@ -143,7 +174,7 @@ export function createStorm({ windField, seed = 1, now = () => 0, eye = () => [0
       out.gain = windO.gain;
       return out;
     },
-    // the storm's rows of the shared uniform (uniforms.js): storm, rain, cell, front, bow
+    // the storm's rows of the shared uniform (uniforms.js): storm, rain, cell, front, bow, track
     // hazeMul: the weather look's share of the storm's mist (v2/sim/weatherLook.js haze; 1 keeps it)
     fillFrame(U, e = eye(), hazeMul = 1) {
       const shade = sunShadeAt(e[0], e[1], e[2], W);
@@ -152,6 +183,7 @@ export function createStorm({ windField, seed = 1, now = () => 0, eye = () => [0
       U.set4('cell', W.cell[0], W.cell[1], W.cell[2], W.cover);
       U.set4('front', W.front[0], W.front[1], W.front[2], W.front[3]);
       U.set4('bow', W.toRain[0], W.toRain[1], W.flashAdd, W.time);
+      U.set4('track', W.dir[0], W.dir[1], 0, 0);   // the cell's drift (the steering flow it rides)
       return shade;
     },
   };

@@ -13,7 +13,8 @@ test('layout: fields are packed in order as f32, the stride is aligned to 256', 
   assert.equal(L.offsets.wind, 48); assert.equal(L.offsets.grid, 60);   // the M1 rows, appended
   assert.equal(L.offsets.moon, 64); assert.equal(L.offsets.bow, 88);   // the M5e rows (the night, the storm), appended after M1's
   assert.equal(L.offsets.under, 104); assert.equal(L.offsets.underK, 108);   // play as Tessie, phase 2a: the eye under the water, appended
-  assert.equal(L.floats, 112); assert.equal(L.bytes, 448); assert.equal(L.stride, 512, 'the block still takes a 512 B slot (two 256 B alignments)');
+  assert.equal(L.offsets.track, 112); assert.equal(L.offsets.mist, 116);   // storm round 2: the cell's drift, the spray mist, appended
+  assert.equal(L.floats, 120); assert.equal(L.bytes, 480); assert.equal(L.stride, 512, 'the block still takes a 512 B slot (two 256 B alignments)');
   assert.equal(makeLayout([['a', 'vec4f', 4]]).stride, 256);
   assert.equal(makeLayout([['a', 'mat4x4f', 16], ['b', 'mat4x4f', 16], ['c', 'mat4x4f', 16], ['d', 'mat4x4f', 16], ['e', 'vec4f', 4]]).stride, 512);
 });

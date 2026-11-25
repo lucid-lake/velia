@@ -384,6 +384,25 @@ integral of 0.03 × the wind (`laneDrift`, `F.spume.zw`), shared by the foam str
 After: 0 m/s across, ≤ 0.5 m/s along (the measure's step), at the start and 5 km out. The lanes still lie within 4° of the
 wind and stay 30 : 1 stretched (`v2/tests/spume.test.mjs`); the new test fails on the old lanes.
 
+## The spray mist (storm round 2, 2026-11-24: sim/mist.js, render/mist.js, render/water.js)
+In a strong local wind (from 11 m/s, full by 16 m/s: Beaufort 6 to 7, "airborne spray", spindrift past 8) and under the storm's
+outflow (0.7 of it from 5–9 m/s of local wind, whatever the day's wind), a fine mist streams off the crests downwind, low over the
+water. Folded into the water's fragment, after the aerial read: no pass, no pipeline, no texture.
+- **The one wind:** the onset reads the local wind the whitecaps read (`windLocal`, with the storm's foam boost); a gust (the local
+  wind over its surroundings, plus the gust patch's weight) makes it up to × 2.4 denser; the wisps drift at half the eye's wind
+  under the outflow (`mistDrift`, integrated on the scene clock: `F.mist.zw`), the desktop's second layer at 0.72, so they cross
+  and evolve and run far ahead of the waves.
+- **The pattern:** the baked foam lace (the slope array's last layer) read at mip 3, where its cells blur into soft blobs, 34 m
+  along the wind × 5.5 m across (21 × 3.6 m for the second layer), thresholded into wisps; along the wind's two nearest fixed
+  directions 10° apart (the lanes' bins: no sideways sweep on a shift); far, the level follows the footprint and the wisps fade
+  to their mean (no sparkle). Denser over the big waves' crests (0.55 of it). One layer on the lite water.
+- **The look:** 1 − exp(−density × 0.2 / (|V.y| + 0.3)), at most 0.25 of a pixel: between the wisps the navy stays navy. Its
+  light: the sky's and a forward lobe of the sun (bright looking into it), the overcast's grey in the storm.
+- **The ladder:** `LEVELS[].mist` 1, 1, 0.5, 0 (L0–L3: half on L2, none on L3); none under Reduced Motion on a live page;
+  `?spraymist=0` off (the A/B), `=1` on at any level. A phone has no storm, so on a phone it shows only in a strong fair wind.
+- Tests: `v2/tests/storm-track.test.mjs` (none under the onset, the storm's share, the gust; the drift along the wind; the
+  ladder, Reduced Motion, the flag; the WGSL takes the JS numbers).
+
 ## The sea state: a bigger, longer sea (2026-11-24: v2/sim/spectrum.js SEA_STATES, seaRows; ?sea=)
 
 **The ask:** waves as big as web-ocean-3d's, at least on the open lake, bigger in the bay too, and a boat that clearly rides up

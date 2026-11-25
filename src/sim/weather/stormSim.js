@@ -12,7 +12,7 @@
 // eye(): the listener's point { x, z } (the camera); deck: the cloud deck's { base(), thickness() } in m, or null;
 // onStart / onStop: the engine's hooks, called at the end of every start and stop (the natural storm's and choose's too).
 // A capture is deterministic: the arc, the strikes and the bolts come from the seed and the scene clock, never the wall clock.
-import { ARC, arcAt, arcTime, strikesBetween, flashOf, rainbowEnv, rainbowWeight, smooth, hash, DIR } from './stormArc.js';
+import { ARC, arcAt, arcTime, strikesBetween, flashOf, rainbowEnv, rainbowWeight, smooth, hash, dirOf } from './stormArc.js';
 import { frontAlong } from './stormWind.js';
 import { createWeatherState, STORM_TOP_M, STOP_ZERO } from './state.js';
 
@@ -33,7 +33,8 @@ export function stormFromParams(flags) {
   return { s0: Number.isFinite(s0) ? s0 : 0, rate: Number.isFinite(rate) && rate > 0 ? rate : 1, ref: ref?.length === 2 && ref.every(Number.isFinite) ? ref : null };
 }
 
-export function createStormSim({ wind, seed: SEED = 1, now = () => 0, eye, deck = null, lum = 0.1, env = {}, sunWorld = null, onStart = () => {}, onStop = () => {}, weather: W = createWeatherState() }) {
+// steer(): the drift (unit x, z) a storm started with none takes (v2: the one wind's steering flow), or null; v1 passes none
+export function createStormSim({ wind, seed: SEED = 1, now = () => 0, eye, deck = null, lum = 0.1, env = {}, sunWorld = null, onStart = () => {}, onStop = () => {}, weather: W = createWeatherState(), steer = () => null }) {
   let state = null, lastS = null, recent = [], plan = null, startedAt = 0;
   let ease = null, leave = null;   // the fade in of a storm started mid-arc (start's easeS), the fade out of one sent away early (choose): { t0, s }
   let natural = false, begun = false;   // begin(): the storm runs from the mode's start (no update before it: the boot's frames)
@@ -47,9 +48,12 @@ export function createStormSim({ wind, seed: SEED = 1, now = () => 0, eye, deck 
     return true;
   }
 
-  function start({ s0 = 0, rate = 1, ref = null, t0 = now(), easeS = 0 } = {}) {
+  // dir: the drift (unit x, z) the cell rides (v2: the one wind's steering flow; the engine may turn it in place while the storm
+  // runs, the field's copy shares the array); none: v1's fixed track (stormArc.js DIR)
+  function start({ s0 = 0, rate = 1, ref = null, t0 = now(), easeS = 0, dir = steer() } = {}) {
     const p = eye();
     state = { s0, t0, rate, ref: ref ?? [Math.round(p.x), Math.round(p.z)], seed: SEED };
+    if (dir) state.dir = [dir[0], dir[1]];
     wind.setStorm(state);
     lastS = null; recent = [];
     ease = easeS > 0 ? { t0, s: easeS } : null; leave = null;
@@ -87,7 +91,8 @@ export function createStormSim({ wind, seed: SEED = 1, now = () => 0, eye, deck 
     const s = arcTime(state, t);
     if (s >= ARC.end) { stop(); return info; }
     const P = eye(), L = [P.x, P.z];
-    const A = arcAt(s, state.ref, L), c = A.cell;
+    const DIR = dirOf(state);
+    const A = arcAt(s, state.ref, L, DIR), c = A.cell;
     // the fades (a storm started mid-arc eases in; one sent away early eases out, then stops): one gain on what is seen
     let k = ease ? smooth(0, ease.s, t - ease.t0) : 1;
     if (leave) { const u = (t - leave.t0) / leave.s; if (u >= 1) { stop(); return info; } k *= 1 - smooth(0, 1, u); }
@@ -104,10 +109,11 @@ export function createStormSim({ wind, seed: SEED = 1, now = () => 0, eye, deck 
     W.under = W.rainCore > 0.001 ? (deck ? deck.base() : 700) : W.shelfDrop;
     { const d = env.sun?.direction ?? sunWorld; W.sun[0] = d.x; W.sun[1] = d.y; W.sun[2] = d.z; }
     W.drift[0] = -DIR[0] * c.along; W.drift[1] = -DIR[1] * c.along;   // the shade's gaps ride with the cell
+    W.dir[0] = DIR[0]; W.dir[1] = DIR[1];   // the drift the engine's shaders read (v2; not in the copied lists)
 
     // lightning: the new strikes since the last frame (the engine plays their thunder at the distance's delay), their flashes
     const from = lastS == null ? s - 0.4 * state.rate : lastS;   // a capture's first frame sees a flash already under way
-    if (s > from) for (const k of strikesBetween(SEED, from, s, state.ref)) { recent.push(k); info.strikes++; frame.strikes.push(k); }
+    if (s > from) for (const k of strikesBetween(SEED, from, s, state.ref, DIR)) { recent.push(k); info.strikes++; frame.strikes.push(k); }
     lastS = s;
     recent = recent.filter((k) => s - k.s < 0.5 * state.rate);
     let flash = 0, bolt = null, boltGlow = 0;
@@ -141,6 +147,6 @@ export function createStormSim({ wind, seed: SEED = 1, now = () => 0, eye, deck 
     get running() { return !!state; }, get leaving() { return !!leave; }, get choice() { return state ? 'storm' : 'fair'; }, get state() { return state; },
     get rain() { return state ? W.rain : 0; },
     // the next strikes from arc second s (captures pick a frame on a flash)
-    strikesFrom: (s, n = 5) => (state ? strikesBetween(SEED, s, s + 120, state.ref).slice(0, n) : []),
+    strikesFrom: (s, n = 5) => (state ? strikesBetween(SEED, s, s + 120, state.ref, dirOf(state)).slice(0, n) : []),
   };
 }

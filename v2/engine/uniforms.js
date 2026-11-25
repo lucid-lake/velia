@@ -33,6 +33,9 @@ export const FRAME_FIELDS = Object.freeze([
   // play as Tessie, phase 2a (appended: every earlier offset holds, the slot stays 512 B): the eye under the water
   ['under', 'vec4f', 4],      // the eye's depth under the local surface (m; + under, − over), the surface's height at the lens (m), its slopes dh/dx, dh/dz
   ['underK', 'vec4f', 4],     // the scene drawn from under the water (1; 0 in the air: every under branch off), the waterline near the lens (0–1: the crossing's split), the tier (2 full, 1 lite), 0
+  // storm round 2 (appended: every earlier offset holds, the slot stays 512 B)
+  ['track', 'vec4f', 4],      // the storm cell's drift (unit x, z: the one wind's steering flow, v2/sim/storm.js), 0, 0
+  ['mist', 'vec4f', 4],       // the spray mist (v2/sim/mist.js): the level's amount (0 off), 0, the wisps' drift x, z (m)
 ]);
 
 export function makeLayout(fields = FRAME_FIELDS, align = 256) {

@@ -25,7 +25,11 @@ import { smooth } from '../core/math.js'; export { smooth };
 // The cell drifts toward ENE (bearing 70°, as Tahoe's afternoon cells drift with the southwest flow aloft); the
 // outflow blows from where it comes from (WSW, 250°).
 export const CELL = { bearingDeg: 70, fromDeg: 250, baseM: 1900, topM: 9000 };
-export const DIR = [Math.sin(CELL.bearingDeg * DEG), -Math.cos(CELL.bearingDeg * DEG)];   // the drift, unit (x, z)
+export const DIR = [Math.sin(CELL.bearingDeg * DEG), -Math.cos(CELL.bearingDeg * DEG)];   // the drift, unit (x, z): v1's fixed track
+// a running storm's drift: its state's own (v2: the steering flow of the one wind, v2/sim/weatherWind.js steerFlow), else v1's DIR
+export const dirOf = (state) => state?.dir ?? DIR;
+// the bearing the outflow blows FROM for a drift (where the cell comes from): v1's DIR gives CELL.fromDeg (250)
+export const fromDegOf = (dir) => (dir === DIR ? CELL.fromDeg : ((Math.atan2(dir[0], -dir[1]) / DEG + 180) % 360 + 360) % 360);
 // the cell's centre along DIR from the reference point (m) at arc seconds: over the western ridge while it builds,
 // overhead at 165 s, gone east by the end (≈ 45 m/s: clouds racing read as wind)
 const PATH = [[0, -13000], [90, -6500], [120, -3200], [165, 0], [210, 2400], [270, 7000], [300, 9500], [400, 16000]];
@@ -50,10 +54,11 @@ function interp(table, s) {
 
 // the cell at arc seconds s round the reference point ref = [x, z]: its centre, radius (m), coverage 0–1 and height
 // growth 0–1 (the towers into an anvil)
-export function cellAt(s, ref = [0, 0]) {
+// dir: the drift (unit x, z; a running storm's state.dir, the steering flow it rides); v1 passes none and keeps DIR
+export function cellAt(s, ref = [0, 0], dir = DIR) {
   const a = interp(PATH, s);
   return {
-    x: ref[0] + DIR[0] * a, z: ref[1] + DIR[1] * a, along: a,
+    x: ref[0] + dir[0] * a, z: ref[1] + dir[1] * a, along: a,
     r: 2000 + 2300 * smooth(40, 140, s),   // a narrow tower while it builds, a wide storm once it arrives
     // the cell exists from the start, far out beyond the ridge: it arrives by moving in (never fading in where it stands)
     cover: smooth(-30, 10, s) * (1 - smooth(235, 295, s)),
@@ -63,8 +68,8 @@ export function cellAt(s, ref = [0, 0]) {
 
 // the envelopes at a listener (x, z) at arc seconds s: rain 0–1, dark (the storm grade) 0–1, gold (the clearing's
 // warm grade) 0–1, haze (the fog's extra) 0–1, front (the outflow's strength) 0–1
-export function arcAt(s, ref = [0, 0], listener = ref) {
-  const c = cellAt(s, ref);
+export function arcAt(s, ref = [0, 0], listener = ref, dir = DIR) {
+  const c = cellAt(s, ref, dir);
   const d = Math.hypot(listener[0] - c.x, listener[1] - c.z);
   const rainCore = smooth(100, 130, s) * (1 - smooth(200, 245, s));
   const rain = rainCore * (1 - smooth(0.45 * c.r, 0.95 * c.r, d));
@@ -99,19 +104,19 @@ export function hash(seed, k, salt = 0) {
   h = (h ^ (h >>> 16)) >>> 0;
   return h / 4294967296;
 }
-export function strikesBetween(seed, s0, s1, ref = [0, 0]) {
+export function strikesBetween(seed, s0, s1, ref = [0, 0], dir = DIR) {
   const out = [];
   for (let k = Math.max(0, Math.floor(s0 / BIN)); k * BIN < s1; k++) {
     const s = k * BIN + hash(seed, k, 1) * BIN;
     if (s < s0 || s >= s1) continue;
     const hero = HERO.find(([hs]) => k === Math.floor(hs / BIN));
     if (!hero && hash(seed, k, 2) >= interp(STRIKE_RATE, s) * BIN) continue;
-    const c = cellAt(s, ref);
+    const c = cellAt(s, ref, dir);
     let x, z, bolt;
-    if (hero) { const [, back, side] = hero; x = ref[0] - DIR[0] * back + DIR[1] * side; z = ref[1] - DIR[1] * back - DIR[0] * side; bolt = true; }
+    if (hero) { const [, back, side] = hero; x = ref[0] - dir[0] * back + dir[1] * side; z = ref[1] - dir[1] * back - dir[0] * side; bolt = true; }
     else {
       const back = hash(seed, k, 3) * 0.75 * c.r, side = (hash(seed, k, 4) - 0.5) * 1.2 * c.r;   // the trailing half
-      x = c.x - DIR[0] * back + DIR[1] * side; z = c.z - DIR[1] * back - DIR[0] * side; bolt = hash(seed, k, 5) > 0.33;
+      x = c.x - dir[0] * back + dir[1] * side; z = c.z - dir[1] * back - dir[0] * side; bolt = hash(seed, k, 5) > 0.33;
     }
     out.push({ s, x, z, bolt, id: k, seed: Math.floor(hash(seed, k, 6) * 1e6) });
   }

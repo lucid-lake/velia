@@ -36,6 +36,7 @@ import { SURF, SURF_WGSL, SURF_FNS_WGSL, SURF_BITS, SURF_ALL, SURF_DEFAULT, FOAM
 import { createSurface, WIN, WINDOW_FLOATS, OFFSETS, COARSE_OFFSETS, COARSE_N, COARSE_C } from '../sim/surface.js';
 import { createSeaField, SEA_FIELD_WGSL, FIELD_BYTES } from '../sim/seaField.js';   // #21, #25: the shallows' calm and the sea across the lake
 import { SPUME_WGSL } from './spume.js';
+import { mistWgsl } from './mist.js';   // storm round 2: the spray mist off the crests in a strong wind and the storm
 import { WIND_WATER_WGSL, WIND_BINDING, BITS, LANE, GUST_FX } from './windWater.js';
 import { WIND_TEX } from '../sim/windTex.js';   // audit W1–W3: the gusts, v1's whitecaps, the lanes
 import { GUST_LOOK } from '../../src/sim/water-spectrum.js';
@@ -398,7 +399,6 @@ ${(lite ? LITE_TAPS : MIRROR_TAPS).land.offsets.map((o, i) => `  shore += ${(lit
   return base * (1.0 - shore.a * landK) + shore.rgb * landK;
 }
 // --- M5e: the storm's terms on the water (v1's src/weather/uniforms.js waterRain, frontBand, waterSky), off at F.storm.x = 0 ---
-const DX = ${Math.sin(70 * Math.PI / 180).toFixed(6)}; const DZ = ${(-Math.cos(70 * Math.PI / 180)).toFixed(6)};   // the cell's drift (stormArc.js DIR)
 fn hash2w(q: vec2f) -> f32 { return fract(sin(dot(q, vec2f(127.1, 311.7))) * 43758.5453); }
 // storm round 4: Worley's F2 − F1 at p (cell units): 0 on the cells' borders (the foam's web), larger inside (its dark holes)
 fn worleyEdgeW(p: vec2f) -> f32 {
@@ -424,8 +424,9 @@ fn ringsAt(p: vec2f, t: f32, cellM: f32, salt: f32) -> vec2f {
   return d / max(length(d), 1e-4) * (prof * 0.07);
 }
 // the outflow line on the water (stormWind.js's ragged edge): 1 on the band, 0.4 behind it, 0 ahead
+// the drift is the frame's track row (the cell's, on the one wind's steering flow: v2/sim/storm.js)
 fn frontBand(xz: vec2f) -> f32 {
-  let d0 = xz - F.front.xy;
+  let d0 = xz - F.front.xy; let DX = F.track.x; let DZ = F.track.y;
   let a = d0.x * DX + d0.y * DZ; let c = -d0.x * DZ + d0.y * DX;
   let dx = a - F.front.z + sin(c / 310.0 + 1.3) * 60.0 + sin(c / 130.0 - 0.4) * 35.0;
   let edge = exp(-(dx / 130.0) * (dx / 130.0));
@@ -463,6 +464,9 @@ fn stormGlint(s: vec3f) -> f32 {
   let T = cloudAt(normalize(vec3f(s.x, max(s.y, 0.268 * length(s.xz)), s.z))).a;
   return T * mix(1.0, smoothstep(0.015, 0.05, T), F.cell.w);
 }
+${mistWgsl(lite)}
+// the mist over the water's premultiplied colour: it covers m of the pixel with its own light (rgb, premultiplied by m)
+fn mistOver(c: vec4f, m: f32, rgb: vec3f) -> vec4f { return vec4f(c.rgb * (1.0 - m) + rgb, c.a * (1.0 - m) + m); }
 const SHORE = ${SHORE_SOFT_M};   // m of water over the bed in which the surface fades in (the soft shore)
 const DEEP0 = ${DEEP_M[0].toFixed(1)}; const DEEP1 = ${DEEP_M[1].toFixed(1)};   // the water's own body takes over from the bed between these depths
 ${WATER_WGSL}
@@ -915,6 +919,16 @@ ${lite ? '' : `  // feat/v2-look-ponlai: the far body takes the hue of the sky o
   let a = (a0 * (1.0 - foam) + foam) * soft;
   var Tair = vec3f(1.0);
   let inS = aerialParts(v.pos.xy, v.world, &Tair);
+  // storm round 2: the spray mist (render/mist.js) off the crests in a strong local wind and under the outflow, denser in a gust
+  // (the local wind over its surroundings, the gust patch); none under its onset and at F.mist.x = 0 (off: every pixel skips it)
+  var mistA = 0.0; var mistRGB = vec3f(0.0);
+  if (F.mist.x > 0.0) {
+    let mk = mistWeight(localU * (1.0 + STORM_FOAM * F.front.w * F.storm.x), F.storm.x * F.front.w, localU / max(aroundU, 0.5) + gustW * 0.3) * F.mist.x;
+    if (mk > 0.001) {
+      mistA = mistCover(v.uv0, atan2(wv.y, wv.x), mk, smoothstep(0.0, 0.8, hRel), fp, abs(V.y)) * soft;
+      mistRGB = (Tair * mistColour(eSky, sunPerp, s, V) + inS) * mistA;
+    }
+  }
   let col = (Tair * ((r0 + glint) * (1.0 - foam) + foamCol * foam) + inS * a / max(soft, 1e-4)) * soft;
   // v1's approach (2026-11-18): the water stays physical under a storm; its colour changes only through its inputs (the
   // mirror's dark grey lid, stormSky; the cell's shade on the sun and the glint; the rain's rings and roughness); its veil is the
@@ -937,17 +951,17 @@ ${lite ? '' : `  // feat/v2-look-ponlai: the far body takes the hue of the sky o
       let aB = 1.0 - (1.0 - fF) * (1.0 - wetA) * (1.0 - foam);
       let sheen = 0.35 * fres * smoothstep(0.55, 1.0, shS.z) * (1.0 - filmK);
       let colB = Tair * ((fF + sheen) * skyR + glint * filmK) * (1.0 - foam) + inS * aB;
-      return vec4f(colB * keep + Tair * capCol * foam, aB) * hullK;
+      return mistOver(vec4f(colB * keep + Tair * capCol * foam, aB), mistA, mistRGB) * hullK;
     }
     // over the bed: the foam reaches the waterline (the surface's soft fade is the calm water's edge)
     let sfo = max(soft, smoothstep(0.0, 0.03, depth));
     let aS = a0 * (1.0 - foam) * soft + foam * sfo;
     let colS = Tair * (r0 + glint) * (1.0 - foam) * soft + Tair * foamCol * foam * sfo + inS * aS;
     let capS = select(vec3f(0.0), Tair * capCol * (foam - min(wakeF, foam)) * sfo, suOn(${SURF_BITS.foam}u));
-    return vec4f(colS * keep + capS * (1.0 - keep), aS) * hullK;
+    return mistOver(vec4f(colS * keep + capS * (1.0 - keep), aS), mistA, mistRGB) * hullK;
   }
   // M3: Tessie's night wake glow (wake.js: 0 by day, on a phone and with no creature map; an emission over the water)
-  return vec4f(col * keep + capPart * (1.0 - keep) + WAKE_GLOW * wk.glow * Tair, a) * hullK;
+  return mistOver(vec4f(col * keep + capPart * (1.0 - keep) + WAKE_GLOW * wk.glow * Tair, a), mistA, mistRGB) * hullK;
 }`;
 
 // Play as Tessie, phase 2a: the surface from below (fsUnder), the same mesh and its slopes, a second fragment entry,
