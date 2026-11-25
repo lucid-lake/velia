@@ -400,8 +400,8 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
       const o = {};
       if (r.orbit) o.orbit = r.orbit;
       if (r.followZoom) o.zoom = r.followZoom;
-      const c = follow.update(dt, camPose(calmPose(pose, reducedNow()), dt), o);
-      camState.heel = heelF.step(phys.state.heel ?? 0, dt); camState.heading = camP.heading ?? phys.state.heading;   // Reduce Motion (sim/steadyCamera.js): less heave, no surf breath
+      const c = follow.update(dt, camPose(calmPose(pose, reducedNow()), dt), o);   // Reduce Motion (sim/steadyCamera.js): less heave, no surf breath
+      camState.heel = heelF.step(phys.state.heel ?? 0, dt); camState.heading = camP.heading ?? phys.state.heading;   // the lean's slow heel (CAM_SLOW)
       helmLook.look = r.helmLook; helmLook.zoom = r.helmZoom;
       // the trim nudge (sim/trimNudge.js): a hand on a sheet, or a Pro control moving (the keys, the PRO panel's drags)
       const proNow = pro ? `${ctl.traveller}|${ctl.twist}|${ctl.backstay}|${ctl.jibLead}` : '';
