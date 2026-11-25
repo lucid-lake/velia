@@ -67,7 +67,7 @@ export const GLYPH_SEGS = Object.freeze({
   R: [[0, 0, 0, 7], [0, 7, 2.8, 7], [2.8, 7, 3.8, 6.1], [3.8, 6.1, 3.8, 4.5], [3.8, 4.5, 2.8, 3.6], [2.8, 3.6, 0, 3.6], [1.7, 3.6, 4, 0]], ' ': [],
 });
 
-function builder() {
+export function builder() {
   const v = [];
   const push = (p, n, s) => v.push(p[0], p[1], p[2], n[0], n[1], n[2], s);
   const norm = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
