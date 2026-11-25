@@ -32,7 +32,7 @@ async function load(device, query) {
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
   const got = new Map();
-  const piers = []; page.on('response', (r) => { if (/assets\/towns\/shore-south/.test(r.url())) piers.push(pathOf(r.url())); });
+  const piers = []; page.on('response', (r) => { if (/assets\/towns\/shore-south[^?]*$/.test(r.url())) piers.push(pathOf(r.url())); });   // not Vite's own ?import module of the URL
   page.on('response', async (r) => { const p = pathOf(r.url()); if (!/^(terrain|photo)\//.test(p)) return; try { got.set(p, (await r.body()).length); } catch { got.set(p, Number(r.headers()['content-length'] ?? 0)); } });
   await page.goto(`${BASE}/${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__velia?.ready === true, null, { timeout: 240000, polling: 200 });
