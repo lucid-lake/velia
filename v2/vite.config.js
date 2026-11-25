@@ -5,6 +5,7 @@
 import { resolve, basename } from 'node:path';
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, cpSync, existsSync, statSync } from 'node:fs';
 import { shippedFiles, shoreFiles } from './terrain/levels.js';
+import { regionLevels, levelFiles } from './terrain/region.js';   // the regions' own detail levels (terrain/<dir>/), fetched only for a start there
 import { stripHtmlComments, scrubBundle } from '../tools/build/scrub.mjs';   // the same production scrub as v1
 import { packGlb, BOAT_MODELS } from '../tools/build/glb-pack.mjs';
 import { turnKit, earlyTurn } from './ui/landscape.js';   // phones are landscape-only: the first paint's turn, inline   // M3b: v1's boat models, quantized + gzipped
@@ -45,6 +46,10 @@ const TERRAIN = resolve(ROOT, 'terrain');
 const manifests = () => ['tahoe.json', 'tahoe-phone.json'].map((f) => JSON.parse(readFileSync(resolve(TERRAIN, f), 'utf8')));
 // the living lake: the island's and the bay's shore-distance grids (v2/sim/lake.js: the kayaks' routes and minds)
 const terrainFiles = () => ['tahoe.json', 'tahoe-phone.json', ...shippedFiles(...manifests()), ...shoreFiles(manifests()[0])];
+// the regions' detail levels (src/waters/*.json regions[].level: terrain/south/ …): every file of each, served and shipped under its
+// folder; a page fetches them only for a start in that region (v2/terrain/region.js)
+const watersFiles = () => readdirSync(resolve(ROOT, 'src/waters')).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(resolve(ROOT, 'src/waters', f), 'utf8')));
+const regionFiles = () => [...new Set(watersFiles().flatMap((w) => regionLevels(w).flatMap((l) => levelFiles(l, (p) => JSON.parse(readFileSync(resolve(TERRAIN, p), 'utf8'))))))].sort();
 const GROUND_FILES = ['albedo.webp', 'pack.webp', 'rock-albedo.webp', 'rock-pack.webp'];   // M5c: v1's detail set (src/ground-layout.js GROUND_TEXTURES); the close rock's two layers (render/ground.js ROCK_FILES, CC0)
 function terrainGrids() {
   let build = false;
@@ -52,10 +57,17 @@ function terrainGrids() {
     name: 'velia-v2-terrain',
     configResolved(c) { build = c.command === 'build'; },
     configureServer(server) {
-      const allowed = new Set(terrainFiles());
+      const allowed = new Set(terrainFiles()), regional = new Set(regionFiles());
       server.middlewares.use('/terrain/', (req, res, next) => {
         const url = decodeURIComponent((req.url ?? '').split('?')[0]);
         const name = basename(url);
+        const rel = url.replace(/^\//, '');
+        if (regional.has(rel)) {   // a region's level: its own folder (terrain/south/…)
+          const file = resolve(TERRAIN, rel);
+          res.setHeader('Content-Type', rel.endsWith('.json') ? 'application/json' : rel.endsWith('.webp') ? 'image/webp' : 'application/octet-stream');
+          res.setHeader('Content-Length', statSync(file).size);
+          return res.end(readFileSync(file));
+        }
         // M5c: v1's two detail strips (terrain/ground/albedo.webp, pack.webp) ride along; nothing else from terrain/ground
         const ground = url.startsWith('/ground/') && GROUND_FILES.includes(name);
         if (!ground && !allowed.has(name)) return next();
@@ -71,6 +83,7 @@ function terrainGrids() {
       if (!existsSync(out)) return;
       mkdirSync(resolve(out, 'terrain'), { recursive: true });
       for (const f of terrainFiles()) copyFileSync(resolve(TERRAIN, f), resolve(out, 'terrain', f));
+      for (const f of regionFiles()) { mkdirSync(resolve(out, 'terrain', f, '..'), { recursive: true }); copyFileSync(resolve(TERRAIN, f), resolve(out, 'terrain', f)); }
       // M5c: the detail strips and the photo tiles (v2/photo: cut by tools/v2-photo-tiles.mjs; served from v2's root in dev)
       mkdirSync(resolve(out, 'terrain/ground'), { recursive: true });
       for (const f of GROUND_FILES) copyFileSync(resolve(TERRAIN, 'ground', f), resolve(out, 'terrain/ground', f));

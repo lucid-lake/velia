@@ -1,5 +1,5 @@
 // The birthplaces' UI on the real v2 page (Phase 1b, on the live map since Phase 2b; v2/ui/chart/mapScreen.js, liveChart.js, phoneCard.js):
-//   1280 × 720, mouse   the live map behind the panel: five pins and Surprise me, the first visit's Tessie's water lit, the voyage line "Emerald
+//   1280 × 720, mouse   the live map behind the panel: six pins (South Lake's Off Ski Run at the chart's east edge) and Surprise me, the first visit's Tessie's water lit, the voyage line "Emerald
 //                       Bay · Halcyon 28 ft · Tessie's water"; hover lifts the name; a click picks Off Fannette (the voyage line updates, she is
 //                       there at once) and opens its card, Sail enters and she starts at that birthplace
 //   in play             Esc: the same screen: the pins, a click opens the small card, "Sail from here" moves her under the veil, the menu
@@ -51,7 +51,7 @@ const showPin = (page, id, mpp = 3.5) => page.evaluate(({ id, mpp }) => { const 
   const s0 = await chartState(page);
   const pins = s0.pois.filter((p) => p.kind === 'birthplace');
   const sur = await page.evaluate(() => { const b = document.querySelector('.lk-livechart .lkc-surprise'); const q = b?.getBoundingClientRect(); return b && q.width > 0 ? [Math.round(q.width), Math.round(q.height)] : null; });
-  check(pins.length === 5 && !!sur, `desk: five pins on the map and Surprise me (${pins.map((p) => p.id).join(', ')}; ${JSON.stringify(sur)})`);
+  check(pins.length === 6 && !!sur, `desk: six pins on the map and Surprise me (${pins.map((p) => p.id).join(', ')}; ${JSON.stringify(sur)})`);
   check(await page.evaluate(() => window.__velia.birthplaces.current === 'tessie'), `desk: the first visit's Tessie's water is the lit pin`);
   check(await startRow(page) === "Tessie's water", `desk: the float plan's start row (${await startRow(page)})`);
   const at = await pinAt(page, 'fannette');
@@ -134,7 +134,7 @@ const showPin = (page, id, mpp = 3.5) => page.evaluate(({ id, mpp }) => { const 
   });
   const s0 = await chartState(page);
   check(m.phone === 'on', 'phone: the phone card is on (feature phoneCard)');
-  check(s0.pois.filter((p) => p.kind === 'birthplace').length === 5 && m.sur.length === 1 && m.sur[0][2] >= 44 && m.sur[0][3], `phone: five pins on the map and Surprise me 44 px or more and on screen (${JSON.stringify(m.sur)})`);
+  check(s0.pois.filter((p) => p.kind === 'birthplace').length === 6 && m.sur.length === 1 && m.sur[0][2] >= 44 && m.sur[0][3], `phone: six pins on the map and Surprise me 44 px or more and on screen (${JSON.stringify(m.sur)})`);
   check(m.modes.every(([, w, h, ins]) => w >= 44 && h >= 44 && ins) && m.modes.find((r) => r[0] === 'sail')[2] >= 44 && m.modes.every(([, , h]) => h <= 56), `phone: the modes are compact pills (44 to 56 px; owner 2026-11-19: too big), Sail the tallest (${JSON.stringify(m.modes)})`);
   const links = await page.evaluate(() => getComputedStyle(document.querySelector('#lk-load .lk-links')).display);
   check(links === 'none', 'phone: Chart, Log, Controls, Setup, About and Support are folded away');

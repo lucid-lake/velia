@@ -26,6 +26,10 @@ import { birthplaceRows } from '../sim/regions.js';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const WATERS = JSON.parse(readFileSync(resolve(ROOT, 'src/waters/tahoe-emerald.json'), 'utf8'));
 const BIRTHPLACES = birthplaceRows(WATERS);   // the region table's birthplaces (v2/sim/regions.js)
+// the life rules (boats round each start, the glass boat in sight, a kayak pair within a minute) hold at the birthplaces of the
+// regions that have life; a region before its lanes, put-ins and boats (South Lake, whose life is a later phase) spends nothing
+const LIFE = new Set(WATERS.regions.filter((r) => r.boats?.length || r.kayaks?.length).map((r) => r.id));
+const LIVE_BIRTHS = BIRTHPLACES.filter((b) => LIFE.has(b.region)), LIFE_REGIONS = REGIONS.filter((r) => LIFE.has(r.id));
 let chartC = null;
 const chart = () => (chartC ??= planChart(decodePlanGrid(new Uint8Array(gunzipSync(readFileSync(resolve(ROOT, 'v2/ui/planChart.bin'))))), chartInputs(JSON.parse(readFileSync(resolve(ROOT, 'v2/cruise/chartWorld.json'), 'utf8')))));
 const depthAt = (x, z) => chart().depthAt(x, z);
@@ -47,7 +51,7 @@ test('the schedule is deterministic per seed: the same seed lays and sails the s
 });
 
 test('the density round each birthplace at the first tick: several boats out at 100 m to 1.5 km (a desktop 3 or more sailing, a tablet 3, a phone 1), none nearer than 250 m', () => {
-  for (const [tier, want] of [['full', 3], ['lite', 3], ['phone', 1]]) for (const bp of BIRTHPLACES) for (const seed of [1, 2, 3, 4]) for (const wd of [45, 225]) {
+  for (const [tier, want] of [['full', 3], ['lite', 3], ['phone', 1]]) for (const bp of LIVE_BIRTHS) for (const seed of [1, 2, 3, 4]) for (const wd of [45, 225]) {
     const L = lake({ seed, tier, windAt: steadyWind(5, wd) });
     L.post(still(bp.x, bp.z), 1 / 60, 0, at(bp));
     const ds = L.liveBoats.map((b) => Math.hypot(b.phys.state.x - bp.x, b.phys.state.z - bp.z));
@@ -201,7 +205,7 @@ test('regions: only the player\'s region and its neighbours are live; a region w
   const live = regionsWithBirthplaces(REGIONS, BIRTHPLACES);
   assert.deepEqual(live.map((r) => r.id).sort(), [...new Set(BIRTHPLACES.map((b) => b.region))].sort(), 'every birthplace region has its traffic row');
   assert.deepEqual([...activeRegions(live, 460, -50)], ['emerald-bay', 'tahoe-west']);
-  assert.deepEqual([...activeRegions(live, 2300, -1400)], ['tahoe-west', 'emerald-bay']);
+  assert.deepEqual([...activeRegions(live, 2300, -1400)], ['tahoe-west', 'emerald-bay', 'south-lake']);
   assert.equal(activeRegions(live, 9000, 9000).size, 0, 'far from every region: nothing live');
   // a region in the data with no birthplace: never spawned, wherever the player is
   const extra = [...REGIONS, { id: 'nowhere', centre: [6000, 0], radiusM: 2000, neighbours: [], boats: [{ id: 'ghost', prio: 0, tint: '#ffffff', route: [[6000, 0], [6500, 0]] }] }];
@@ -238,7 +242,7 @@ const los = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0); for (l
 const SEEN = Object.freeze({ glassM: 1000, kayakM: 600 });   // m: a 10.7 m pontoon and a 3.4 m kayak still read on screen this far, with a line of sight over water
 
 test('the first birth: from every birthplace (default seed and two others) the glass boat is in sight within 60 s, underway or at a stop, never parked on the start', () => {
-  for (const bp of BIRTHPLACES) for (const seed of [1, 2, 3]) {
+  for (const bp of LIVE_BIRTHS) for (const seed of [1, 2, 3]) {
     const tau = birthPhase(bp, { seed, los }), T = createTourBoat({ depthAt, tauS: tau, seed });
     const d0 = Math.hypot(T.boat.x - bp.x, T.boat.z - bp.z);
     let seen = Infinity;
@@ -255,9 +259,9 @@ test('the regions\' kayakers: every birthplace has a lane wholly in sight (600 m
   const C = chart(), loop = routeLoop(), tour = [];
   for (let s = 0; s < loop.length; s += 10) tour.push(pointAt(loop, s));
   const lanes = REGIONS.flatMap((r) => (r.kayaks ?? []).map((k) => ({ k, r, pts: (() => { const p = polyline(k.lane, true), o = []; for (let s = 0; s < p.length; s += 5) o.push(p.at(s)); return o; })() })));
-  assert.ok(lanes.length >= BIRTHPLACES.length, `${lanes.length} kayakers`);
+  assert.ok(lanes.length >= LIVE_BIRTHS.length, `${lanes.length} kayakers`);
   // the sailboats' way (owner, 2026-11-21): busy, mostly pairs; a few per region, the fleet's cost small (renders/kayak-lanes/cost.mjs)
-  for (const r of REGIONS) {
+  for (const r of LIFE_REGIONS) {
     const n = residentKayaks([r], [{ region: r.id }], { seed: 1, hour: 13, polyline }).length, pairs = r.kayaks.filter((k) => k.mate).length;
     assert.ok(n >= 4 && n <= 10, `${r.id}: ${n} kayakers`);
     assert.ok(pairs * 2 >= n - pairs * 2, `${r.id}: at least half of them in pairs (${pairs} pairs of ${n} kayakers)`);
@@ -270,7 +274,7 @@ test('the regions\' kayakers: every birthplace has a lane wholly in sight (600 m
     assert.ok(channelAt(q.x, q.z, CHANNEL).d >= CHANNEL.coreHalfM + CHANNEL.sideM + 20, `${k.id}: out of the channel's fairway`);
     assert.ok(anch.every((a) => Math.hypot(a.at[0] - q.x, a.at[1] - q.z) >= 30), `${k.id}: clear of the boats at anchor`);
   }
-  for (const b of BIRTHPLACES) {
+  for (const b of LIVE_BIRTHS) {
     const whole = lanes.filter(({ pts }) => pts.every((q) => Math.hypot(b.x - q.x, b.z - q.z) <= SEEN.kayakM && los(b.x, b.z, q.x, q.z)));
     assert.ok(whole.length >= 1, `${b.id}: a kayaker always in sight (lanes: ${whole.map((l) => l.k.id).join(', ') || 'none'})`);
   }
@@ -292,14 +296,14 @@ test('the regions\' kayakers: every birthplace has a lane wholly in sight (600 m
 
 test('the kayakers\' first birth: from every birthplace, whatever the wind, a pair passes 40–120 m off the boat\'s reach within 60 s (the rule\'s pair from ≥ 80 m, every kayaker ≥ 60 m at the start); fixed then, paddled on after', () => {
   // the rule (busyLake.js birthLane) for every wind and seed: a pair, in the band, from the pose alone
-  for (const bp of BIRTHPLACES) for (let w = 0; w < 360; w += 30) for (const seed of [1, 2, 3]) {
+  for (const bp of LIVE_BIRTHS) for (let w = 0; w < 360; w += 30) for (const seed of [1, 2, 3]) {
     const pose = birthPose(bp, { windDeg: w, depthAt });
     const r = birthLane(REGIONS.find((g) => g.id === bp.region).kayaks, { x: bp.x, z: bp.z, headingDeg: pose.headingDeg, speed: pose.speed }, { seed, polyline });
     assert.ok(r && r.pair && r.dmin >= KAYAK_BIRTH.nearM[0] && r.dmin <= KAYAK_BIRTH.nearM[1], `${bp.id} wind ${w}° seed ${seed}: ${r ? `${r.id} ${r.dmin.toFixed(0)} m` : 'none'}`);
   }
   // in v1's fleet (its mind: the boat given way to, the pair together): the day's wind at 13:00, the boat on her reach, untouched
   const terrain = lakeTerrain({ height: (x, z) => -depthAt(x, z), distance: (x, z) => -chart().shoreAt(x, z) });
-  for (const bp of BIRTHPLACES) for (const seed of [1, 2, 3]) {
+  for (const bp of LIVE_BIRTHS) for (const seed of [1, 2, 3]) {
     const pose = birthPose(bp, { windDeg: dayWind(13, { seed }).dirDeg, depthAt }), h = pose.headingDeg * Math.PI / 180;
     const birth = { x: bp.x, z: bp.z, headingDeg: pose.headingDeg, speed: pose.speed, region: bp.region, hour: 13 };
     const slots = residentKayaks(REGIONS, BIRTHPLACES, { seed, hour: 13, polyline, birth });

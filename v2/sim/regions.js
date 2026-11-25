@@ -10,6 +10,9 @@
 //                      (the hub opens on the cup of the area the boat is in: cupAt)
 //   neighbours         region ids live with it;  keepOut: discs [x, z, r] no cruising boat heads into (optional)
 //   label              the chart's name for it (v2/ui/chart/chartModel.js NAMES' shape)
+//   names              more chart names in it (the towns, the marinas: NAMES' shape; optional)
+//   level              its own detail level, { dir, full, phone, photo } (optional; v2/terrain/region.js): fetched only when the
+//                      page starts at one of its birthplaces, in place of the bay's; a region without one starts on the bay's
 //   birthplaces        [{ id, name, x, z, look, why, unlock? }] (v2/sim/birthplace.js); a region with none spends nothing
 //   kayaks             [{ id, lane, colour, pfd, mate? }] its resident kayakers' lanes (busyLake.js residentKayaks)
 //   launchSpots        [{ id, name, at }] its put-ins (kayakLaunch.js)
@@ -23,6 +26,7 @@
 //   cupsOf(waters)         → [{ id, name, line, races, hunt }] in table order (places.js CUPS);  huntNamesOf(waters) → { [hunt]: name }
 //   cupAtOf(waters)        → (x, z) → cup id (places.js cupAt)
 //   regionLabelsOf(waters) → the chart's region names (chartModel.js NAMES)
+//   regionNamesOf(waters)  → the regions' other chart names (their `names`, in table order)
 
 const deepFreeze = (o) => { if (o && typeof o === 'object' && !Object.isFrozen(o)) { Object.freeze(o); for (const v of Object.values(o)) deepFreeze(v); } return o; };
 const cache = new WeakMap();
@@ -62,3 +66,4 @@ export function cupAtOf(waters) {
 }
 
 export const regionLabelsOf = (waters) => Object.freeze(regionsOf(waters).filter((r) => r.label).map((r) => r.label));
+export const regionNamesOf = (waters) => Object.freeze(regionsOf(waters).flatMap((r) => r.names ?? []));

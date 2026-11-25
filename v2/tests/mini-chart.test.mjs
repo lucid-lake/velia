@@ -42,9 +42,12 @@ test("Fannette Island is land at the summit (0, 0), a small closed loop of its o
   assert.ok(w > 60 && w < 400 && h > 60 && h < 400, `an island of 60 to 400 m (${w} x ${h} m)`);
 });
 
-test('every birthplace pin is on water inside the window, with room for its name', () => {
+test('every birthplace pin is on water inside the window, with room for its name (a pin past it: at its edge, on water)', async () => {
   const [x0, z0, w, h] = MINI_BOX;
-  for (const r of BIRTHPLACES) {
+  const { edgePoint } = await import('../ui/chart/edge.js');
+  for (const b of BIRTHPLACES) {
+    const e = edgePoint(b.x, b.z, { x0, z0, x1: x0 + w, z1: z0 + h }, 0.06 * w), r = { ...b, x: e.x, z: e.z };
+    assert.equal(e.far, b.id === 'ski-run', `${b.id}: past the window only South Lake's pin`);
     assert.ok(r.x > x0 + 0.04 * w && r.x < x0 + 0.96 * w && r.z > z0 + 0.04 * h && r.z < z0 + 0.96 * h, `${r.id} inside the window`);
     assert.ok(!onLand([r.x, r.z]), `${r.id} is on water`);
   }

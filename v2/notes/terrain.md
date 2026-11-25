@@ -11,6 +11,21 @@ GPU "slot" (`r16uint` codes): island 1 m, bay 2 m, basin 10 m, lake 32 m, ring 9
 (`r8uint`): bay 4 m, basin 10 m, lake 32 m. The shore-distance grids are not in the stream: the living lake fetches four
 of them (island, bay, basin, lake: `SHORE_LEVELS`, 835 kB) after the first frame (`v2/notes/living.md`).
 
+**Region levels (owner, 2026-11-24: every birthplace outside the bay loads when it is selected; `terrain/region.js`):** a
+region row of the lake profile may declare `level: { dir, full, phone, photo }` (South Lake: `terrain/south/`, 4 m on a desktop,
+8 m on a phone, its 8 m cover, its shore distance and its NAIP photo tiles; `tools/terrain/README.md` § Region levels). The page
+fetches it only when it starts at one of that region's birthplaces (`startRegionLevel`: not for a URL pose, Regatta, or the
+fireworks evening's own start). It fills the bay's slot in stage 0 (`streamPlan(..., region)`: the variant's own grid, no second
+fetch), the bay's cover slot, the bay's shore level (`shoreManifest`, repaired like the basin's: it was baked inside its own box)
+and photo layer 0 (`render/ground.js` `region`); the bay's 2.66 MB heights and 2.28 MB photo are not fetched. The coarser levels
+and the island stay. A level need not be nested in the next: the sampler walks the held levels finest first, so the south
+level's last 12 texels blend into the basin where the basin covers it and into the lake level past x 10,235
+(`tests/region-level.test.mjs`: no step in the heights or the shore distance across its edges). A start in the bay or elsewhere
+fetches none of a region's files; a home-card pick of another level's birthplace reloads the page; no mid-sail swap (the hook is
+in `terrain/region.js`). Load at a Ski Run start: desktop 2.26 MB of `terrain/south/`, a phone 0.76 MB
+(`tests/pages/southStart.page.mjs`). The bay-only layers (the lidar trees, the shore rocks, the bed's stones, the shore break, the
+drawn chart) have nothing there yet.
+
 **Streaming (a level clipmap, not tiles):** the data are already a clipmap: five nested grids, finest round the bay where
 every camera starts. Re-cutting them into tiles would need a new build step and a second 12 MB copy, for no gain at
 Tahoe's size (10.1 MB in all). So each slot streams whole, coarse to fine, from the phone set's grids to the full set's:

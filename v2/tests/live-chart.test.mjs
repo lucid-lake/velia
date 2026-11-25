@@ -37,7 +37,11 @@ test('the projection: Fannette Island and every pin sit at their world places on
   const isWater = ([r, , b]) => b > r + 18;   // the water's navy tones are blue over red by 20+; the land's greys, greens and sand are not
   assert.ok(!isWater(px(0, 0)), `Fannette's summit is land on the ground (${px(0, 0)})`);
   const { depthAt } = bakedDepth();
-  for (const p of pins) {
+  // a pin past the ground (South Lake's, until its chart art comes) is drawn at the paper's edge toward it (ui/chart/edge.js)
+  const { edgePoint } = await import('../ui/chart/edge.js');
+  for (const p0 of pins) {
+    const e = edgePoint(p0.x, p0.z, B), p = { ...p0, x: e.x, z: e.z };
+    assert.equal(e.far, p0.id === 'ski-run', `${p0.id}: past the ground only South Lake's pin`);
     assert.ok(isWater(px(p.x, p.z)), `${p.id} (${p.x}, ${p.z}) on water on the ground (${px(p.x, p.z)})`);
     assert.ok(depthAt(p.x, p.z) > 2.6, `${p.id} on navigable water`);
     assert.ok(p.x > B.x0 && p.x < B.x1 && p.z > B.z0 && p.z < B.z1, `${p.id} inside the ground's box`);

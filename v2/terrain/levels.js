@@ -20,22 +20,30 @@ export const BLEND = 12;   // texels: a level blends into the next coarser over 
 export const STAGE_OF = Object.freeze({ phone: { island: 0, bay: 0, basin: 1, lake: 0, ring: 0 }, full: { island: null, bay: 2, basin: 2, lake: 2, ring: 2 }, cover: { bay: 0, basin: 1, lake: 0 } });
 
 // a height grid's description from a manifest level: where its texel centres sit (x = x0 + i·step, z = z0 + j·step)
-export const heightGrid = (L, variant) => Object.freeze({ kind: 'h', slot: L.name, variant, file: L.height, x0: L.x0, z0: L.z0, step: L.step, w: L.w, h: L.h });
+// (a region's level names the slot it fills: `slot`, v2/terrain/region.js composeLevel; the lake's own levels fill their name's)
+export const slotOf = (L) => L.slot ?? L.name;
+export const heightGrid = (L, variant) => Object.freeze({ kind: 'h', slot: slotOf(L), variant, ...(L.region ? { region: L.region } : {}), file: L.height, x0: L.x0, z0: L.z0, step: L.step, w: L.w, h: L.h });
 // a cover grid's: the phone manifest names its position (cx0, cz0, cstep); the full one implies it (x0, z0, step · ck)
-export const coverGrid = (L) => Object.freeze({ kind: 'c', slot: L.name, variant: 'cover', file: L.cover, x0: L.cx0 ?? L.x0, z0: L.cz0 ?? L.z0, step: L.cstep ?? L.step * L.ck, w: L.cw, h: L.ch });
+export const coverGrid = (L) => Object.freeze({ kind: 'c', slot: slotOf(L), variant: 'cover', ...(L.region ? { region: L.region } : {}), file: L.cover, x0: L.cx0 ?? L.x0, z0: L.cz0 ?? L.z0, step: L.cstep ?? L.step * L.ck, w: L.cw, h: L.ch });
 
 // The stage list for a variant ('full' streams all three stages; 'phone' stops after stage 1). Every grid once: the
 // island is the same file in both sets (its full entry is skipped), and so are the cover grids.
-export function streamPlan(full, phone, variant = 'full') {
+// region: a region's detail level for this variant (v2/terrain/region.js composeLevel: the page starts at a birthplace whose
+// region row declares a `level`), or null. It fills its slot (the bay's) in stage 0, heights and cover, the variant's own grid
+// only (4 m on a desktop, 8 m on a phone; no second fetch); the bay's grids are then not fetched at all. The coarser levels stay.
+export function streamPlan(full, phone, variant = 'full', region = null) {
   const byName = (m) => Object.fromEntries(m.levels.map((L) => [L.name, L]));
   const F = byName(full), P = byName(phone);
   const stages = [[], [], []];
+  const rs = region ? slotOf(region) : null;
+  if (region) { stages[0].push(heightGrid(region, variant)); if (region.cover) stages[0].push(coverGrid(region)); }
   for (const s of SLOTS) {
+    if (s === rs) continue;
     stages[STAGE_OF.phone[s]].push(heightGrid(P[s], 'phone'));
     const fs = STAGE_OF.full[s];
     if (fs != null && F[s].height !== P[s].height) stages[fs].push(heightGrid(F[s], 'full'));
   }
-  for (const s of COVER_SLOTS) stages[STAGE_OF.cover[s]].push(coverGrid(F[s]));
+  for (const s of COVER_SLOTS) if (s !== rs) stages[STAGE_OF.cover[s]].push(coverGrid(F[s]));
   if (variant === 'phone') stages.length = 2;
   for (const st of stages) st.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'h' ? -1 : 1));
   return stages.map((st) => Object.freeze(st));
@@ -62,6 +70,8 @@ export function shippedFiles(full, phone) {
 // files in both sets; a build ships them beside the heights (≈ 835 kB: 318 kB for the island and the bay, 516 kB for the
 // basin and the lake). The ring's grid (96 m, all land past the lake grid) is not shipped: the lake grid clamps at its edge.
 export const SHORE_LEVELS = Object.freeze(['island', 'bay', 'basin', 'lake']);
+// (by slot: a region's level in the bay's place gives its own grid: v2/terrain/region.js shoreManifest)
+export const shoreLevels = (manifest) => manifest.levels.filter((L) => SHORE_LEVELS.includes(slotOf(L)));
 export function shoreFiles(manifest) {
-  return manifest.levels.filter((L) => SHORE_LEVELS.includes(L.name)).map((L) => L.distance);
+  return shoreLevels(manifest).map((L) => L.distance);
 }

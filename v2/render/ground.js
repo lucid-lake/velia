@@ -14,7 +14,7 @@
 //   Rock Face 03 (CC0, ATTRIBUTION.md) as two more layers of the same array (12 the albedo, 13 the normal xy + height), read
 //   hex-tiled by the terrain's draw inside 40 m (render/rockDetail.js); none fetched where it is off (the array keeps 12 layers).
 //   Stream events only: no frame waits on a decode; the uploads ride the frame's pump after the terrain's and the forest's.
-import { PHOTO_SETS, LAYER, TILE, textureSize, streamOrder, tileFile, BUDGET_BYTES } from '../terrain/photo.js';
+import { PHOTO_SETS, LAYER, TILE, textureSize, streamOrder, tileUrl, withRegion, BUDGET_BYTES } from '../terrain/photo.js';
 
 export const DETAIL = Object.freeze({ size: 512, layers: 12, files: [{ url: '/terrain/ground/albedo.webp', layer0: 0, scale: 1, count: 6 }, { url: '/terrain/ground/pack.webp', layer0: 6, scale: 2, count: 6 }] });
 // the close rock's two layers (render/rockDetail.js ROCK_LAYER): the albedo at 512², the pack (normal x, y, height) at 512²
@@ -38,9 +38,11 @@ struct R { x0: u32, y0: u32, w: u32, h: u32, layer: u32, p1: u32, p2: u32, p3: u
   textureStore(dst, d, l, v);
 }`;
 
-export function createGround({ device, reg, terrain, variant = 'full', photo = true, detail = true, rock = false, errors = [] }) {
+// region: a region's photo level (v2/terrain/region.js regionPhotoLevel: the page starts in a region with its own level): layer 0
+// holds it in place of the bay's photo, whose tiles are then never fetched
+export function createGround({ device, reg, terrain, variant = 'full', photo = true, detail = true, rock = false, errors = [], region = null }) {
   const LAYERS = detailLayers(detail && rock), FILES = detail && rock ? [...DETAIL.files, ...ROCK_FILES] : DETAIL.files;
-  const set = PHOTO_SETS[variant];
+  const set = withRegion(PHOTO_SETS[variant], region);
   const [PW, PH] = textureSize(set);
   const pmips = Math.floor(Math.log2(Math.max(PW, PH))) + 1;
   const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.STORAGE_BINDING;
@@ -63,7 +65,7 @@ export function createGround({ device, reg, terrain, variant = 'full', photo = t
   terrain.setLook({ photo: photo ? 1 : 0, detail: 0 });
 
   // --- the worker and the queue ---
-  const stats = { variant, rock: detail && rock, layers: LAYERS, bytes: 0, photoBytes: 0, detailBytes: 0, files: 0, tiles: 0, tilesTotal: 0, decodeMs: 0, uploads: 0, bakes: 0, detailReady: false, done: false, landMsMax: 0, log: [] };
+  const stats = { variant, region: region?.name ?? null, rock: detail && rock, layers: LAYERS, bytes: 0, photoBytes: 0, detailBytes: 0, files: 0, tiles: 0, tilesTotal: 0, decodeMs: 0, uploads: 0, bakes: 0, detailReady: false, done: false, landMsMax: 0, log: [] };
   let worker = null, nextId = 1;
   const pending = new Map();
   const ensureWorker = () => {
@@ -121,7 +123,6 @@ export function createGround({ device, reg, terrain, variant = 'full', photo = t
     }
     return done;
   }
-  const base = () => new URL('photo/', document.baseURI);
   async function loadDetail() {
     if (!detail) return;
     await Promise.all(FILES.map(async (f) => landStrip(f, await fetchImage(new URL(f.url, document.baseURI).href, f.scale))));
@@ -132,7 +133,7 @@ export function createGround({ device, reg, terrain, variant = 'full', photo = t
     const order = streamOrder(set, eye[0], eye[2]);
     stats.tilesTotal = order.length;
     let i = 0;
-    const lane = async () => { while (i < order.length) { const t = order[i++]; landTile(t, await fetchImage(new URL(tileFile(variant, t.level, t.tx, t.ty), base()).href)); } };
+    const lane = async () => { while (i < order.length) { const t = order[i++]; landTile(t, await fetchImage(new URL(tileUrl(variant, set[t.level], t), document.baseURI).href)); } };
     await Promise.all(Array.from({ length: lanes }, lane));
   }
   let loading = null;

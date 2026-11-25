@@ -15,6 +15,8 @@
 //   screen.chart, screen.fact, screen.showAll() (the card's CHART: the whole bay at the entrance, the boat in the menu), screen.panelWidth(), screen.destroy()
 import { createChart, CHART_TIMING } from './liveChart.js';
 import { centreFor, zoomRange } from './chartModel.js';
+import { GROUND } from './ground.js';
+import { edgePoint } from './edge.js';   // a pin past the paper, where the chart draws it
 import { mountPanelPlan } from './panelPlan.js';
 import { mountChartFact } from './chartFact.js';
 
@@ -141,7 +143,8 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
 
   // the whole bay: every pin inside what the panel leaves (the entrance's first view)
   function fitPins() {
-    const list = (bp()?.list?.() ?? []).filter((r) => !r.locked && Number.isFinite(r.x));
+    // a pin past the paper (South Lake's) counts where the chart draws it, at the paper's edge (edge.js)
+    const list = (bp()?.list?.() ?? []).filter((r) => !r.locked && Number.isFinite(r.x)).map((r) => ({ ...r, ...edgePoint(r.x, r.z, GROUND.box) }));
     const { w, h } = chart.state;
     if (!list.length || !w) return null;
     const ins = insets(), freeW = Math.max(120, w - ins.left - (box ? 70 : 190)), freeH = Math.max(120, h - (box ? 60 : 150));

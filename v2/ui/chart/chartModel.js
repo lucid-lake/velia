@@ -14,8 +14,9 @@
 //   layoutLabels(labels, toPx, measure, o)     → [{ id, x, y, w, h, shown }]: by class, then by distance to the centre, no overlaps
 //   ease(t)                                    cubic-bezier(.2, 0, 0, 1), the zoom's and the glide's curve
 import { GROUND } from './ground.js';
+import { edgePoint, farName, farLine } from './edge.js';   // a pin past the paper (South Lake's) at its edge
 import { CURRENT_WATERS } from '../../../src/sim/waters/current.js';
-import { regionLabelsOf } from '../../sim/regions.js';
+import { regionLabelsOf, regionNamesOf } from '../../sim/regions.js';
 
 // metres per pixel of each zoom class's threshold: a name of class B shows at mpp ≤ 6, class C at mpp ≤ 2.5
 export const ZOOM_CLASS = Object.freeze({ A: Infinity, B: 6, C: 2.5 });
@@ -87,6 +88,7 @@ export function fadeTo(a, target, dt, T = FADE_S) {
 // the regions' own names first: each region row's label in the lake profile's region table (v2/sim/regions.js; refactor round 3 C5)
 export const NAMES = Object.freeze([
   ...regionLabelsOf(CURRENT_WATERS),
+  ...regionNamesOf(CURRENT_WATERS),   // the regions' towns and marinas (South Lake's: Ski Run, Tahoe Keys, Camp Richardson)
   { id: 'n-fannette', text: 'Fannette Island', x: 0, z: 110, cls: 'A', kind: 'land', pri: -1, alt: [[0, -85], [-250, -110], [-40, 135], [40, -105], [-260, 120]] },
   { id: 'n-vikingsholm', text: 'Vikingsholm', x: -640, z: 330, cls: 'B', kind: 'land' },
   { id: 'n-falls', text: 'Eagle Falls', x: -960, z: 250, cls: 'B', kind: 'land' },
@@ -124,7 +126,9 @@ export function actionFor(kind, mode = 'play') {
 export function buildPois(src = {}, { mode = 'play' } = {}) {
   const rows = [];
   const add = (r) => rows.push({ ...r, zoomClass: r.zoomClass ?? KINDS[r.kind].cls, action: actionFor(r.kind, mode) });
-  for (const b of src.birthplaces ?? []) add({ id: `bp-${b.id}`, ref: b.id, kind: 'birthplace', x: b.x, z: b.z, name: b.name, line: b.why ?? '', lit: b.id === src.current });
+  // a birthplace past the chart's paper (South Lake's, until its chart art comes) stands at the paper's edge toward it, its name
+  // with the continuation mark; a tap picks it as any pin (the service moves her to the real place)
+  for (const b of src.birthplaces ?? []) { const e = edgePoint(b.x, b.z, GROUND.box); add({ id: `bp-${b.id}`, ref: b.id, kind: 'birthplace', x: e.x, z: e.z, name: e.far ? farName(b.name) : b.name, line: e.far ? farLine(b.why, e) : b.why ?? '', lit: b.id === src.current, ...(e.far ? { far: true, at: [b.x, b.z] } : {}) }); }
   for (const a of src.anchorages ?? []) add({ id: `an-${Math.round(a.x)}-${Math.round(a.z)}`, kind: 'anchorage', x: a.x, z: a.z, name: a.name,
     line: a.depth != null ? `${Math.round(a.depth)} m of water, good holding.` : 'Good holding.', lit: !!a.lit });   // lit: the boat is inside it (the anchorage cue)
   for (const p of src.places ?? []) add({ id: `pl-${p.id}`, ref: p.id, kind: 'place', x: p.x, z: p.z, name: p.name, line: p.line ?? '', zoomClass: p.zoomClass });

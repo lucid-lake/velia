@@ -11,14 +11,14 @@ import { buildLakeOn } from '../../src/sim/lake.js';
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
 import { pickDay, dayChoice } from '../../src/sim/day.js';
 
-import { SHORE_LEVELS, shoreFiles } from '../terrain/levels.js';
+import { SHORE_LEVELS, shoreFiles, shoreLevels } from '../terrain/levels.js';
 export { SHORE_LEVELS, shoreFiles };
 const BLEND = 12;   // texels: v1's terrain-data.js level blend
 const DS = 0.5;     // m per code step: v1's manifest distance.step
 
 // a level's distance grid placement, v1's makeSampler rule (the phone set names dx0, dz0, dstep; the full one implies them)
 export function shoreGrid(L) {
-  return { name: L.name, file: L.distance, dx0: L.dx0 ?? L.x0, dz0: L.dz0 ?? L.z0, dstep: L.dstep ?? L.step * L.dk, dw: L.dw, dh: L.dh };
+  return { name: L.name, file: L.distance, dx0: L.dx0 ?? L.x0, dz0: L.dz0 ?? L.z0, dstep: L.dstep ?? L.step * L.dk, dw: L.dw, dh: L.dh, ...(L.region ? { region: L.region } : {}) };
 }
 
 // The basin's grid was baked inside its own 20 km box: where the nearest shore lies outside it (the lake's east and north
@@ -27,7 +27,8 @@ export function shoreGrid(L) {
 // grid. shoreSampler repairs a level named here once, at build: a texel that reads farther from the shore than the coarser
 // levels by more than REPAIR_TOL of their texels eases to their value (all the way at twice that), so the blend joins two
 // grids that agree. The island's and the bay's grids stay v1's (behaviour in the bay unchanged; both read up to 195 m too
-// far in places near their own edges, as in v1).
+// far in places near their own edges, as in v1). A region's level (v2/terrain/region.js: South Lake's, baked inside its own
+// box like the basin's, read up to 124 m too far by its west edge, the nearest shore past it) is repaired the same way.
 export const SHORE_REPAIR = Object.freeze(['basin']);
 const REPAIR_TOL = 3;   // texels of the next coarser level
 
@@ -77,7 +78,7 @@ export function shoreSampler(levels, { repair = SHORE_REPAIR } = {}) {
   const out = levels.slice();
   let repaired = 0;
   for (let k = out.length - 2; k >= 0; k--) {
-    if (!repair.includes(out[k].name)) continue;
+    if (!repair.includes(out[k].name) && !(out[k].region && repair === SHORE_REPAIR)) continue;
     const r = repairLevel(out[k], blended(out.slice(k + 1)), REPAIR_TOL * out[k + 1].dstep);
     out[k] = { ...out[k], D: r.D }; repaired += r.n;
   }
@@ -98,7 +99,7 @@ export function lakeTerrain({ height, distance, waters = CURRENT_WATERS, day = p
 // fetch and decode the SHORE_LEVELS grids (decode: (bytes, w, h) → Uint16Array, the terrain's own inflate +
 // unpredict, in a worker on a page)
 export async function loadShore({ base, manifest, decode }) {
-  const grids = manifest.levels.filter((L) => SHORE_LEVELS.includes(L.name)).map(shoreGrid);
+  const grids = shoreLevels(manifest).map(shoreGrid);
   let bytes = 0;
   const levels = await Promise.all(grids.map(async (g) => {
     const r = await fetch(new URL(g.file, base));
