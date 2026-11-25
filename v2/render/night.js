@@ -9,12 +9,15 @@
 //   night.waterBind(b0) → { layout, entries }      the record and the maps as the water draw group's bindings b0…b0+3
 //   night.update({ hour, sunElevDeg, moon, levels, t, pose, eye, dims, focalPx })   each frame, before the uniform upload
 //   night.load() → Promise (idempotent)             the maps, the stars and the lights (≈ 2.9 MB; 0.38 MB with milkyWay: false)
-//   night.draw(pass, c, { boat })                   after the sky: the stars, the town lights, the boat's lights
+//   night.attachTerrain(terrain.hbgl)               the glitter streaks' pipeline (its shore test reads the terrain's heights)
+//   night.draw(pass, c, sky, heightsBG)             after the sky: the stars, the town lights, the boat's lights, their streaks on the water
 //   night.setRace(f32, n)                           step D: a night race's lit marks (regatta/nightMarks.js raceLights), n 0 for none
 import { NIGHT, decodeStars, decodeLights, navLights, NAV_GLOW, FAR_POINT, GLOW_FLOATS, STAR_FLOATS, LIGHT_FLOATS } from '../sim/night.js';
 import { NIGHT_READ } from './night-read.js';
 import { ATMO_WGSL, SKY_READ } from './sky.js';
 import { createMoon } from '../sim/moon.js';
+import { AA } from './water-aa.js';   // the glint's Cox-Munk share: the streaks read the same slopes
+import { TERRAIN_BIND, TERRAIN_HEIGHT } from './terrain.js';   // the streaks' shore test: the ground between the water and the light
 
 const TEX = globalThis.GPUTextureUsage ?? { TEXTURE_BINDING: 4, COPY_DST: 2, RENDER_ATTACHMENT: 16 };
 const BUF = globalThis.GPUBufferUsage ?? { COPY_DST: 8, UNIFORM: 64, STORAGE: 128 };
@@ -25,14 +28,159 @@ const STAGE = globalThis.GPUShaderStage ?? { VERTEX: 1, FRAGMENT: 2, COMPUTE: 4 
 export const NIGHT_FILES = Object.freeze({ mw: '/data/sky/milkyway-4k.webp', tint: '/data/sky/milkyway-tint.png', mwSize: [4096, 2048], tintSize: [256, 128], mwFormat: 'r8unorm' });
 export const CAPS = Object.freeze({ stars: 10000, lights: 32768, nav: 4, race: 24 });   // nav: the sidelights, the sternlight, the anchor light   // race: step D's lit marks (24 since the glass boat's three nav lights, 2026-11-18) (regatta/nightMarks.js NIGHT_MARKS.max: 12), then the channel markers' lamps (v2/sim/channelMarks.js markLights)
 export const GLOW = Object.freeze({ townRadiance: 0.5, minPx: 3.0, energyPow: 1.4, townsBelowDeg: 4 });   // a town window's HDR radiance when on; the point's least size on screen; the far light's energy fall-off
-// the lights in the water (look/v2-night-look): each town and nav light drawn again at its mirror image under the lake's
-// plane (y = 0), as a soft vertical streak stretch × its glow's size (a rippled lake draws a light into a column), broken
-// along its length by moving ripples, each light on its own phase; k its share of the light (the water's Fresnel at a
-// grazing look plus the ripples' spread), depth-tested at the point where the ray meets the water, so the land, the boat
-// and the bed's dry ground hide it where the water is not
-// a town light's image at k, a nav light's at navK and navW of its halo's width (its halo is a 22 px floor: at full width its column
-// read as a solid white bar under the stern)
-export const GLOW_REFLECT = Object.freeze({ k: 0.22, navK: 0.0006, navW: 0.5, stretch: 7, minPx: 2.0, ripple: Object.freeze([11.0, 2.2]), near: 0.985 });
+// the lights in the water: each town and nav light's glitter streak, the glint of a point light off the wind's waves (the
+// owner's 2026-11-25 bug: the old images sat at each light's mirror point as short dashes on their own ripple clocks, a band
+// of speckles under the shore). Each light is a quad laid on the water along the eye-to-light line, from where its glints
+// can no longer reach the eye toward the viewer to where they fade into the far shore; each pixel evaluates the microfacet
+// glint of that light exactly (the slope that would send its light to the eye, Beckmann over the waves' slopes, Fresnel,
+// Smith's masking, the light's own intensity over its distance squared), so the streak is long and thin at a grazing look,
+// longer with more wind, tight and short on calm water, and falls off with distance by itself. The slopes: the sun glint's
+// Cox-Munk share for the wind (render/water-aa.js AA.cox, coxShare; the wind not floored, so calm water is calm), split
+// into the long waves (longShare: three swells along the waves' travel at the wind's peak wavelength, moving at their own
+// deep-water speed, that break the column into a few steady glints) and the rest, unresolved, which only widens the lobe.
+// A swell whose phase moves more than ~1 rad a pixel (far water) fades to its mean and its variance joins the lobe, so no
+// pixel ever twinkles; the pixel's own footprint widens the lobe too (the far streaks stay at least a pixel wide, with the
+// same energy). Each light's visible energy (the glow as drawn, with its minimum size on screen) is what it reflects, so a
+// streak matches its light. The quad's length is cut where the streak drops under cut (HDR radiance): a far, dim light is a
+// short soft smear and costs a few pixels; its depth is the eye ray's crossing of a plane hOcc above the water (the waves'
+// crests never cut it into dashes), so the land and the boat still hide it. The shore test: the ground (plus a canopy
+// allowance on land, but near the lamp itself) on the path from the streak's middle to the light, at shoreSteps points;
+// where it stands in the way the streak fades out over clear metres (a hill light behind the shore's trees casts none).
+//   gain: town lights; navGain: the boat's nav lights and the race marks (their 22 px halo floor is far more than their light)
+export const GLOW_STREAK = Object.freeze({ gain: 1.0, navGain: 0.003, longShare: 0.65, peakK: 0.85, peakMin: 2.0, peakMax: 14.0, nMax: 3.0, ref: 6e-5, gamma: 1.0, cap: 0.006, cutK: 0.09, windRef: 2.8, windPow: 0.75, sat: 2.2, hOcc: [0.25, 0.9, 1.5], f0: 0.02, edge: 0.15, footAlong: 0.25, footAcross: 1.5, shoreSteps: 12, canopy: 25, canopyNear: 40, clear: 5 });
+
+// --- the glitter streaks: one quad a light on the water, the light's glint evaluated per pixel ---
+export const STREAKS_WGSL = (frameStruct) => `diagnostic(off, derivative_uniformity);
+${frameStruct}
+@group(0) @binding(0) var<uniform> F: Frame;
+struct GlowU { mode: f32, radiance: f32, minPx: f32, focalPx: f32 }
+struct Glow { p: vec4f, c: vec4f }
+@group(1) @binding(0) var<uniform> GU: GlowU;
+@group(1) @binding(1) var<storage, read> G: array<Glow>;
+${TERRAIN_BIND(2)}
+${TERRAIN_HEIGHT}
+struct SV { @builtin(position) pos: vec4f, @location(0) wp: vec2f, @location(1) uv: vec2f, @location(2) @interpolate(flat) lp: vec4f, @location(3) @interpolate(flat) col: vec4f, @location(4) @interpolate(flat) dir: vec2f }
+const COX_A = ${AA.cox[0]}; const COX_B = ${AA.cox[1]}; const COX_SHARE = ${AA.coxShare};
+const LONG = ${GLOW_STREAK.longShare.toFixed(3)}; const NMAX = ${GLOW_STREAK.nMax.toFixed(2)}; const CUT = ${(GLOW_STREAK.ref * Math.pow(GLOW_STREAK.cutK / (1 - GLOW_STREAK.cutK), 1 / GLOW_STREAK.gamma)).toExponential(4)};   // the radiance whose shown level is cutK of cap
+const PI = 3.14159265;
+// the waves' slope variance per axis for the wind (the glint's Cox-Munk share)
+fn mssAxis() -> f32 { return 0.5 * COX_SHARE * (COX_A * max(F.wind.x, 0.0) + COX_B); }
+fn smith1(c: f32, s: f32) -> f32 {   // Beckmann's Smith masking (Walter 2007's rational fit); c the cosine to the normal, s the slope rms
+  let a = c / max(s * sqrt(max(1.0 - c * c, 1e-6)), 1e-6);
+  return select((3.535 * a + 2.181 * a * a) / (1.0 + 2.276 * a + 2.577 * a * a), 1.0, a >= 1.6);
+}
+fn peakLambda() -> f32 { return clamp(${GLOW_STREAK.peakK} * F.wind.x * F.wind.x, ${GLOW_STREAK.peakMin.toFixed(1)}, ${GLOW_STREAK.peakMax.toFixed(1)}); }
+@vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> SV {
+  var corners = array<vec2f, 6>(vec2f(-1.0, 0.0), vec2f(1.0, 0.0), vec2f(-1.0, 1.0), vec2f(-1.0, 1.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0));
+  let g = G[ii]; let nav = GU.mode > 2.5;
+  var o: SV; o.uv = corners[vi]; o.wp = vec2f(0.0); o.lp = vec4f(0.0); o.col = vec4f(0.0); o.dir = vec2f(1.0, 0.0);
+  let off = vec4f(2.0, 2.0, 2.0, 1.0);
+  let sunE = asin(clamp(F.sun.y, -1.0, 1.0)) * 57.29578;
+  var on = g.c.w;
+  if (!nav) { on = smoothstep(g.c.w + 1.0, g.c.w - 1.0, sunE) * GU.radiance; }
+  let E = F.cam.xyz; let L = g.p.xyz; let he = E.y; let hl = L.y;
+  let toL = L.xz - E.xz; let D = length(toL);
+  if (on <= 0.001 || he <= 0.05 || hl <= 0.02 || D < 0.5) { o.pos = off; return o; }
+  let dir = toL / D; let side = vec2f(-dir.y, dir.x);
+  // the light's visible energy, as the glow draws it (radiance x sr): its least size on screen, a far light's fall
+  let dist = length(L - E); let fpx = GU.focalPx;
+  let farPt = g.p.w < 0.0; let fk = select(0.0, smoothstep(${FAR_POINT.nearM.toFixed(1)}, ${FAR_POINT.farM.toFixed(1)}, dist), farPt);
+  let pxTrue = abs(g.p.w) / dist * fpx;
+  var px = max(pxTrue, mix(GU.minPx, min(GU.minPx, ${FAR_POINT.minPx.toFixed(1)}), fk));
+  on = on * mix(1.0, ${FAR_POINT.dim.toFixed(2)}, fk);
+  var ev: f32;
+  if (nav) { let h = 0.5 * px; ev = on * 0.0183 * h * h; }   // the halo (core and bloom) over its quad
+  else { ev = on * pow(min(pxTrue / px, 1.0), ${GLOW.energyPow}) * 0.77 * px * px; }   // exp(-4 r^2) over the unit disc
+  // its intensity; windK: a lamp's real light is far over the night water's, so its streak stays as clear in chop as in light
+  // air, where our dimmer lamps' would fade into the wider lobe (the length and the breaks are still the wind's)
+  let windK = pow(mssAxis() / (0.5 * COX_SHARE * (COX_A * ${GLOW_STREAK.windRef.toFixed(2)} + COX_B)), ${GLOW_STREAK.windPow.toFixed(2)});
+  let I = ev / (fpx * fpx) * dist * dist * select(windK * ${GLOW_STREAK.gain.toFixed(3)}, ${GLOW_STREAK.navGain.toFixed(4)}, nav);
+  // the slopes and the streak's extent: the peak at the mirror point, the length where it falls under CUT
+  let s2 = mssAxis(); let sg = sqrt(s2);
+  let tanM = (he + hl) / D; let bM = atan(tanM); let sinM = sin(bM);
+  let xM = D * he / (he + hl); let rl2 = (D - xM) * (D - xM) + hl * hl;
+  let fr = ${GLOW_STREAK.f0} + (1.0 - ${GLOW_STREAK.f0}) * pow(1.0 - sinM, 5.0);
+  let gm = smith1(sinM, sg); 
+  let sx = sqrt(s2 + pow(0.4 * D / (2.0 * fpx * hl), 2.0)); let sz = sqrt(s2 + pow(0.2 / fpx, 2.0));
+  let pk = I / rl2 * fr * gm * gm / (4.0 * sinM) / (2.0 * PI * sx * sz);
+  if (pk < CUT * 1.04) { o.pos = off; return o; }   // too dim to show anywhere: no shore test, no quad (most far lights)
+  // the shore test: the ground on the path from the mirror point up to the light (its last 8 % is the lamp's own ground)
+  var clear = 1e9;
+  for (var k = 1; k <= ${GLOW_STREAK.shoreSteps}; k++) {
+    let t = f32(k) / ${GLOW_STREAK.shoreSteps}.0 * 0.92;
+    let xz = E.xz + dir * mix(xM, D, t);
+    let gh = terrainHeight(xz.x, xz.y);
+    let can = select(0.0, ${GLOW_STREAK.canopy.toFixed(1)}, gh > 0.5 && (1.0 - t) * (D - xM) > ${GLOW_STREAK.canopyNear.toFixed(1)});
+    clear = min(clear, hl * t - gh - can);
+  }
+  let vis = smoothstep(-${GLOW_STREAK.clear.toFixed(1)}, ${GLOW_STREAK.clear.toFixed(1)}, clear);
+  let n = min(sqrt(max(2.0 * log(max(pk * vis / CUT, 1.0)), 0.0)), NMAX);
+  if (n < 0.25) { o.pos = off; return o; }
+  let bNear = min(bM + 2.0 * n * sg, 1.45); let bFar = bM - 2.0 * (n + 0.5) * sg;
+  let xNear = max(he / tan(bNear), 0.3);
+  let xFar = select(D, min(he / tan(bFar), D), bFar > 1e-5);
+  if (xFar <= xNear) { o.pos = off; return o; }
+  let x = mix(xNear, xFar, o.uv.y);
+  let w = max(3.0 * n * sg * (he + 0.3 * hl) * (1.0 - x / D) + 0.3, 3.0 * x / fpx);   // the lobe's half width (2 s he (1 - x/D) a slope s at a grazing look, wider for a high light), at least 3 px
+  let p2 = E.xz + dir * x + side * (o.uv.x * w);
+  // the depth: the eye ray's crossing of a plane hOcc above the water (a homothety about the eye: the quad stays planar)
+  let hOcc = clamp(${GLOW_STREAK.hOcc[1].toFixed(2)} * F.windfx.w, ${GLOW_STREAK.hOcc[0].toFixed(2)}, ${GLOW_STREAK.hOcc[2].toFixed(2)});
+  let k = clamp(1.0 - hOcc / he, 0.5, 0.995);
+  let q = E + (vec3f(p2.x, 0.0, p2.y) - E) * k;
+  o.pos = F.viewProj * vec4f(q, 1.0);
+  o.wp = p2; o.lp = vec4f(L, I * vis); o.col = vec4f(g.c.rgb, select(${GLOW_STREAK.sat.toFixed(2)}, 1.0, nav)); o.dir = dir;   // w: the chroma lift (a town lamp's; a nav lens is already pure)
+  return o;
+}
+// the long waves' slope at p (world xz) and the variance their faded parts hand to the lobe
+fn longSlope(p: vec2f, fp: vec2f, t: f32, mssL: f32) -> vec3f {   // fp: the pixel's world footprint (fwidth of p)
+  let lp = peakLambda(); let ang = F.wind.y;
+  var offs = array<f32, 3>(0.0, -0.55, 0.62); var lk = array<f32, 3>(1.0, 0.57, 0.33); var wt = array<f32, 3>(0.5, 0.3, 0.2); var ph0 = array<f32, 3>(0.0, 2.1, 4.4);
+  var s = vec2f(0.0); var lost = 0.0;
+  for (var i = 0; i < 3; i++) {
+    let th = ang + offs[i]; let d = vec2f(cos(th), sin(th)); let kw = 6.2831853 / (lp * lk[i]);
+    let ph = kw * dot(d, p) - sqrt(9.81 * kw) * t + ph0[i];
+    let A2 = 2.0 * mssL * wt[i];   // the slope amplitude squared (a sine's mean square is half of it)
+    let keep = 1.0 - smoothstep(0.5, 1.5, kw * dot(abs(d), fp));   // the phase's step a pixel
+    s += d * (sqrt(A2) * keep * sin(ph));
+    lost += (1.0 - keep * keep) * 0.25 * A2;
+  }
+  return vec3f(s, lost);
+}
+@fragment fn fs(v: SV) -> @location(0) vec4f {
+  let P = vec3f(v.wp.x, 0.0, v.wp.y);
+  let Vd = F.cam.xyz - P; let V = normalize(Vd);
+  let Ld = v.lp.xyz - P; let rl2 = max(dot(Ld, Ld), 1e-4); let Lv = Ld * inverseSqrt(rl2);
+  let H = normalize(V + Lv);
+  let s = -H.xz / max(H.y, 1e-3);   // the facet slope that sends the light to the eye
+  let side = vec2f(-v.dir.y, v.dir.x);
+  let sa0 = dot(s, v.dir); let sc0 = dot(s, side);
+  let s2 = mssAxis();
+  let fa = fwidth(sa0); let fc = fwidth(sc0); let fp = fwidth(v.wp);
+  // the quad's tails: past 6 sigma of the whole spread (the swells shift the lobe by at most about 2.6) nothing shows
+  let q0 = sa0 * sa0 / (s2 + ${GLOW_STREAK.footAlong.toFixed(2)} * fa * fa) + sc0 * sc0 / (s2 + ${GLOW_STREAK.footAcross.toFixed(2)} * fc * fc);
+  if (q0 > 36.0) { return vec4f(0.0, 0.0, 0.0, 1.0); }
+  let lw = longSlope(v.wp, fp, F.cam.w, 2.0 * LONG * s2);
+  let sa = sa0 - dot(lw.xy, v.dir); let sc = sc0 - dot(lw.xy, side);
+  let su = (1.0 - LONG) * s2 + lw.z;
+  let va = su + ${GLOW_STREAK.footAlong.toFixed(2)} * fa * fa; let vc = su + ${GLOW_STREAK.footAcross.toFixed(2)} * fc * fc;   // the pixel's footprint in slope (across: a column never thinner than about footAcross^0.5 px, so a sub-pixel move of the eye never steps it)
+  let pdf = exp(-0.5 * (sa * sa / va + sc * sc / vc)) / (2.0 * PI * sqrt(va * vc));
+  let nv = max(V.y, 1e-3); let nl = max(Lv.y, 0.0);
+  let sg = sqrt(s2);
+  let fr = ${GLOW_STREAK.f0} + (1.0 - ${GLOW_STREAK.f0}) * pow(1.0 - clamp(dot(V, H), 0.0, 1.0), 5.0);
+  let hy2 = H.y * H.y;
+  var lum = v.lp.w / rl2 * fr * smith1(nv, sg) * smith1(nl, sg) * pdf / (4.0 * nv * hy2 * hy2);
+  // the quad's edges fade (its bound is generous; no hard line), the near end too
+  let e = ${GLOW_STREAK.edge.toFixed(2)};
+  lum *= (1.0 - smoothstep(1.0 - e, 1.0, abs(v.uv.x))) * smoothstep(0.0, e, v.uv.y) * (1.0 - smoothstep(1.0 - 0.5 * e, 1.0, v.uv.y));
+  // the light's hue, its chroma lifted by sat (the night's Purkinje shift and the tone curve grey a dim warm light on the navy;
+  // the eye sees a lamp's streak as warm as the lamp)
+  let y0 = dot(v.col.rgb, vec3f(0.2126, 0.7152, 0.0722));
+  let c = max(mix(vec3f(y0), v.col.rgb, v.col.w), vec3f(0.0));
+  // the shown level: the glint's radiance over a soft shoulder to cap (x^gamma first, 1: none), so a glint never burns white
+  let x = pow(lum / ${GLOW_STREAK.ref.toExponential(3)}, ${GLOW_STREAK.gamma.toFixed(3)});
+  let shown = ${GLOW_STREAK.cap.toFixed(4)} * x / (1.0 + x);
+  return vec4f(c * (shown / max(dot(c, vec3f(0.2126, 0.7152, 0.0722)), 1e-3)), 1.0);
+}`;
 
 // --- the stars: one soft point an instance, placed in the vertex stage from the catalogue ---
 export const STARS_WGSL = (frameStruct) => `diagnostic(off, derivative_uniformity);
@@ -85,7 +233,7 @@ struct GlowU { mode: f32, radiance: f32, minPx: f32, focalPx: f32 }
 struct Glow { p: vec4f, c: vec4f }   // p: x, y, z, size (m); c: r, g, b, w = the switch-on sun elevation (deg; mode 0) or the radiance now (mode 1)
 @group(1) @binding(0) var<uniform> GU: GlowU;
 @group(1) @binding(1) var<storage, read> G: array<Glow>;
-struct GV { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) col: vec3f, @location(2) ph: f32 }
+struct GV { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) col: vec3f }
 // A1: the nav lights (mode 1) as v1's halos: the quad's full width max(size, minPx px), no energy fall-off with distance
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> GV {
   var corners = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(-1.0, 1.0), vec2f(-1.0, 1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0));
@@ -93,12 +241,10 @@ struct GV { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   var o: GV; o.uv = corners[vi];
   let sunE = asin(clamp(F.sun.y, -1.0, 1.0)) * 57.29578;
   var on = g.c.w;
-  let refl = GU.mode > 1.5; let mode = select(GU.mode, GU.mode - 2.0, refl);   // 2, 3: a town's or a nav light's image in the water
+  let mode = GU.mode;
   if (mode < 0.5) { on = smoothstep(g.c.w + 1.0, g.c.w - 1.0, sunE) * GU.radiance; }   // a town light: on from its own sun elevation
-  // the image: the light mirrored under the lake's plane; its depth where the eye's ray to it meets the water (a little nearer)
-  let pm = select(g.p.xyz, vec3f(g.p.x, -g.p.y, g.p.z), refl);
-  let clip = F.viewProj * vec4f(pm, 1.0);
-  if (on <= 0.001 || clip.w <= 0.2 || (refl && (g.p.y <= 0.0 || F.cam.y <= 0.0))) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); o.col = vec3f(0.0); return o; }
+  let clip = F.viewProj * vec4f(g.p.xyz, 1.0);
+  if (on <= 0.001 || clip.w <= 0.2) { o.pos = vec4f(2.0, 2.0, 2.0, 1.0); o.col = vec3f(0.0); return o; }
   // a negative size: a far point light (sim/night.js FAR_POINT): the floor and the level fall with the distance past nearM
   let farPt = g.p.w < 0.0; let fk = select(0.0, smoothstep(${FAR_POINT.nearM.toFixed(1)}, ${FAR_POINT.farM.toFixed(1)}, clip.w), farPt);
   let pxTrue = abs(g.p.w) / clip.w * GU.focalPx;
@@ -106,14 +252,7 @@ struct GV { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   on = on * mix(1.0, ${FAR_POINT.dim.toFixed(2)}, fk);
   var fall = pow(min(pxTrue / px, 1.0), ${GLOW.energyPow});   // a far light's energy spread over the least size
   if (mode > 0.5) { px = 0.5 * px; fall = 1.0; }   // A1: size and minPx are the halo's full width; v1 keeps the level
-  var ext = vec2f(px, px); var z = clip.z / clip.w;
-  if (refl) {
-    let q = F.cam.xyz + (pm - F.cam.xyz) * (F.cam.y / (F.cam.y + g.p.y) * ${GLOW_REFLECT.near});
-    let cq = F.viewProj * vec4f(q, 1.0); z = cq.z / max(cq.w, 1e-4);
-    let nv = mode > 0.5; let wR = select(px, px * ${GLOW_REFLECT.navW.toFixed(2)}, nv);
-    ext = vec2f(wR, px * ${GLOW_REFLECT.stretch.toFixed(1)}); fall *= select(${GLOW_REFLECT.k.toFixed(3)}, ${GLOW_REFLECT.navK.toFixed(3)}, nv);
-    o.ph = fract(sin(f32(ii) * 12.9898) * 43758.5453) * 6.2832;
-  }
+  let ext = vec2f(px, px); let z = clip.z / clip.w;
   let ndc = clip.xy / clip.w + corners[vi] * ext * F.res.zw * 2.0;
   o.pos = vec4f(ndc * clip.w, z * clip.w, clip.w);
   o.col = g.c.rgb * on * fall;
@@ -122,13 +261,6 @@ struct GV { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
 @fragment fn fs(v: GV) -> @location(0) vec4f {
   let r2 = dot(v.uv, v.uv);
   // A1: v1's halo (src/boat/details-mesh.js): a hot core and a faint round bloom gone well inside the quad (0.006 : 0.6)
-  // the image in the water: a soft column, brightest at its middle, broken along its length by the moving ripples
-  if (GU.mode > 1.5) {
-    let a = sin(v.uv.y * ${GLOW_REFLECT.ripple[0].toFixed(1)} + F.cam.w * ${GLOW_REFLECT.ripple[1].toFixed(1)} + v.ph); let b = sin(v.uv.y * 4.3 - F.cam.w * 1.3 + 2.0 * v.ph);
-    let rip = smoothstep(0.1, 0.9, 0.5 + 0.5 * a) * (0.6 + 0.4 * b);   // dashes that drift: the ripples carrying the light
-    let wob = v.uv.x + 0.25 * sin(v.uv.y * 7.0 + F.cam.w * 1.7 + v.ph);   // the column sways a little with the waves
-    return vec4f(v.col * exp(-wob * wob * 6.0) * exp(-v.uv.y * v.uv.y * 3.0) * max(rip, 0.0), 1.0);
-  }
   if (GU.mode > 0.5) { return vec4f(v.col * (exp(-r2 * 200.0) + 0.01 * exp(-r2 * 12.0)), 1.0); }
   return vec4f(v.col * exp(-r2 * 4.0) * step(r2, 1.0), 1.0);
 }`;
@@ -149,7 +281,7 @@ export function createNight({ device, reg, frameBGL, frameBG, U, frameStruct, hd
   const nav = new Float32Array(CAPS.nav * GLOW_FLOATS);
   const raceBuf = device.createBuffer({ label: 'night-race', size: CAPS.race * GLOW_FLOATS * 4, usage: BUF.STORAGE | BUF.COPY_DST });
   const glowU = [new Float32Array([0, GLOW.townRadiance, GLOW.minPx, 1000]), new Float32Array([1, 0, NAV_GLOW.minPx, 1000]),   // A1: the nav lights' own floor (v1's 22 px)
-    new Float32Array([2, GLOW.townRadiance, GLOW_REFLECT.minPx, 1000]), new Float32Array([3, 0, NAV_GLOW.minPx, 1000])];   // their images in the water
+    new Float32Array([2, GLOW.townRadiance, GLOW.minPx, 1000]), new Float32Array([3, 0, NAV_GLOW.minPx, 1000])];   // their streaks in the water (the glows' own floors: a streak reflects its light as drawn)
   const glowBufs = glowU.map((_, i) => device.createBuffer({ label: `night-glow-${i}`, size: 16, usage: BUF.UNIFORM | BUF.COPY_DST }));
   // the night group (the sky draw's group 2, the stars' too): the record, the maps, the sampler, the stars
   const bgl = device.createBindGroupLayout({ label: 'night', entries: [
@@ -166,7 +298,7 @@ export function createNight({ device, reg, frameBGL, frameBG, U, frameStruct, hd
   const bgRaceR = device.createBindGroup({ layout: glowBGL, entries: [{ binding: 0, resource: { buffer: glowBufs[3] } }, { binding: 1, resource: { buffer: raceBuf } }] });
   const moon = createMoon(place ?? undefined);
   const M = new Float32Array(9);
-  const state = { loaded: false, loading: null, error: null, stars: 0, lights: 0, base: 0, extra: 0, band: 0, k: 0, bytes: 0, loadMs: 0, race: 0, milkyWay: !!milkyWay };
+  const state = { loaded: false, loading: null, error: null, stars: 0, lights: 0, base: 0, extra: 0, band: 0, k: 0, bytes: 0, loadMs: 0, race: 0, milkyWay: !!milkyWay, streaks: false };
   device.queue.writeBuffer(nuBuf, 0, NU);
   for (let i = 0; i < glowU.length; i++) device.queue.writeBuffer(glowBufs[i], 0, glowU[i]);
 
@@ -218,6 +350,14 @@ export function createNight({ device, reg, frameBGL, frameBG, U, frameStruct, hd
       reg.add('night-glows', { layout: device.createPipelineLayout({ bindGroupLayouts: [frameBGL, glowBGL] }), vertex: { module: mG, entryPoint: 'vs' }, fragment: { module: mG, entryPoint: 'fs', targets: [{ ...hdrTarget, blend: add }] },
         primitive: { topology: 'triangle-list' }, depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare: 'greater' }, multisample: { count: msaa } });
     },
+    // the glitter streaks' pipeline, once the terrain's heights group exists (render/terrain.js hbgl: the shore test)
+    attachTerrain(heightsBGL) {
+      const add = { color: { srcFactor: 'one', dstFactor: 'one', operation: 'add' }, alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'add' } };
+      const mR = reg.shader('night-streaks', STREAKS_WGSL(frameStruct));
+      reg.add('night-streaks', { layout: device.createPipelineLayout({ bindGroupLayouts: [frameBGL, glowBGL, heightsBGL] }), vertex: { module: mR, entryPoint: 'vs' }, fragment: { module: mR, entryPoint: 'fs', targets: [{ ...hdrTarget, blend: add }] },
+        primitive: { topology: 'triangle-list' }, depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare: 'greater' }, multisample: { count: msaa } });
+      state.streaks = true;
+    },
     // the maps, the catalogue and the lights (idempotent; a live page calls it once the sun is low, a capture before its first frame)
     load() {
       if (state.loading) return state.loading;
@@ -257,15 +397,22 @@ export function createNight({ device, reg, frameBGL, frameBG, U, frameStruct, hd
       state.townsOn = state.loaded && sunElevDeg < GLOW.townsBelowDeg;
     },
     // after the sky: the stars (where the sky is), then the glows (depth-tested against the world)
-    draw(pass, c, sky) {
+    draw(pass, c, sky, heightsBG = null) {   // heightsBG: the terrain's heights group (the streaks' shore test; none: no streaks)
       if (state.band > 0 && state.stars > 0) {
         pass.setBindGroup(1, sky.skyBG); pass.setBindGroup(2, bg);
         pass.setPipeline(reg.get('night-stars')); pass.draw(6, state.stars); c.calls++; c.triangles += state.stars * 2;
       }
-      if (state.townsOn || state.navOn || state.race > 0) pass.setPipeline(reg.get('night-glows'));
-      if (state.townsOn) { pass.setBindGroup(1, bgTowns); pass.draw(6, state.lights); pass.setBindGroup(1, bgTownsR); pass.draw(6, state.lights); c.calls += 2; c.triangles += state.lights * 4; }
-      if (state.navOn) { pass.setBindGroup(1, bgNav); pass.draw(6, CAPS.nav); pass.setBindGroup(1, bgNavR); pass.draw(6, CAPS.nav); c.calls += 2; c.triangles += CAPS.nav * 4; }
-      if (state.race > 0) { pass.setBindGroup(1, bgRace); pass.draw(6, state.race); pass.setBindGroup(1, bgRaceR); pass.draw(6, state.race); c.calls += 2; c.triangles += state.race * 4; }
+      if (!(state.townsOn || state.navOn || state.race > 0)) return;
+      pass.setPipeline(reg.get('night-glows'));
+      if (state.townsOn) { pass.setBindGroup(1, bgTowns); pass.draw(6, state.lights); c.calls++; c.triangles += state.lights * 2; }
+      if (state.navOn) { pass.setBindGroup(1, bgNav); pass.draw(6, CAPS.nav); c.calls++; c.triangles += CAPS.nav * 2; }
+      if (state.race > 0) { pass.setBindGroup(1, bgRace); pass.draw(6, state.race); c.calls++; c.triangles += state.race * 2; }
+      // their glitter streaks on the water (most lights cull in the vertex stage: too dim, too far, or no water before them)
+      if (!state.streaks || !heightsBG) return;
+      pass.setPipeline(reg.get('night-streaks')); pass.setBindGroup(2, heightsBG);
+      if (state.townsOn) { pass.setBindGroup(1, bgTownsR); pass.draw(6, state.lights); c.calls++; c.triangles += state.lights * 2; }
+      if (state.navOn) { pass.setBindGroup(1, bgNavR); pass.draw(6, CAPS.nav); c.calls++; c.triangles += CAPS.nav * 2; }
+      if (state.race > 0) { pass.setBindGroup(1, bgRaceR); pass.draw(6, state.race); c.calls++; c.triangles += state.race * 2; }
     },
   };
 }

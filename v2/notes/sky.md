@@ -468,6 +468,29 @@ at 288 s. Measured before the cuts (all streak points, 32 then 160 puffs, the mi
   the lit fraction within 0.02; astronomy-engine itself stays out of the bundle: 330 kB for two directions). The band, the
   stars and the domes fade in with v1's `nightFade` (−10° → −18°) and dim under the moon (v1's `moonDim`: a full moon high
   leaves 10 %).
+- **The lights in the water** (render/night.js `STREAKS_WGSL`, the `night-streaks` pipeline, `GLOW_STREAK`; 2026-11-25): each
+  town, nav and race-mark light's glitter streak, the glint of a point light off the wind's waves. One instanced quad a light,
+  laid on the water along the eye-to-light line; each pixel evaluates that light's microfacet glint exactly: the facet slope
+  that sends the light to the eye, Beckmann over the slopes, Schlick (f0 0.02) at the half vector, Smith's masking for the
+  eye and the light, the light's intensity over its distance squared. So the streak is long and thin at a grazing look,
+  longer with more wind, tight on calm water, and dims with distance by itself. **The slopes** are the sun glint's Cox–Munk
+  share (render/water-aa.js `AA.cox`, `coxShare`; the wind not floored at 1.5 m/s, so calm water is calm), 65 % of them
+  three long swells along the waves' travel at the wind's peak wavelength (0.85 U², 2–14 m), moving at their deep-water
+  speed: they break a near column into a few steady glints. A swell whose phase moves more than about 1 rad a pixel
+  (`fwidth`) fades to its mean and hands its variance to the lobe, and the pixel's own footprint widens the lobe (across
+  the column 1.5 × its slope step, so a far column is never thinner than about 1.2 px): nothing twinkles per pixel or per
+  frame. Flicker (60 frames at 60 Hz, a fixed eye at the owner's Ski Run view, the band of streaks): wind 1 tstd 2.21 →
+  1.84 levels, > 20-level jumps 0.005 % both; wind 4 4.30 → 4.15, 0.81 → 0.80 %. **The level:** each light reflects its glow as drawn (its least size on screen, a far
+  light's fall), `gain` × a wind term (`windPow` 0.75 against 2.8 m/s: a real lamp outshines the night water in any chop,
+  so a chop streak stays as clear as a calm one, only longer and broken), over a soft shoulder to `cap`; its chroma lifted
+  × `sat` 2.2 (the night's Purkinje shift and AgX grey a dim warm light on the navy). The nav lights and the race marks at
+  `navGain` (their 22 px halo floor is far more light than their lens), no chroma lift. **The cull and the cost:** the
+  quad's length runs to where the streak falls under `cutK` of `cap` (n ≤ 3 sigma); a far or dim light has none or a few
+  pixels (a soft short smear), a near one a long column. **The shore test:** the ground on the path from the streak's middle
+  to the light (12 samples of `terrainHeight`, + 25 m of canopy on land but within 40 m of the lamp), the streak fading out
+  over ±5 m of clearance: a hill light behind the shore's trees casts none. **The depth:** the eye ray's crossing of a plane
+  0.25–1.5 m (0.9 × Hs) over the water, so the wave crests never cut the column into dashes, while the land and the boat
+  still hide it. The fireworks keep their own screen-space mirror (render/fireworks.js); they never used this path.
 - **The lights** (render/night.js, the `night-glows` pipeline): camera-facing soft quads from a storage list, a least size of
   3 px on screen and a far light's energy spread over it (so a window at 15 km is a faint warm point, not a 3 px lamp);
   additive, depth-tested against the world. **The towns:** v1's own layout (`src/towns-layout.js` on the full terrain set and
@@ -586,7 +609,8 @@ moon's share); and AgX's tone curve lifts the shadows where ACES keeps them dark
   tree line a silhouette against the darker sky (terrainShadow: luma ≤ 0.7 × the sky's);
 - the night's water (look/v2-night-look): the moon's glitter path (`MOON_GLINT` in render/water.js: the glint's lobe off the
   moon, each facet cell on its own clock, only with the moon up), and the town and nav lights' images in the water
-  (`GLOW_REFLECT` in render/night.js: a soft column under each light's mirror image, broken by drifting ripples);
+  (the glitter streaks below; before 2026-11-25 `GLOW_REFLECT`: a fixed-size dash under each light's mirror image on its own
+  ripple clock, which from 1–2 km read as a band of white speckles hugging the shore);
 - the exposure's night gain: × 24 (look/v2-night-look; × 12 before).
 
 **What v1 does in the storm:** the same post grade (steel, vignette, flash, gold) over a sky whose deck keeps lit
