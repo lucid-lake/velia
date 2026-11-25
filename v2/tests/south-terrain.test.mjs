@@ -81,19 +81,22 @@ test('the south files: present, the manifests\' bytes, inside the load budget', 
   assert.ok(phone.bytes + photoBytes.phone < 0.8e6, `phone ${phone.bytes + photoBytes.phone} B`);
 });
 
-test('known depths: the Ski Run pin, the survey\'s deep water, the town on land', async () => {
+test('known depths: the Ski Run pin and its reach, the survey\'s deep water, the town on land', async () => {
   const H = await south, P = await southPhone;
-  // the pin 650 m off Ski Run Marina's pier: 17.4 m (the survey's edge depth carried into its gap); the same spot on
-  // the 32 m level reads 17.6 m. 800 m due north of the pier the survey gives 22-23 m.
-  assert.ok(Math.abs(H.at(12000, -250) + 17.4) < 0.3, `pin ${H.at(12000, -250)}`);
-  assert.ok(Math.abs(H.at(12211, -437) + 22.9) < 0.5, `north of the pier ${H.at(12211, -437)}`);
+  // the pin "Off Ski Run", 1.28 km north-west of Ski Run Marina's pier on the survey's own cells: 21-23 m (22.85 m)
+  const PIN = [11800, -875];
+  assert.ok(H.at(...PIN) <= -21 && H.at(...PIN) >= -23, `pin ${H.at(...PIN)}`);
+  // a clear reach east from it: on the afternoon start's heading (95 deg) the water stays deeper than 10 m for 1 km
+  for (let s = 0; s <= 1000; s += 20) { const a = 95 * Math.PI / 180, d = H.at(PIN[0] + s * Math.sin(a), PIN[1] - s * Math.cos(a)); assert.ok(d < -10, `${s} m east: ${d}`); }
+  // between the pier and the survey (its gap, from 100 m off the shore to z -1,170 here) the fill is smooth: no step over 0.5 m in 20 m
+  for (let z = 263, prev = H.at(12211, 263); z > -1160; z -= 20) { const d = H.at(12211, z); assert.ok(Math.abs(d - prev) < 0.5, `z ${z}`); prev = d; }
   // DDS-55 surveyed cells (the bed = the survey's elevation - 1,899 m): 2 km off Pope Beach, 3.5 km off the Keys
   assert.ok(Math.abs(H.at(9000, -1000) + 198.5) < 0.5, `${H.at(9000, -1000)}`);
   assert.ok(Math.abs(H.at(8000, -1400) + 317.4) < 0.5, `${H.at(8000, -1400)}`);
   // land: the casino corner at Stateline and the slope under Heavenly stand above the lake
   for (const [x, z] of [[14000, 1500], [13500, 2500]]) assert.ok(H.at(x, z) > 2, `land at ${x}, ${z}: ${H.at(x, z)}`);
   // the phone set agrees with the desktop set (block means) within a metre on the water away from the shore
-  for (const [x, z] of [[12000, -250], [9000, -1000], [11000, -800]]) assert.ok(Math.abs(P.at(x, z) - H.at(x, z)) < 1, `${x}, ${z}`);
+  for (const [x, z] of [[11800, -875], [9000, -1000], [11000, -800]]) assert.ok(Math.abs(P.at(x, z) - H.at(x, z)) < 1, `${x}, ${z}`);
 });
 
 test('the seams: the 4 m heights meet the shipped 10 m and 32 m levels where they overlap', async () => {

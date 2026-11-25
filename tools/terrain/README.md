@@ -53,8 +53,15 @@ Today there is one, `south` (South Lake Tahoe, Camp Richardson to Stateline):
 | Photo (NAIP 2022) | `photo/full/south/<tx>-<ty>.webp`, 4 m, 256 px tiles | `photo/phone/south/…`, 8 m |
 | Manifests | `south.json`, `photo/manifest.json` | `south-phone.json`, `photo/manifest.json` |
 
-The heights come from the 3DEP 1 m lidar (a Gaussian of 1.6 m, read at the texel centres); the bed from DDS-55 by the
-lake-wide rule, so it meets the 10 m and 32 m levels round it (`v2/tests/south-terrain.test.mjs`). Rebuild it:
+The heights come from the 3DEP 1 m lidar (a Gaussian of 1.6 m, read at the texel centres). The bed comes from DDS-55
+by the bay's seamless rule (`build_tahoe.py` `seamless_bed`): the survey's cells are kept exactly, and its gaps (45 % of
+the box's water, up to 1.6 km off the shore) take a harmonic (Laplace) fill between the surveyed depths and a 1:6 shelf
+off the shore, feathered on the filled side of the coverage edge, in place of the nearest surveyed depth's fans. Within
+200 m of the box's edge the bed eases into the lake-wide one, so it meets the 10 m and 32 m levels round it
+(`v2/tests/south-terrain.test.mjs`).
+
+The pin "Off Ski Run": world (11,800, -875), 22.85 m deep, 1.28 km north-west of Ski Run Marina's pier, with open water
+east of it (deeper than 3 m for 1.2 km on heading 95 degrees). Rebuild it:
 
 ```sh
 TAHOE_SETS="south bathy nlcd" bash tools/terrain/fetch_tahoe.sh                     # 1 m lidar, about 180 MB

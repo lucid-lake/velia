@@ -59,10 +59,17 @@ D_SUB = {'island': 1, 'bay': 2, 'basin': 2, 'lake': 2, 'ring': 1}   # the distan
 # phone set: the heights' f x f block means (as tools/terrain/phone_terrain.mjs), the distance every pdk-th texel.
 #   south: South Lake Tahoe, Camp Richardson to Stateline: world x 6,992 to 14,512, z -1,504 to 3,008 (texel edges) at
 #   4 m; the heights from the 3DEP 1 m lidar, smoothed (a Gaussian of `smooth` source texels) and read at the texel
-#   centres; the bed from DDS-55 by the lake-wide (first build's) rules, as the 10 m and 32 m levels round it
+#   centres; the bed from DDS-55 by the seamless rules (seamless_bed, the bay's method): the survey's gaps (45 % of the
+#   box's water, up to 1.4 km off the shore) take a harmonic fill between the surveyed depths and the 1:6 shelf off the
+#   shore in place of the nearest surveyed depth (its fans), the surveyed cells kept (keep_survey); within bed_ease m of
+#   the box's edge it eases into the lake-wide (first build's) bed, the one the 10 m and 32 m levels round it carry
+# The pin "Off Ski Run" (the south-lake region's first birthplace): world (11,800, -875), 22.85 m deep on the survey's own
+# cells, 1.28 km north-west of Ski Run Marina's pier; east of it (the afternoon start, heading 95 deg) the water stays
+# deeper than 11 m for 1 km and deeper than 3 m for 1.2 km. Nearer the pier the survey is 11-14 m at its edge (1.6 km
+# out); the 22 m the nearest fill drew 800 m north of the pier was one of its fans
 REGIONS = {
     'south': dict(name='south', step=4.0, x0=6994.0, z0=-1502.0, w=1880, h=1128, src='dem1m_south', smooth=1.6,
-                  flat=0.15, dk=1, ck=2, phone=2, pdk=2),
+                  flat=0.15, dk=1, ck=2, phone=2, pdk=2, bed='seamless', bed_ease=200.0),
 }
 
 def world_grid(L, k=1):
@@ -275,8 +282,9 @@ def region_weight(L):
     t = np.clip(1 - d / REGION_EASE, 0, 1)
     return t * t * (3 - 2 * t)
 
-def seamless_bed(L, water, bs):
-    """bs: the survey's elevation where it has coverage, NaN elsewhere -> the bed (m, <= -0.3) on water"""
+def seamless_bed(L, water, bs, keep_survey=False):
+    """bs: the survey's elevation where it has coverage, NaN elsewhere -> the bed (m, <= -0.3) on water. keep_survey:
+    the feather across the coverage edge moves only the filled side (the surveyed cells keep the survey's value)"""
     step = L['step']
     dLand = ndimage.distance_transform_edt(water) * step
     srv = bs - BATHY_SURFACE
@@ -304,6 +312,7 @@ def seamless_bed(L, water, bs):
         s = SEAM_SIGMA / step
         blur = ndimage.gaussian_filter(np.where(water, S, 0.0), s) / np.maximum(ndimage.gaussian_filter(wt, s), 1e-6)
         k = np.clip(1 - dSeam / SEAM_BAND, 0, 1); k = k * k * (3 - 2 * k)
+        if keep_survey: k = np.where(known, 0.0, k)
         S = np.where(water, S * (1 - k) + blur * k, S)
     # the shelf off the shore, mixed into the survey on a rounded ramp over a wandering band
     xs, zs = world_grid(L)
@@ -509,7 +518,17 @@ def build_region(a):
     if nl: keep[1 + int(np.argmax(sizes))] = True
     touch = np.unique(lab[wetB & flat]); keep[touch] = True; keep[0] = False
     water = keep[lab]
-    bed = legacy_bed(L, water, b)               # the lake-wide rules (REGION's seamless bed is the bay's alone)
+    bed = legacy_bed(L, water, b)               # the lake-wide rules (the 10 m and 32 m levels' bed)
+    if L.get('bed') == 'seamless':
+        sb = seamless_bed(L, water, np.where(np.isfinite(b), b, np.nan), keep_survey=True)
+        xs, zs = world_grid(L)
+        dx = np.minimum(xs - L['x0'], L['x0'] + (L['w'] - 1) * L['step'] - xs); dz = np.minimum(zs - L['z0'], L['z0'] + (L['h'] - 1) * L['step'] - zs)
+        t = np.clip(np.minimum(dz[:, None], dx[None, :]) / L['bed_ease'], 0, 1); wE = t * t * (3 - 2 * t)
+        bed = np.where(water, sb * wE + bed * (1 - wE), bed)
+        srv = water & np.isfinite(b)
+        moved = srv & (np.abs(bed - (b - BATHY_SURFACE)) > 0.01)
+        print(f"{L['name']}: seamless bed; {int((water & ~np.isfinite(b)).sum())} gap texels filled; surveyed texels "
+              f"moved > 1 cm: {int(moved.sum())} of {int(srv.sum())} (the shore ramp and the edge ease)")
     h = np.where(water, bed, np.maximum(h - surf, 0.05))
     print(f"{L['name']}: source lake surface {surf + Y0:.2f} m (the frame's {Y0:.2f} m)")
     q = np.clip(np.round((h - H_OFFSET) / H_STEP), 0, 65535).astype(np.uint16)
