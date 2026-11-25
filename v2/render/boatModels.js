@@ -98,6 +98,32 @@ fn gelcoat(lp: vec3f, nl: vec3f, vc: vec3f, scale: f32, s: ptr<function, Surf>) 
   let q = p * vec3f(1.3, 2.6, 0.55);
   (*s).coatN = normalize(nl + vec3f(noise3(q), noise3(q + 17.3), noise3(q + 41.7)) * 0.018);
 }
+// the race livery (the look round of 2026-11-25) on the hull's own skin (boat/models.js hullSkin; KIND.livery): v1's gelcoat
+// under it, then, on the side faces, a cream boot top over the antifouling, the topsides in the boat's colour (M.p.w: the
+// player's navy, a rival's or a lake boat's tint; 0 keeps the white gelcoat: the Regatta's white fleet) at a race hull's gloss
+// and without the cruiser's yellowing, streaks and scuffs, and two stripes under the sheer that follow it (d: the depth under the
+// sheer line, baked in uv.x): a gold cove line and a thin cream pinstripe. All edges 6 mm soft: crisp at any distance
+const LIV_BOOT0 = 0.028; const LIV_BOOT1 = 0.118; const LIV_COVE = 0.19; const LIV_COVE_W = 0.030; const LIV_PIN = 0.248; const LIV_PIN_W = 0.011; const LIV_E = 0.006;
+const LIV_CREAM = vec3f(0.80, 0.77, 0.70); const LIV_GOLD = vec3f(0.62, 0.41, 0.12);
+fn livery(lp: vec3f, nl: vec3f, vc: vec3f, scale: f32, d: f32, tint: f32, s: ptr<function, Surf>) {
+  gelcoat(lp, nl, vc, scale, s);
+  let y = lp.y; let side = 1.0 - smoothstep(0.45, 0.7, abs(nl.y));
+  let boot = smoothstep(LIV_BOOT0 - LIV_E, LIV_BOOT0 + LIV_E, y) * (1.0 - smoothstep(LIV_BOOT1 - LIV_E, LIV_BOOT1 + LIV_E, y)) * side;
+  let tops = smoothstep(LIV_BOOT1 - LIV_E, LIV_BOOT1 + LIV_E, y) * side;
+  let cove = (1.0 - smoothstep(LIV_COVE_W * 0.5 - LIV_E, LIV_COVE_W * 0.5 + LIV_E, abs(d - LIV_COVE))) * tops;
+  let pin = (1.0 - smoothstep(LIV_PIN_W * 0.5 - LIV_E, LIV_PIN_W * 0.5 + LIV_E, abs(d - LIV_PIN))) * tops;
+  var a = (*s).alb;
+  if (tint > 0.5) {
+    let gloss = 1.0 + noise3(lp * vec3f(0.55, 0.9, 0.42) + 3.1) * 0.05;   // the coat's faint unevenness (gelcoat's drift)
+    a = mix(a, tintOf(tint) * gloss, tops);
+    (*s).rough = mix((*s).rough, 0.10, tops); (*s).coat = mix((*s).coat, 0.78, tops); (*s).coatRough = mix((*s).coatRough, 0.05, tops);
+  }
+  a = mix(a, LIV_CREAM, boot);
+  a = mix(a, LIV_GOLD, cove);
+  a = mix(a, LIV_CREAM, pin);
+  (*s).alb = a;
+  (*s).rough = mix((*s).rough, 0.14, max(boot, max(cove, pin)));
+}
 const PITCH = 0.010;
 fn nonskid(lp: vec3f, nl: vec3f, vc: vec3f, scale: f32, dpx: vec3f, dpy: vec3f, s: ptr<function, Surf>) {
   let k = 1.0 / PITCH; let kk = k * 0.7071;
@@ -200,6 +226,7 @@ fn surfaceOf(v: GV, mt: Mat, ff: bool, dpx: vec3f, dpy: vec3f, duvx: vec2f, duvy
   if (mt.kind.y >= 0.0) { s.alb *= textureSampleGrad(texC, sRep, v.uv, i32(mt.kind.y), duvx, duvy).rgb; }
   if (mt.kind.w >= 0.0) { let t = textureSampleGrad(texD, sRep, v.uv, i32(mt.kind.w), duvx, duvy); s.rough *= t.g; s.metal *= t.b; }
   if (kind == ${KIND.gelcoat}) { gelcoat(v.lp, nl0, vc, mt.ex.y, &s); if (M.q.x > 0.0) { bootStain(v.lp, nl0, clamp(M.q.x, 0.0, 1.0), &s); } }
+  else if (kind == ${KIND.livery}) { livery(v.lp, nl0, vc, mt.ex.y, v.uv.x, M.p.w, &s); if (M.q.x > 0.0) { bootStain(v.lp, nl0, clamp(M.q.x, 0.0, 1.0), &s); } }
   else if (kind == ${KIND.nonskid}) { nonskid(v.lp, nl0, vc, mt.ex.y, dpx, dpy, &s); }
   else if (kind == ${KIND.antifouling}) { s.alb = vc * mix(0.85, 1.12, n01(v.lp * vec3f(3.0, 6.0, 3.0))); s.rough = 0.9; s.metal = 0.0; if (M.q.x > 0.0) { underbody(v.lp, clamp(M.q.x, 0.0, 1.0), &s); } }
   else if (kind == ${KIND.stainless}) { stainless(v.lp, &s); }
@@ -277,7 +304,6 @@ ${SHADE_FN}
   ${mode === 'opaque' ? `if (M.p.z < 1.0 && ign(v.pos.xy) >= M.p.z) { discard; }   // the swap's dissolve in (render/boat.js)` : ''}
   let mt = MATS[v.mat];
   var s = surfaceOf(v, mt, ff, dpx, dpy, duvx, duvy);
-  if (M.p.w > 0.5 && i32(mt.kind.x + 0.5) == ${KIND.gelcoat}) { s.alb = mix(s.alb, min(tintOf(M.p.w), vec3f(0.72)), topsides(v.lp.y, s.n.y)); }   // R4: a rival's topsides colour (0 for the player)
   var nW = toWorld(s.n);
   if (mt.kind.z >= 0.0) {
     let t = textureSampleGrad(texD, sRep, v.uv, i32(mt.kind.z), duvx, duvy).xyz * 2.0 - 1.0;

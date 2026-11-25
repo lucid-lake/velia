@@ -23,14 +23,14 @@ test('sailart: every rival her own number and a sail unlike the others (cloth or
   for (const f of FLEET) assert.ok(f.id in RIVAL_CLOTH);
   for (const a of arts) assert.equal(a.inkB, FLEET.find((f) => a.number === `USA ${f.sail}`).hull, 'the insignia in the HUD chip\'s colour');
   const me = boatArt(0);
-  assert.equal(me.cloth, 'white'); assert.equal(me.number, 'USA 28');
+  assert.equal(me.cloth, 'silver'); assert.equal(me.number, 'USA 28');   // the race look (2026-11-25): silver laminate
 });
 
 test('sailart: the record packs exactly in f32s (the shader decodes the cloth, the rose\'s opacity and 6 glyphs)', () => {
   const r = packArt(boatArt(0));
   for (const x of r) assert.equal(Math.fround(x), x);
   const code = r[0] - 1;
-  assert.equal(code % 16, CLOTH_KIND.white); assert.equal(Math.floor(code / 16), 62);
+  assert.equal(code % 16, CLOTH_KIND.silver); assert.equal(Math.floor(code / 16), 72);   // the race look: silver laminate, the rose at 72 %
   const g = packGlyphs('USA 28'), codes = Array.from({ length: 6 }, (_, i) => Math.floor(g / 2 ** (4 * i)) % 16);
   assert.deepEqual(codes, [10, 11, 12, 14, 2, 8]);
   const g2 = packGlyphs('USA 4'), c2 = Array.from({ length: 6 }, (_, i) => Math.floor(g2 / 2 ** (4 * i)) % 16);

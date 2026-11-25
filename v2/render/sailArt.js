@@ -19,10 +19,11 @@ import { RIG } from '../../src/boat/rig.js';
 
 export const sailArtOn = (v) => String(v ?? '').toLowerCase() !== 'off';
 // the cloths (render/boat.js and raceProps.js: the same order): 0 v1's cream (the plain sail, ?sailart=off), 1 white Dacron,
-// 2 cream / tan Dacron, 3 grey laminate (a scrim of threads, glossier, little light through), 4 black laminate
-export const CLOTH_KIND = Object.freeze({ cream: 0, white: 1, tan: 2, grey: 3, black: 4 });
+// 2 cream / tan Dacron, 3 grey laminate (a scrim of threads, glossier, little light through), 4 black laminate, 5 silver laminate
+// (the player's race sails, 2026-11-25: a pale grey film over a dark scrim, tri-radial seams)
+export const CLOTH_KIND = Object.freeze({ cream: 0, white: 1, tan: 2, grey: 3, black: 4, silver: 5 });
 // linear colours (render/boat.js reads its own table; the lite boats' this one)
-export const CLOTH_LIN = Object.freeze([[0.8632, 0.7913, 0.6445], [0.905, 0.896, 0.855], [0.815, 0.716, 0.521], [0.156, 0.165, 0.184], [0.024, 0.026, 0.031]]);
+export const CLOTH_LIN = Object.freeze([[0.8632, 0.7913, 0.6445], [0.905, 0.896, 0.855], [0.815, 0.716, 0.521], [0.156, 0.165, 0.184], [0.024, 0.026, 0.031], [0.40, 0.425, 0.46]]);
 export const INK = Object.freeze({ navy: '#1C2340', gold: '#C9A45A', red: '#A3312B', green: '#2F6B45', blue: '#2F5E95', white: '#F2F0EA', paleNavy: '#3A4670' });
 const chordAt = (y) => { const v = Math.max(0, Math.min(1, y / RIG.mainLuff)); return RIG.boom * (1 - v) + RIG.mainHead * v + RIG.roach * 4 * v * (1 - v); };
 
@@ -68,7 +69,7 @@ export const RIVAL_CLOTH = Object.freeze({ wren: 'tan', tern: 'white', kestrel: 
 const FALLBACK = [['tan', '#1f2c4a'], ['white', '#8a2a24'], ['white', '#2f5a3c'], ['grey', '#3d6f9e'], ['black', '#b9842c']];
 const dark = (cloth) => cloth === 'grey' || cloth === 'black';
 export function boatArt(i, number) {
-  if (!i) return { number: number ?? 'USA 28', cloth: 'white', inkA: INK.navy, inkB: INK.paleNavy, roseAlpha: 0.62 };
+  if (!i) return { number: number ?? 'USA 28', cloth: 'silver', inkA: INK.navy, inkB: INK.gold, roseAlpha: 0.72 };   // the race look: silver laminate, navy numbers, the rose in the compass gold
   const [cloth, badge] = FALLBACK[(i - 1) % FALLBACK.length];
   return { number: number ?? `USA ${i}`, cloth, inkA: dark(cloth) ? INK.white : INK.navy, inkB: badge, roseAlpha: 0.85 };
 }

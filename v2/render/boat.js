@@ -18,7 +18,7 @@ import { UNDER_WGSL } from './underMedium.js';   // play as Tessie, phase 2a
 import { underPipe } from './underState.js';
 import { WATERLINE_WGSL, PATCH_FLOATS, fillPatch } from './boat/waterline.js';
 import { drawnPose, drawnSail } from './boat/drawnTrim.js';
-import { buildHull, buildFoils, buildRigParts, sailGrid, fillSail, mainPoint, jibPoint, sailParams, SAIL_GRIDS, lineSet, ribbonArrays, fillRibbons, wireLines, travellerCarX } from './boat/mesh.js';
+import { buildHull, buildFoils, buildRigParts, carbonSpars, sailGrid, fillSail, mainPoint, jibPoint, sailParams, SAIL_GRIDS, lineSet, ribbonArrays, fillRibbons, wireLines, travellerCarX } from './boat/mesh.js';
 import { createBoatModels } from './boatModels.js';
 import { createBoatDetails, TELL } from './boat/telltales.js';
 const TELL_SEGS = TELL.segs;   // a yarn's segments: its index count is segs × 6
@@ -92,7 +92,10 @@ export const packTint = (hex) => { const h = typeof hex === 'string' ? parseInt(
 // yl the hull frame's height, ny the normal's up)
 const TINT_FN = `
 fn tintOf(pw: f32) -> vec3f { let u = u32(pw - 1.0 + 0.5); let c = vec3f(f32((u >> 16u) & 255u), f32((u >> 8u) & 255u), f32(u & 255u)) / 255.0; return pow(c, vec3f(2.2)); }
-fn topsides(yl: f32, ny: f32) -> f32 { return (1.0 - smoothstep(0.12, 0.45, abs(ny))) * smoothstep(0.30, 0.36, yl) * (1.0 - smoothstep(0.76, 0.82, yl)); }`;
+fn topsides(yl: f32, ny: f32) -> f32 { return (1.0 - smoothstep(0.45, 0.7, abs(ny))) * smoothstep(0.112, 0.124, yl) * (1.0 - smoothstep(0.88, 0.92, yl)); }`;   // the race livery: from the boot top (boatModels.js LIV_BOOT1) to just under the sheer (the M3 hull has no sheer datum: its trunk starts over 0.93)
+// the player's hull colour (the race livery, 2026-11-25): the brand navy a shade lighter, so the gloss reads navy in the sun, not
+// black; packed as a rival's tint (packTint) on her hull and model slots. pose.hullTint (a packed tint) overrides it; 0 is the white gelcoat
+export const PLAYER_HULL = '#1E2A4D';
 // the quantised trim a near rival's sails refill on (boom and clew 0.02 rad, fill and draft 0.1): CPU refills only when it moves
 export function rivalSailKey(p) {   // a number, so a frame's comparison allocates nothing
   const q = (v, d, k) => Math.round((v ?? d) / k) + 512;
@@ -504,23 +507,37 @@ fn clothCol(v: V, ff: bool) -> vec4f {
   // cloth and its print. The print is on the cloth: the near face's ink takes the cloth's own shading; the far face's shows through
   // the weave (mirrored, as a real sail's), faint when front-lit, a dark silhouette when the sun is behind; every print blocks the
   // light through the cloth
-  if (isMain && M.r.x > 0.5) {
+  // the race look (2026-11-25): the jib takes the boat's cloth as well (its record carries the same code; no print on it)
+  if (!isGk && M.r.x > 0.5) {
     let code = u32(M.r.x + 0.5) - 1u; let ci = i32(code % 16u); let roseA = f32(code / 16u) * 0.01;
     var cc = CREAM; var ct = CTAU; var cr = ROUGH; var scr = 0.0;
     if (ci == 1) { cc = vec3f(0.905, 0.896, 0.855); ct = 0.24; cr = 0.70; }                   // white Dacron #F4F3EE
     else if (ci == 2) { cc = vec3f(0.815, 0.716, 0.521); ct = 0.21; cr = 0.72; }               // cream / tan Dacron #E9DCBF
     else if (ci == 3) { cc = vec3f(0.156, 0.165, 0.184); ct = 0.07; cr = 0.42; scr = 1.0; }    // grey laminate #6E7177
     else if (ci == 4) { cc = vec3f(0.024, 0.026, 0.031); ct = 0.02; cr = 0.38; scr = -1.0; }   // black laminate #2B2D31
+    else if (ci == 5) { cc = vec3f(0.40, 0.425, 0.46); ct = 0.10; cr = 0.40; scr = 1.0; }      // silver laminate #A9ADB3 (the player's: a pale grey film over a dark scrim)
     let gr = vec4f(dpdx(sx), dpdy(sx), dpdx(h), dpdy(h));
     let nearS = !ff;   // the front face is the port face (the grid's winding: the normal to port with the boom amidships)
-    var iN = artInk(sx, h, nearS, M.r.w, gr); iN.y *= roseA;
-    var iF: vec2f;
-    iF = artInk(sx, h, !nearS, M.r.w, gr); iF.y *= roseA;   // phones too: the A/B showed no cost above noise
+    var iN = vec2f(0.0); var iF = vec2f(0.0);
+    if (isMain) {
+      iN = artInk(sx, h, nearS, M.r.w, gr); iN.y *= roseA;
+      iF = artInk(sx, h, !nearS, M.r.w, gr); iF.y *= roseA;   // phones too: the A/B showed no cost above noise
+    }
     let inkA = artInkC(vec3f(M.r.y, 0.0, 0.0)); let inkB = artInkC(vec3f(M.r.z, 0.0, 0.0));
     // a laminate's scrim: diagonal threads every 9 cm (darker on grey, a lighter glint on black), gone once under a pixel
     let thr = max(line(sx + h * 0.6, 0.09, 0.006), line(sx - h * 0.6, 0.09, 0.006)) * (1.0 - smoothstep(0.004, 0.012, fw));
+    // a laminate's tri-radial panels: seams fanning from the clew over the lower sail and from the head over the upper (a
+    // 12 mm tape 3 m out), kept to a soft pixel line at the follow camera, gone past 5 cm a pixel
+    var rad = 0.0;
+    if (scr != 0.0) {
+      let aC = atan2(h, max(chordFoot - sx, 0.01)); let aH = atan2(hoist - h, max(sx, 0.01));
+      let wC = smoothstep(0.66, 0.54, h / max(hoist, 1e-3));
+      rad = max(line(aC, 0.105, 0.004) * wC, line(aH, 0.115, 0.004) * (1.0 - wC)) * (1.0 - smoothstep(0.02, 0.05, fw));
+    }
     var a2 = cc * CALB * across * (1.0 - min(layers, 2.0) * 0.06) * (1.0 - pockets * 0.10) * (1.0 - reefPts * 0.45);
     a2 = a2 * (1.0 - thr * max(scr, 0.0) * 0.18) + vec3f(0.05) * thr * max(-scr, 0.0);
+    a2 = a2 * (1.0 - rad * 0.14);
+    a2 = mix(a2, select(UVSTRIP, vec3f(0.035), scr != 0.0), uvStrip);   // the jib's UV strip: the canvas on Dacron, graphite on a laminate
     let lumA = dot(inkA, vec3f(0.2126, 0.7152, 0.0722)); let lumB = dot(inkB, vec3f(0.2126, 0.7152, 0.0722));
     let lumC = dot(cc, vec3f(0.2126, 0.7152, 0.0722));
     a2 = a2 * (1.0 - clamp(ct * 1.6 * (iF.x * max(lumC - lumA, 0.0) + iF.y * max(lumC - lumB, 0.0)) / max(lumC, 0.05), 0.0, 0.6));
@@ -530,8 +547,8 @@ fn clothCol(v: V, ff: bool) -> vec4f {
     col = a2 / PI * (eSun * sh * nl + eSky + navLightAt(v.world, n));   // fix(v2) boat night light: her own lights on the print too
     col += ggxSpec(n, V, s, cr, F0) * eSun * sh;
     col += skyMirror(R) * fres * (1.0 - 0.7 * cr);
-    col += eSun / PI * ct * pow(0.45, layers) * back * cc * fl;
-    col += (1.0 - day) * ct * pow(0.45, layers) * nightLightAt(-ncam) / PI * cc * fl;   // the night light through the printed cloth (thru's, by its cloth)
+    col += eSun / PI * ct * pow(0.45, layers) * (1.0 - uvStrip) * back * cc * fl;
+    col += (1.0 - day) * ct * pow(0.45, layers) * (1.0 - uvStrip) * nightLightAt(-ncam) / PI * cc * fl;   // the night light through the printed cloth (thru's, by its cloth)
   }
   if (M.q.w > 0.5) { let m = M.q.w; if (m < 1.5) { return vec4f(vec3f(nl), 1.0); } if (m < 2.5) { return vec4f(vec3f(back), 1.0); } if (m < 3.5) { return vec4f(eSun * 0.1, 1.0); } if (m < 4.5) { return vec4f(vec3f(layers / 3.0), 1.0); } return vec4f(vec3f(sh), 1.0); }   // ?boatdebug=1..5: nl, back, the sun, the layers, the shadow
   return vec4f(col, -1.0);
@@ -631,7 +648,7 @@ export function createBoat({ device, reg, frameBGL, frameBG, U, frameStruct = wg
   };
   // the meshes (CPU, once)
   const t0 = performance.now();
-  const hull = buildHull(dims, { foils: false }), parts = buildRigParts(dims), foils = buildFoils(dims);
+  const hull = buildHull(dims, { foils: false }), parts = carbonSpars(buildRigParts(dims)), foils = buildFoils(dims);   // the race look: carbon mast, boom and spreaders (v1's shapes, recoloured)
   const solids = [
     { name: 'hull', slot: SLOT.hull, mesh: hull },
     { name: 'keel', slot: SLOT.keel, mesh: foils.keel },
@@ -700,6 +717,7 @@ export function createBoat({ device, reg, frameBGL, frameBG, U, frameStruct = wg
   // each boat's record (0 the player; 1-5 the near rivals' FLEET order, their numbers from setRivalArt): FLEET's numbers by default
   const artR = artOn ? [0, 1, 2, 3, 4, 5].map((i) => packArt(boatArt(i, i ? undefined : 'USA 28'))) : null;
   const R0 = [0, 0, 0, 0];
+  const playerTint = packTint(PLAYER_HULL);   // the race livery: the player's navy topsides
   const bg = device.createBindGroup({ label: 'boat', layout: bgl, entries: [{ binding: 0, resource: { buffer: mbuf, size: STRIDE } }, { binding: 1, resource: shadowView }, { binding: 2, resource: sCmp }, { binding: 3, resource: { buffer: sbuf } }, { binding: 4, resource: artView }, { binding: 5, resource: artSmp }] });
   // the shadow pass binds the same group with a 1 × 1 stand-in depth (a pass may not read its own attachment)
   const dummyDepth = device.createTexture({ label: 'boat-shadow-none', size: [1, 1], format: 'depth32float', usage: GPUTextureUsage.TEXTURE_BINDING });
@@ -839,7 +857,7 @@ export function createBoat({ device, reg, frameBGL, frameBG, U, frameStruct = wg
         const main = rs.name === 'main', d = main ? r.desc.main : r.desc.jib;
         RP[0] = focalPx; RP[1] = t; RP[2] = 1 - Math.min(1, Math.max(0, d.fill)); RP[3] = RP[2];
         RQ[0] = rs.hoist; RQ[1] = main ? RIG.boom : RIG.jibLP; RQ[2] = main ? 1 : 0; RQ[3] = 0;
-        writeSlot(b + (main ? RIVAL_SLOT.main : RIVAL_SLOT.jib), r.Mrig, RP, RQ, main && artR && p.art > 0 ? artR[Math.min(artR.length - 1, p.art)] : R0);
+        writeSlot(b + (main ? RIVAL_SLOT.main : RIVAL_SLOT.jib), r.Mrig, RP, RQ, artR && p.art > 0 ? artR[Math.min(artR.length - 1, p.art)] : R0);   // the jib takes her cloth too (the print is the main's only)
       }
     }
   }
@@ -931,14 +949,15 @@ export function createBoat({ device, reg, frameBGL, frameBG, U, frameStruct = wg
       // the water under her (render/boat/waterline.js): what is under the drawn surface is seen through the water, what is over it
       // in the air (heeled hard, knocked down, rolled: the keel and the rudder lit and wet)
       patchMs = 0; playerOpt.t = t; patchFor(WP, Mroot, kdY, playerOpt);
-      P0[2] = fade; writeSlot(SLOT.hull, Mroot, P0, [kdM, kdY, 1, 0], R0, WP); P0[2] = 0;
+      const hullTint = pose0.hullTint ?? playerTint;   // the race livery: her topsides' colour on the hull and the model slots only
+      P0[2] = fade; P0[3] = hullTint; writeSlot(SLOT.hull, Mroot, P0, [kdM, kdY, 1, 0], R0, WP); P0[2] = 0; P0[3] = 0;
       writeSlot(SLOT.keel, Mroot, P0, [kdM, kdY, 1, 0], R0, WP);
       // the rudder about its stock (Boat.js: rotation.y = -rudderAngle), the wheel 4 x the rudder (clockwise to starboard as the helmsman sees it)
       const ra = pose.rudderAngle ?? 0;
       translate(T.a, 0, 0, HULL.rudderZ); multiply(T.c, Mroot, T.a); rotY(T.b, -ra); multiply(T.d, T.c, T.b); translate(T.a, 0, 0, -HULL.rudderZ); multiply(Mrud, T.d, T.a);
       writeSlot(SLOT.rudder, Mrud, P0, [kdM, kdY, 1, 0], R0, WP);
       if (gm.ready) {
-        P0[2] = fade; writeSlot(SLOT.glb, Mroot, P0, [kdM, kdY, 1, 0], R0, WP);
+        P0[2] = fade; P0[3] = hullTint; writeSlot(SLOT.glb, Mroot, P0, [kdM, kdY, 1, 0], R0, WP); P0[3] = 0;
         translate(T.a, WHEEL_AT[0], WHEEL_AT[1], WHEEL_AT[2]); multiply(T.c, Mroot, T.a); rotZ(T.b, -ra * 4); multiply(Mwheel, T.c, T.b);
         writeSlot(SLOT.wheel, Mwheel, P0, [0, 0, 0, 0]);
         // the traveller car slides with the boom (craft/sloop/rig.js: x0 + travellerCarX, y on the crowned track)
@@ -974,7 +993,7 @@ export function createBoat({ device, reg, frameBGL, frameBG, U, frameStruct = wg
         if (kd?.flog > 0) { luff = Math.max(luff, kd.flog); luffTop = Math.max(luffTop, kd.flog); }   // K2: the sails flogging as the rig meets the water
         const ds = DSAILS[s.name]; ds.g = s.g; ds.luff = luff; ds.luffTop = luffTop;
         ds.shown = s.name === 'main' ? (d.drop ?? 0) < 0.3 : (d.furl ?? 0) < 0.6 && s.hoist > 1;
-        writeSlot(s.slot, Mrig, [focalPx, t, luff, luffTop], [s.hoist, s.name === 'main' ? RIG.boom : RIG.jibLP * (1 - (d.furl ?? 0)), s.name === 'main' ? 1 : 0, debug || 0], s.name === 'main' && artR ? artR[0] : R0);
+        writeSlot(s.slot, Mrig, [focalPx, t, luff, luffTop], [s.hoist, s.name === 'main' ? RIG.boom : RIG.jibLP * (1 - (d.furl ?? 0)), s.name === 'main' ? 1 : 0, debug || 0], artR ? artR[0] : R0);   // both sails in her cloth; the print on the main
       }
       //: the gennaker while it is up (its shape refilled when the physics' hoist, fill, side or chord move)
       const gd = gkDesc(pose);

@@ -147,7 +147,7 @@ ${SKY_READ}
 @group(2) @binding(1) var tArt: texture_2d<f32>;
 @group(2) @binding(2) var sArt: sampler;
 ${SAIL_ART_WGSL}
-const CLOTHS = array<vec3f, 5>(${CLOTH_LIN.map((c) => `vec3f(${c.join(', ')})`).join(', ')});
+const CLOTHS = array<vec3f, 6>(${CLOTH_LIN.map((c) => `vec3f(${c.join(', ')})`).join(', ')});
 struct PV { @builtin(position) pos: vec4f, @location(0) n: vec3f, @location(1) @interpolate(flat) col: vec3f, @location(2) @interpolate(flat) cloth: f32, @location(3) wp: vec3f, @location(4) yl: f32, @location(5) @interpolate(flat) hull: f32, @location(6) sm: vec2f, @location(7) @interpolate(flat) art: vec4f, @location(8) @interpolate(flat) pn: vec3f }
 fn unpackCol(u: u32) -> vec3f { return vec3f(f32(u & 255u), f32((u >> 8u) & 255u), f32((u >> 16u) & 255u)) / 255.0; }
 fn spin(p: vec3f, a: f32, pivotZ: f32) -> vec3f { let q = vec3f(p.x, p.y, p.z - pivotZ); let c = cos(a); let s = sin(a); return vec3f(q.x * c + q.z * s, q.y, -q.x * s + q.z * c + pivotZ); }
@@ -200,13 +200,13 @@ fn spin(p: vec3f, a: f32, pivotZ: f32) -> vec3f { let q = vec3f(p.x, p.y, p.z - 
   let gr = vec4f(dpdx(v.sm.x), dpdy(v.sm.x), dpdx(v.sm.y), dpdy(v.sm.y));
   if (v.art.x > 0.5) {
     let code = u32(v.art.x + 0.5) - 1u;
-    col = CLOTHS[min(code % 16u, 4u)];
+    col = CLOTHS[min(code % 16u, 5u)];
     var ink = artInk(v.sm.x, v.sm.y, dot(v.pn, F.cam.xyz - v.wp) < 0.0, v.art.w, gr);
     ink.y *= f32(code / 16u) * 0.01;
     col = mix(col, artInkC(vec3f(v.art.z, 0.0, 0.0)), ink.y);
     col = mix(col, artInkC(vec3f(v.art.y, 0.0, 0.0)), ink.x);
   }
-  if (v.hull > 0.5) { col = mix(vec3f(0.80, 0.80, 0.78), v.col, smoothstep(0.26, 0.32, v.yl) * (1.0 - smoothstep(0.76, 0.82, v.yl))); }
+  if (v.hull > 0.5) { col = mix(vec3f(0.80, 0.77, 0.70), v.col, smoothstep(0.112, 0.124, v.yl)); }   // the race livery: a cream boot top, the colour from it to the sheer (boat.js topsides)
   let d = dot(n, normalize(F.sun.xyz));
   // R4: the cloth lets the sun through from behind (v1's sails: the panel is bright, not black, on its shade side) and takes the sky on
   // both faces: the lite boats' backlit sails read cream like the near boats', not dark

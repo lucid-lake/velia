@@ -119,6 +119,35 @@ sky's mirror and a GGX lobe; v1's teak "trodden" and stainless noise read the ha
 v1's dropboards and the smoked dome end opaque in v1 (applyHullMaterials swaps cockpitLook's transparent clones back to acrylic),
 and v2 matches that.
 
+### The race look (2026-11-25: render/boat/models.js, render/boatModels.js, render/boat.js, render/boat/mesh.js, render/sailArt.js)
+The owner: "the sail boat itself: make it more appealing and more race boat vibe". The hull, rig and sail numbers are untouched (the
+physics and the GLB geometry are the same); the look is paint, cloth and colour.
+
+**The hull livery** (`boat/models.js hullSkin`, `KIND.livery`; `boatModels.js livery()`): hull.glb's gelcoat is split at build time into
+the deck and the hull's own skin (a triangle whose centroid lies under the sheer line plus 3 cm, side-facing, outward or the transom:
+the trunk sides sit over the sheer, the well walls face inward, the companionway face is forward of the stern), the skin on its own
+material `hull_livery` (a vertex shared with the deck is written twice: the material is flat per triangle) with its depth under the
+Blender build's own sheer line (`hullShape.js sheer`) baked into uv.x, so the stripes follow the sheer exactly. The worker needs
+`HULL.loa, lwl, beam, transomZ` for that (main.js passes them; a partial dims throws: it once made every face "skin" and the sheer NaN).
+The shader paints v1's gelcoat first, then on the skin's side faces: a cream boot top 2.8–11.8 cm over the waterline (the antifouling
+ends at 3 cm), the topsides in the boat's colour from there to the sheer (`M.p.w`, the tint path the rivals already had: the player's
+`PLAYER_HULL` #1E2A4D on her hull and model slots, `pose.hullTint` overrides it; 0 keeps the white gelcoat with its weathering: the
+Regatta fleet stays white, the owner's 2026-11-18 ruling), at a race hull's gloss (rough 0.10, coat 0.78) and without the cruiser's
+yellowing, scum, streaks and scuffs; a gold cove line 30 mm wide 19 cm under the sheer and a cream pinstripe 11 mm at 24.8 cm; every
+edge 6 mm soft. The M3 procedural hull (the first live frame, the mirrors) takes the same tint through `topsides()` from 0.118 up to
+0.90 (it has no sheer datum: its trunk starts over 0.93); the lite boats' band starts at the boot top too. The transom name is gold
+leaf with a navy shadow (the navy vinyl vanished on the navy hull). Anchored and busy-lake boats (`tint`) take the same livery.
+
+**The sails:** the player's cloth is a silver laminate (`sailArt.js CLOTH_KIND.silver`, linear 0.40, 0.425, 0.46; τ 0.10; rough 0.40;
+the grey's dark scrim threads every 9 cm), the number navy, the rose in the compass gold; the jib takes the boat's cloth as well (its
+record carries the same code, no print; every rival's jib matches her main now). Laminates get tri-radial seams: tapes fanning from
+the clew over the lower sail and from the head above (12 mm at 3 m, a soft pixel line at the follow camera, gone past 5 cm a pixel),
+and a graphite UV strip in place of the canvas one. **The spars** are carbon (`mesh.js carbonSpars`: v1's aluminium vertex colour
+→ a clear-coated near-black dielectric, rough 0.30; the fittings, track, steel and boots keep theirs; v2 only, `src/boat/spars.js`
+untouched). **The lines:** the jib sheets and the jib halyard navy, the main halyard brass, the topping lift graphite, the sheets cream
+(`mesh.js ROPE`). Not changed: the hull's lines (no plumb bow: the GLB and the physics share the shape), the deck's cream, the
+dodger and the lazy bag (the owner's cockpit).
+
 ### The instruments (M4: render/boat/instruments.js, render/boatInstruments.js)
 v1's `src/boat/instruments.js` on the world boat: the compass card (a 0.072 m disc at HULL (0, 1.305, 2.45), canvas north
 held on world north: three's `rotation.x = −90°`, `rotation.z = heading`) with the lubber line on its aft edge, and the

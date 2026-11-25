@@ -14,10 +14,33 @@ import { mul4 } from '../../engine/gltf.js';
 import { sceneNodes, meshPrimitives, materialOf } from '../../engine/gltf.js';
 import { oldRingDrop, buildLifeRing } from './lifeRing.js';
 import { hexLinear } from './colour.js';
+import { hullShape } from './hullShape.js';
 
 export const MAT_FLOATS = 16;
-// the material kinds the WGSL knows (render/boatModels.js): v1's procedural materials ported, the rest plain PBR
-export const KIND = Object.freeze({ plain: 0, gelcoat: 1, nonskid: 2, antifouling: 3, stainless: 4, teak: 5, cabin: 6, glass: 7 });
+// the material kinds the WGSL knows (render/boatModels.js): v1's procedural materials ported, the rest plain PBR;
+// livery (the race look): the hull's own skin, boot top to sheer, the gelcoat under the boat's colour, boot and cove stripes
+export const KIND = Object.freeze({ plain: 0, gelcoat: 1, nonskid: 2, antifouling: 3, stainless: 4, teak: 5, cabin: 6, glass: 7, livery: 8 });
+// the race livery (the look round of 2026-11-25): the hull skin is its own material so the topsides can take the boat's colour
+// (the player's navy, a rival's tint) without touching the deck, the trunk or the well; the skin's uv.x carries its depth under
+// the sheer line (the Blender build's own sheer, hullShape.js), so the cove stripe follows the sheer exactly
+export const LIVERY = Object.freeze({ sheerSlack: 0.03, sideNy: 0.62, sternZ: 3.5 });
+// is this triangle (centroid c, unit face normal n, HULL frame) part of the hull's outer skin? Below the sheer (plus the slack), a
+// side face, facing outward (or aft at the transom): the trunk sides sit over the sheer, the well walls face inward, the
+// companionway face is aft-facing but forward of the stern
+export function hullSkin(c, n, sheerAt, L = LIVERY) {
+  if (c[1] > sheerAt(c[2]) + L.sheerSlack) return false;
+  if (Math.abs(n[1]) > L.sideNy) return false;
+  const outward = n[0] * c[0] > -0.02 * Math.abs(c[0]) - 1e-3;
+  const aft = n[2] > 0.5;
+  if (aft) return c[2] > L.sternZ;
+  return outward && !(n[2] < -0.5 && c[2] > 0);   // a forward-facing face aft of amidships (the seats' fronts) is not the skin
+}
+// the sheer height at a HULL-frame z (the script's lines, hullShape.js: its station y runs forward)
+export const sheerFn = (dims) => {
+  const H = dims?.HULL ?? {};
+  for (const k of ['loa', 'lwl', 'beam', 'freeboard']) if (!Number.isFinite(H[k])) throw new Error(`boat models: dims.HULL.${k} missing (the hull shape's sheer line needs loa, lwl, beam, freeboard)`);   // a partial dims made every face "skin" and the sheer NaN
+  const S = hullShape(dims); return (z) => S.sheer(-z);
+};
 export const RANGES = Object.freeze(['cabin', 'portal', 'always', 'detail', 'near', 'far', 'wheel', 'traveller', 'anchor', 'glass']);   // #8: anchor (its own slot: it drops)
 
 // --- v1's material rules ---------------------------------------------------------------------------------------------
@@ -52,6 +75,9 @@ export function v1Material(m, { color = null, node = '', canvas, wheel = false }
   if (node.startsWith('companion_portal')) return set({ name: 'portal', kind: KIND.plain, vcol: false });
   if (node.startsWith('companion_interior')) return set({ kind: KIND.cabin, base: [1, 1, 1, 1], vcol: true, tex: { base: m.tex.base, normal: null, mr: null } });
   if (raw === 'dodger_vinyl') return set({ kind: KIND.glass, base: [0.80, 0.84, 0.84, 1], opacity: 0.10, rough: 0.04, metal: 0, coat: 0.6, coatRough: m.clearcoat[1], vcol: false });
+  // the race livery: the transom name in gold leaf with a navy drop shadow (v1's navy vinyl on gold vanished on a navy hull)
+  if (node === 'name_letters') return set({ base: [0.80, 0.60, 0.22, 1], metal: 0.9, rough: 0.32, vcol: false });
+  if (node === 'name_shadow') return set({ base: [...hexLinear('#1C2340'), 1], metal: 0, rough: 0.3, vcol: false });
   if (SWAPPED.has(name)) {
     const white = WHITE_DATA_ALBEDO[name] != null && whiteData(color);
     const scale = white ? WHITE_DATA_ALBEDO[name] : 1;
@@ -137,7 +163,8 @@ export function buildBoatModels(glbs, { dims, canvas }) {
   const bins = Object.fromEntries(RANGES.map((r) => [r, { P: [], N: [], UV: [], C: [], M: [], I: [], tris: 0 }]));
   const tmp = new Float32Array(16);
   // add a primitive's vertices (transformed by the 4 × 4 `m`) with its material, into a range (or split by a face test)
-  function addPrim(range, prim, m, mid, split = null, drop = null) {
+  // remat (the livery): a face test (centroid, unit normal) → true puts the triangle on remat.mat, its vertices' uv from remat.uv(p)
+  function addPrim(range, prim, m, mid, split = null, drop = null, remat = null) {
     const P = prim.attributes.POSITION, Nn = prim.attributes.NORMAL, T = prim.attributes.TEXCOORD_0, C = prim.attributes.COLOR_0;
     const idx = prim.indices ? prim.indices.array : Uint32Array.from({ length: P.count }, (_, i) => i);
     // the normal matrix: the inverse transpose of the upper 3 × 3 (any node scale; a uniform one only rescales)
@@ -152,12 +179,13 @@ export function buildBoatModels(glbs, { dims, canvas }) {
     const target = (r) => bins[r];
     const map = new Map();   // per target range: source vertex → new index
     const vert = (bin, i, mm) => {
-      const key = `${bin === bins[range] ? range : 'split'}:${i}`;
+      const key = `${bin === bins[range] ? range : 'split'}:${i}:${mm}`;   // a vertex shared by two materials is written twice (the material is flat per triangle)
       if (map.has(key)) return map.get(key);
       const v = bin.P.length / 3;
       xf(bin.P, i);
       if (Nn) { const x = Nn.array[i * 3], y = Nn.array[i * 3 + 1], z = Nn.array[i * 3 + 2]; const nx = A * x + D * y + G * z, ny = B * x + E * y + Hh * z, nz = Cc * x + F * y + K * z, l = Math.hypot(nx, ny, nz) || 1; bin.N.push(nx / l, ny / l, nz / l); } else bin.N.push(0, 1, 0);
-      if (T) bin.UV.push(T.array[i * 2], T.array[i * 2 + 1]); else bin.UV.push(0, 0);
+      if (remat && mm === remat.mat) { const n = bin.P.length; bin.UV.push(...remat.uv(bin.P[n - 3], bin.P[n - 2], bin.P[n - 1])); }
+      else if (T) bin.UV.push(T.array[i * 2], T.array[i * 2 + 1]); else bin.UV.push(0, 0);
       if (C) { for (let q = 0; q < 4; q++) bin.C.push(Math.round(Math.max(0, Math.min(1, q < C.size ? C.array[i * C.size + q] : 1)) * 255)); } else bin.C.push(255, 255, 255, 255);
       bin.M.push(mm);
       map.set(key, v);
@@ -174,6 +202,17 @@ export function buildBoatModels(glbs, { dims, canvas }) {
         const cy = (p[1] + p[4] + p[7]) / 3, cz = (p[2] + p[5] + p[8]) / 3;
         if (split(Math.abs(nx / l), cy, cz)) { bin = bins.glass; mm = split.mat; }
       }
+      if (remat) {
+        const p = []; for (let q = 0; q < 3; q++) xf(p, idx[t + q]);
+        const ux = p[3] - p[0], uy = p[4] - p[1], uz = p[5] - p[2], vx = p[6] - p[0], vy = p[7] - p[1], vz = p[8] - p[2];
+        const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, l = Math.hypot(nx, ny, nz) || 1;
+        const c = [(p[0] + p[3] + p[6]) / 3, (p[1] + p[4] + p[7]) / 3, (p[2] + p[5] + p[8]) / 3];
+        // the face's outward direction: the mean of its vertex normals (the surface's, not a sliver's geometric normal; the winding
+        // alone does not say which side is out); the geometric normal without them
+        let fn = [nx / l, ny / l, nz / l];
+        if (Nn) { let sx = 0, sy = 0, sz = 0; for (let q = 0; q < 3; q++) { const i = idx[t + q]; const x = Nn.array[i * 3], y = Nn.array[i * 3 + 1], z = Nn.array[i * 3 + 2]; sx += A * x + D * y + G * z; sy += B * x + E * y + Hh * z; sz += Cc * x + F * y + K * z; } const sl = Math.hypot(sx, sy, sz); if (sl > 1e-6) fn = [sx / sl, sy / sl, sz / sl]; }
+        if (remat.test(c, fn)) mm = remat.mat;
+      }
       const i0 = vert(bin, idx[t], mm), i1 = vert(bin, idx[t + 1], mm), i2 = vert(bin, idx[t + 2], mm);
       bin.I.push(i0, i1, i2); bin.tris++;
     }
@@ -187,6 +226,10 @@ export function buildBoatModels(glbs, { dims, canvas }) {
     return o;
   };
   let traveller = null;
+  // the race livery: the hull skin's own material (hullSkin), its uv.x the depth under the sheer (the cove stripe's datum)
+  const sheerAt = sheerFn(dims);
+  const liveryMat = () => matId({ name: 'hull_livery', kind: KIND.livery, base: [1, 1, 1, 1], metal: 0, rough: 0.2, coat: 0.55, coatRough: 0.07, vcol: true, scale: 1, opacity: 1, tex: { base: -1, normal: -1, mr: -1 } }, 'hull');
+  const livery = { test: (c, n) => hullSkin(c, n, sheerAt), uv: (x, y, z) => [sheerAt(z) - y, 0], mat: -1 };
   // each file: its socket (Boat.js), then every mesh node by its v1 name (the packed copy's '#q' carrier is its parent's)
   const files = [
     ['hull', offset(0, 0, 0)],                     // socket 'hull' at the heel pivot
@@ -226,7 +269,9 @@ export function buildBoatModels(glbs, { dims, canvas }) {
           split = (anx, cy, cz) => anx > W.nx && cy > W.y[0] && cy < W.y[1] && cz > W.z[0] && cz < W.z[1];
           split.mat = matId({ ...SIDE_MAT, tex: { base: -1, normal: -1, mr: -1 } }, 'cockpit');
         }
-        addPrim(r, prim, m, mid, split, file === 'hardware' ? oldRingDrop(name, H.freeboard) : null);
+        let remat = null;
+        if (file === 'hull' && rec.kind === KIND.gelcoat) { if (livery.mat < 0) livery.mat = liveryMat(); remat = livery; }
+        addPrim(r, prim, m, mid, split, file === 'hardware' ? oldRingDrop(name, H.freeboard) : null, remat);
       }
     }
   }
