@@ -67,7 +67,7 @@ export function createCockpitRig(json, { coverFrames = null } = {}) {
   const proT = { k: -1, on: null };
   let reefWordK = -1, proK = -1, moorSt, tackKey = null, toolKey = {}, sliderF = {}, sliderHv = {}, nightK = -1, expNow = 1, coverE = -1, sinkNow = -1;
   const glow = { chart: 1, wind: 1 };
-  let helmShown = true;
+  let helmShown = true, plain = false;   // plain: the faces dark glass (the dials are 2D modules: ?dials=modules)
   function setNight(k, exp) {
     if (Math.abs(k - nightK) < 1e-3 && Math.abs(exp - expNow) / Math.max(1e-6, exp) < 0.05) return false;
     nightK = k; expNow = exp;
@@ -89,7 +89,7 @@ export function createCockpitRig(json, { coverFrames = null } = {}) {
   }
   function faceLight() {
     const e = 1 / Math.max(1e-6, expNow);
-    for (const side of ['chart', 'wind']) matState[R.inst[side].faceMat].colorScale = (COCKPIT.faceGain[0] * (1 - nightK) + COCKPIT.faceGain[1] * nightK) * glow[side] * e;
+    for (const side of ['chart', 'wind']) matState[R.inst[side].faceMat].colorScale = (COCKPIT.faceGain[0] * (1 - nightK) + COCKPIT.faceGain[1] * nightK) * glow[side] * e * (plain ? 0 : 1);
     dirty.mats = true;
   }
   function set(s, dt = 0) {
@@ -142,6 +142,7 @@ export function createCockpitRig(json, { coverFrames = null } = {}) {
     for (const side of ['jib', 'main']) moved = setVis(R.winch[side].at, s.hideWinch?.[side] !== true) || moved;
     if (R.inst) moved = setVis(R.inst.g, s.inst?.show !== false) || moved;
     let gl = false;
+    if ((s.inst?.plain === true) !== plain) { plain = s.inst?.plain === true; gl = true; }
     for (const side of ['chart', 'wind']) { const v = Math.max(1, s.inst?.glow?.[side] ?? 1); if (Math.abs(v - glow[side]) > 1e-3) { glow[side] = v; gl = true; } }
     if (gl) { faceLight(); moved = true; }
     return moved;

@@ -19,6 +19,7 @@
 // to steer. Only the two lines take the pointer, each through a wide invisible stroke (CAPTAIN.hitPx) laid over its
 // hairline; the rest of the glyph lets clicks through to the water. Hovering or dragging wakes the glyph as a key does.
 import { ensureTokens, TOKENS } from './tokens.js';
+import { pointOfSail, pointLabel, POINTS } from './pointOfSail.js';
 export const KN = 1.943844;   // m/s → kn
 
 export const CAPTAIN = {
@@ -86,6 +87,14 @@ const CSS = `
 .lk-cv.drag .target{opacity:.9}
 .lk-cv.cue-sails .sail{animation:lk-cv-pulse 1.4s ease-in-out infinite}
 @keyframes lk-cv-pulse{0%,100%{opacity:.95}50%{opacity:.5}}
+/* the dial as a module (v2 ?dials=modules): the point of sail under the readings, the faint sector ring (the New level) */
+.lk-cv .rw.pos{font-size:var(--lk-fs-caption);font-weight:var(--lk-medium);letter-spacing:.02em;color:rgb(var(--lk-cream) / .82);margin-top:.15em}
+.lk-cv .rw.pos:empty{display:none}
+.lk-cv.pos .inr{bottom:6%}
+.lk-cv .sect path{fill:none;stroke-width:2.6px;stroke-linecap:butt;vector-effect:none}
+.lk-cv .sect .a{stroke:rgb(var(--lk-cream) / .16)}
+.lk-cv .sect .b{stroke:rgb(var(--lk-cream) / .30)}
+.lk-cv .sect .on{stroke:rgb(var(--lk-cream) / .62)}
 `;
 
 const DEG = Math.PI / 180;
@@ -143,18 +152,23 @@ function sailShape(from, L, a, { fill = 1, stall = 0, t = 0 }) {
 }
 
 // always: the wind circle is always visible, like the chart (owner, 2026-10-30): pinned from the start, V never hides it
-export function createCaptainView({ root = document.body, state = () => null, once = true, storage = globalThis.localStorage, always = false } = {}) {
+// wedge: 'true' (v1: the no-go wedge about the true wind, CAPTAIN.wedgeDeg) | 'apparent' (centred on the apparent wind arrow, its
+// half-angle luffDeg(state): the closest apparent wind the sails draw at); pos: the point of sail's word under the readings (from
+// the true wind, pointOfSail.js); sectors(): the faint ring of the points of sail round the dial (a New player's)
+export function createCaptainView({ root = document.body, state = () => null, once = true, storage = globalThis.localStorage, always = false,
+  wedge: wedgeMode = 'true', luffDeg = () => CAPTAIN.wedgeDeg, pos: posOn = false, sectors = () => false } = {}) {
   ensureTokens();
   if (!document.getElementById('lk-cv-css')) {
     const st = document.createElement('style'); st.id = 'lk-cv-css'; st.textContent = CSS; document.head.appendChild(st);
   }
-  const el = document.createElement('div'); el.className = 'lk-cv lk-rd';
+  const el = document.createElement('div'); el.className = `lk-cv lk-rd${posOn ? ' pos' : ''}`;
   const pt = (deg, R) => `${f1(50 + Math.sin(deg * DEG) * R)} ${f1(50 - Math.cos(deg * DEG) * R)}`;
   const ticks = Array.from({ length: 36 }, (_, i) => i).filter((i) => i).map((i) => { const d = i * 10, r1 = i % 3 ? 45.6 : 43.4; return `M${pt(d, 48.4)} L${pt(d, r1)}`; }).join(' ');
   const PLAN = '<g class="plan">';
   el.innerHTML = `<div class="dial glass"><svg viewBox="0 0 100 100" aria-hidden="true">
     <circle class="ring" cx="50" cy="50" r="48.4"/>
     <path class="tick" d="${ticks}"/>
+    <g class="sect"></g>
     <path class="bow" d="M50 5 L46.8 11.5 L53.2 11.5 Z"/>
     <path class="wedge" d=""/>
     <path class="nedge p" d=""/>
@@ -180,7 +194,7 @@ export function createCaptainView({ root = document.body, state = () => null, on
     <path class="hit hsail" data-k="jib" d=""/>
     <path class="hit hrud" d=""/>
     </g>
-  </svg><div class="inr"><div class="rw"><i>AWA</i><b><span class="awa">0</span>°<em class="side"></em></b></div><div class="rw s"><i>AWS</i><b><span class="aws">0.0</span><small>kn</small></b></div></div></div>`;
+  </svg><div class="inr"><div class="rw"><i>AWA</i><b><span class="awa">0</span>°<em class="side"></em></b></div><div class="rw s"><i>AWS</i><b><span class="aws">0.0</span><small>kn</small></b></div>${posOn ? '<div class="rw pos"></div>' : ''}</div></div>`;
   root.appendChild(el);
   const planGs = [...el.querySelectorAll('.plan')];
   const applyPlan = () => {
@@ -195,7 +209,8 @@ export function createCaptainView({ root = document.body, state = () => null, on
   // every moving line has a dark under-stroke, a hair wider (the chart-plotter way of keeping a line on any ground)
   for (const ln of [rud, wind, head, boom]) { const u = document.createElementNS('http://www.w3.org/2000/svg', 'path'); u.setAttribute('class', 'ul'); ln.parentNode.insertBefore(u, ln); ln._u = u; }
   const D = (ln, d) => { ln.setAttribute('d', d); ln._u?.setAttribute('d', d); };
-  const awaEl = q('.awa'), awsEl = q('.aws'), sideEl = q('.side');
+  const awaEl = q('.awa'), awsEl = q('.aws'), sideEl = q('.side'), posEl = q('.rw.pos'), sectG = q('.sect');
+  let posId = null, sectKey = '';
   let trend = null;   // pro: the pod's lift / header trend ({ kind, level }), drawn as a small chevron by the arrow's tail
   const svg = q('svg'), targetEl = q('.target'), hitMain = q('.hit[data-k=main]'), hitJib = q('.hit[data-k=jib]'), hitRud = q('.hit.hrud');
   // ---- the pointer: drag the sail line, drag the rudder (touch too: pointer events, touch-action none) ----
@@ -276,13 +291,35 @@ export function createCaptainView({ root = document.body, state = () => null, on
     } else trendEl.style.opacity = 0;
     // the no-go zone: a shaded wedge about the true wind, always there (it is the lesson), brighter as the bow comes inside it; its edges
     // are the port (red) and starboard (green) close-hauled lines
-    const at = Math.abs(twa), w = CAPTAIN.wedgeDeg * DEG;
-    const c0 = twa - w, c1 = twa + w, hot = at < w || nogoAsk || cue === 'wedge';
+    const apparent = wedgeMode === 'apparent', mid = apparent ? awa : twa, at = Math.abs(mid), w = (apparent ? luffDeg(s) : CAPTAIN.wedgeDeg) * DEG;
+    const c0 = mid - w, c1 = mid + w, hot = at < w || nogoAsk || cue === 'wedge';
     const wp = (c) => leave(Math.sin(c), -Math.cos(c)).map(f1).join(' ');
     wedge.setAttribute('d', `M${f1(bx)} ${f1(by)} L${wp(c0)} A48 48 0 0 1 ${wp(c1)} Z`);
     nedgeP.setAttribute('d', `M${f1(bx)} ${f1(by)} L${wp(c0)}`); nedgeS.setAttribute('d', `M${f1(bx)} ${f1(by)} L${wp(c1)}`);
     wedge.style.opacity = hot ? 0.3 : 0.12;
     nedgeP.style.opacity = nedgeS.style.opacity = hot ? 1 : 0.95;
+    // the point of sail (from the true wind, with its hysteresis) and the sector ring about the true wind
+    if (posEl) { posId = pointOfSail(twa / DEG, posId); const L = pointLabel(posId); if (posEl.textContent !== L) posEl.textContent = L; }
+    drawSectors(sectors() ? twa : null);
+  }
+  // the ring: each point of sail an arc on both sides of the true wind (bow up), alternately faint and fainter, the boat's own brighter;
+  // the bow's mark at the top falls in the sector she sails
+  function drawSectors(twa) {
+    const key = twa == null ? '' : `${Math.round(twa / DEG)},${posId}`;
+    if (key === sectKey) return;
+    sectKey = key;
+    if (twa == null) { sectG.innerHTML = ''; return; }
+    const R = 40.2, P = (deg) => `${f1(50 + Math.sin(deg * DEG) * R)} ${f1(50 - Math.cos(deg * DEG) * R)}`;
+    const arc = (a0, a1) => `M${P(a0)} A${R} ${R} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${P(a1)}`;
+    const t = twa / DEG, gap = 1.2;
+    let out = '';
+    POINTS.forEach((p, i) => {
+      const cls = p.id === posId ? 'on' : i % 2 ? 'b' : 'a';
+      if (p.from === 0) out += `<path class="${cls}" d="${arc(t - p.to + gap / 2, t + p.to - gap / 2)}"/>`;
+      else if (p.to === 180) out += `<path class="${cls}" d="${arc(t + p.from + gap / 2, t + 360 - p.from - gap / 2)}"/>`;
+      else out += `<path class="${cls}" d="${arc(t + p.from + gap / 2, t + p.to - gap / 2)}"/><path class="${cls}" d="${arc(t - p.to + gap / 2, t - p.from - gap / 2)}"/>`;
+    });
+    sectG.innerHTML = out;
   }
 
   // the hit strokes: straight chords over the lines (a sail's belly or flutter stays inside the wide stroke); kept
