@@ -39,8 +39,8 @@
 
 <table>
 <tr>
-<td width="50%"><a href="docs/album/03-tessie-rising.jpg"><img src="docs/album/thumbs/03-tessie-rising.jpg" alt="Tessie rises out of the bay in Velia, water streaming off her neck, a sailboat ahead"></a></td>
-<td width="50%"><a href="docs/album/04-tessie-deep.jpg"><img src="docs/album/thumbs/04-tessie-deep.jpg" alt="Tessie swims under the surface in Velia, sun shafts in the blue water"></a></td>
+<td width="50%"><a href="docs/album/02-tessie-rising.jpg"><img src="docs/album/thumbs/02-tessie-rising.jpg" alt="Tessie rises out of the bay in Velia, water streaming off her neck, a sailboat ahead"></a></td>
+<td width="50%"><a href="docs/album/03-tessie-deep.jpg"><img src="docs/album/thumbs/03-tessie-deep.jpg" alt="Tessie swims under the surface in Velia, sun shafts in the blue water"></a></td>
 </tr>
 </table>
 
@@ -55,28 +55,24 @@ Lake Tahoe has a monster story. In Velia you can play it. Tessie is a creature m
 
 ## Album
 
-Every picture is a frame from the game, captured with the HUD off. Nothing is painted over. Tap a picture for the full size.
+Every picture is a frame from the game, captured with the HUD off. Nothing is painted over. Tap a picture for the full size. Tessie's two are above.
 
 <table>
 <tr>
-<td width="50%"><a href="docs/album/01-glass-kayak.jpg"><img src="docs/album/thumbs/01-glass-kayak.jpg" alt="A clear kayak with two paddlers seen from above over the blue water of Emerald Bay"></a><br><sub>A clear kayak from the glass-bottom tour, seen from above.</sub></td>
-<td width="50%"><a href="docs/album/02-glass-boat-night.jpg"><img src="docs/album/thumbs/02-glass-boat-night.jpg" alt="The glass-bottom tour boat Velia Travel at night with its kayaks glowing on the dark water"></a><br><sub>The tour boat at night. Its kayaks glow on the dark water.</sub></td>
+<td width="50%"><a href="docs/album/01-rainbow.jpg"><img src="docs/album/thumbs/01-rainbow.jpg" alt="A rainbow over Lake Tahoe after a storm, a sailboat heeled in the rough water"></a><br><sub>After the storm, a rainbow over the open lake.</sub></td>
+<td width="50%"><a href="docs/album/04-cockpit.jpg"><img src="docs/album/thumbs/04-cockpit.jpg" alt="The helm view from the cockpit of a sloop: the wheel, the dodger, the winches and Emerald Bay ahead"></a><br><sub>At the helm: the cockpit, the wheel, the bay ahead.</sub></td>
 </tr>
 <tr>
 <td><a href="docs/album/05-fireworks.jpg"><img src="docs/album/thumbs/05-fireworks.jpg" alt="July 4th fireworks over the lake with a sailboat in the foreground"></a><br><sub>July 4th: the fireworks off the mouth of Emerald Bay.</sub></td>
-<td><a href="docs/album/06-rainbow.jpg"><img src="docs/album/thumbs/06-rainbow.jpg" alt="A rainbow over Lake Tahoe after a storm, a sailboat heeled in the rough water"></a><br><sub>After the storm, a rainbow over the open lake.</sub></td>
+<td><a href="docs/album/06-milky-way.jpg"><img src="docs/album/thumbs/06-milky-way.jpg" alt="The Milky Way over the dark ridges of Emerald Bay at night"></a><br><sub>The Milky Way over the ridge, from the deck at 22:30.</sub></td>
 </tr>
 <tr>
-<td><a href="docs/album/07-milky-way.jpg"><img src="docs/album/thumbs/07-milky-way.jpg" alt="The Milky Way over the dark ridges of Emerald Bay at night"></a><br><sub>The Milky Way over the ridge, from the deck at 22:30.</sub></td>
-<td><a href="docs/album/08-heeled.jpg"><img src="docs/album/thumbs/08-heeled.jpg" alt="A white sloop heeled in a fresh breeze on deep blue water"></a><br><sub>A fresh afternoon breeze. The boat sails by its polars.</sub></td>
+<td><a href="docs/album/07-heeled.jpg"><img src="docs/album/thumbs/07-heeled.jpg" alt="A white sloop heeled in a fresh breeze on deep blue water"></a><br><sub>A fresh afternoon breeze. The boat sails by its polars.</sub></td>
+<td><a href="docs/album/08-regatta.jpg"><img src="docs/album/thumbs/08-regatta.jpg" alt="Three racing sloops near the start line of a Regatta race"></a><br><sub>Regatta: three boats at the start line.</sub></td>
 </tr>
 <tr>
-<td><a href="docs/album/09-regatta.jpg"><img src="docs/album/thumbs/09-regatta.jpg" alt="Three racing sloops near the start line of a Regatta race"></a><br><sub>Regatta: three boats at the start line.</sub></td>
-<td><a href="docs/album/10-ski-run.jpg"><img src="docs/album/thumbs/10-ski-run.jpg" alt="A sailboat off South Lake Tahoe with the ski runs of the mountain behind"></a><br><sub>Off Ski Run, South Lake Tahoe, under the ski slopes.</sub></td>
-</tr>
-<tr>
-<td><a href="docs/album/11-storm.jpg"><img src="docs/album/thumbs/11-storm.jpg" alt="A sailboat in a grey storm with rain on the lens"></a><br><sub>A storm rolls in. Rain hits the lens.</sub></td>
-<td><a href="docs/album/04-tessie-deep.jpg"><img src="docs/album/thumbs/04-tessie-deep.jpg" alt="Tessie swimming under the surface in Velia"></a><br><sub>Tessie under the surface, where she is fastest.</sub></td>
+<td><a href="docs/album/09-ski-run.jpg"><img src="docs/album/thumbs/09-ski-run.jpg" alt="A sailboat off South Lake Tahoe with the ski runs of the mountain behind"></a><br><sub>Off Ski Run, South Lake Tahoe, under the ski slopes.</sub></td>
+<td><a href="docs/album/10-storm.jpg"><img src="docs/album/thumbs/10-storm.jpg" alt="A sailboat in a grey storm with rain on the lens"></a><br><sub>A storm rolls in. Rain hits the lens.</sub></td>
 </tr>
 </table>
 
