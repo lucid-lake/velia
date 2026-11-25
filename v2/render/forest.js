@@ -779,7 +779,7 @@ export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wg
   const planes = new Float64Array(20);
 
   // --- the data stream: a worker decodes; the frame uploads ≤ 1 MB slices ---
-  const stats = { bytes: 0, files: 0, decodeMs: 0, trees: 0, shrubs: 0, regionRuns: 0, places: 0, baked: 0, mipsDone: false, ready: false, uploads: 0, tiles: 0, tested: 0, visible: 0, total: 0, guard: 0, overflow: 0, log: [] };
+  const stats = { region: [region.x0, region.z0, region.tw * region.tile, region.th * region.tile], bytes: 0, files: 0, decodeMs: 0, trees: 0, shrubs: 0, regionRuns: 0, places: 0, baked: 0, mipsDone: false, ready: false, uploads: 0, tiles: 0, tested: 0, visible: 0, total: 0, guard: 0, overflow: 0, log: [] };
   const queue = [];   // { data: Uint32Array, dst (byte offset), off (bytes done) }
   let worker = null, nextId = 1;
   const pending = new Map();
