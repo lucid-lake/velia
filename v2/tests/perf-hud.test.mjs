@@ -3,7 +3,7 @@
 // per state, Setup's stored choice, the update rate and the per-frame cost. The live page: v2/tests/pages/perfHud.page.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PERF_HUD, createFrameMeter, perfLines, perfHudAllowed, adapterName, perfHudSettings, createPerfHud, mountPerfRow } from '../ui/perfHud.js';
+import { PERF_HUD, PERF_LEVELS, MARK, createFrameMeter, perfLines, perfLevels, createLevelHold, createPipeWatch, perfHudAllowed, adapterName, perfHudSettings, createPerfHud, mountPerfRow } from '../ui/perfHud.js';
 import { cockpitUp } from '../ui/cockpitUp.js';
 import { POLICIES } from '../../src/core/features.js';
 import { V2_ROWS, parseV2Flags } from '../engine/flags.js';
@@ -43,18 +43,60 @@ test('the meter: FPS over about the last second, the mean interval, the worst fr
   M.feed(t + 9000, 9000); assert.ok(M.read(t + 9000).worst < 50, 'a hidden tab\'s gap is not a frame');
 });
 
-test('the lines: six short ones; amber under 30 fps only; GPU time only when the diag timer gives one', () => {
-  const n = { fps: 59.6, ms: 16.8, worst: 24.12, level: 1, scale: 0.85, draws: 312, tris: 4.42e6, pipes: 86, mb: 412.4, adapter: 'Apple metal-3', gpuMs: null };
+test('the lines: six short ones, cream at today\'s normal; a ▲ before an amber or coral value; GPU time only with the diag timer', () => {
+  const n = { fps: 59.6, ms: 16.8, worst: 24.12, level: 0, scale: 1, draws: 238, tris: 1.8e6, pipes: 233, mb: 718.4, adapter: 'Apple metal-3', gpuMs: null };
   const L = perfLines(n);
   assert.deepEqual(L.map((l) => l[0]), ['FPS', 'Worst', 'Quality', 'Draws', 'Memory', 'GPU']);
-  assert.deepEqual(L.map((l) => l[1]), ['60 fps · 16.8 ms', '24.1 ms', 'L1 · 0.85×', '312 · 4.4M tri · 86 pl', '412 MB', 'Apple metal-3']);
-  assert.ok(L.every((l) => !l[2]), 'no amber at 60 fps');
-  assert.equal(perfLines({ ...n, fps: 29.4 })[0][2], true, 'amber under 30');
-  assert.equal(perfLines({ ...n, fps: 30 })[0][2], false, '30 is not under');
-  assert.equal(perfLines({ ...n, fps: 0 })[0][2], false, 'no amber before the first second');
+  assert.deepEqual(L.map((l) => l[1]), ['60 fps · 16.8 ms', '24.1 ms', 'L0 · 1.00×', '238 · 1.8M tri · 233 pl', '718 MB', 'Apple metal-3']);
+  assert.deepEqual(L.map((l) => l[2]), [0, 0, 0, 0, 0, 0], 'today\'s typical numbers read all cream');
+  const A = perfLines({ ...n, fps: 42 });
+  assert.equal(A[0][2], 1); assert.equal(A[0][1], `${MARK}42 fps · 16.8 ms`, 'the ▲ marks it (colour-blind safe)');
+  assert.ok(A.slice(1).every((l) => !l[1].startsWith(MARK)), 'only the line that warns');
   const D = perfLines({ ...n, gpuMs: 2.56 });
-  assert.deepEqual(D.at(-1), ['GPU time', '2.6 ms', false]);
-  assert.equal(PERF_HUD.amberFps, 30);
+  assert.deepEqual(D.at(-1), ['GPU time', '2.6 ms', 0]);
+  assert.equal(perfLines(n, [2, 0, 0, 0, 0, 0])[0][2], 2, 'the shown levels (after the hold) win over the raw ones');
+});
+
+test('the colour table: cream, amber, coral per threshold', () => {
+  const base = { fps: 60, worst: 20, level: 0, scale: 1, draws: 240, tris: 1.5e6, mb: 720, pinned: false, pipeLate: false, gpuMs: null };
+  const lv = (o) => perfLevels({ ...base, ...o });
+  // FPS: >= 50 cream, 30-50 amber, < 30 coral; no data yet: cream
+  assert.equal(lv({ fps: 50 })[0], 0); assert.equal(lv({ fps: 49.9 })[0], 1); assert.equal(lv({ fps: 30 })[0], 1); assert.equal(lv({ fps: 29.9 })[0], 2); assert.equal(lv({ fps: 0 })[0], 0);
+  // the worst frame: <= 50 cream, 50-100 amber, > 100 coral
+  assert.equal(lv({ worst: 50 })[1], 0); assert.equal(lv({ worst: 50.1 })[1], 1); assert.equal(lv({ worst: 100 })[1], 1); assert.equal(lv({ worst: 100.1 })[1], 2);
+  // quality: L0 at 1.0 cream; the governor's lower level or scale amber; L3 or scale < 0.7 coral; a level the player holds is not the governor's
+  assert.equal(lv({})[2], 0); assert.equal(lv({ scale: 0.92 })[2], 1); assert.equal(lv({ level: 1 })[2], 1); assert.equal(lv({ level: 1, pinned: true })[2], 0);
+  assert.equal(lv({ level: 3, pinned: true })[2], 2); assert.equal(lv({ scale: 0.69 })[2], 2); assert.equal(lv({ level: 2, scale: 0.7 })[2], 1);
+  // draws, triangles, a late pipeline
+  assert.equal(lv({ draws: 400 })[3], 0); assert.equal(lv({ draws: 401 })[3], 1); assert.equal(lv({ draws: 701 })[3], 2);
+  assert.equal(lv({ tris: 6.1e6 })[3], 1); assert.equal(lv({ tris: 10.1e6 })[3], 2); assert.equal(lv({ pipeLate: true })[3], 1); assert.equal(lv({ pipeLate: true, draws: 800 })[3], 2);
+  // GPU memory: > 1.5 GB amber, > 2.5 GB coral
+  assert.equal(lv({ mb: 1536 })[4], 0); assert.equal(lv({ mb: 1600 })[4], 1); assert.equal(lv({ mb: 2600 })[4], 2);
+  // GPU time (diag): > 16.7 amber, > 33 coral; no line without it
+  assert.equal(lv({}).length, 6); assert.equal(lv({ gpuMs: 16 })[6], 0); assert.equal(lv({ gpuMs: 17 })[6], 1); assert.equal(lv({ gpuMs: 34 })[6], 2);
+  assert.equal(PERF_LEVELS.fps.amber, 50); assert.equal(PERF_LEVELS.mb.coral, 2560);
+});
+
+test('the hysteresis: a colour changes only after its new level held 1 s; a value flickering at a threshold keeps its colour', () => {
+  const H = createLevelHold(1, 1000);
+  assert.equal(H.step(0, [0])[0], 0);
+  // flicker across a threshold every 300 ms for 5 s: stays cream
+  for (let t = 300, k = 1; t <= 5000; t += 300, k ^= 1) assert.equal(H.step(t, [k])[0], 0, `t ${t}`);
+  // held amber: amber after 1 s, not before
+  assert.equal(H.step(6000, [1])[0], 0); assert.equal(H.step(6900, [1])[0], 0); assert.equal(H.step(7000, [1])[0], 1);
+  // amber to coral: the same hold
+  assert.equal(H.step(7300, [2])[0], 1); assert.equal(H.step(8300, [2])[0], 2);
+  // back to cream after a held second
+  assert.equal(H.step(8600, [0])[0], 2); assert.equal(H.step(9600, [0])[0], 0);
+});
+
+test('a pipeline built after the load settles: amber for 5 s; the load\'s own builds never warn', () => {
+  const W = createPipeWatch({ settleMs: 10000, warnMs: 5000 });
+  let t = 0;
+  for (const n of [87, 122, 158, 233]) { assert.equal(W.feed(t, n), false, `loading ${n}`); t += 2000; }
+  for (; t < 20000; t += 500) assert.equal(W.feed(t, 233), false);
+  assert.equal(W.settled, true);
+  assert.equal(W.feed(t, 234), true, 'a new one in play'); assert.equal(W.feed(t + 4900, 234), true); assert.equal(W.feed(t + 5100, 234), false, 'gone after 5 s');
 });
 
 test('the adapter, short: the description, else vendor and architecture', () => {

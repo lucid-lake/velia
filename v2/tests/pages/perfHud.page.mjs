@@ -6,6 +6,7 @@
 //     come back; the helm view keeps the panel and the column (the legend's own rule takes it there)
 //   - off by default on a fresh profile; Setup › Screen › performance stats on shows it; the panel's × hides it, the row reads off, and
 //     that survives a reload; ?perfhud=1 shows it whatever Setup holds
+//   - the colours: normal play at 13:00 reads all cream; a lowered render scale reads amber with its ▲
 //   - an automated browser, a capture (?headless=1) and a tablet: no panel
 // Run by `npm run test:pages:v2` (LAKESHORE_BASE set), or node v2/tests/pages/perfHud.page.mjs --base http://127.0.0.1:<port>
 import { chromium } from 'playwright-core';
@@ -66,6 +67,7 @@ try {
     v = await vis(page);
     check(v.perf && v.nav && v.keys && v.up, `Sail, the cockpit up, Pro on: the panel, the nav column and the key legend show (${JSON.stringify(v)})`);
     const st = await page.evaluate(() => window.__velia.perfHud.state);
+    st.lines = st.lines?.map(([k, v, l]) => [k, v.replace(/^▲ /, ''), l]);   // the load's own hitch may mark a line amber: read the values
     check(st.lines?.length === 6 && st.lines.map((l) => l[0]).join() === 'FPS,Worst,Quality,Draws,Memory,GPU', `six lines: ${JSON.stringify(st.lines)}`);
     check(/^\d+ fps · \d+\.\d ms$/.test(st.lines[0][1]) && /^L\d · \d\.\d\d×$/.test(st.lines[2][1]) && /^\d+ · .+ tri · \d+ pl$/.test(st.lines[3][1]) && /^\d+ MB$/.test(st.lines[4][1]) && st.lines[5][1].length > 2,
       'the readings: fps and ms, the level and scale, draws · triangles · pipelines, MB, the adapter');
@@ -140,6 +142,22 @@ try {
     await ready(page); await page.waitForTimeout(2500);
     await layout(page, '1920x1080');
     check(errors.length === 0, `1920x1080: no page errors (${errors.slice(0, 2).join(' | ') || 'none'})`);
+    await ctx.close();
+  }
+  // ---------------- the colours: normal play at 13:00 reads all cream; the governor's lower scale reads amber with its ▲ ----------------
+  {
+    const { ctx, page, errors } = await open('mode=sail&hour=13&seed=1&noload=1&hud=full&cinema=0&once=0&fv=1&hm=0&chatter=0&perfhud=1');
+    await ready(page);
+    const cells = () => page.evaluate(() => [...document.querySelectorAll('.lk-perf .v')].map((v) => ({ t: v.textContent, lv: v.dataset.level ?? '', c: getComputedStyle(v).color })));
+    const cream = await page.waitForFunction(() => { const v = [...document.querySelectorAll('.lk-perf .v')]; return v.length === 6 && v.every((e) => !e.dataset.level && !e.textContent.startsWith('▲')); }, null, { timeout: 45000, polling: 500 }).then(() => true, () => false);
+    const c0 = await cells();
+    check(cream, `Sail at 13:00, loaded: every line cream, no ▲ (${c0.map((c) => `${c.t}${c.lv ? ` [${c.lv}]` : ''}`).join(' | ')})`);
+    check(errors.length === 0, `13:00: no page errors (${errors.slice(0, 2).join(' | ') || 'none'})`);
+    await page.goto(`${BASE}/?mode=sail&hour=13&seed=1&noload=1&hud=full&cinema=0&once=0&fv=1&hm=0&chatter=0&perfhud=1&scale=0.85&gov=0`, { waitUntil: 'load' });
+    await ready(page);
+    const amber = await page.waitForFunction(() => { const v = document.querySelectorAll('.lk-perf .v')[2]; return v?.dataset.level === 'amber'; }, null, { timeout: 20000, polling: 250 }).then(() => true, () => false);
+    const c1 = await cells();
+    check(amber && c1[2].t === '▲ L0 · 0.85×' && c1[2].c === 'rgb(247, 192, 96)' && c1[4].lv === '' && !c1[4].t.startsWith('▲'), `?scale=0.85: Quality amber with its ▲ (${c1[2].t}, ${c1[2].c}); Memory stays cream (${c1[4].t})`);
     await ctx.close();
   }
   // ---------------- off: an automated browser, a capture, a tablet ----------------

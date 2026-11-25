@@ -2,13 +2,16 @@
 // Regatta, so the player notices a slow frame as it happens. Calm, not shouting: the top bar's glass, cream ink, tabular numbers,
 // six short lines. It follows ui/cockpitUp.js: hidden when the cockpit is folded (the tab, H), in Clear and Instruments, in Cruise,
 // as Tessie, under a menu or a page; the helm view keeps it. Never on a tablet or a phone (src/core/features.js perfHud).
-//   FPS      60 fps · 16.7 ms        the frames over the last second, and their mean interval; amber under 30 fps (the governor's line)
+//   FPS      60 fps · 16.7 ms        the frames over the last second, and their mean interval
 //   Worst    24.1 ms                 the longest frame interval of the last 5 s
 //   Quality  L1 · 0.85×              the ladder's level and the governor's render scale (engine/quality.js, engine/governor.js)
 //   Draws    312 · 4.4M tri · 86 pl  the last frame's draw calls and triangles (engine/frame.js counters), the pipelines built
 //   Memory   412 MB                  the GPU memory v2 asked for (engine/device.js tallyMemory: an estimate, the swap chain aside)
 //   GPU      Apple metal-3           the adapter (its description, else vendor and architecture), short
 //   GPU time 2.6 ms                  only with ?diag (the GPU timer stays a diag and bench tool: v2/notes/perf.md)
+// Colour (2026-11-25): each line is cream (normal), amber (watch) or a soft coral (a problem), by PERF_LEVELS below; an amber or
+// coral value carries a small ▲ before it (colour-blind safe). A colour changes only once the new level has held for 1 s (no
+// flicker at a threshold); never flashing.
 // Cost: the frame feeds a fixed ring of 250 ms buckets (no allocation); the text is rebuilt 3 times a second, and only while shown.
 // Setup › Screen › performance stats: off by default (2026-11-25); its own stored key (the v1 store is shared with /classic/). ?perfhud=1 shows it
 // for one load whatever the stored value (captures, stills), ?perfhud=0 never. Off in a capture, a ?filmui film, a ?shot and an
@@ -21,7 +24,7 @@ export const PERF_HUD = Object.freeze({
   bucketMs: 250,    // the ring's bucket
   buckets: 20,      // 20 × 250 ms: the worst frame's 5 s
   fpsBuckets: 4,    // the last 4 closed buckets: about 1 s for the FPS
-  amberFps: 30,     // under this the FPS line goes amber (the governor's slow line; never red, never flashing)
+  holdMs: 1000,     // a line's colour changes only once its new level has held this long (hysteresis)
   top: 14,          // px: the top bar's own top (its island stands at 14 px at 1280 x 720)
   widthEm: 16.8,    // the plate's fixed width (it never breathes as the digits change), the × gutter aside
   closePx: 24,      // the ×'s hit area (a desktop pointer: 24 px or more); its gutter right of the numbers
@@ -69,18 +72,74 @@ export function adapterName(info = {}, max = PERF_HUD.adapterMax) {
   const s = d || [cap(String(info.vendor ?? '').trim()), String(info.architecture ?? '').trim()].filter(Boolean).join(' ') || 'GPU name hidden';
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
+// The colour table (desktop): level 0 cream (normal), 1 amber (watch), 2 soft coral (a problem). Typical today on the M5 Pro Mac, Sail
+// at 13:00, 1280 x 720 and 1920 x 1080 and Regatta: 52-60 fps (a busy machine's dips aside), the worst frame 18-35 ms once loaded,
+// L0 at 1.00×, 194-248 draws, 1.1-2.0 M triangles, 233 pipelines (settled about 10 s after the first frame), 706-783 MB: all cream.
+export const PERF_LEVELS = Object.freeze({
+  fps: { amber: 50, coral: 30 },             // fps under amber: amber; under coral: coral (the frame time follows its colour)
+  worstMs: { amber: 50, coral: 100 },        // the worst frame of 5 s over amber: amber; over coral: coral (a stutter)
+  scale: { coral: 0.7 },                     // quality: amber once the governor lowers the level or the scale; coral at L3 or under 0.7×
+  draws: { amber: 400, coral: 700 },
+  tris: { amber: 6e6, coral: 10e6 },
+  pipeSettleMs: 10000, pipeWarnMs: 5000,     // a pipeline built after the count held 10 s (the load's done): amber for 5 s (a stall)
+  mb: { amber: 1536, coral: 2560 },          // GPU memory, MB (1.5 GB, 2.5 GB)
+  gpuMs: { amber: 1000 / 60, coral: 33 },    // GPU time (?diag only)
+});
+const over = (v, t) => (v > t.coral ? 2 : v > t.amber ? 1 : 0);
+// the raw level of each line (pure): n as perfLines' plus pinned (the player or the URL holds the level: not the governor's) and
+// pipeLate (a pipeline built after the load settled, within the last 5 s)
+export function perfLevels(n, T = PERF_LEVELS) {
+  const fps = !(n.fps > 0) ? 0 : n.fps < T.fps.coral ? 2 : n.fps < T.fps.amber ? 1 : 0;
+  const q = n.level >= 3 || n.scale < T.scale.coral ? 2 : n.scale < 0.995 || (!n.pinned && n.level > 0) ? 1 : 0;
+  const d = Math.max(over(n.draws, T.draws), over(n.tris, T.tris), n.pipeLate ? 1 : 0);
+  const out = [fps, over(n.worst, T.worstMs), q, d, over(n.mb, T.mb), 0];
+  if (Number.isFinite(n.gpuMs)) out.push(over(n.gpuMs, T.gpuMs));
+  return out;
+}
+// the colour's hysteresis: a line shows a new level only after the raw level has held it holdMs (pure state, no allocation)
+export function createLevelHold(rows, holdMs = PERF_HUD.holdMs) {
+  const shown = new Int8Array(rows).fill(-1), pend = new Int8Array(rows), since = new Float64Array(rows);
+  return {
+    step(now, raw) {
+      for (let r = 0; r < rows; r++) {
+        const v = raw[r] ?? 0;
+        if (shown[r] < 0) { shown[r] = v; pend[r] = v; continue; }   // the first paint: as it is
+        if (v === shown[r]) { pend[r] = v; continue; }
+        if (v !== pend[r]) { pend[r] = v; since[r] = now; }
+        if (now - since[r] >= holdMs) shown[r] = v;
+      }
+      return shown;
+    },
+  };
+}
+// a pipeline built after the load: the count held settleMs, then grew; amber for warnMs after each new one
+export function createPipeWatch({ settleMs = PERF_LEVELS.pipeSettleMs, warnMs = PERF_LEVELS.pipeWarnMs } = {}) {
+  let count = null, changed = 0, settled = false, warnUntil = -Infinity;
+  return {
+    feed(now, n) {
+      if (count == null) { count = n; changed = now; return false; }
+      if (n !== count) { if (settled && n > count) warnUntil = now + warnMs; count = n; changed = now; }
+      else if (!settled && now - changed >= settleMs) settled = true;
+      return now < warnUntil;
+    },
+    get settled() { return settled; },
+  };
+}
 const big = (x) => (x >= 1e6 ? `${(x / 1e6).toFixed(1)}M` : x >= 1e4 ? `${Math.round(x / 1e3)}k` : String(Math.round(x)));
-// the lines as [label, value, warn]: pure (the tests read it). n: { fps, ms, worst, level, scale, draws, tris, pipes, mb, adapter, gpuMs }
-export function perfLines(n) {
+// the lines as [label, value, level]: pure (the tests read it). n: { fps, ms, worst, level, scale, draws, tris, pipes, mb, adapter,
+// gpuMs, pinned, pipeLate }; levels: the shown levels (after the hold), else the raw ones. An amber or coral value starts with "▲ "
+export const MARK = '▲ ';
+export function perfLines(n, levels = perfLevels(n)) {
   const out = [
-    ['FPS', `${Math.round(n.fps)} fps · ${n.ms.toFixed(1)} ms`, n.fps > 0 && n.fps < PERF_HUD.amberFps],
-    ['Worst', `${n.worst.toFixed(1)} ms`, false],
-    ['Quality', `L${n.level} · ${n.scale.toFixed(2)}×`, false],
-    ['Draws', `${n.draws} · ${big(n.tris)} tri · ${n.pipes} pl`, false],
-    ['Memory', `${Math.round(n.mb)} MB`, false],
-    ['GPU', n.adapter, false],
+    ['FPS', `${Math.round(n.fps)} fps · ${n.ms.toFixed(1)} ms`],
+    ['Worst', `${n.worst.toFixed(1)} ms`],
+    ['Quality', `L${n.level} · ${n.scale.toFixed(2)}×`],
+    ['Draws', `${n.draws} · ${big(n.tris)} tri · ${n.pipes} pl`],
+    ['Memory', `${Math.round(n.mb)} MB`],
+    ['GPU', n.adapter],
   ];
-  if (Number.isFinite(n.gpuMs)) out.push(['GPU time', `${n.gpuMs.toFixed(1)} ms`, false]);
+  if (Number.isFinite(n.gpuMs)) out.push(['GPU time', `${n.gpuMs.toFixed(1)} ms`]);
+  for (let i = 0; i < out.length; i++) { const lv = levels[i] ?? 0; out[i].push(lv); if (lv > 0) out[i][1] = MARK + out[i][1]; }
   return out;
 }
 
@@ -94,7 +153,8 @@ const CSS = `
 .lk-perf.gone{opacity:0;visibility:hidden;transition:opacity .3s linear,visibility 0s linear .3s}
 .lk-perf .k{color:rgb(var(--lk-cream,244 244 242) / .8)}
 .lk-perf .v{text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lk-perf .v.warn{color:rgb(var(--lk-amber,232 168 56))}
+.lk-perf .v.amber{color:rgb(var(--lk-amber,247 192 96))}
+.lk-perf .v.coral{color:rgb(240 140 120)}   /* a soft coral: a muted red, never the port red or an alarm */
 .lk-perf button.x{all:unset;position:absolute;top:3px;right:3px;width:${PERF_HUD.closePx}px;height:${PERF_HUD.closePx}px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;
   border-radius:6px;cursor:pointer;pointer-events:auto;color:rgb(var(--lk-cream,244 244 242) / .7);transition:background-color .15s linear,color .15s linear}
 .lk-perf.gone button.x{pointer-events:none}
@@ -121,17 +181,19 @@ export function createPerfHud({ read, shown = () => false, onClose = () => {}, d
   doc.body.appendChild(el);
   const meter = createFrameMeter();
   const every = 1000 / hz;
+  const hold = createLevelHold(rows), pipes = createPipeWatch(), CLS = ['', 'amber', 'coral'];
   let on = false, due = 0, paints = 0, ticks = 0, costMs = 0, paintMs = 0, last = null;
   function paint(now) {
     const n = read(); const m = meter.read(now);
     n.fps = m.fps; n.ms = m.ms; n.worst = m.worst;
-    const lines = perfLines(n);
+    n.pipeLate = pipes.feed(now, n.pipes);
+    const lines = perfLines(n, hold.step(now, perfLevels(n)));
     for (let r = 0; r < rows; r++) {
       const L = lines[r];
-      const kt = L ? L[0] : '', vt = L ? L[1] : '', w = !!L?.[2];
+      const kt = L ? L[0] : '', vt = L ? L[1] : '', c = CLS[L?.[2] ?? 0];
       if (ks[r].textContent !== kt) ks[r].textContent = kt;
       if (vs[r].textContent !== vt) vs[r].textContent = vt;
-      if (vs[r].classList.contains('warn') !== w) vs[r].classList.toggle('warn', w);
+      if (vs[r].dataset.level !== c) { vs[r].dataset.level = c; vs[r].classList.toggle('amber', c === 'amber'); vs[r].classList.toggle('coral', c === 'coral'); }
     }
     last = lines; paints++;
   }

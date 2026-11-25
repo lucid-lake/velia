@@ -19,6 +19,24 @@ browser unless `?perfhud=1`, so the goldens are unchanged. The Pro nav column an
 desktop cockpit (their own rules stay: Pro, key hints, the legend leaves in the helm view). Tests: `v2/tests/perf-hud.test.mjs`,
 `v2/tests/pages/perfHud.page.mjs`.
 
+**Colours (2026-11-25; `PERF_LEVELS` in ui/perfHud.js).** Three calm levels, never flashing: cream (normal), amber (watch), a soft
+coral rgb(240 140 120) (a problem; not the port red). An amber or coral value starts with a small ▲ (colour-blind safe). A line
+changes colour only once its new level has held 1 s (a value at a threshold keeps its colour).
+
+| Line | Cream | Amber | Coral |
+|---|---|---|---|
+| FPS (and its frame time) | ≥ 50 fps | 30–50 fps | < 30 fps |
+| Worst frame (5 s) | ≤ 50 ms | 50–100 ms | > 100 ms (a stutter) |
+| Quality | L0 at 1.00×, or a level the player or URL holds | the governor lowered the level or the scale | L3, or scale < 0.7× |
+| Draws · tris · pipelines | ≤ 400 draws, ≤ 6 M tris | > 400 draws, > 6 M tris, or a pipeline built after the load settled (the count held 10 s), for 5 s | > 700 draws, > 10 M tris |
+| GPU memory | ≤ 1.5 GB | > 1.5 GB | > 2.5 GB |
+| GPU time (`?diag`) | ≤ 16.7 ms | > 16.7 ms | > 33 ms |
+
+Typical today (M5 Pro Mac, headless Chrome, load average about 15; Sail at 13:00 at 1280 × 720 and 1920 × 1080, and Regatta): 52–60
+fps with a busy machine's dips, the worst frame 18–35 ms once loaded (110–320 ms in the first 10 s of the load), L0 at 1.00×,
+194–248 draws, 1.1–2.0 M triangles, 233 pipelines (settled about 10 s after the first frame), 706–783 MB. All cream; no threshold
+needed moving.
+
 ## MSAA live (BACKLOG-v2 #31, 2026-11-14: engine/pipelines.js, frame.js, quality.js, diag.js; main.js, render/forest.js)
 
 Before: MSAA sized every scene pipeline, so a ladder step across L1 ↔ L2 listed "MSAA" as pending until the next load
