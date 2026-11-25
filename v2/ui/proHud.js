@@ -63,6 +63,8 @@ const CSS = `
 .lk-proi button.x svg{width:10px;height:10px;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;fill:none}
 .lk-proi button.x:is(:hover,:focus-visible){color:rgb(var(--lk-cream,244 244 242) / .95);background:rgb(var(--lk-cream,244 244 242) / .12)}
 .lk-proi button.x:focus-visible{outline:2px solid rgb(var(--lk-amber,232 168 56) / .9);outline-offset:0}
+/* the cinematic intro (ui/cinematicIntro.js sets lk-intro-on from its start): gone at once, no fade over its first beat */
+:root.lk-intro-on .lk-proi{opacity:0!important;visibility:hidden!important;transition:none!important}
 @media (prefers-reduced-motion:reduce){.lk-proi,.lk-proi.gone,.lk-proi button.x{transition:none}}
 `;
 
