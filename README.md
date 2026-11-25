@@ -16,7 +16,7 @@
 [![WebGPU](https://img.shields.io/badge/WebGPU-raw_WGSL-1C2340.svg)](v2/README.md)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support_Velia-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/lucidlake)
 
-<a href="https://velia.lucidlakelabs.com"><img src="brand/stills/hero-960.jpg" alt="Emerald Bay on Lake Tahoe in Velia: Fannette Island, the forested shore and wind on the water" width="100%"></a>
+<a href="https://velia.lucidlakelabs.com"><img src="docs/album/01-rainbow.jpg" alt="Velia: a rainbow over Lake Tahoe after a storm, a sloop heeled in the rough water" width="100%"></a>
 
 </div>
 
@@ -31,7 +31,54 @@
 - **A real place.** You sail Emerald Bay on Lake Tahoe. The terrain, the lake bed, the forest and the light come from real data.
 - **Real wind and water.** Wind is one system, and every effect reads it. The waves are wind-driven. The boat sails by its polars.
 - **Three modes.** **Sail**: the lake is yours, with no score and no timer. **Cruise**: an autopilot sails, the music plays. **Regatta**: race computer boats round the marks.
+- **Or be the monster.** Tahoe's legend, Tessie, lives in the bay. When she surfaces, press T and you are her: swim, dive, rise and knock boats over.
+- **A living lake.** A glass-bottom tour boat with clear kayaks, other sailboats, fireworks on July 4th, storms, rainbows and the Milky Way.
 - **Its own engine.** Raw WebGPU and WGSL, no three.js. It runs in a recent Chrome, Edge or Safari.
+
+## Play as Tessie
+
+<table>
+<tr>
+<td width="50%"><a href="docs/album/02-tessie-rising.jpg"><img src="docs/album/thumbs/02-tessie-rising.jpg" alt="Tessie rises out of the bay in Velia, water streaming off her neck, a sailboat ahead"></a></td>
+<td width="50%"><a href="docs/album/03-tessie-deep.jpg"><img src="docs/album/thumbs/03-tessie-deep.jpg" alt="Tessie swims under the surface in Velia, sun shafts in the blue water"></a></td>
+</tr>
+</table>
+
+Lake Tahoe has a monster story. In Velia you can play it. Tessie is a creature mode on a desktop or a tablet.
+
+- **Become her.** When she shows herself near your boat, press **T**. Or pick **Tessie** beside the Halcyon on the start panel and press **Dive in**. **T** again hands you back the helm.
+- **Swim and dive.** **W A S D** swim. **Q** dives and **E** rises. She is slow and heavy at the surface and fast under it. **1** or **Shift** is a dash. **C** switches between her eyes and the view behind her. On a tablet: a thumbstick and a Bite button.
+- **Strike.** **Space** or a click bites. Bite a sailboat, or rise under its hull, and it goes over with a splash. It rights itself and sails on. Kayakers only get splashed.
+- **The skipper runs.** While you are Tessie, your own boat's skipper takes the Halcyon and tries to get away from you.
+- **Tessie's Deep.** A Regatta race in her water. She hunts the fleet the whole race. Tack or bear away when she comes for you.
+- **The hunts.** Chart the Bay and Chart the Mouth: eight hidden corners each, found by sailing there. One of them is seeing Tessie.
+
+## Album
+
+Every picture is a frame from the game, captured with the HUD off. Nothing is painted over. Tap a picture for the full size. Tessie's two are above.
+
+<table>
+<tr>
+<td width="50%"><a href="docs/album/01-rainbow.jpg"><img src="docs/album/thumbs/01-rainbow.jpg" alt="A rainbow over Lake Tahoe after a storm, a sailboat heeled in the rough water"></a><br><sub>After the storm, a rainbow over the open lake.</sub></td>
+<td width="50%"><a href="docs/album/04-cockpit.jpg"><img src="docs/album/thumbs/04-cockpit.jpg" alt="The helm view from the cockpit of a sloop: the wheel, the dodger, the winches and Emerald Bay ahead"></a><br><sub>At the helm: the cockpit, the wheel, the bay ahead.</sub></td>
+</tr>
+<tr>
+<td><a href="docs/album/05-fireworks.jpg"><img src="docs/album/thumbs/05-fireworks.jpg" alt="July 4th fireworks over the lake with a sailboat in the foreground"></a><br><sub>July 4th: the fireworks off the mouth of Emerald Bay.</sub></td>
+<td><a href="docs/album/06-milky-way.jpg"><img src="docs/album/thumbs/06-milky-way.jpg" alt="The Milky Way over the dark ridges of Emerald Bay at night"></a><br><sub>The Milky Way over the ridge, from the deck at 22:30.</sub></td>
+</tr>
+<tr>
+<td><a href="docs/album/07-heeled.jpg"><img src="docs/album/thumbs/07-heeled.jpg" alt="A white sloop heeled in a fresh breeze on deep blue water"></a><br><sub>A fresh afternoon breeze. The boat sails by its polars.</sub></td>
+<td><a href="docs/album/08-regatta.jpg"><img src="docs/album/thumbs/08-regatta.jpg" alt="Three racing sloops near the start line of a Regatta race"></a><br><sub>Regatta: three boats at the start line.</sub></td>
+</tr>
+<tr>
+<td><a href="docs/album/09-ski-run.jpg"><img src="docs/album/thumbs/09-ski-run.jpg" alt="A sailboat off South Lake Tahoe with the ski runs of the mountain behind"></a><br><sub>Off Ski Run, South Lake Tahoe, under the ski slopes.</sub></td>
+<td><a href="docs/album/10-storm.jpg"><img src="docs/album/thumbs/10-storm.jpg" alt="A sailboat in a grey storm with rain on the lens"></a><br><sub>A storm rolls in. Rain hits the lens.</sub></td>
+</tr>
+<tr>
+<td><a href="docs/album/11-glass-kayak.jpg"><img src="docs/album/thumbs/11-glass-kayak.jpg" alt="A clear kayak with two paddlers seen from above over the blue water of Emerald Bay"></a><br><sub>A clear kayak from the glass-bottom tour, seen from above.</sub></td>
+<td><a href="docs/album/12-glass-boat-night.jpg"><img src="docs/album/thumbs/12-glass-boat-night.jpg" alt="The glass-bottom tour boat Velia Travel at night with its kayaks glowing on the dark water"></a><br><sub>The tour boat at night. Its kayaks glow on the dark water.</sub></td>
+</tr>
+</table>
 
 ## Run
 
@@ -98,6 +145,7 @@ git config core.hooksPath .githooks
 ## Credits and licence
 
 - **Code:** MIT ([`LICENSE`](LICENSE)), by Lucid Lake Studio.
+- **Album pictures** (`docs/album/`): our own renders of the game, MIT. The Velia mark on the sails stays a trademark ([`NOTICE.md`](NOTICE.md)).
 - **Third-party data, sounds, fonts and textures** keep their own licences: [`ATTRIBUTION.md`](ATTRIBUTION.md) lists each one, [`LICENSES/`](LICENSES/) holds the texts.
 - **Not covered by the MIT licence:** the AI-generated music (MusicAPI) and images (Gemini), and the Velia and Lucid Lake names and logos. They ship with the game; see [`NOTICE.md`](NOTICE.md).
 
