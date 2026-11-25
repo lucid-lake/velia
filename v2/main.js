@@ -904,7 +904,7 @@ async function boot() {
     // M3: Cruise's cut to Tessie (she appears: the shot turns to her at most 15°/s, eased, holds, returns; a drag, the binoculars
     // or the chart's Above view send it back)
     if (cp && tessie) cp = tessie.cruiseCamera(dt, cp, { input: !!(handsNow.orbit && (handsNow.orbit[0] || handsNow.orbit[1])) || !!m4?.captain?.binoUp || cruise.view?.() === 'above' });
-    let c = cp ? m4.overlay(dt, cp) : (flags.shot && shotPose(flags.shot, B.pose)) || m4.camera(dt, regatta?.on ? regatta.camera(dt, B.camera(dt)) : (gust ? gust.lean(dt, B.camera(dt), B.state) : B.camera(dt)));   // Regatta: the race camera before the gun   // M4: the views (follow | helm, the move between)
+    let c = cp ? m4.overlay(dt, cp) : (flags.shot && shotPose(flags.shot, B.pose)) || m4.camera(dt, regatta?.on ? regatta.camera(dt, B.camera(dt)) : (gust ? gust.lean(dt, B.camera(dt), B.camState) : B.camera(dt)));   // Regatta: the race camera before the gun   // M4: the views (follow | helm, the move between)
     if (!cp && cruise) c = cruise.blendSail(dt, c);   // after Cruise's hand-over: Sail's pose eased in from the one on screen
     if (!P.headless) { menuEl ??= document.getElementById('lk-load'); c = menuDrift.step(dt, !!menuEl && menuEl.dataset.state === 'menu' && !menuEl.hasAttribute('data-off') && !menuEl.dataset.pg, c, { reduced: reducedNow() }); }   // step D1: the Menu card over the live lake: a gentle drift
     if (tessie && !cp && !B?.sea?.bowLook) c = tessie.camera(dt, c);

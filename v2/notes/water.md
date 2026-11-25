@@ -448,7 +448,10 @@ The heave about doubles; pitch grows less (the hull already followed v1's 85 m t
 physics' heel, the knockdown watch and the speed do not move (the waves' roll is drawn on top of the heel and never feeds the
 watch; the surge from the slopes averages out). The kayaks at the kayaks golden's start (60 s, 14 out): levels 3 and 4,
 v1 0 and 1 capsizes (an Eskimo roll), the big sea 0 and 0, no contacts. The cameras: the Boat view follows only the slow part
-of the heave (tau 2.5 s, the bob capped at 0.18 m) and never the pitch or roll; the Helm view's auto-steady takes the rougher
+of the heave (tau 2.5 s, the bob capped at 0.18 m) and never the pitch or roll; since 2026-11-25 it also reads the speed, the surf cue,
+the heading and the lean's heel slow (v2/sim/boat.js CAM_SLOW: 3, 3, 2 and 2 s critically damped low-passes): the raw speed surged
+±0.7 m/s with each wave and pumped the speed camera's lens 0.4–0.8° at the waves' period, so the sky far from the frame's centre
+shook 4–6 px at 720p while the horizon held (the owner's "shaking sky"; v2/tests/follow-steady.test.mjs, v2/tests/pages/skySteady.page.mjs); the Helm view's auto-steady takes the rougher
 sea (the heel and pitch rate) toward its steadier end; Reduce Motion as before. The phone draws the same sea (the lite water
 skips only the 2.1 m ripples).
 
