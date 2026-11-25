@@ -29,11 +29,11 @@ const { polyline } = await import('../../src/sim/kayaks/routes.js');
 test('region table: an extra region row reaches every reader', () => {
   const bps = listBirthplaces(CURRENT_WATERS);
   assert.deepEqual(bps.at(-1), { id: 'city-pier', name: 'Off the pier', x: -6000, z: 100, look: [-6200, 100], region: 'tahoe-city', unlock: 'always', why: 'A fixture.', locked: false }, 'its birthplace, with its region');
-  assert.equal(bps.length, 6);
-  assert.deepEqual(REGIONS.map((r) => r.id), ['emerald-bay', 'tahoe-west', 'tahoe-city'], 'the busy lake has its row');
-  assert.deepEqual(regionsWithBirthplaces(REGIONS, bps).map((r) => r.id), ['emerald-bay', 'tahoe-west', 'tahoe-city'], 'live: it has a birthplace');
+  assert.equal(bps.length, 7);
+  assert.deepEqual(REGIONS.map((r) => r.id), ['emerald-bay', 'tahoe-west', 'south-lake', 'tahoe-city'], 'the busy lake has its row');
+  assert.deepEqual(regionsWithBirthplaces(REGIONS, bps).map((r) => r.id), ['emerald-bay', 'tahoe-west', 'south-lake', 'tahoe-city'], 'live: it has a birthplace');
   assert.deepEqual([...activeRegions(REGIONS, -6000, 0)], ['tahoe-city'], 'the player inside it');
-  assert.deepEqual(REGIONS[2].boats.map((b) => b.id), ['city-lane'], 'its traffic');
+  assert.deepEqual(REGIONS.at(-1).boats.map((b) => b.id), ['city-lane'], 'its traffic');
   const slots = residentKayaks(REGIONS, bps, { seed: 1, hour: 13, polyline }).filter((s) => s.region === 'tahoe-city');
   assert.deepEqual(slots.map((s) => s.route.id), ['kayak-city'], 'its kayaker on its one lane');
   assert.deepEqual(LAUNCH_SPOTS['tahoe-city'].map((s) => s.id), ['city-beach'], 'its put-in');

@@ -14,6 +14,8 @@
 // is the island at (0, 0) with Off Fannette and Tessie's water east of it and Vikingsholm at the head. A short frame falls back to the row.
 //   const m = mountBirthplaceCard(root, { service, home, touch: () => bool }); m.paint(); m.dispose()
 
+import { edgePoint, farName } from './chart/edge.js';   // a pin past the mini chart's window (South Lake's) at its edge
+
 export const REFUSALS = Object.freeze({
   race: 'Not during a race. Finish or leave it first.',
   knockdown: 'Get her upright first.',
@@ -24,7 +26,7 @@ const SURPRISE = 'Surprise me';
 // the desktop chart's window in the world's metres (x0, z0, width, height; x east, z south, Fannette's summit 0, 0): all five pins and their names inside
 export const MINI_BOX = Object.freeze([-900, -1800, 3500, 2700]);
 // where a pin's name sits on the desktop chart (r right, l left, br below and to the right), clear of its neighbours at the chart's scale
-const DESK_SIDE = { vikingsholm: 'l', fannette: 'br', tessie: 'r', narrows: 'r', lake: 'l' };
+const DESK_SIDE = { vikingsholm: 'l', fannette: 'br', tessie: 'r', narrows: 'r', lake: 'l', 'ski-run': 'l' };   // Off Ski Run: at the east edge, its name inward
 // the pins' places in the box, percent of its width and height: a loose chart of the bay (west left, north up), not a survey
 const SPOT = {
   vikingsholm: [9, 74, 'r'], fannette: [27, 52, 'r'], tessie: [47, 62, 'r'], narrows: [64, 30, 'r'], lake: [84, 11, 'l'],
@@ -116,10 +118,14 @@ export function mountBirthplaceCard(root, { service, home = null, touch = () => 
   const spots = rows.map((r, i) => SPOT[r.id] ?? [10 + (80 * i) / Math.max(1, rows.length - 1), 20 + (i % 3) * 20, 'r']);
   // the desktop card: the chart in the sheet's column; a pin's place is its birthplace's x, z in the chart's window (--ux, --uy: 0 to 1)
   const desk = !touch() && !!card.querySelector('.lk-sheet');
-  const [bx, bz, bw, bh] = MINI_BOX, unit = (r, i) => (Number.isFinite(r.x) && Number.isFinite(r.z) ? [(r.x - bx) / bw, (r.z - bz) / bh] : [spots[i][0] / 100, spots[i][1] / 100]);
+  const [bx, bz, bw, bh] = MINI_BOX, mbox = { x0: bx, z0: bz, x1: bx + bw, z1: bz + bh };
+  // a pin past the window (South Lake's Off Ski Run, 11 km east of the bay) stands at the window's edge toward it, its name with ›
+  const edge = (r) => (Number.isFinite(r.x) && Number.isFinite(r.z) ? edgePoint(r.x, r.z, mbox, 0.06 * bw) : { far: false });
+  const unit = (r, i) => { const e = edge(r); return e.x != null ? [(e.x - bx) / bw, (e.z - bz) / bh] : [spots[i][0] / 100, spots[i][1] / 100]; };
+  const nameOf = (r) => (desk && edge(r).far ? farName(r.name) : r.name);
   const lbl = (cls, text, x, z) => `<span class="lk-bp-lbl ${cls}" aria-hidden="true" style="--ux:${(x - bx) / bw};--uy:${(z - bz) / bh}">${text}</span>`;
   box.innerHTML = (desk ? '<div class="lk-bp-plate" aria-hidden="true"></div>' + lbl('isl', 'Fannette Island', 0, -70) : '')
-    + rows.map((r, i) => { const u = unit(r, i); return `<button class="lk-bp-pin" type="button" data-id="${esc(r.id)}" data-side="${desk ? DESK_SIDE[r.id] ?? spots[i][2] : spots[i][2]}" style="--x:${spots[i][0]}%;--y:${spots[i][1]}%;--ux:${u[0].toFixed(4)};--uy:${u[1].toFixed(4)}" aria-pressed="false" aria-label="${esc(r.name)}. ${esc(r.why)}">${GLYPH}<span class="n">${esc(r.name)}</span></button>`; }).join('')
+    + rows.map((r, i) => { const u = unit(r, i); return `<button class="lk-bp-pin" type="button" data-id="${esc(r.id)}" data-side="${desk ? DESK_SIDE[r.id] ?? spots[i][2] : spots[i][2]}" style="--x:${spots[i][0]}%;--y:${spots[i][1]}%;--ux:${u[0].toFixed(4)};--uy:${u[1].toFixed(4)}" aria-pressed="false" aria-label="${esc(r.name)}. ${esc(r.why)}">${GLYPH}<span class="n">${esc(nameOf(r))}</span></button>`; }).join('')
     + `<button class="lk-bp-pin r" type="button" data-id="random" aria-label="${SURPRISE}: a place picked for you"><span class="rr" aria-hidden="true">↻</span><span class="n">${SURPRISE}</span></button>`
     + '<p class="lk-bp-say" role="status" aria-live="polite"></p>';
   if (desk) { box.classList.add('flow'); const sheet = card.querySelector('.lk-sheet'); sheet.insertBefore(box, sheet.querySelector('.lk-plan')); } else card.appendChild(box);

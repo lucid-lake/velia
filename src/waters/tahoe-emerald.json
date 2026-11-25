@@ -109,7 +109,7 @@
       "cup": { "id": "emerald-bay", "name": "Emerald Bay", "line": "The legend and the island: sheltered water, short tacks, close scenery.", "races": ["tea-house-run", "tessies-deep", "glass-boat-chase"], "hunt": "chart-the-bay", "huntName": "Chart the Bay" }
     },
     {
-      "id": "tahoe-west", "name": "Lake Tahoe", "centre": [2200, -1500], "radiusM": 1700, "area": [[1100, null, null, null], [null, null, null, -1000]], "neighbours": ["emerald-bay"],
+      "id": "tahoe-west", "name": "Lake Tahoe", "centre": [2200, -1500], "radiusM": 1700, "area": [[1100, null, null, null], [null, null, null, -1000]], "neighbours": ["emerald-bay", "south-lake"],
       "label": { "id": "n-tahoe", "text": "Lake Tahoe", "x": 3050, "z": -2250, "cls": "A", "kind": "water", "alt": [[2900, -1700]] },
       "birthplaces": [
         { "id": "lake", "name": "Open lake", "x": 2300, "z": -1400, "look": [1700, -1270], "why": "Outside the mouth, on the big lake." }
@@ -130,6 +130,19 @@
         { "id": "lake-point", "prio": 2, "tint": "#2f5d50", "sail": { "cloth": "white", "inkA": "#3A4670", "inkB": "#3A4670", "roseAlpha": 0, "number": "" }, "route": [[2550, -300], [2900, -1300], [2250, -2350], [2350, -1250]] }
       ],
       "cup": { "id": "the-mouth", "name": "The Mouth", "line": "The passage to the big lake: the bar, the buoys, open water, the show.", "races": ["pass-the-channel", "storm-run", "lights-on-the-lake"], "hunt": "chart-the-mouth", "huntName": "Chart the Mouth" }
+    },
+    {
+      "id": "south-lake", "name": "South Lake Tahoe", "centre": [10500, 500], "radiusM": 2500, "neighbours": ["tahoe-west"],
+      "label": { "id": "n-south-lake", "text": "South Lake Tahoe", "x": 11200, "z": 1900, "cls": "A", "kind": "land", "alt": [[10600, 2300]] },
+      "names": [
+        { "id": "n-ski-run", "text": "Ski Run", "x": 12211, "z": 520, "cls": "B", "kind": "land" },
+        { "id": "n-tahoe-keys", "text": "Tahoe Keys", "x": 8100, "z": 2100, "cls": "B", "kind": "land" },
+        { "id": "n-camp-richardson", "text": "Camp Richardson", "x": 5300, "z": 1900, "cls": "B", "kind": "land" }
+      ],
+      "level": { "dir": "south", "full": "south.json", "phone": "south-phone.json", "photo": "photo/manifest.json" },
+      "birthplaces": [
+        { "id": "ski-run", "name": "Off Ski Run", "x": 11800, "z": -875, "look": [13600, 2400], "why": "Deep water, 23 m, off the town's marina. Heavenly's runs above, Stateline to the east." }
+      ]
     }
   ],
   "firstGust": { "aheadM": 195, "offsetM": 0, "gain": 0.35, "edgeM": 10 },

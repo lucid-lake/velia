@@ -1,6 +1,6 @@
 // The south region's data (terrain/south/: tools/terrain/build_tahoe.py --region south, tools/ground/build_naip.py
-// --levels south, tools/v2-photo-tiles.mjs --region south). Not wired into the loader yet: these tests read the files
-// alone. They check the manifests against the files (names, sizes, grid shapes), the load budget, the lake-wide frame
+// --levels south, tools/v2-photo-tiles.mjs --region south). The loader is v2/terrain/region.js (region-level.test.mjs); these tests
+// read the files alone. They check the manifests against the files (names, sizes, grid shapes), the load budget, the lake-wide frame
 // and codes, the depth at the Ski Run pin and in the deep water, and that the 4 m heights meet the shipped 10 m and 32 m
 // levels where they overlap.
 import test from 'node:test';

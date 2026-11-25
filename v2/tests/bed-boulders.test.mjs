@@ -97,7 +97,14 @@ test(': the stones placed round the player\'s regions, not the whole box; one se
   const sr = createStoneRegion({ regions: regs, active: activeRegions, marginM: BED_REGION.marginM });
   const d = sr.at(300, -400);
   assert.ok(d && d.length === 2, 'the bay and its neighbour');
-  assert.equal(sr.at(2200, -1500), null, 'the neighbour\'s set is the same set: no re-place');
+  // the open lake's set is the bay, the open lake and South Lake (its neighbours both ways): a re-place; South Lake's own set is it
+  // and the open lake. The stones live in the bed's box (the bay's): South Lake's disc lies off it and places nothing there
+  const dw = sr.at(2200, -1500);
+  assert.ok(dw && dw.length === 3, 'the open lake and its two neighbours');
+  assert.equal(sr.at(2300, -1400), null, 'the same set: no re-place');
+  const ds = sr.at(11800, -875);
+  assert.ok(ds && ds.length === 2, 'South Lake and the open lake');
+  assert.equal(bedWindow(stoneDiscs(regs, new Set(['south-lake']), BED_REGION.marginM)).slots, 0, 'South Lake alone: no stones (off the bed\'s box)');
   assert.equal(sr.at(9000, 9000), null, 'outside every region the last set stays');
   const w = bedWindow(d);
   assert.ok(w.slots < BED_SLOTS && w.slots > 0.5 * BED_SLOTS, `the regions' window ${w.slots} of ${BED_SLOTS} slots`);

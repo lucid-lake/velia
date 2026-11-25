@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { listBirthplaces, chooseBirthplace, birthPose, landAhead, resolveStart, createBirthplaces, BIRTH } from '../sim/birthplace.js';
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
 import { FADE } from '../ui/dayClock.js';
-import { checkRows, bakedDepth } from '../../tools/birthplace-check.mjs';
+import { checkRows, bakedDepth, regionDepths } from '../../tools/birthplace-check.mjs';
 import { relayGust } from '../sim/wind.js';
 import { WindField } from '../../src/sim/wind.js';
 import { createStageDirector } from '../stage/director.js';
@@ -20,11 +20,17 @@ const off = (h, w) => Math.abs(((h - w + 540) % 360) - 180);
 const store = (init = {}) => { const v = { ...init }; return { get: (k) => v[k], set: (k, x) => { v[k] = x; }, v }; };
 const { depthAt } = bakedDepth();
 
-test('the rows: 4 in the bay and Open lake, all playable; each passes the depth and shore check (tools/birthplace-check.mjs)', () => {
-  assert.deepEqual(ROWS.map((r) => r.id), ['tessie', 'fannette', 'vikingsholm', 'narrows', 'lake']);
+test('the rows: 4 in the bay, Open lake and Off Ski Run (South Lake, on its own level), all playable; each passes the depth and shore check (tools/birthplace-check.mjs)', async () => {
+  assert.deepEqual(ROWS.map((r) => r.id), ['tessie', 'fannette', 'vikingsholm', 'narrows', 'lake', 'ski-run']);
   for (const r of ROWS) { assert.ok(r.name && r.why && r.look && r.region, `${r.id}: name, why, look, region`); assert.equal(r.locked, false); }
   assert.equal(W.start.x, 1200); assert.equal(W.start.headingDeg, 251, 'the waters file\'s start is untouched (v1, ?start=)');
-  for (const c of checkRows()) assert.ok(c.ok, `${c.id}: ${c.fail.join('; ')}`);
+  const rows = checkRows(W, bakedDepth(), await regionDepths());
+  for (const c of rows) assert.ok(c.ok, `${c.id}: ${c.fail.join('; ')}`);
+  // Off Ski Run on South Lake's 4 m ground: 22.85 m deep; a reach east (95°) in the afternoon's wind from 200°, 120° in the morning's from 15°
+  const ski = rows.find((c) => c.id === 'ski-run');
+  assert.equal(ski.ground, 'south-lake'); assert.ok(Math.abs(ski.depth - 22.85) < 0.1, `${ski.depth} m`);
+  assert.deepEqual(ski.hours.filter((h) => h.windDeg === 200).map((h) => [h.heading, h.tack]), [[95, 'starboard'], [95, 'starboard']]);
+  assert.deepEqual(ski.hours.filter((h) => h.windDeg === 15).map((h) => h.heading), [120, 120]);
 });
 
 test('never in irons: every row, every wind from 0 to 355° (5° steps), with the land probe: 105° off; the fireworks guard ≥ 50°', () => {
@@ -106,7 +112,7 @@ function service(o = {}) {
 
 test('moveTo: the veil out, the place at 0.40 s, one frame dark, the veil in; remembered; the moved event; one move at a time', async () => {
   const { bp, placed, veils, moved, settings } = service();
-  assert.equal(bp.list().length, 5); assert.equal(bp.current, 'tessie');
+  assert.equal(bp.list().length, 6); assert.equal(bp.current, 'tessie');
   const p = bp.moveTo('vikingsholm');
   assert.deepEqual(veils, [[1, 0.35]]); assert.equal(placed.length, 0); assert.equal(bp.moving, true);
   assert.deepEqual(await bp.moveTo('lake'), { ok: false, why: 'moving' });
@@ -183,4 +189,18 @@ test('moveTo { instant }: no veil even with one (the first card: she is placed b
   const seen = []; s.bp.on('moved', (e) => seen.push(e.id));
   const r = await s.bp.moveTo('fannette', { instant: true });
   assert.equal(r.ok, true); assert.equal(s.veils.length, 0); assert.equal(s.placed.length, 1); assert.deepEqual(seen, ['fannette']); assert.equal(s.bp.current, 'fannette');
+});
+
+test('Surprise me picks among the places on the page\'s detail level (main.js pool): a bay page never draws Off Ski Run', async () => {
+  const { levelKeyOfBirth } = await import('../terrain/region.js');
+  const bay = (rows) => rows.filter((r) => levelKeyOfBirth(W, r.id) === 'bay');
+  const seen = new Set();
+  for (let seed = 1; seed <= 40; seed++) {
+    const placed = [];
+    const bp = createBirthplaces({ waters: W, settings: store(), seed, current: 'tessie', windAt: () => 200, depthAt, place: (p) => placed.push(p), pool: bay });
+    const r = await bp.moveTo('random', { instant: true });
+    assert.ok(r.ok); seen.add(r.id);
+  }
+  assert.ok(!seen.has('ski-run') && seen.size >= 3, [...seen].join(', '));
+  assert.equal(levelKeyOfBirth(W, 'ski-run'), 'south-lake');
 });

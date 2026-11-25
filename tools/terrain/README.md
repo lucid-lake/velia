@@ -41,7 +41,8 @@ Mercator on Fannette Island's summit, x east, z south, y up from the lake surfac
 ## Region levels
 
 A region level is one fine grid over a shore away from Emerald Bay, built alone into `terrain/<region>/`, in the
-lake-wide frame and codes. The loader will fetch it in place of the bay's when the player is born in that region.
+lake-wide frame and codes. The page fetches it in place of the bay's only when the player starts at a birthplace in that region
+(the region row's `level` in `src/waters/<lake>.json`; `v2/terrain/region.js`, `v2/notes/terrain.md` § Region levels).
 Today there is one, `south` (South Lake Tahoe, Camp Richardson to Stateline):
 
 | | Desktop | Phone |

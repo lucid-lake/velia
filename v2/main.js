@@ -87,7 +87,10 @@ import { WindField } from '../src/sim/wind.js';
 import { streamPlan, pickVariant } from './terrain/levels.js';
 import { LENGTHS, SEA, fetchAt } from './sim/spectrum.js';
 import { CURRENT_WATERS } from '../src/sim/waters/current.js';
-import { pickDay, dayChoice } from '../src/sim/day.js';
+import { pickDay, dayChoice, isHighlightDay } from '../src/sim/day.js';
+import { startRegionLevel, fetchLevel, shoreManifest, levelKeyOfBirth } from './terrain/region.js';   // a region's own detail level, fetched only for a start there
+import { showOn } from '../src/fireworks/share.js';
+import { inShowScene } from './sim/fireworksSite.js';
 import { CANVAS_VARIANTS, canvasVariant } from '../src/sim/boat/canvasHex.js';
 import { DEFAULT_DIMS } from '../src/sim/boat/dims.js';
 import { createM4 } from './ui/m4.js';   // M4: the views, Sail's UI and the cockpit (v2/ui/m4.js)
@@ -252,6 +255,15 @@ async function boot() {
   const manifestsP = Promise.all([CURRENT_WATERS.terrain.full, CURRENT_WATERS.terrain.phone].map(async (f) => { const r = await fetch(new URL(f, tBase)); if (!r.ok) throw new Error(`terrain manifest ${f}: ${r.status}`); const t = await r.text(); return [JSON.parse(t), t.length]; }));
 
   manifestsP.then(() => lmEnd('manifests'), () => {});
+  // the start's detail level (owner, 2026-11-24: every birthplace outside the bay loads when it is selected; v2/terrain/region.js):
+  // a start at a birthplace whose region row declares a `level` fetches that level (its manifest and photo manifest now, with the
+  // lake's) and streams it in the bay's slot; every other start streams the bay's, as before. The fireworks evening's own start
+  // (the bay) wins over a remembered pick (showStart below), and Regatta keeps its own: both start on the bay's level
+  const showTakes = !cruiseBoot && !raceBoot && flags.birth == null && feature('fireworks').on && showOn(flags, isHighlightDay(CURRENT_WATERS)) && inShowScene(P.hour, flags.fwt != null);
+  const levelBirth = resolveStart({ flags, settings: pageSettings(), waters: CURRENT_WATERS, seed: visitSeed(flags) });
+  const startLvl = startRegionLevel({ waters: CURRENT_WATERS, birth: levelBirth, race: raceBoot, show: showTakes });
+  const regionP = startLvl ? fetchLevel(startLvl, pickVariant(flags), tBase, fetch, CURRENT_WATERS.terrain.dir) : null;
+  regionP?.catch(() => {});
   // --- the scene's shared state ---
   const sun = createSun();
   // the day clock (engine/clock.js, engine/flags.js clockParams): v1's Sail schedule on a live page with no ?hour (18:45, slow golden
@@ -349,7 +361,11 @@ async function boot() {
   // perf/v2-phone-load: the terrain's first stage (1.36 MB on a phone) asked for now, and one yield so the requests and its
   // worker leave before the world build below holds the main thread (requests made inside it went out only at its end)
   const variant = pickVariant(flags);
-  const stages = streamPlan(fullM, phoneM, variant);
+  const region = regionP ? await regionP.catch((e) => { errors.push(`region level: ${e?.message ?? e}`); return null; }) : null;   // the region's level (null: the bay's, also when its manifests fail)
+  const stages = streamPlan(fullM, phoneM, variant, region?.composed ?? null);
+  const shoreM = region ? shoreManifest(fullM, region.composed) : fullM;   // the living lake's shore grids (the region's in the bay's place)
+  const levelKey = region ? region.level.id : 'bay';
+  hook.terrainLevel = { key: levelKey, variant, files: stages.flat().map((g) => g.file) };
   lmStart('terrain1');   // the terrain's first stage: the page fetches, the worker decodes (ended when it is in)
   terrain.prefetch(stages[0], tBase);
   await new Promise((r) => setTimeout(r, 0));
@@ -406,7 +422,7 @@ async function boot() {
   const shadowOn = flags.tshadow !== 0;
   // the ground photo (v1's NAIP as 256² tiles, v2/terrain/photo.js) and v1's detail set, streamed after the first frame
   // (a capture: before it); ?photo=0 / ?detail=0 keep the baked class albedo / no grain (the A/B)
-  const ground = inGroup('ground', () => createGround({ device, reg, terrain, variant: pickVariant(flags), photo: flags.photo !== false, detail: flags.detail !== false, rock: feature('rockDetail').tier === 'on', errors }));   // the close rock's two layers (render/rockDetail.js)
+  const ground = inGroup('ground', () => createGround({ device, reg, terrain, variant: pickVariant(flags), photo: flags.photo !== false, detail: flags.detail !== false, rock: feature('rockDetail').tier === 'on', errors, region: region?.photoLevel ?? null }));   // the close rock's two layers (render/rockDetail.js)
   // the boulders (render/rocks.js): v1's shore band and the slopes' rocks, scattered on the GPU, culled, one indirect draw
   const rocks = flags.rocks !== false ? inGroup('rocks', () => createRocks({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrain, shadow: tshadow, hdrTarget, msaa: P.msaa, depthFormat,
     bed: feature('bedBoulders').tier === 'full', zones: clearZones({ moorings, anchored: ANCHORED_BOATS, birthplaces: listBirthplaces(CURRENT_WATERS, { all: true }) }), under: underOn })) : null;
@@ -467,7 +483,7 @@ async function boot() {
   const player = createPlayer({ boat: () => B?.state ?? null });
   const musicOn = !P.headless && flags.filmui !== true && flags.music !== '0' && flags.music !== false;   // music: live pages, not a ?filmui=1 film or ?music=0 (below)
   const musicDoor = createLateCore();   // music: the fireworks' pieces and the boat's radio on the page's music bus (bound below)
-  const plugCtx = { device, reg, frameBGL, frameStruct, sky, shadow: tshadow, hdrTarget, depthFormat, msaaCounts, chunks, musicDoor: musicOn ? musicDoor : null, errors, flags, P, feature, inGroup, terrain, water, tBase, manifest: fullM, under: underOn, boatOn, wake: wakeFx,
+  const plugCtx = { device, reg, frameBGL, frameStruct, sky, shadow: tshadow, hdrTarget, depthFormat, msaaCounts, chunks, musicDoor: musicOn ? musicDoor : null, errors, flags, P, feature, inGroup, terrain, water, tBase, manifest: shoreM, under: underOn, boatOn, wake: wakeFx,
     get B() { return B; }, get boatR() { return boatR; }, get clock() { return clock; }, get windField() { return windField; }, get m4() { return m4; }, get storm() { return storm; }, get weatherWind() { return weatherWind; },
     get cockpitIn() { return cockpitIn; }, get pipeQ() { return pipeQ; }, get regatta() { return regatta; }, get startPose() { return startPose; }, get sailBirth() { return sailBirth; },
     get birthRow() { return birthRow; }, get beds() { return beds; },
@@ -982,7 +998,7 @@ async function boot() {
   }).catch((e) => { errors.push(`autoNav: ${e?.stack ?? e}`); autoNavP = null; return null; }));
   const streamWhole = new Promise((r) => { streamDone = r; });
   const cruiseLoad = () => (cruiseP ??= CRUISE.chunk().then(({ createCruise }) => {
-    cruise = createCruise({ B, windField, clock, terrain, kayaks: plug('kayaks'), tBase, manifest: fullM, flags, P, m4, canvas, played: () => player.played,   // as Tessie a click bites: no double-click mark
+    cruise = createCruise({ B, windField, clock, terrain, kayaks: plug('kayaks'), tBase, manifest: shoreM, flags, P, m4, canvas, played: () => player.played,   // as Tessie a click bites: no double-click mark
       sun: () => ({ elevDeg: sunNow.elevDeg, x: sunNow.x, y: sunNow.y, z: sunNow.z }), aspect: () => canvas.width / Math.max(1, canvas.height),
       view: () => ({ pos: [...eye], target: [eye[0] + fwd[0] * 10, eye[1] + fwd[1] * 10, eye[2] + fwd[2] * 10], up: [...up], fov: fovDeg, near }),
       hands: () => handsNow, onMode: (m) => modes.landed(m), music, weather: wx, birth: () => cruiseBirth(), stars: () => ({ band: bandNow, coverage: coverNow, storm: !!storm.running, sun: sunNow.elevDeg }) });   // stars: v1's night-sky line in Cruise's quiet line   // music: Cruise's playlist (v2/audio/music.js setMode)
@@ -1088,6 +1104,7 @@ async function boot() {
     veil: (op, secs) => sea?.hooks?.veil?.(op, secs), hasVeil: () => !!sea?.hooks?.veil,
     reduced: () => !P.headless && reducedNow(),
     canMove: () => (regatta?.on ? 'race' : kdGame && kdGame.state !== 'sailing' ? 'knockdown' : null),
+    pool: (rows) => rows.filter((r) => levelKeyOfBirth(CURRENT_WATERS, r.id) === levelKey),   // Surprise me: among the places on the level this page holds
     place: (pose) => {
       const p = { x: pose.x, z: pose.z, headingDeg: pose.headingDeg, speed: pose.speed };
       if (cruise?.on && cruise.voyage) cruise.voyage.place({ ...p, speed: 2.5 }); else B.place(p);
@@ -1108,7 +1125,14 @@ async function boot() {
   if (birthplaces) {
     // the card's pins (Phase 1b): a pick on the first card (the loading shell still over the lake) moves her there at once, no
     // veil; a move in play (the card's pins, the chart's Sail from here) is the veiled moveTo and leaves one logbook line
-    birthplaces.on('pick', (e) => { const st = m4.front?.home?.state; if (st === 'home' || st === 'company') birthplaces.moveTo(e.pick, { instant: true }); });
+    // A pick of a birthplace on another detail level (South Lake from the bay, or back) reloads the page: the pick is saved, so the
+    // new load starts there on its own level (v2/terrain/region.js: a page holds only its start's level; no swap). Where the show or
+    // Regatta keeps the bay's level the pick moves her as before
+    birthplaces.on('pick', (e) => {
+      const st = m4.front?.home?.state; if (st !== 'home' && st !== 'company') return;
+      if (e.pick !== 'random' && !showTakes && !raceBoot && levelKeyOfBirth(CURRENT_WATERS, e.pick) !== levelKey) { hook.levelReload = e.pick; location.reload(); return; }
+      birthplaces.moveTo(e.pick, { instant: true });
+    });
     birthplaces.on('moved', (e) => { const st = m4.front?.home?.state; if (st !== 'home' && st !== 'company') m4.ui?.services?.get?.('logbook')?.logbook?.note?.(`Moved to ${e.name}`); });
   }
   // Menu on the end card (its button, or Esc): the menu card opens and the end card goes (owner 2026-11-17: the card alone; the menu

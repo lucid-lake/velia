@@ -129,15 +129,16 @@ export function resolveStart({ flags = {}, settings = null, waters, seed = 1 } =
 //   bp.moving              a move's veil is under way
 // windAt(x, z) → the true wind's FROM degrees there now; depthAt(x, z) → m; showAt(x, z) → the show's facing or null (outside its
 // window); place(pose) does the move (main.js: B.place and the fan-out); veil(opacity, s) the page's veil (null, or hasVeil() false: no fade);
-// canMove() → null or the reason a move is refused now.
+// canMove() → null or the reason a move is refused now; pool(rows) → the rows Surprise me picks among (main.js: those on the page's
+// detail level, v2/terrain/region.js).
 export function createBirthplaces({ waters, settings = null, seed = 1, current = null, windAt, depthAt = null, showAt = () => null,
-  place, veil = null, hasVeil = () => !!veil, reduced = () => false, canMove = () => null } = {}) {
+  place, veil = null, hasVeil = () => !!veil, reduced = () => false, canMove = () => null, pool = (rows) => rows } = {}) {
   const rows = () => listBirthplaces(waters);
   const listeners = { moved: new Set(), pick: new Set() };
   const emit = (type, e) => { for (const fn of [...listeners[type]]) { try { fn(e); } catch { /* a listener's fault stays its own */ } } };
   let cur = current, move = null, picks = 0;
   const poseOf = (row) => birthPose(row, { windDeg: windAt(row.x, row.z), depthAt, showDeg: showAt(row.x, row.z) });
-  const rowFor = (id) => (id === 'random' ? chooseBirthplace(rows().filter((r) => r.id !== cur), 'random', { seed: (seed + 7919 * ++picks) | 0 }) ?? chooseBirthplace(rows(), 'random', { seed }) : rows().find((r) => r.id === id) ?? null);
+  const rowFor = (id) => (id === 'random' ? chooseBirthplace(pool(rows()).filter((r) => r.id !== cur), 'random', { seed: (seed + 7919 * ++picks) | 0 }) ?? chooseBirthplace(pool(rows()), 'random', { seed }) ?? chooseBirthplace(rows(), 'random', { seed }) : rows().find((r) => r.id === id) ?? null);
   function land(m) {
     const pose = poseOf(m.row), from = cur;
     place(pose);

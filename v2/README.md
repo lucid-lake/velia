@@ -121,9 +121,20 @@ is not played); 3. only if it needs them: a vessel row in the menu's Boat plate,
 One row per region of the lake, in the lake profile (`CURRENT_WATERS.regions`), holds everything keyed by region: `id`, `name`,
 `centre` + `radiusM` (the traffic's circle: the region the player is in), `area` (the cup's boxes `[x0, x1, z0, z1]`, null an open
 side; `null` = the rest of the lake), `neighbours`, `keepOut`, `label` (the chart's name), `birthplaces`, `kayaks` (lanes),
-`launchSpots`, `boats` (its traffic: the count is their number) and `cup` (`id`, `name`, `line`, `races`, `hunt`, `huntName`).
-Today: `emerald-bay` (4 birthplaces, 5 lanes, 4 put-ins, 5 boats, the Emerald Bay cup) and `tahoe-west` (named Lake Tahoe: 1
-birthplace, 3 lanes, 3 put-ins, 3 boats, The Mouth). The readers derive their old tables from it, digit for digit
+`launchSpots`, `boats` (its traffic: the count is their number), `cup` (`id`, `name`, `line`, `races`, `hunt`, `huntName`),
+`names` (more chart names: its towns and marinas) and `level` (its own detail level: `{ dir, full, phone, photo }`, the folder
+under `terrain/` and its manifests; `terrain/region.js`).
+Today: `emerald-bay` (4 birthplaces, 5 lanes, 4 put-ins, 5 boats, the Emerald Bay cup), `tahoe-west` (named Lake Tahoe: 1
+birthplace, 3 lanes, 3 put-ins, 3 boats, The Mouth) and `south-lake` (South Lake Tahoe: 1 birthplace, Off Ski Run; its level
+`terrain/south/`, 4 m on a desktop and 8 m on a phone; no traffic yet).
+
+**A region's detail loads only on selection (owner, 2026-11-24).** A region's `level` is fetched only when the page starts at
+one of its birthplaces (`?birth=`, the saved pick, a pin on the home card: a pick on another level reloads the page). It fills
+the bay's slot (heights, cover, shore distance, photo layer 0) in place of the bay's grids, which are then never fetched; the
+coarser levels stay and its edges blend into them. A start elsewhere fetches none of it; a region with no `level` starts on the
+bay's. No mid-sail swap: sailing into another region keeps the start's level (the hook: `terrain/region.js`).
+`tests/region-level.test.mjs` checks every birthplace of every row (and a fake second region): its start's files hold its own
+region's level (or the bay's) and no other region's; `tests/pages/southStart.page.mjs` records the page's requests. The readers derive their old tables from it, digit for digit
 (`tests/region-table.test.mjs` against `tests/fixtures/regions-before.json`): busyLake.js `REGIONS` (and with it the resident
 kayakers, the stone regions, the launcher's regions), kayakLaunch.js `LAUNCH_SPOTS`, birthplace.js `listBirthplaces`, places.js
 `CUPS`, `cupAt` and the hunts' names, the chart's `NAMES` (the regions' labels first). `tests/region-table-extra.test.mjs` adds a
@@ -135,7 +146,8 @@ stones); 3. its lanes, put-ins and boats in the row, routes on the chart (`tests
 the shore; `kayak-launch.test.mjs`: put-ins 6–15 m off it); 4. its cup, if it races: `area` boxes (checked in table order, the
 first match wins: narrow a neighbour's box if they overlap), race ids in `sim/racePlaces.js PLACE_RACES` with `cup` set, its hunt's
 corners in `regatta/hunts.js` and its flag in `hub.js` (`.ctab[data-cup=…]`); 5. its ground, terrain and names as the terrain
-work brings them.
+work brings them: a `level` (built by `tools/terrain/build_tahoe.py --region`, `tools/v2-photo-tiles.mjs --region`), which
+loads only when the player starts in the region, never for a start elsewhere.
 
 ### Import directions (refactor round 3 C6, 2026-11-23; `tests/import-direction.test.mjs`)
 

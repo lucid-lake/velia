@@ -26,6 +26,10 @@ export function tilesOf(L, tile = TILE) {
   return out;
 }
 export const tileFile = (set, levelName, tx, ty) => `${set}/${levelName}/${tx}-${ty}.webp`;
+// a tile's path from the page: the level's own folder (a region's level: L.base, v2/terrain/region.js regionPhotoLevel) or photo/
+export const tileUrl = (set, L, t) => `${L.base ?? 'photo/'}${tileFile(set, L.name, t.tx, t.ty)}`;
+// a set with a region's level in the bay's place (layer 0): the region's photo instead of the bay's
+export const withRegion = (set, regionLevel) => (regionLevel ? Object.freeze({ ...set, bay: regionLevel }) : set);
 // the array texture's size for a set: the larger of its levels in each axis
 export function textureSize(set) { const Ls = Object.values(set); return [Math.max(...Ls.map((L) => L.w)), Math.max(...Ls.map((L) => L.h))]; }
 

@@ -77,8 +77,8 @@ const ledger = (page) => page.evaluate(() => [...document.querySelectorAll('#lk-
   check(lg.length === 4 && lg[0] === 'Emerald Bay' && lg[1] === 'Halcyon' && lg[2] === "Tessie's water" && /^4 Jul · 15:0\d · (Clear|Fair|Storm)( · (\d+ kn )?[NESW]{1,2})?$/.test(lg[3]), `desk: the float plan's rows (owner, 2026-11-20): waters (a label), boat, start, one conditions row: the clock, the weather and wind (${lg.join(' | ')})`);
   const wl = await page.evaluate(() => { const r = document.querySelector('#lk-load .lk-ledger [data-lr=waters]'); return { tag: r?.tagName, ch: !!r?.querySelector('.ch'), popup: r?.getAttribute('aria-haspopup') }; });
   check(wl.tag === 'DIV' && !wl.ch && !wl.popup, `desk: the waters row is a plain label while there is one lake: no chevron, no press (${JSON.stringify(wl)})`);
-  const pins = s.pois.filter((p) => p.kind === 'birthplace');
-  check(pins.length === 5 && pins.every((p) => p.px >= panel.w && p.px <= 1280 && p.py >= 0 && p.py <= 720), `desk: the five pins are on the map in what the panel leaves (${pins.map((p) => p.id).join(', ')})`);
+  const pins = s.pois.filter((p) => p.kind === 'birthplace' && p.id !== 'bp-ski-run');   // the bay's pins (Off Ski Run: at the chart's east edge, in view or not by the frame's width)
+  check(pins.length === 5 && pins.every((p) => p.px >= panel.w && p.px <= 1280 && p.py >= 0 && p.py <= 720), `desk: the bay's five pins are on the map (Off Ski Run at the chart's east edge, past the first view) in what the panel leaves (${pins.map((p) => p.id).join(', ')})`);
 
   // the day's lake fact (2026-11-24, moved from the loading screen): one quiet line on the free map, clear of Surprise me, the + and −
   // column and the map credit; ?hour: the first fact; a tap the next
@@ -225,7 +225,7 @@ const ledger = (page) => page.evaluate(() => [...document.querySelectorAll('#lk-
   // the start row: a pick selects its pin like a click (the entrance picks it); no start
   await page.click('#lk-load .lk-ledger [data-lr=place]'); await page.waitForTimeout(300);
   const ps = await plate();
-  check(ps.kind === 'start' && ps.cells.length === 6 && ps.cells.includes("Tessie's water*") && ps.cells.includes('Surprise me'), `plates: the Start plate lists the birthplaces and Surprise me (${ps.cells.join('|')})`);
+  check(ps.kind === 'start' && ps.cells.length === 7 && ps.cells.includes('Off Ski Run') && ps.cells.includes("Tessie's water*") && ps.cells.includes('Surprise me'), `plates: the Start plate lists the birthplaces and Surprise me (${ps.cells.join('|')})`);
   await page.click('#lk-load .lk-cond [data-pc="start:fannette"]'); await page.waitForTimeout(900);
   const afterPick = await page.evaluate(() => ({ sel: window.__velia.m4.ui.services.get('liveChart').state.selected, chosen: window.__velia.m4.ui.services.get('birthplace').chosen, st: document.getElementById('lk-load').dataset.state }));
   check(afterPick.sel === 'bp-fannette' && afterPick.chosen === 'fannette' && afterPick.st === 'home' && !(await plate()).shown, `plates: a Start pick selects and lights its pin, closes the plate and does not start (${JSON.stringify(afterPick)})`);
@@ -386,8 +386,8 @@ for (const [w, h] of [[844, 390], [667, 375]]) {
   const pf = await page.evaluate(() => { const f = document.querySelector('#lk-load .lk-card > .lkc-fact'), c = document.querySelector('#lk-load .lk-card').getBoundingClientRect(), b = f?.getBoundingClientRect();
     return f && { l: b.left, t: b.top, r: b.right, b: b.bottom, shown: !f.hidden && f.getClientRects().length > 0, one: f.scrollWidth <= f.clientWidth + 1, text: f.textContent, cb: c.bottom }; });
   check(pf && pf.shown && pf.one && pf.t >= box.b && pf.b <= pf.cb && Math.abs(pf.l - box.l) <= 2 && pf.r <= sail.l, `${w}×${h}: the lake fact is the map's caption, under it on one line (${JSON.stringify(pf)})`);
-  const pins = s.pois.filter((p) => p.kind === 'birthplace');
-  check(pins.length === 5 && pins.every((p) => p.px >= 0 && p.px <= box.w && p.py >= 0 && p.py <= box.h), `${w}×${h}: all five pins are in the box (${pins.map((p) => `${p.id}@${p.px | 0},${p.py | 0}`).join(' ')})`);
+  const pins = s.pois.filter((p) => p.kind === 'birthplace' && p.id !== 'bp-ski-run');   // the bay's pins (Off Ski Run: at the chart's east edge, in view or not by the frame's width)
+  check(pins.length === 5 && pins.every((p) => p.px >= 0 && p.px <= box.w && p.py >= 0 && p.py <= box.h), `${w}×${h}: the bay's five pins are in the box (${pins.map((p) => `${p.id}@${p.px | 0},${p.py | 0}`).join(' ')})`);
   // a pin then Sail (two taps); the first visit's one tap is checked on desktop and below
   const at = await pinAt(page, 'narrows');
   await page.touchscreen.tap(at.x, at.y); await page.waitForTimeout(500);
