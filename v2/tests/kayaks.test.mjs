@@ -31,7 +31,7 @@ const asset = () => (assetP ??= parseKayakAsset(readFileSync(new URL('v2/assets/
 let shoreP = null;
 const shore = () => (shoreP ??= Promise.all(manifest.levels.filter((L) => SHORE_LEVELS.includes(L.name)).map(shoreGrid).map(async (g) => ({ ...g, D: unpredict(await inflate(readFileSync(new URL(`terrain/${g.file}`, ROOT))), g.dw, g.dh) }))));
 
-test('the lake terrain: v2\'s shore sampler on v1\'s island and bay grids is v1\'s shoreDistance; buildLakeOn over it is v1\'s lake', async () => {
+test('the lake terrain: v2\'s shore sampler on v1\'s grids is v1\'s shoreDistance in the bay; buildLakeOn over it is v1\'s lake', async () => {
   const S = shoreSampler(await shore()), V1 = v1Terrain();
   let worst = 0, n = 0;
   // the bay's water and shores, clear of the bay grid's own edge (there v1 blends into the basin's grid)

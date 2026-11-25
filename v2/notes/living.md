@@ -17,9 +17,16 @@ never on motion). Every decision is v1's own pure code; only the drawing is v2's
   the shore grids and the asset are in, and v1's `#lk-load` card, if any, has gone); full from the first frame they show.
   The skipper's line "Kayakers off the bow." once, through Sail's hint; "Too close" and the bump line as v1's.
 - **The lake terrain** (`sim/lake.js`): v1's own builder (`src/sim/lake.js buildLakeOn`, the v2 seam: moved out of
-  `src/sim/terrain.js` unchanged) over v2's height field and v1's shore-distance grids for the island and the bay
-  (`island-d.lsh`, `bay-d.lsh`, 318 kB, streamed after the first frame through `sim/shore-worker.js`; a build ships them).
-  The test demands v1's `shoreDistance` to 1e-6 m over the bay and v1's island, mouth and places exactly.
+  `src/sim/terrain.js` unchanged) over v2's height field and v1's shore-distance grids, finest first: the island and the
+  bay (`island-d.lsh`, `bay-d.lsh`, 318 kB), then the lake-wide fallbacks, the basin (20 m) and the lake (64 m)
+  (`basin-d.lsh`, `lake-d.lsh`, 516 kB): `terrain/levels.js SHORE_LEVELS`, streamed after the first frame, beside the
+  terrain's stage 2, through `sim/shore-worker.js`; a build ships them. So the lake answers anywhere on the water, each
+  grid blending into the next over 12 texels. The basin's grid was baked in its own 20 km box and reads up to 8.3 km too
+  far where the nearest shore lies outside it (the north-east of the basin); `shoreSampler` eases those texels to the lake
+  grid once, at build (`SHORE_REPAIR`, ≈ 87 k texels, ≈ 10 ms), so the blend never steps (v1 steps 7.4 km there). The
+  tests: `kayaks.test.mjs` demands v1's `shoreDistance` to 1e-6 m over the bay and v1's island, mouth and places exactly;
+  `shore-lake.test.mjs` v1's within 60 m lake-wide (0 m within 1 km of the shore), the bay unchanged and no step at a
+  grid's edge.
 - **The models** (`tools/v2-kayak-bake.mjs` → `assets/kayak/kayak.kyb.gz`, 1.5 MB gzip, committed; `render/kayak/asset.js`
   reads it): v1's kayak (a middle shell from v1's `buildShell` at rows 110, with v1's deck hardware and seat, 29 k
   triangles; v1's light shell past 90 m, 8 k), v1's mid-tier hull, torso, head and paddle, and the two UBC paddlers dressed

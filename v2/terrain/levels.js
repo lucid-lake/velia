@@ -10,7 +10,8 @@
 //     at 1 m, the bay's and the lake's cover; the camera's whole view at the start has real land
 //   1 the basin (20 m grid + its 10 m cover: Mount Tallac, the walls round the bay)          (the phone set ends here)
 //   2 the full grids: the bay at 2 m, the basin at 10 m, the lake at 32 m, the ring at 96 m (desktop; 8.6 MB)
-// The shore-distance grids (-d.lsh) are not fetched: M2's soft shore and beaches come from the height alone.
+// The shore-distance grids (-d.lsh) are not in the stream: M2's soft shore and beaches come from the height alone. The
+// living lake fetches its own (SHORE_LEVELS below) after the first frame, beside stage 2.
 
 import { feature } from '../../src/core/features.js';
 export const SLOTS = Object.freeze(['island', 'bay', 'basin', 'lake', 'ring']);   // finest first (the sampler's order)
@@ -48,16 +49,19 @@ export function pickVariant(flags) {
   return feature('terrainSet').tier;   // src/core/features.js: a phone or tablet takes the phone set
 }
 
-// the file names a build ships (both sets' heights and the cover grids, no shore distance): v2/vite.config.js copies them
+// the file names a build ships (both sets' heights and the cover grids; the shore grids: shoreFiles): v2/vite.config.js copies them
 export function shippedFiles(full, phone) {
   const set = new Set();
   for (const m of [full, phone]) for (const L of m.levels) { set.add(L.height); if (L.cover) set.add(L.cover); }
   return [...set].sort();
 }
 
-// The living lake's shore-distance grids (v2/sim/lake.js: the kayaks' routes and minds, the birds' places): the island's
-// (1 m) and the bay's (4 m) -d.lsh, the same files in both sets; a build ships them beside the heights (≈ 318 kB)
-export const SHORE_LEVELS = Object.freeze(['island', 'bay']);
+// The living lake's shore-distance grids (v2/sim/lake.js: the kayaks' routes and minds, the birds' places, Cruise): finest
+// first, the island's (1 m), the bay's (4 m), then the lake-wide fallbacks, the basin's (20 m) and the lake's (64 m), so
+// the lake answers anywhere on the water (each level blends into the next over its last BLEND texels). The same -d.lsh
+// files in both sets; a build ships them beside the heights (≈ 835 kB: 318 kB for the island and the bay, 516 kB for the
+// basin and the lake). The ring's grid (96 m, all land past the lake grid) is not shipped: the lake grid clamps at its edge.
+export const SHORE_LEVELS = Object.freeze(['island', 'bay', 'basin', 'lake']);
 export function shoreFiles(manifest) {
   return manifest.levels.filter((L) => SHORE_LEVELS.includes(L.name)).map((L) => L.distance);
 }

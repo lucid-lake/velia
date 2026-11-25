@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { bakeWorld, stringify, OUT } from '../../tools/v2-logbook-bake.mjs';
-import { makeTerrain, heightAt } from '../../src/sim/terrain.js';
+import { makeTerrain, heightAt } from './helpers/ground.mjs';   // v2's own lake (v2/sim/lake.js over v2/terrain/sample.js, the lake-wide shore grids)
 import { layoutShoreline } from '../../src/shoreline-layout.js';
 import { harbourLayout } from '../../src/harbour-layout.js';
 import { buildChart } from '../../src/ui/logbookChart.js';
@@ -29,9 +29,22 @@ test('v1\'s chart and places from the baked world equal v1\'s from its own world
   const v1Chart = buildChart(T, { shoreline: L, harbour: { x: H.entrance.centre[0], z: H.entrance.centre[1] } });
   const t2 = terrainFor(heightAt), W = WORLD;
   const v2Chart = buildChart(t2, { shoreline: W.shoreline, harbour: { x: W.harbour.entrance.centre[0], z: W.harbour.entrance.centre[1] } });
-  assert.deepEqual(v2Chart, v1Chart);
-  assert.deepEqual(placesFrom({ terrain: t2, shoreline: W.shoreline, harbour: W.harbour }), placesFrom({ terrain: T, shoreline: L, harbour: H }));
+  // to 1e-6 m: the world was baked on v1's terrain; v2's heights are v1's to 1e-6 m (terrain-data.test.mjs), so a place
+  // found by a march on v2's lake differs in its last digits
+  closeTo(v2Chart, v1Chart, 1e-6);
+  closeTo(placesFrom({ terrain: t2, shoreline: W.shoreline, harbour: W.harbour }), placesFrom({ terrain: T, shoreline: L, harbour: H }), 1e-6);
 });
+
+// deep equality with numbers to tol
+function closeTo(a, b, tol, path = '') {
+  if (typeof a === 'number' && typeof b === 'number') return assert.ok(Math.abs(a - b) <= tol, `${path}: ${a} vs ${b}`);
+  if (a && b && typeof a === 'object' && typeof b === 'object') {
+    assert.deepEqual(Object.keys(a).sort(), Object.keys(b).sort(), `${path}: keys`);
+    for (const k of Object.keys(a)) closeTo(a[k], b[k], tol, `${path}.${k}`);
+    return;
+  }
+  assert.equal(a, b, path);
+}
 
 test('the camera\'s quaternion turns v1\'s −z into the forward (v1\'s camSample)', () => {
   const back = (q) => { const { x, y, z, w } = q; return [-(2 * (x * z + w * y)), -(2 * (y * z - w * x)), -(1 - 2 * (x * x + y * y))]; };

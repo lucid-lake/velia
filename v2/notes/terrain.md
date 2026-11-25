@@ -8,7 +8,8 @@ Moved verbatim from `v2/README.md` on 2026-11-23 (refactor round 3 D1). The map 
 y up, z south, metres, Fannette Island's summit at the origin, y = 0 the lake surface at 1,897.89 m NAVD88) and the same
 codes, so the boat, the marks and the cameras line up with v1. Five nested, world-anchored grids round Emerald Bay, each a
 GPU "slot" (`r16uint` codes): island 1 m, bay 2 m, basin 10 m, lake 32 m, ring 96 m (to ±49.1 km); three NLCD cover grids
-(`r8uint`): bay 4 m, basin 10 m, lake 32 m. The shore-distance grids are not fetched.
+(`r8uint`): bay 4 m, basin 10 m, lake 32 m. The shore-distance grids are not in the stream: the living lake fetches four
+of them (island, bay, basin, lake: `SHORE_LEVELS`, 835 kB) after the first frame (`v2/notes/living.md`).
 
 **Streaming (a level clipmap, not tiles):** the data are already a clipmap: five nested grids, finest round the bay where
 every camera starts. Re-cutting them into tiles would need a new build step and a second 12 MB copy, for no gain at
