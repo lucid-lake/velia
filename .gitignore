@@ -20,3 +20,5 @@ __pycache__/
 .oss-deny-words
 .oss-manifest
 CLAUDE.local.md
+.cache/
+.venv/

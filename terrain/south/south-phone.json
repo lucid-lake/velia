@@ -1,0 +1,55 @@
+{
+ "version": 1,
+ "region": "south",
+ "proj": "+proj=tmerc +lat_0=38.954159 +lon_0=-120.100464 +k=1 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs",
+ "origin": {
+  "lat": 38.954159,
+  "lon": -120.100464
+ },
+ "y0": 1897.89,
+ "height": {
+  "offset": -600.0,
+  "step": 0.05
+ },
+ "distance": {
+  "step": 0.5
+ },
+ "box": {
+  "x0": 6992.0,
+  "z0": -1504.0,
+  "x1": 14512.0,
+  "z1": 3008.0
+ },
+ "sources": [
+  "USGS 3DEP Bare Earth DEM (1 m lidar), public domain",
+  "USGS DDS-55 Lake Tahoe bathymetry 1998 (Gardner, Mayer, Hughes Clarke), public domain",
+  "USGS/MRLC NLCD 2021 land cover, public domain"
+ ],
+ "levels": [
+  {
+   "name": "south",
+   "step": 8.0,
+   "x0": 6996.0,
+   "z0": -1500.0,
+   "w": 940,
+   "h": 564,
+   "height": "south-h2.lsh",
+   "distance": "south-d2.lsh",
+   "dk": 2,
+   "dw": 940,
+   "dh": 564,
+   "cover": "south-c.lsh",
+   "ck": 2,
+   "cw": 940,
+   "ch": 564,
+   "dx0": 6994.0,
+   "dz0": -1502.0,
+   "dstep": 8.0,
+   "cx0": 6994.0,
+   "cz0": -1502.0,
+   "cstep": 8.0
+  }
+ ],
+ "bytes": 491391,
+ "variant": "phone"
+}
