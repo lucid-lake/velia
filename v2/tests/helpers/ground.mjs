@@ -3,10 +3,11 @@
 // src/sim/terrain-data.js).
 //   ground(variant)  v2/terrain/decode.js → v2/terrain/sample.js createHeightField with every grid of the set in (the
 //                    stream plan's order: phone, then full); its heights are v1's heightAt to 1e-6 m (terrain-data.test.mjs)
-//   lake             v2/sim/lake.js lakeTerrain over that field and the island's and bay's shore grids: the lake object
-//                    the page's living lake and Cruise read (heightAt, shoreDistance, lake, places, landmarks, climate …).
-//                    Past the bay's grid its shoreDistance is the bay grid's edge value (v1's went on over the basin's
-//                    grid); its coverAt has no cover grid (the elevation rules alone), as on the page.
+//   lake             v2/sim/lake.js lakeTerrain over that field and the shore grids (SHORE_LEVELS: the island, the bay, and
+//                    the lake-wide basin and lake): the lake object the page's living lake and Cruise read (heightAt,
+//                    shoreDistance, lake, places, landmarks, climate …). Its shoreDistance is v1's on the whole lake (but
+//                    where v1's basin grid reads too far, v2/sim/lake.js SHORE_REPAIR); its coverAt has no cover grid (the
+//                    elevation rules alone), as on the page.
 // The v1-shaped names below (makeTerrain, heightAt, TAHOE, LANDMARKS …) are this lake's, so a test swaps its import line.
 import { readFileSync } from 'node:fs';
 import { inflate, unpredict } from '../../terrain/decode.js';
@@ -36,7 +37,7 @@ export function ground(variant = 'full') {
   return memo.get(variant);
 }
 
-// the island's (1 m) and the bay's (4 m) shore-distance grids, as v2/sim/lake.js loadShore decodes them
+// the shore-distance grids (SHORE_LEVELS, finest first), as v2/sim/lake.js loadShore decodes them
 export const shoreLevels = () => Promise.all(manifests.full.levels.filter((L) => SHORE_LEVELS.includes(L.name)).map(shoreGrid)
   .map(async (g) => ({ ...g, D: unpredict(await inflate(readFileSync(T(g.file))), g.dw, g.dh) })));
 

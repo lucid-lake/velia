@@ -124,7 +124,7 @@ v2/index.html ─ main.js (boot: flags → device → manifests → targets → 
   audio/engine.js      #14, #8: v1's engineAudio (the engine and the chain) on the music core's effects bus (v1's); renderEngine for the film's sound
   living/kayaks.js     the living lake's kayaks: the plug-in (the shore grids and the asset streamed, the fleet made, the pair laid)
   sim/kayaks.js        v1's fleet (src/kayaks/fleet.js) without three: plan, routes, minds, contact, tiers, the first pair (pure)
-  sim/lake.js          v1's lake terrain object (src/sim/lake.js buildLakeOn) on v2's heights + v1's island and bay shore grids
+  sim/lake.js          v1's lake terrain object (src/sim/lake.js buildLakeOn) on v2's heights + v1's shore grids (island, bay, basin, lake)
   render/kayaks.js     the kayaks' GPU side: 'kayak-skin' (full + mid, palettes of rigid slots), 'kayak-far' (v1's impostor)
   render/kayak/asset.js · clip.js   the baked asset (KYB1) and v1's strokes at run time (the gaits' blend, the pace, the surge)
   render/boatInstruments.js  M4: their GPU side: one 2-layer texture (copyExternalImageToTexture on a redraw), the card and the
