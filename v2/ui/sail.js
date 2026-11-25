@@ -34,7 +34,8 @@ import { createSkills } from '../../src/sail/skills.js';
 import { createWords } from '../../src/ui/words.js';
 import { createCaptainView } from '../../src/ui/captainView.js';
 import { createChartplotter } from '../../src/ui/chartplotter.js';
-import { createDialModules } from './dials.js';   // ?dials=modules: the two dials as 2D modules (mock stage)
+import { createDialModules } from './dials.js';   // the two dials as 2D modules (?dials=cockpit: the old dials in the cockpit, one release)
+import { showsDials, homeId } from '../engine/modes.js';
 import { luffAwaDeg, BOAT as BOAT_P } from '../../src/sim/boat.js';
 import { nightOf } from '../../src/ui/chartplotterData.js';   // the live chart's night palette weight (?livechart=1)
 import { REFUSALS } from './birthplaceCard.js';   // the birthplace move's refusals, in plain words
@@ -188,7 +189,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   dock.register({ id: 'logbook', key: '', name: 'logbook', icon: ICONS.logbook, order: 20, action: () => { services.get('logbook')?.logbook?.toggle?.(); } });   // no key (L went): Menu › Logbook
 
   // the dials: the wind dial (captainView) and the small chart (chartplotter): the raised views over the instruments
-  const dialMods = flags.dials === 'modules';
+  const dialMods = flags.dials !== 'cockpit' && flags.dials !== 'top';
   const captain = createCaptainView({ state: () => phys.state, once, always: true,
     ...(dialMods ? { wedge: 'apparent', luffDeg: (s) => Math.round(luffAwaDeg(BOAT_P, s.leeway ?? 0)), pos: true, sectors: () => (settings?.get?.('profile') ?? 'new') === 'new' } : {}) });
   services.provide('captain', captain);
@@ -411,7 +412,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   const dashHidden = () => !sailing() || !!services.get('played')?.played || !!services.get('menu')?.isOpen || logOpen() || hint.current === 'keys' || binoUp() || chartBig() || hubUp();
   // quiet: the one-thumb controls (thumb.js) never fade, so "Tap to show the helm" is stale there; ?thumb=0's grid still fades and keeps it
   const calm = createCalmHud({ services, settings, getOptions: () => services.get('modeOptions') ?? {}, quiet: () => document.documentElement.classList.contains('lk-one-thumb') || document.documentElement.classList.contains('lk-flat'), foldOnDown: true });   // H only folds, on key-down
-  if (dialMods) dialModules = createDialModules({ calm, inMode: () => sailing(), played: () => !!services.get('played')?.played });
+  if (dialMods) dialModules = createDialModules({ calm, inMode: () => showsDials(world.modeId?.() ?? homeId()), played: () => !!services.get('played')?.played, open: { chart: () => openChartPage(), log: () => openLogPage() } });
   services.provide('calm', calm);
   services.provide('controls', { hint, get tools() { return { bino: { k: binoUp() ? 1 : 0 } }; }, ctl, get pro() { return pro; }, proKeys: 'pro-sheet' });   // proKeys: v2's Pro keys (R/F the jib sheet, the lead on the PRO panel; src/ui/keyLegend.js)   // tools.bino.k: v1's shape the key legend reads (it steps aside under the glasses)
   // the key legend's moments read v1's terrain object (keyLegend.js sailFacts: the shore's distance, the depth; the landmarks for

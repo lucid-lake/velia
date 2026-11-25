@@ -98,27 +98,15 @@ try {
   await page.keyboard.press('Escape'); await page.waitForTimeout(400);
   check(await until(page, () => !window.__velia.m4.ui.chart.chart.state.hidden && document.querySelector('.lk-chart .small').classList.contains('in'), null, 3000), 'the card closed: the chart is back');
 
-  // ---- the chart dial (owner, 2026-11-17): a click opens the chart page; only a resting hover (0.4 s) raises the larger preview,
-  //      whose own click opens the chart page too ----
-  const dial = () => page.evaluate(() => { const b = document.querySelector('.lk-helm button.lk-inst[data-k=chart]'), r = b.getBoundingClientRect(), i = window.__velia.m4.ui.station.instruments;
-    return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, up: i.chart.up, pinned: window.__velia.m4.ui.chart.chart.toggle.pinned, shown: window.__velia.m4.ui.station.shown }; });
+  // ---- the chart dial (owner, 2026-11-17: a click opens the chart page); a 2D module since 2026-11-24 (v2/ui/dials.js): no hover
+  //      preview, the module itself takes the click ----
+  const dial = () => page.evaluate(() => { const r = document.querySelector('.lk-chart .small').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, pinned: window.__velia.m4.ui.chart.chart.toggle.pinned, shown: window.__velia.m4.ui.station.shown }; });
   await page.mouse.move(640, 300); await page.waitForTimeout(600);
-  let d = await dial();
-  check(d.w >= 44 && !d.up && !d.pinned, `the chart dial's target, no preview at rest (${JSON.stringify(d)})`);
-  await page.mouse.move(d.x, d.y, { steps: 4 }); await page.waitForTimeout(150);
-  const d1 = await dial();
-  await page.waitForTimeout(650);
-  const d2 = await dial();
-  check(!d1.up && d2.up && !d2.pinned, `a pass over the dial raises nothing (${d1.up}); a resting hover raises the preview (${d2.up})`);
-  const pv = await page.evaluate(() => { const r = document.querySelector('.lk-chart .small').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
-  await page.mouse.move(d.x, pv.y + 20, { steps: 6 }); await page.mouse.click(pv.x, pv.y + 20);
-  check(await until(page, () => window.__velia.m4.ui.chart.chart.toggle.pinned && !window.__velia.m4.ui.station.shown, null, 2000), 'a click on the raised preview opens the chart page');
-  await page.keyboard.press('Escape');
-  check(await until(page, () => !window.__velia.m4.ui.chart.chart.toggle.pinned && window.__velia.m4.ui.station.shown, null, 2000), 'Escape: back to the cockpit');
-  await page.mouse.move(640, 300, { steps: 4 }); await page.waitForTimeout(900);
-  d = await dial();
+  const d = await dial();
+  check(d.w >= 44 && !d.pinned, `the chart module's target, nothing open at rest (${JSON.stringify(d)})`);
   await page.mouse.click(d.x, d.y);
-  check(await until(page, () => window.__velia.m4.ui.chart.chart.toggle.pinned && window.__velia.m4.ui.chart.chart.toggle.big && !window.__velia.m4.ui.station.shown, null, 2000), 'a click on the chart dial opens the chart page at once');
+  check(await until(page, () => window.__velia.m4.ui.chart.chart.toggle.pinned && window.__velia.m4.ui.chart.chart.toggle.big && !window.__velia.m4.ui.station.shown, null, 2000), 'a click on the chart module opens the chart page at once');
   await page.keyboard.press('Escape');
   check(await until(page, () => !window.__velia.m4.ui.chart.chart.toggle.pinned && window.__velia.m4.ui.station.shown, null, 2000), 'Escape closes it');
   await page.mouse.move(640, 300); await page.waitForTimeout(500);

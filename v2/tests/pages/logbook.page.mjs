@@ -58,7 +58,8 @@ try {
   const card = () => page.evaluate(() => { const r = document.querySelector('.lk-log .card').getBoundingClientRect(); return { state: document.querySelector('.lk-log').dataset.state, x: r.x, y: r.y, w: r.width, h: r.height }; });
   const map = () => page.evaluate(() => { const s = window.__velia.m4.ui.services, c = s.get('liveChart'); return { menu: !!s.get('menu')?.isOpen, map: !!c?.shown && c.state.mode === 'play', big: !!window.__velia.m4.ui.chart?.chart?.toggle?.pinned }; });
   await page.mouse.move(640, 300); await page.waitForTimeout(400);
-  const wd = await page.evaluate(() => { const r = document.querySelector('.lk-helm button.lk-inst[data-k=wind]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width }; });
+  // the wind module (v2/ui/dials.js, 2026-11-24): a click on its face, below the boat (its sail lines and rudder drag instead)
+  const wd = await page.evaluate(() => { const r = document.querySelector('.lk-cv .dial').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height * 0.88, w: r.width }; });
   await page.mouse.click(wd.x, wd.y); await page.waitForTimeout(900);
   const c1 = await card();
   check(wd.w >= 44 && c1.state === 'open', `a click on the wind dial opens the logbook (${JSON.stringify(c1)})`);

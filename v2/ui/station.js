@@ -277,7 +277,7 @@ export function createStation({ rig, state, furl = () => 0, hidden = () => false
 
   const RR = (cx, cy, w2, h2) => ({ x: Math.round(cx - w2 / 2), y: Math.round(cy - h2 / 2), w: Math.round(w2), h: Math.round(h2) });
   let ckKey = '', moorNow = null, windGrow = false, modKey = '';
-  const dialsMode = flags.dials === 'top' ? 'top' : flags.dials === 'modules' ? 'modules' : 'in';   // modules: the dials are 2D modules of their own (sail.js), the cockpit's faces plain glass
+  const dialsMode = flags.dials === 'top' ? 'top' : flags.dials === 'cockpit' ? 'in' : 'modules';   // modules (the default): the dials are 2D modules of their own (ui/dials.js), the cockpit's faces plain glass; ?dials=cockpit: the old raised views over the faces
   // The dials open their pages (owner, 2026-11-17): a click (a tap) on the chart dial opens the chart page (the enlarged chart, left),
   // on the wind dial the logbook (its mirror on the right); only a pointer that rests on a dial INST_DWELL s raises its larger
   // preview, and a click on a raised preview opens the same page. open: { chart(), log() } (sail.js); without it a click pins the

@@ -122,6 +122,26 @@ little (the wide bake there pushes the dials onto the screen's edges).
   view and the presets still hide it as before. Tests: `v2/tests/throttleWord.test.mjs`, `v2/tests/pages/throttleWord.page.mjs`
   (fails on the old code), `v2/tests/pages/calmHud.page.mjs` (now expects no peek).
 
+## The dials as modules (2026-11-24: ui/dials.js, ui/station.js moduleFrame, render/cockpit/rig.js inst.plain, src/ui/captainView.js, src/ui/pointOfSail.js)
+The chart dial (`src/ui/chartplotter.js .small`) and the wind dial (`src/ui/captainView.js .lk-cv`) are 2D modules of their own, the
+default (`?dials=cockpit`: the old dials in the coaming's ends with their raised views, for one release; `?dials=top` stays).
+- **Where:** desktop and tablet, bottom-left (chart) and bottom-right (wind) at the size the old dials rose to on hover (0.8 × `--lk-d`:
+  176 px at 1280 × 720, 264 px at 1920 × 1080), each centred over its coaming end (`moduleFrame`: the faces' centres from the rig at
+  rest, so a folded cockpit leaves them in place), 12 px over the bottom margin (clear of the fold tabs); the edge columns (the key
+  legend, the nav column) stand 12 px above them (`--lk-edge-foot`); the helm view keeps their size; a tablet (no cockpit) keeps the
+  wind module left of the sheet buttons (`ui/touch.js`). A phone keeps `ui/flat.js`'s compact corners under the top bar; a tap
+  enlarges the wind dial (with its point of sail) and "⋯" steps out until a second tap.
+- **When:** the mode table's `dials` key (`engine/modes.js showsDials`: Sail and Regatta on, Cruise off); Calm's idle dims them to
+  0.45 and never hides them (`lk-dm-dim`; Calm's own rule that hid the chart's layer is overridden); Clear and a played thing (the
+  played seam: Tessie) hide them (`lk-dm-off`); the pucks are gone.
+- **The cockpit's faces** are plain dark glass (`inst.plain`: the face material's colour scale 0); nothing is shown twice. A thin
+  crescent of that glass shows under each module's foot while the cockpit is up (kept: it reads as the module's housing).
+- **The wind dial:** the no-go wedge centred on the apparent wind arrow, its half-angle `luffAwaDeg` (`src/sim/boat.js`: the jib's
+  chord at its lead 21° + the 4° it fills at + the leeway, ≈ 27°); the point of sail under the readings from the true wind with 3° of
+  hysteresis (In irons < 40°, Close-hauled, Close reach, Beam reach, Broad reach, Running > 150°); a faint ring of those sectors about
+  the true wind for a New player only (the bow's sector brighter). v1 keeps its wedge about the true wind (the options are off there).
+- Tests: `v2/tests/dials.test.mjs`, `v2/tests/pages/dialModules.page.mjs`.
+
 ## The day clock and the key legend (2026-11-13: engine/clock.js, engine/flags.js clockParams, ui/dayClock.js, ui/sail.js)
 The owner, 2026-11-13: "clock + legend" (v1's first-sail hint lines are not wanted in v2). BACKLOG-v2 #10 and #3.
 

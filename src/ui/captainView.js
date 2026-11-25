@@ -200,6 +200,7 @@ export function createCaptainView({ root = document.body, state = () => null, on
   const applyPlan = () => {
     const w = document.documentElement.classList.contains('lk-dials-in') ? el.offsetWidth * 0.8 : (el.getBoundingClientRect().width || 200);   // in the cockpit's instruments: its raised size (the hidden one is shrunk onto the face)
     PLAN_K = w < 130 ? 0.36 : w < 190 ? 0.5 : 0.62; PLAN_AT = w < 130 ? 36 : w < 190 ? 41 : 44;
+    if (posOn) PLAN_AT -= w < 190 ? 5 : 3;   // a third row (the point of sail) under the readings: the boat a little higher
     for (const g of planGs) g.setAttribute('transform', `translate(50 ${PLAN_AT}) scale(${PLAN_K}) translate(-50 -50)`);
   };
   applyPlan(); addEventListener('resize', applyPlan);
