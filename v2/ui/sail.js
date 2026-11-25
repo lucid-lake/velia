@@ -36,6 +36,7 @@ import { createCaptainView } from '../../src/ui/captainView.js';
 import { createChartplotter } from '../../src/ui/chartplotter.js';
 import { cockpitUp } from './cockpitUp.js';   // the cockpit up: the performance stats panel and the nav column follow it
 import { createDialModules } from './dials.js';   // the two dials as 2D modules (?dials=cockpit: the old dials in the cockpit, one release)
+import { trimCue, steerCue, heelCue, tackOf, nearestPoi, nmText, createProPanel, DIALS_V2 } from './dialsV2.js';   // ?dials=v2: the dials' north star (the mock stage)
 import { showsDials, homeId } from '../engine/modes.js';
 import { luffAwaDeg, BOAT as BOAT_P } from '../../src/sim/boat.js';
 import { nightOf } from '../../src/ui/chartplotterData.js';   // the live chart's night palette weight (?livechart=1)
@@ -191,8 +192,16 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
 
   // the dials: the wind dial (captainView) and the small chart (chartplotter): the raised views over the instruments
   const dialMods = flags.dials !== 'cockpit' && flags.dials !== 'top';
+  const dialsV2 = flags.dials === 'v2';
+  const level = () => settings?.get?.('profile') ?? 'new';   // new | sail | race (New, Club, Pro in the design)
+  let heelS = 0;   // the heel, smoothed 0.5 s, for the overpowered word
+  const coach = dialsV2 ? { level, gybeAwaDeg: DIALS_V2.gybeAwaDeg, cues: (s, posId) => {
+    heelS += ((s.heel ?? 0) * 180 / Math.PI - heelS) * 0.05;
+    return { main: trimCue(s, 'main'), jib: trimCue(s, 'jib'), steer: steerCue(s, posId), heel: heelCue(heelS), tack: tackOf(s.trueWind?.angle ?? 0) };
+  } } : null;
   const captain = createCaptainView({ state: () => phys.state, once, always: true,
-    ...(dialMods ? { wedge: 'apparent', luffDeg: (s) => Math.round(luffAwaDeg(BOAT_P, s.leeway ?? 0)), pos: true, sectors: () => (settings?.get?.('profile') ?? 'new') === 'new' } : {}) });
+    ...(dialMods ? { wedge: 'apparent', luffDeg: (s) => Math.round(luffAwaDeg(BOAT_P, s.leeway ?? 0)), pos: true, sectors: () => level() === 'new', coach } : {}) });
+  const proPanel = dialsV2 ? createProPanel({ state: () => phys.state, on: () => pro && !dialModules?.state?.off }) : null;
   services.provide('captain', captain);
   const terrainShim = { heightAt: (x, z) => terrain.field.height(x, z) };
   // Setup's shallow water (v1's src/sail/grounding.js: the assist bears away from a shoal, the sounder, R.'s words), on the boat's
@@ -265,7 +274,20 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
       // the birthplaces (Phase 1b): the pins on the enlarged chart, "Sail from here" the veiled move (main.js's service)
       pins: () => { const svc = services.get('birthplace'); if (!svc || world.raceOn?.()) return []; const cur = svc.current; return svc.list().map((r) => ({ id: r.id, name: r.name, x: r.x, z: r.z, why: r.why, lit: r.id === cur })); },
       onPin: async (p) => { const r = await services.get('birthplace')?.moveTo(p.id); return r?.ok ? { ok: true } : { ok: false, text: REFUSALS[r?.why] ?? REFUSALS.unknown }; },
-      onAnchorage: (a) => { const m = world.sailMark?.(); if (!m) return; m.set(a.x, a.z); hint.flash?.(`${a.name}: the mark is set. NAV takes her there.`, { secs: 5, kind: 'sea.anchorage' }); used(); navToMark(); } });
+      onAnchorage: (a) => { const m = world.sailMark?.(); if (!m) return; m.set(a.x, a.z); hint.flash?.(`${a.name}: the mark is set. NAV takes her there.`, { secs: 5, kind: 'sea.anchorage' }); used(); navToMark(); },
+      ...(dialsV2 ? { shoreWarn: true, poi: () => {   // the mini map: the single nearest point of interest (the set mark first)
+        const s = phys.state; if (!s) return null;
+        const list = [], mk = world.sailMark?.()?.mark;
+        if (mk) list.push({ kind: 'mark', name: '', x: mk.x, z: mk.z });
+        if (!world.raceOn?.()) {
+          for (const r of services.get('birthplace')?.list?.() ?? []) list.push({ kind: 'birthplace', name: r.name, x: r.x, z: r.z });
+          for (const a of sea?.anchorages ?? []) list.push({ kind: 'anchorage', name: '', x: a.x, z: a.z });
+        }
+        const n = nearestPoi(s, list); if (!n) return null;
+        const nm = n.kind === 'birthplace' && n.name && n.name.length <= 14 ? n.name : DIALS_V2.poiKinds[n.kind];
+        const brg = !(level() === 'new' && !pro);   // Club and Pro add the bearing: the label shortens to keep the row inside the circle
+        return { ...n, name: n.kind === 'birthplace' && nm === n.name ? '' : n.name, label: brg ? (DIALS_V2.poiShort[n.kind] ?? nm.split(' ')[0]) : nm, dText: nmText(n.dM), bText: level() === 'new' && !pro ? '' : ` ${String(Math.round(n.brgDeg) % 360).padStart(3, '0')}°` };
+      } } : {}) });
     // the live chart (Phase 2b; on by default, ?livechart=0 keeps today's card and enlarged chart for one release): the map
     // behind the card at the voyage start and in the menu (v2/ui/chart/mapScreen.js). N and the bar's Chart open the menu, the same screen
     const liveSync = liveChartOn() ? mountLiveChart({ cp, track, courseTool, planLoad, getPlan: () => plan }) : null;
@@ -689,6 +711,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
       dayClock.update(dt);   // v1's night-sky line in the bar
       keyLegend.update();    // v1's shell.js: each frame (it writes the DOM only when its lines change)
       if (navPulseWait && !dashHidden()) { navPulseWait = false; apHead?.pulse?.(); flat?.pulse?.(); }   // NAV's one calm pulse once the cockpit is in view
+      proPanel?.update(dt);
       navColumn.update();    // v1's shell.js: after the legend (readings at 4 Hz, the passage at 1 Hz, on its own clock)
       captain?.update(dt, { sinceUse: t - lastUse, hands: B.hand.crew ? 'crew' : null, trend: null, nogo: false, cue: hint.current === 'pull' || hint.current === 'ease' ? 'sails' : null });
       pageWatch();   // the chart page and the logbook: one at a time
