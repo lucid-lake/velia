@@ -14,7 +14,9 @@
 // is the island at (0, 0) with Off Fannette and Tessie's water east of it and Vikingsholm at the head. A short frame falls back to the row.
 //   const m = mountBirthplaceCard(root, { service, home, touch: () => bool }); m.paint(); m.dispose()
 
-import { edgePoint, farName } from './chart/edge.js';   // a pin past the mini chart's window (South Lake's) at its edge
+import { edgePoint, farName } from './chart/edge.js';   // a pin past the mini chart's window at its edge (none of today's table)
+import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
+import { birthplaceRows } from '../sim/regions.js';
 
 export const REFUSALS = Object.freeze({
   race: 'Not during a race. Finish or leave it first.',
@@ -23,10 +25,20 @@ export const REFUSALS = Object.freeze({
   unknown: 'That place is not on the chart.',
 });
 const SURPRISE = 'Surprise me';
-// the desktop chart's window in the world's metres (x0, z0, width, height; x east, z south, Fannette's summit 0, 0): all five pins and their names inside
-export const MINI_BOX = Object.freeze([-900, -1800, 3500, 2700]);
+// the desktop chart's window in the world's metres (x0, z0, width, height; x east, z south, Fannette's summit 0, 0), framed on every
+// birthplace of the region table (owner, 2026-11-24: the default view includes the new birthplace): 900 m round them east and west for the
+// names, at least 700 m north and south, no flatter than 2.4 : 1, on a 100 m grid. The bake (tools/v2-minichart-bake.mjs) reads it
+export function miniBoxOf(rows) {
+  const pts = rows.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.z));
+  if (!pts.length) return Object.freeze([-900, -1800, 3500, 2700]);
+  const xs = pts.map((r) => r.x), zs = pts.map((r) => r.z), r100 = (v) => Math.round(v / 100) * 100;
+  const x0 = r100(Math.min(...xs) - 900), x1 = r100(Math.max(...xs) + 900), w = x1 - x0;
+  const zc = (Math.min(...zs) + Math.max(...zs)) / 2, h = r100(Math.max(Math.max(...zs) - Math.min(...zs) + 1400, w / 2.4));
+  return Object.freeze([x0, r100(zc - h / 2), w, h]);
+}
+export const MINI_BOX = miniBoxOf(birthplaceRows(CURRENT_WATERS));
 // where a pin's name sits on the desktop chart (r right, l left, br below and to the right), clear of its neighbours at the chart's scale
-const DESK_SIDE = { vikingsholm: 'l', fannette: 'br', tessie: 'r', narrows: 'r', lake: 'l', 'ski-run': 'l' };   // Off Ski Run: at the east edge, its name inward
+const DESK_SIDE = { vikingsholm: 'l', fannette: 'br', tessie: 'r', narrows: 'r', lake: 'r', 'ski-run': 'l' };   // Off Ski Run: near the east edge, its name inward
 // the pins' places in the box, percent of its width and height: a loose chart of the bay (west left, north up), not a survey
 const SPOT = {
   vikingsholm: [9, 74, 'r'], fannette: [27, 52, 'r'], tessie: [47, 62, 'r'], narrows: [64, 30, 'r'], lake: [84, 11, 'l'],
@@ -119,7 +131,7 @@ export function mountBirthplaceCard(root, { service, home = null, touch = () => 
   // the desktop card: the chart in the sheet's column; a pin's place is its birthplace's x, z in the chart's window (--ux, --uy: 0 to 1)
   const desk = !touch() && !!card.querySelector('.lk-sheet');
   const [bx, bz, bw, bh] = MINI_BOX, mbox = { x0: bx, z0: bz, x1: bx + bw, z1: bz + bh };
-  // a pin past the window (South Lake's Off Ski Run, 11 km east of the bay) stands at the window's edge toward it, its name with ›
+  // a pin past the window (a region added without a rebake) stands at the window's edge toward it, its name with ›
   const edge = (r) => (Number.isFinite(r.x) && Number.isFinite(r.z) ? edgePoint(r.x, r.z, mbox, 0.06 * bw) : { far: false });
   const unit = (r, i) => { const e = edge(r); return e.x != null ? [(e.x - bx) / bw, (e.z - bz) / bh] : [spots[i][0] / 100, spots[i][1] / 100]; };
   const nameOf = (r) => (desk && edge(r).far ? farName(r.name) : r.name);

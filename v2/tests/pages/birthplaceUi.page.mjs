@@ -1,5 +1,5 @@
 // The birthplaces' UI on the real v2 page (Phase 1b, on the live map since Phase 2b; v2/ui/chart/mapScreen.js, liveChart.js, phoneCard.js):
-//   1280 × 720, mouse   the live map behind the panel: the bay's five pins and Surprise me (South Lake's Off Ski Run stands at the chart's east edge, past the first view), the first visit's Tessie's water lit, the voyage line "Emerald
+//   1280 × 720, mouse   the live map behind the panel: six pins (the bay's five and South Lake's Off Ski Run, all on the paper) and Surprise me, the first visit's Tessie's water lit, the voyage line "Emerald
 //                       Bay · Halcyon 28 ft · Tessie's water"; hover lifts the name; a click picks Off Fannette (the voyage line updates, she is
 //                       there at once) and opens its card, Sail enters and she starts at that birthplace
 //   in play             Esc: the same screen: the pins, a click opens the small card, "Sail from here" moves her under the veil, the menu
@@ -49,9 +49,9 @@ const showPin = (page, id, mpp = 3.5) => page.evaluate(({ id, mpp }) => { const 
 {
   const { ctx, page, errors } = await open(DESK);
   const s0 = await chartState(page);
-  const pins = s0.pois.filter((p) => p.kind === 'birthplace' && p.id !== 'bp-ski-run');   // the bay's pins (Off Ski Run: at the chart's east edge, in view or not by the frame's width)
+  const pins = s0.pois.filter((p) => p.kind === 'birthplace');   // every birthplace in the first view
   const sur = await page.evaluate(() => { const b = document.querySelector('.lk-livechart .lkc-surprise'); const q = b?.getBoundingClientRect(); return b && q.width > 0 ? [Math.round(q.width), Math.round(q.height)] : null; });
-  check(pins.length === 5 && !!sur, `desk: the bay's five pins on the map and Surprise me (${pins.map((p) => p.id).join(', ')}; ${JSON.stringify(sur)})`);
+  check(pins.length === 6 && !!sur, `desk: six pins on the map and Surprise me (${pins.map((p) => p.id).join(', ')}; ${JSON.stringify(sur)})`);
   check(await page.evaluate(() => window.__velia.birthplaces.current === 'tessie'), `desk: the first visit's Tessie's water is the lit pin`);
   check(await startRow(page) === "Tessie's water", `desk: the float plan's start row (${await startRow(page)})`);
   const at = await pinAt(page, 'fannette');

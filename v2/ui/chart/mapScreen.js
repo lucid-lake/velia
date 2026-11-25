@@ -1,6 +1,6 @@
 // The map screen (Phase 2b): the live chart (liveChart.js) is the page behind the card, at the voyage start and in the
 // in-game menu: one screen. It mounts the chart in the shell (#lk-load), under the card, and follows the shell's state:
-//   home      the entrance: the whole bay with the five pins in what the panel leaves; a pin tapped is the pick (the voyage line names it,
+//   home      the entrance: every birthplace (the bay's five and Off Ski Run: chartModel.js frameBirthplaces) in what the panel leaves; a pin tapped is the pick (the voyage line names it,
 //             the lit mode starts from the card's Sail from here); the chart is opaque on the shell
 //   out       a mode was pressed: the map zooms into the chosen pin (0.9 s) as the shell fades and the lake shows through; with
 //             reduced motion it is a cut (the chart's own glide)
@@ -14,9 +14,7 @@
 // factDate: () => the Date whose lake fact the chart shows (chartFact.js; null on a deterministic page: the first)
 //   screen.chart, screen.fact, screen.showAll() (the card's CHART: the whole bay at the entrance, the boat in the menu), screen.panelWidth(), screen.destroy()
 import { createChart, CHART_TIMING } from './liveChart.js';
-import { centreFor, zoomRange } from './chartModel.js';
-import { GROUND } from './ground.js';
-import { edgePoint } from './edge.js';   // a pin past the paper, where the chart draws it
+import { centreFor, zoomRange, frameBirthplaces } from './chartModel.js';
 import { mountPanelPlan } from './panelPlan.js';
 import { mountChartFact } from './chartFact.js';
 
@@ -141,19 +139,10 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
   const insets = () => ({ left: panelPx(), right: 0, top: 0, bottom: 0 });
   const syncInsets = () => { const l = panelPx(); host.style.setProperty('--lk-panel-in', `${l}px`); chart.setInsets({ left: l }); return l; };
 
-  // the whole bay: every pin inside what the panel leaves (the entrance's first view)
+  // every birthplace inside what the panel leaves (the entrance's first view): the region table's, a pin past the paper at its edge
   function fitPins() {
-    // the pins on the paper frame the view as before; a pin past it (South Lake's, drawn at the paper's edge: edge.js) does not widen it
-    const list = (bp()?.list?.() ?? []).filter((r) => !r.locked && Number.isFinite(r.x) && !edgePoint(r.x, r.z, GROUND.box).far);
-    const { w, h } = chart.state;
-    if (!list.length || !w) return null;
-    const ins = insets(), freeW = Math.max(120, w - ins.left - (box ? 70 : 190)), freeH = Math.max(120, h - (box ? 60 : 150));
-    const xs = list.map((r) => r.x), zs = list.map((r) => r.z);
-    const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
-    const { min, max } = zoomRange(w, h, chart.state.size);
-    const mpp = clamp(Math.max((x1 - x0) / freeW, (z1 - z0) / freeH, 0.001) * 1.12, min ?? 1.2, max ?? 6.5);
-    const c = centreFor((x0 + x1) / 2, (z0 + z1) / 2, mpp, ins);
-    return { center: { x: c.cx, z: c.cz }, mpp };
+    const { w, h, size } = chart.state;
+    return frameBirthplaces(bp()?.list?.() ?? [], { w, h, insets: insets(), size, card: box });
   }
   function toEntrance() {
     entrance = true;
@@ -216,7 +205,7 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
     panelWidth: panelPx,
     // true when the chart took Esc (its open card closed); home.js menuEsc
     escTaken() { if (plan?.escTaken()) return true; if (chart.state.card) { chart.select(null); return true; } return false; },
-    // the card's CHART: the whole bay at the entrance, the boat in the menu
+    // the card's CHART: every birthplace at the entrance, the boat in the menu
     showAll() {
       if (host.hidden) return;
       if (entrance) { const v = fitPins(); if (v) chart.setView({ ...v, animate: true, duration: CHART_TIMING.glideS }); } else centreOnBoat(true);
