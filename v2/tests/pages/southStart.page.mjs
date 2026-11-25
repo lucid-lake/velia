@@ -5,6 +5,8 @@
 //                                                 south-c, south-d, the 4 m photo tiles), about 2.26 MB; none of the bay's detail; the
 //                                                 live sampler reads 22.85 m at the pin, its finest level 4 m; she starts there
 //   phone (?terrain=phone), ?birth=ski-run        the 8 m set (south-phone.json, south-h2, south-c, south-d2, 8 m tiles), about 0.75 MB
+//   the south shore's piers                       assets/towns/shore-south.vsh.gz (about 84 kB) is fetched on the Ski Run starts (desktop and phone) and
+//                                                 merged into the shore (towns.stats.sets); the bay start never requests it
 //   the home card                                 a pick of the Ski Run pin reloads the page onto South Lake's level, she starts there
 // Captures (?headless=1) take every stage, the photo and the shore before the first frame, so the lists are whole.
 // Run by `npm run test:pages:v2 -- southStart` (LAKESHORE_BASE set), or node v2/tests/pages/southStart.page.mjs --base http://127.0.0.1:<port>
@@ -30,16 +32,17 @@ async function load(device, query) {
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
   const got = new Map();
+  const piers = []; page.on('response', (r) => { if (/assets\/towns\/shore-south/.test(r.url())) piers.push(pathOf(r.url())); });
   page.on('response', async (r) => { const p = pathOf(r.url()); if (!/^(terrain|photo)\//.test(p)) return; try { got.set(p, (await r.body()).length); } catch { got.set(p, Number(r.headers()['content-length'] ?? 0)); } });
   await page.goto(`${BASE}/${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__velia?.ready === true, null, { timeout: 240000, polling: 200 });
   await page.waitForFunction(() => window.__velia.ground?.stats?.done === true, null, { timeout: 120000, polling: 200 }).catch(() => {});
   await page.waitForTimeout(1500);
-  const info = await page.evaluate(() => { const v = window.__velia, s = v.boat?.state; return { level: v.terrainLevel, depth: -v.terrain.field.height(11800, -875), spacing: v.terrain.field.spacing(11800, -875), boat: s ? { x: s.x, z: s.z } : null, grids: v.terrain.grids, photo: v.ground?.stats?.region ?? null }; });
+  const info = await page.evaluate(() => { const v = window.__velia, s = v.boat?.state; return { sets: v.towns?.stats?.sets ?? null, instances: v.towns?.stats?.instances ?? 0, level: v.terrainLevel, depth: -v.terrain.field.height(11800, -875), spacing: v.terrain.field.spacing(11800, -875), boat: s ? { x: s.x, z: s.z } : null, grids: v.terrain.grids, photo: v.ground?.stats?.region ?? null }; });
   const files = [...got.keys()].sort(), south = files.filter((f) => f.startsWith('terrain/south/'));
   const bytes = (fs) => fs.reduce((s, f) => s + got.get(f), 0);
   await ctx.close();
-  return { files, south, southBytes: bytes(south), bay: files.filter(isBay), bayBytes: bytes(files.filter(isBay)), info, errors };
+  return { piers, files, south, southBytes: bytes(south), bay: files.filter(isBay), bayBytes: bytes(files.filter(isBay)), info, errors };
 }
 const Q = 'mode=sail&hour=15&seed=1&attract=0&music=0&headless=1';
 try {
@@ -48,6 +51,7 @@ try {
     check(r.south.length === 0 && r.southBytes === 0, `bay start: 0 bytes of terrain/south/ (${r.south.length} files)`);
     check(['terrain/bay-h.lsh', 'terrain/bay-c.lsh', 'terrain/bay-d.lsh'].every((f) => r.files.includes(f)) && r.bay.some((f) => f.startsWith('photo/full/bay/')), `bay start: the bay's level and photo fetched (${(r.bayBytes / 1e6).toFixed(2)} MB)`);
     check(r.info.level?.key === 'bay', `bay start: the page holds the bay's level (${JSON.stringify(r.info.level?.key)})`);
+    check(r.piers.length === 0 && r.info.sets?.length === 0, `bay start: the south piers never requested (${r.piers.length} requests, sets ${JSON.stringify(r.info.sets)})`);
     check(r.errors.length === 0, `bay start: no page errors (${r.errors.slice(0, 2).join(' | ')})`);
     console.log(`  bay start: ${r.files.length} terrain/photo files; the bay's detail ${r.bay.length} files, ${r.bayBytes} B`);
   }
@@ -60,6 +64,7 @@ try {
     check(r.info.level?.key === 'south-lake' && r.info.photo === 'south', `Ski Run: the page holds South Lake's level and photo (${JSON.stringify({ key: r.info.level?.key, photo: r.info.photo })})`);
     check(Math.abs(r.info.depth - 22.85) < 0.1 && r.info.spacing === 4, `Ski Run: the live sampler reads ${r.info.depth.toFixed(2)} m at the pin on the ${r.info.spacing} m level`);
     check(r.info.boat && Math.hypot(r.info.boat.x - 11800, r.info.boat.z + 875) < 150 && r.info.boat.x > 11800, `Ski Run: she started at the pin and sails east on the afternoon's reach (${JSON.stringify(r.info.boat)})`);
+    check(r.piers.length === 1 && JSON.stringify(r.info.sets) === '["south"]', `Ski Run, desktop: the south piers fetched once and merged (${r.piers.length} request, sets ${JSON.stringify(r.info.sets)}, ${r.info.instances} instances)`);
     check(r.errors.length === 0, `Ski Run, desktop: no page errors (${r.errors.slice(0, 2).join(' | ')})`);
   }
   {
@@ -68,6 +73,7 @@ try {
     check(want.every((f) => r.south.includes(f)) && r.south.every((f) => want.includes(f) || f.startsWith('terrain/south/photo/phone/south/')), `Ski Run, phone: only the 8 m set's files (${r.south.length} files)`);
     check(r.southBytes > 0.7e6 && r.southBytes < 0.8e6, `Ski Run, phone: ${r.southBytes} B of terrain/south/ (about 0.75 MB)`);
     check(r.bay.length === 0 && r.info.spacing === 8, `Ski Run, phone: none of the bay's detail, the 8 m level under her (${r.info.spacing} m)`);
+    check(r.piers.length === 1 && JSON.stringify(r.info.sets) === '["south"]', `Ski Run, phone: the south piers fetched once and merged (${r.piers.length} request, sets ${JSON.stringify(r.info.sets)})`);
     check(r.errors.length === 0, `Ski Run, phone: no page errors (${r.errors.slice(0, 2).join(' | ')})`);
   }
   {

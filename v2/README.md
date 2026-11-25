@@ -133,6 +133,10 @@ one of its birthplaces (`?birth=`, the saved pick, a pin on the home card: a pic
 the bay's slot (heights, cover, shore distance, photo layer 0) in place of the bay's grids, which are then never fetched; the
 coarser levels stay and its edges blend into them. A start elsewhere fetches none of it; a region with no `level` starts on the
 bay's. No mid-sail swap: sailing into another region keeps the start's level (the hook: `terrain/region.js`).
+The south shore's piers follow the same rule: `v2/assets/towns/shore-south.vsh.gz` (about 84 kB) holds every OSM pier, dock and
+breakwater in the south area (x 7,000 to 14,500, z -1,500 to 3,000: 555 segments, 5,246 pilings) on pilings that reach the south
+level's bed; a start or a move into the south (`towns/format.js shoreSetsFor`, the buildings' box) fetches it and `render/towns.js
+loadSets` merges it into the shore. The shared `shore.vsh.gz` holds none of them (`tests/south-piers.test.mjs`).
 `tests/region-level.test.mjs` checks every birthplace of every row (and a fake second region): its start's files hold its own
 region's level (or the bay's) and no other region's; `tests/pages/southStart.page.mjs` records the page's requests. The readers derive their old tables from it, digit for digit
 (`tests/region-table.test.mjs` against `tests/fixtures/regions-before.json`): busyLake.js `REGIONS` (and with it the resident

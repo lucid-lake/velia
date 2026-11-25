@@ -110,6 +110,7 @@ import { stageOf } from './ui/frontPlan.js';   // the front door: the loading st
 import { createTowns, createShoreMirrorTarget } from './render/towns.js';
 import { createBuildings } from './render/buildings.js';   // Phase B of the South Lake birthplace: the buildings, the Stateline towers, the gondola, the marina's boats
 import { setsFor as buildingSets } from './towns/buildings.js';   // 10a: the piers, the harbour, the ski runs and the Hwy 89 cut (render/towns.js)
+import { shoreSetsFor } from './towns/format.js';   // the south shore's piers: their own file, loaded on a start or a move into the south
 import { createLandmarks } from './render/landmarks.js';   // G1, G2: v1's ruin, stone house and waterfall, and its five shore flags (render/landmarks.js)
 import { createSeamanship, piersOf, hullToWorld } from './sim/seamanship.js';
 import { createIntro, ndcYMax, bandShare } from './ui/cinematicIntro.js';   // the cinematic intro (owner, 2026-11-18): the first Sail or Cruise of a page load, desktop only
@@ -462,11 +463,12 @@ async function boot() {
   const buildings = feature('buildings').on ? inGroup('towns', () => createBuildings({ device, reg, frameBGL, frameStruct, sky, shadow: tshadow, terrain, hdrTarget, msaa: P.msaa, depthFormat, errors })) : null;
   let buildingsLoad = null;
   const loadBuildings = (x, z) => {
-    if (!buildings) return Promise.resolve();
+    const piers = towns.loadSets(shoreSetsFor(x, z));   // the south shore's piers (a phone too: no buildings there, the piers stay)
+    if (!buildings) return piers;
     const sets = buildingSets(x, z);
     const p = buildings.load(sets);
     if (sets.includes('south')) night.addLights(new URL('./assets/night/lights-south.bin', import.meta.url));
-    return p;
+    return Promise.all([p, piers]);
   };
   // Fannette Island's tea house (owner, 2026-11-18: desktop only; src/core/features.js teaHouse): its mesh is its own chunk, fetched
   // after the landmarks (a live page: after the first frame, behind the home card; a capture: before its first frame) and drawn by
@@ -1584,7 +1586,7 @@ async function boot() {
     if (!townsLoad && !P.headless && cockpitIn && pipeQ.has('towns')) { townsLoad = towns.load(); Promise.resolve(townsLoad).catch(() => {}).finally(() => { townsDone = true; }); }   // 10a: after the first frame
     if (shore && !shoreLoad && !P.headless && cockpitIn && pipeQ.has('shore')) shoreLoad = shore.load().catch((e) => errors.push(`shore: ${e?.message ?? e}`));   // #56 M3: the baked field after the first frame
     if (!landmarksLoad && !P.headless && cockpitIn && pipeQ.has('towns')) { landmarksLoad = landmarks.load(); landmarksLoad.then(teaHouseLoad); }
-    if (buildings && !buildingsLoad && !P.headless && cockpitIn && pipeQ.has('towns')) buildingsLoad = loadBuildings(startPose.x, startPose.z);   // after the first frame: the sets of the start   // G1, G2: after the first frame; the tea house after them (a desktop)
+    if (!buildingsLoad && !P.headless && cockpitIn && pipeQ.has('towns')) buildingsLoad = loadBuildings(startPose.x, startPose.z);   // after the first frame: the sets of the start   // G1, G2: after the first frame; the tea house after them (a desktop)
     lateBuilds = reg.late;
     if (diag.on) { const nowD = performance.now(); diag.frame(lastDrawAt == null ? null : nowD - lastDrawAt, graph.gpuMs(), nowD, cpu); lastDrawAt = nowD; }   // the phone pass: the frame's numbers into the panel's rings (perf(v2): the span, the passes, the CPU)
     label();

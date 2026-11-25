@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
-import { decodeShore, encodeShore, decodeMask, encodeMask, sampleRaster, maskAt, keepOut, keepOutR, MESH, RASTER, KEEP, matByte, matOf, BAY, inBay, filterShore, filterMask } from '../towns/format.js';
+import { decodeShore, mergeShore, encodeShore, decodeMask, encodeMask, sampleRaster, maskAt, keepOut, keepOutR, MESH, RASTER, KEEP, matByte, matOf, BAY, inBay, filterShore, filterMask } from '../towns/format.js';
 import { SHORE_REGION } from '../../src/shoreline-layout.js';
 import { shoreArrays, pickDraws, RANGE, SHADOW_MESHES, mirrorProxies, pickMirror, harbourParts, MIRROR } from '../render/towns.js';
 import { decodeLights } from '../sim/night.js';
@@ -26,6 +26,8 @@ import { makeTerrain } from './helpers/ground.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const file = (f) => gunzipSync(readFileSync(resolve(ROOT, 'v2/assets/towns', f)));
 const S = decodeShore(file('shore.vsh.gz')), M = decodeMask(file('mask.vtm.gz'));
+// the south shore's piers are their own file (a south start's: tests/south-piers.test.mjs); S is the shared shore, ALL what a south start draws
+const ALL = mergeShore(S, [decodeShore(file('shore-south.vsh.gz'))]);
 const terrain = makeTerrain({ seed: 1 }), H = (x, z) => terrain.heightAt(x, z);
 const packedP = packTowns();
 const inst = (i) => { const m = S.mats.subarray(i * 12, i * 12 + 12); return { X: [m[0], m[1], m[2]], Y: [m[3], m[4], m[5]], Z: [m[6], m[7], m[8]], O: [m[9], m[10], m[11]] }; };
@@ -34,7 +36,7 @@ const range = (mesh) => { const m = S.meshes[mesh]; return Array.from({ length: 
 
 test('the shipped files are the pack tool\'s output (v1\'s layouts, deterministic)', async () => {
   const p = await packedP;
-  for (const f of ['shore.vsh.gz', 'mask.vtm.gz']) {
+  for (const f of ['shore.vsh.gz', 'shore-south.vsh.gz', 'mask.vtm.gz']) {
     const d = townsDiff(f, gunzipSync(p.files[f]), file(f));   // the decoded content (tools/v2-towns-pack.mjs townsDiff)
     assert.equal(d, null, `${f}: ${d}: re-run node tools/v2-towns-pack.mjs`);
   }
@@ -75,7 +77,7 @@ test('placement on the terrain: decks over the water or the shore and above it, 
     let low = Infinity; for (const u of [-0.5, 0, 0.5]) low = Math.min(low, H(O[0] + X[0] * u, O[2] + X[2] * u), H(O[0] + Z[0] * u, O[2] + Z[2] * u));
     if (low >= 8) inland++;
   }
-  assert.ok(decks > 3000, `${decks} decks`);
+  assert.ok(decks > 2500, `${decks} decks (the south area's are in shore-south.vsh)`);
   // OSM tags a few boardwalks inland as piers (v1 floats a deck 1.2 m over the hillside): the pack leaves them out
   assert.ok(inland / decks < 0.02, `${inland} of ${decks} decks stand more than 8 m up`);
   for (const i of range(MESH.pile)) {
@@ -97,7 +99,8 @@ test('placement on the terrain: decks over the water or the shore and above it, 
 
 test('the night lines up: v1\'s pier-head lights stand on the shipped decks', () => {
   const L = decodeLights(new Uint8Array(readFileSync(resolve(ROOT, 'v2/assets/night/lights.bin'))));
-  const decks = range(MESH.box).map(inst).filter((d) => len(d.Y) < 3.5 && Math.min(len(d.X), len(d.Z)) > 0.2);
+  const decks = Array.from({ length: ALL.meshes[MESH.box].count }, (_, k) => { const i = ALL.meshes[MESH.box].first + k, m = ALL.mats.subarray(i * 12, i * 12 + 12); return { X: [m[0], m[1], m[2]], Y: [m[3], m[4], m[5]], Z: [m[6], m[7], m[8]], O: [m[9], m[10], m[11]] }; })
+    .filter((d) => len(d.Y) < 3.5 && Math.min(len(d.X), len(d.Z)) > 0.2);   // a south start's decks: the shared file's and the south file's
   let heads = 0, on = 0;
   for (let k = 0; k < L.count; k++) {
     const x = L.data[k * 8], y = L.data[k * 8 + 1], z = L.data[k * 8 + 2], size = L.data[k * 8 + 6];
@@ -162,7 +165,7 @@ test('#41b: v1\'s materials ride the instances (roughness, metalness) and the to
   assert.equal(walls.length, S.meshes[MESH.roof].count);
   for (const w of walls) assert.deepEqual(w.m, { rough: 0.85, metal: 0 });
   for (const d of decks) assert.deepEqual(d.m, { rough: 0.9, metal: 0 });
-  assert.ok(boxes.filter((b) => b.m.metal === 0.1 && b.m.rough === 0.75).length > 3000, 'the towns\' decks and breakwaters: v1\'s propMat (0.75, metalness 0.1)');
+  assert.ok(boxes.filter((b) => b.m.metal === 0.1 && b.m.rough === 0.75).length > 2500, 'the towns\' decks and breakwaters: v1\'s propMat (0.75, metalness 0.1)');
   assert.deepEqual(matOf(matByte(0.62, 0.1)), { rough: 0.62, metal: 0.1 });
   const t = S.meshes[MESH.tower], a = new Set(); for (let v = 0; v < t.verts; v++) a.add(t.col[4 * v + 3]);
   assert.deepEqual([...a].sort((x, y) => x - y), [0.6, 0.7, 0.8, 0.95, 1].map((r) => Math.round(255 * Math.fround(r))), 'the tower\'s five parts at v1\'s roughness');
