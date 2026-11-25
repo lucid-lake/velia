@@ -8,6 +8,8 @@
 // references-sheet.png (all references, after a bless). The sheet's strip colours: grey = before, green = now, red = diff.
 // Three kinds of frame:
 //   headless (the default pin): the scene only, renderOnce() × 30 on a frozen scene clock;
+//   pending: true: a new frame with no reference yet (the owner has not seen it): captured and listed as pend, never a failure;
+//   a reference makes it an ordinary frame (drop the field at the bless)
 //   recipe: a headless frame set up in the page first (RECIPES below: the birds placed by the director's cues);
 //   live UI: `film` (a ?filmui=1 page: the HUD, the shell, the staged first visit) runs on Playwright's fake clock, paused
 //     and stepped in lockstep with filmFrame(dt), so the UI's own timers and rAF see the same time every run; `person`
@@ -211,6 +213,8 @@ try {
       console.log(`  blessed ${f.name}  [${((Date.now() - t1) / 1000).toFixed(0)} s]`);
       continue;
     }
+    // a new frame waiting on the owner's eyes (frames.json "pending": true): captured for review, not a failure until blessed
+    if (!existsSync(gp) && f.pending) { console.log(`  pend ${f.name}: no reference yet, the capture is ${a.path} (bless after the owner OK, then drop "pending")`); continue; }
     if (!existsSync(gp)) { console.log(`  FAIL ${f.name}: no reference (run --bless ${f.name} after the owner OK)`); failed++; continue; }
     const g = read(gp), n = read(a.path);
     const r = compare(g, n, resolve(OUT, `${f.name}.diff.png`));
