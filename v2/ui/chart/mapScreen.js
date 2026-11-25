@@ -143,8 +143,8 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
 
   // the whole bay: every pin inside what the panel leaves (the entrance's first view)
   function fitPins() {
-    // a pin past the paper (South Lake's) counts where the chart draws it, at the paper's edge (edge.js)
-    const list = (bp()?.list?.() ?? []).filter((r) => !r.locked && Number.isFinite(r.x)).map((r) => ({ ...r, ...edgePoint(r.x, r.z, GROUND.box) }));
+    // the pins on the paper frame the view as before; a pin past it (South Lake's, drawn at the paper's edge: edge.js) does not widen it
+    const list = (bp()?.list?.() ?? []).filter((r) => !r.locked && Number.isFinite(r.x) && !edgePoint(r.x, r.z, GROUND.box).far);
     const { w, h } = chart.state;
     if (!list.length || !w) return null;
     const ins = insets(), freeW = Math.max(120, w - ins.left - (box ? 70 : 190)), freeH = Math.max(120, h - (box ? 60 : 150));
