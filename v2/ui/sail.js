@@ -399,7 +399,9 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   const logApi = () => services.get('logbook')?.logbook ?? null;
   // the live map (Phase 2b): the chart dial opens the same screen as Menu, Esc and N (owner, 2026-11-18): the live
   // chart centred on the boat with the panel, never the old enlarged chart
-  function openMapScreen() { const m = services.get('menu'); if (!services.get('mapScreen') || !m) return false; if (logOpen()) logApi()?.close?.(); if (!m.isOpen) m.open?.(); return true; }
+  // the map screen's module loads a beat after the dial does: until it does, the class lk-livechart-on (set at mount) says it is coming,
+  // and the card opens now (the map follows the shell's state when it mounts); the old pin would draw nothing (its pane is hidden then)
+  function openMapScreen() { const m = services.get('menu'); if (!m || !(services.get('mapScreen') || document.documentElement.classList.contains('lk-livechart-on'))) return false; if (logOpen()) logApi()?.close?.(); if (!m.isOpen) m.open?.(); return true; }
   function openChartPage() { if (openMapScreen()) return; if (logOpen()) logApi()?.close?.(); const tg = chart?.chart?.toggle; if (!tg) return; tg.shown = true; if (!tg.pinned) tg.pin(); pageWas.pin = true; pageWas.log = false; }
   function openLogPage() { const tg = chart?.chart?.toggle; if (tg?.pinned) tg.unpin(); logApi()?.open?.(); pageWas.pin = false; pageWas.log = true; }
   const pageWas = { pin: false, log: false };
