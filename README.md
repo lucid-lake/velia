@@ -16,7 +16,7 @@
 [![WebGPU](https://img.shields.io/badge/WebGPU-raw_WGSL-1C2340.svg)](v2/README.md)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support_Velia-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/lucidlake)
 
-<a href="https://velia.lucidlakelabs.com"><img src="docs/album/07-heeled.jpg" alt="Velia: a sloop heeled in a fresh breeze on Lake Tahoe, white clouds over the forested shore" width="100%"></a>
+<a href="https://velia.lucidlakelabs.com"><img src="docs/album/00-hero.jpg" alt="Velia: a navy race sloop with silver sails heels in a fresh breeze in Emerald Bay, Lake Tahoe, Fannette Island and the snow-capped ridges behind under white clouds" width="100%"></a>
 
 </div>
 
@@ -59,23 +59,23 @@ Every picture is a frame from the game, captured with the HUD off. Nothing is pa
 
 <table>
 <tr>
-<td width="50%"><a href="docs/album/01-rainbow.jpg"><img src="docs/album/thumbs/01-rainbow.jpg" alt="A rainbow over Lake Tahoe after a storm, a sailboat heeled in the rough water"></a><br><sub>After the storm, a rainbow over the open lake.</sub></td>
+<td width="50%"><a href="docs/album/01-rainbow.jpg"><img src="docs/album/thumbs/01-rainbow.jpg" alt="A rainbow over Lake Tahoe after a storm, a navy sloop heeled in the rough water"></a><br><sub>After the storm, a rainbow over the open lake.</sub></td>
 <td width="50%"><a href="docs/album/04-cockpit.jpg"><img src="docs/album/thumbs/04-cockpit.jpg" alt="The helm view from the cockpit of a sloop: the wheel, the dodger, the winches and Emerald Bay ahead"></a><br><sub>At the helm: the cockpit, the wheel, the bay ahead.</sub></td>
 </tr>
 <tr>
-<td><a href="docs/album/05-fireworks.jpg"><img src="docs/album/thumbs/05-fireworks.jpg" alt="July 4th fireworks over the lake with a sailboat in the foreground"></a><br><sub>July 4th: the fireworks off the mouth of Emerald Bay.</sub></td>
+<td><a href="docs/album/05-fireworks.jpg"><img src="docs/album/thumbs/05-fireworks.jpg" alt="July 4th fireworks over the lake with a sloop in the foreground"></a><br><sub>July 4th: the fireworks off the mouth of Emerald Bay.</sub></td>
 <td><a href="docs/album/06-milky-way.jpg"><img src="docs/album/thumbs/06-milky-way.jpg" alt="The Milky Way over the dark ridges of Emerald Bay at night"></a><br><sub>The Milky Way over the ridge, from the deck at 22:30.</sub></td>
 </tr>
 <tr>
-<td><a href="docs/album/07-heeled.jpg"><img src="docs/album/thumbs/07-heeled.jpg" alt="A white sloop heeled in a fresh breeze on deep blue water"></a><br><sub>A fresh afternoon breeze. The boat sails by its polars.</sub></td>
-<td><a href="docs/album/08-regatta.jpg"><img src="docs/album/thumbs/08-regatta.jpg" alt="Three racing sloops near the start line of a Regatta race"></a><br><sub>Regatta: three boats at the start line.</sub></td>
+<td><a href="docs/album/07-heeled.jpg"><img src="docs/album/thumbs/07-heeled.jpg" alt="A navy sloop with silver laminate sails heeled in a fresh breeze off a forested shore"></a><br><sub>A fresh afternoon breeze. The boat sails by its polars.</sub></td>
+<td><a href="docs/album/08-regatta.jpg"><img src="docs/album/thumbs/08-regatta.jpg" alt="Four racing sloops at the glowing start line of a Regatta race, the committee boat at the right end"></a><br><sub>Regatta: the fleet at the start line.</sub></td>
 </tr>
 <tr>
-<td><a href="docs/album/09-ski-run.jpg"><img src="docs/album/thumbs/09-ski-run.jpg" alt="A sailboat off South Lake Tahoe with the ski runs of the mountain behind"></a><br><sub>Off Ski Run, South Lake Tahoe, under the ski slopes.</sub></td>
+<td><a href="docs/album/09-ski-run.jpg"><img src="docs/album/thumbs/09-ski-run.jpg" alt="A sailboat off South Lake Tahoe, the forested mountain and its summer ski-run clearings behind"></a><br><sub>Off Ski Run, South Lake Tahoe, under the ski slopes.</sub></td>
 <td><a href="docs/album/10-storm.jpg"><img src="docs/album/thumbs/10-storm.jpg" alt="A sailboat in a grey storm with rain on the lens"></a><br><sub>A storm rolls in. Rain hits the lens.</sub></td>
 </tr>
 <tr>
-<td><a href="docs/album/11-glass-kayak.jpg"><img src="docs/album/thumbs/11-glass-kayak.jpg" alt="A clear kayak with two paddlers seen from above over the blue water of Emerald Bay"></a><br><sub>A clear kayak from the glass-bottom tour, seen from above.</sub></td>
+<td><a href="docs/album/11-glass-kayak.jpg"><img src="docs/album/thumbs/11-glass-kayak.jpg" alt="A clear kayak with a paddler seen from above over the boulders of Emerald Bay's clear shallows"></a><br><sub>A clear kayak from the glass-bottom tour, seen from above.</sub></td>
 <td><a href="docs/album/12-glass-boat-night.jpg"><img src="docs/album/thumbs/12-glass-boat-night.jpg" alt="The glass-bottom tour boat Velia Travel at night with its kayaks glowing on the dark water"></a><br><sub>The tour boat at night. Its kayaks glow on the dark water.</sub></td>
 </tr>
 </table>
