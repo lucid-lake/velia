@@ -19,11 +19,32 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync, gunzipSync } from 'node:zlib';
-import { encodeMask, encodeShore, decodeShore, filterShore, filterMask, RASTER, MESH, CHUNK, matByte } from '../v2/towns/format.js';
+import { encodeMask, encodeShore, decodeShore, filterShore, filterMask, RASTER, MESH, CHUNK, matByte, SHORE_SETS, inArea } from '../v2/towns/format.js';
+import { inflate, unpredict, metres } from '../v2/terrain/decode.js';
 import { nearDiff } from './near.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, 'v2/assets/towns');
+
+// the south level's heights (terrain/south: metres over the lake, 0 = the surface), bilinear as the sampler's: the 4 m level
+// (a desktop) and the 8 m level (a phone); a south pier's feet reach the lower of the two beds, its deck clears the higher
+async function southHeights() {
+  const load = async (name) => {
+    const dir = resolve(ROOT, 'terrain/south'), M = JSON.parse(readFileSync(resolve(dir, name), 'utf8')), L = M.levels[0];
+    const q = unpredict(await inflate(readFileSync(resolve(dir, L.height))), L.w, L.h), m = new Float32Array(q.length);
+    for (let i = 0; i < q.length; i++) m[i] = metres(q[i], M.height);
+    return (x, z) => {
+      const fx = Math.min(Math.max((x - L.x0) / L.step, 0), L.w - 1), fz = Math.min(Math.max((z - L.z0) / L.step, 0), L.h - 1);
+      const i = Math.min(Math.floor(fx), L.w - 2), j = Math.min(Math.floor(fz), L.h - 2), u = fx - i, v = fz - j, k = j * L.w + i;
+      return (m[k] * (1 - u) + m[k + 1] * u) * (1 - v) + (m[k + L.w] * (1 - u) + m[k + L.w + 1] * u) * v;
+    };
+  };
+  const a = await load('south.json'), b = await load('south-phone.json');
+  return { bed: (x, z) => Math.min(a(x, z), b(x, z)), top: (x, z) => Math.max(a(x, z), b(x, z)), a, b };
+}
+// the south shore's piers (the shoreline's pier look: a 0.3 m deck at 1.4 m over the lake on pilings every 3 m both sides, from
+// the bed to the deck; here the deck rises with the ground where the pier meets the beach)
+export const SOUTH_PIER = Object.freeze({ deckY: 1.4, deck: 0.3, pile: 3, bedBelow: 0.4, clearOver: 0.4, clear: 0.1, inland: 8 });
 
 // linear (three's working colour) → sRGB bytes
 const toS = (v) => Math.round(255 * Math.min(1, Math.max(0, v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055)));
@@ -53,7 +74,8 @@ export async function packTowns() {
   const { layoutShoreline, SHORE_REGION } = await import('../src/shoreline-layout.js');
   const { createHarbour } = await import('../classic/src/harbour.js');
   const terrain = makeTerrain({ seed: 1 });
-  const L = buildTownsLayout(await loadTownsData(), { heightAt: terrain.heightAt, lonLatToWorld: makeGeo(CURRENT_WATERS).lonLatToWorld });
+  const TD = await loadTownsData(), geo = makeGeo(CURRENT_WATERS);
+  const L = buildTownsLayout(TD, { heightAt: terrain.heightAt, lonLatToWorld: geo.lonLatToWorld });
   const SH = layoutShoreline(terrain, { seed: 1, realPiers: L.osmPiers });
   const harbour = createHarbour({ terrain, seed: 1 });
   harbour.group.updateMatrixWorld(true);
@@ -83,7 +105,7 @@ export async function packTowns() {
   meshes[MESH.tower] = meshOf(THREE, tower); meshes[MESH.harbour] = meshOf(THREE, hStatic.geometry); meshes[MESH.rock] = meshOf(THREE, hRocks.geometry);
   const insts = meshes.map(() => []);
 
-  const M = new THREE.Matrix4(), P = new THREE.Vector3(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+  const EU = new THREE.Euler(), M = new THREE.Matrix4(), P = new THREE.Vector3(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
   // #41b: each instance carries v1's material (its roughness and metalness: the flags byte, format.js matByte); 0 (the
   // tower) reads the mesh's own per-vertex roughness
   const put = (mesh, x, y, z, yaw, sx, sy, sz, hex, mat = 0) => { Q.setFromAxisAngle(UP, yaw); M.compose(P.set(x, y, z), Q, S.set(sx, sy, sz)); insts[mesh].push({ m: mat12(M), tint: hexS(hex), flags: mat }); };
@@ -96,10 +118,12 @@ export async function packTowns() {
   // (v1's floats 0.9 m over the water; seen through Tahoe's clear water from the boat it read as a hovering slab)
   const SR = SHORE_REGION, inShore = (x, z) => x > SR.x0 && x < SR.x1 && z > SR.z0 && z < SR.z1;
   const D = L.piers.data;
-  let decks = 0, breakwaters = 0, inland = 0;
+  let decks = 0, breakwaters = 0, inland = 0, southSkipped = 0;
+  const SOUTH = SHORE_SETS.south;
   for (let k = 0; k < L.piers.count; k++) {
     const o = k * 7, x = D[o], y = D[o + 1], z = D[o + 2], len = D[o + 3], wid = D[o + 4], yaw = D[o + 5], kind = D[o + 6];
     if (!kind && inShore(x, z)) continue;
+    if (inArea(SOUTH.area, x, z)) { southSkipped++; continue; }   // the south pack holds it (below)
     // a segment wholly over ground more than 8 m above the lake is an inland boardwalk OSM tags as a pier (v1 floats a deck
     // 1.2 m over the hillside there): left out
     { const ca = Math.cos(yaw), sa = Math.sin(yaw); let low = Infinity;
@@ -133,6 +157,58 @@ export async function packTowns() {
     put(MESH.box, x + q.dirX * (d / 2 + 0.02), y0 + 1.6, z + q.dirZ * (d / 2 + 0.02), yaw, 5, 3.2, 0.05, 0xd8d2c4, MAT.trim);
     bhs++;
   }
+
+  // --- the south shore's piers: every OSM pier segment (and breakwater) whose middle is in the south area, on the south level's
+  // own ground: the same segments v1's layout makes (src/towns-layout.js: ≥ 0.5 m, a non-area one's length + half its width) ---
+  const { fromUTM } = await import('../src/sim/geo/utm.js');
+  const SG = await southHeights();
+  const sIn = [[], []];   // MESH.box, MESH.pile
+  const sPut = (mesh, x, y, z, yaw, pitch, sx, sy, sz, hex, mat) => {
+    Q.setFromEuler(EU.set(0, yaw, pitch, 'YXZ')); M.compose(P.set(x, y, z), Q, S.set(sx, sy, sz)); sIn[mesh].push({ m: mat12(M), tint: hexS(hex), flags: mat });
+  };
+  const SP = SOUTH_PIER, south = { segments: 0, inland: 0, decks: 0, breakwaters: 0, piles: 0, lenM: 0, ways: 0 };
+  const [E0, N0] = TD.origin;
+  TD.piers.forEach((p) => {
+    const pts = []; for (let k = 0; k < p.p.length; k += 2) { const g = fromUTM(p.p[k] + E0, p.p[k + 1] + N0); pts.push(geo.lonLatToWorld(g.lon, g.lat)); }
+    let any = false;
+    for (let k = 0; k + 1 < pts.length; k++) {
+      const [ax, az] = pts[k], [bx, bz] = pts[k + 1], Lg = Math.hypot(bx - ax, bz - az);
+      if (Lg < 0.5) continue;
+      if (!inArea(SOUTH.area, (ax + bx) / 2, (az + bz) / 2)) continue;
+      south.segments++; any = true;
+      const dx = (bx - ax) / Lg, dz = (bz - az) / Lg, yaw = Math.atan2(-(bz - az), bx - ax), wid = p.w;
+      // the ground along the segment (the higher of the two south levels, every 2 m)
+      const n = Math.max(2, Math.ceil(Lg / 2)); let low = Infinity, bedMin = Infinity;
+      for (let i = 0; i <= n; i++) { const t = i / n, x = ax + dx * Lg * t, z = az + dz * Lg * t; low = Math.min(low, SG.top(x, z)); bedMin = Math.min(bedMin, SG.bed(x, z)); }
+      if (low > SP.inland) { south.inland++; continue; }   // an inland boardwalk OSM tags as a pier: left out, as the shared pack's
+      south.lenM += Lg;
+      if (p.k) {   // a breakwater: v1's slab (2.1 m over its base), its toe to the bed
+        const gm = SG.top((ax + bx) / 2, (az + bz) / 2), y = Math.max(1.5, gm + 1.5), top = y + 1.5, base = Math.min(0, bedMin) - 0.5;
+        sPut(MESH.box, (ax + bx) / 2, (base + top) / 2, (az + bz) / 2, yaw, 0, Lg + (p.a ? 0 : wid * 0.5), top - base, wid, 0x77736a, MAT.townDeck); south.breakwaters++;
+        continue;
+      }
+      // the deck's ends: 1.4 m over the lake, or 0.4 m over the beach (the higher ground of the two levels under the end)
+      const yEnd = (x, z) => Math.max(SP.deckY, SG.top(x, z) + SP.clearOver);
+      let ya = yEnd(ax, az), yb = yEnd(bx, bz);
+      { // a bump between the ends lifts the whole deck: its underside stays over the ground along the segment
+        let lift = 0;
+        for (let i = 0; i <= n; i++) { const t = i / n; lift = Math.max(lift, SG.top(ax + dx * Lg * t, az + dz * Lg * t) + SP.deck / 2 + SP.clear - (ya + (yb - ya) * t)); }
+        ya += lift; yb += lift; }
+      const pitch = Math.atan2(yb - ya, Lg), ext = Lg + (p.a ? 0 : wid * 0.5);
+      sPut(MESH.box, (ax + bx) / 2, (ya + yb) / 2, (az + bz) / 2, yaw, pitch, ext / Math.cos(pitch), SP.deck, wid, 0x6b5a48, MAT.deck); south.decks++;
+      for (let a = SP.pile / 2; a < Lg; a += SP.pile) for (const side of [-1, 1]) {
+        const x = ax + dx * a + dz * side * (wid / 2 - 0.15), z = az + dz * a - dx * side * (wid / 2 - 0.15);
+        const t = ya + (yb - ya) * a / Lg - SP.deck / 2, b = SG.bed(x, z) - SP.bedBelow;
+        if (t - b < 0.3) continue;   // the deck sits on the ground there: no piling
+        sPut(MESH.pile, x, (b + t) / 2, z, 0, 0, 1, t - b, 1, 0x3d342c, MAT.piling); south.piles++;
+      }
+    }
+    if (any) south.ways++;
+  });
+  if (south.segments !== southSkipped) throw new Error(`south piers: ${south.segments} segments here, ${southSkipped} left out of the shared pack`);
+  { const key = (it) => Math.floor(it.m[11] / CHUNK) * 100000 + Math.floor(it.m[9] / CHUNK);
+    for (const l of sIn) { l.forEach((it, i) => { it.i = i; }); l.sort((a, b) => key(a) - key(b) || a.i - b.i); } }
+  const southShore = encodeShore([meshes[MESH.box], meshes[MESH.pile]], sIn);
   put(MESH.tower, T.x, T.y, T.z, T.facing, 1, 1, 1, 0xffffff);
   // the harbour: its static mesh where v1 puts it, its rocks as v1's instances with their granite tints
   insts[MESH.harbour].push({ m: mat12(hStatic.matrixWorld), tint: [255, 255, 255], flags: MAT.harbour });
@@ -158,8 +234,8 @@ export async function packTowns() {
   };
   const mask = encodeMask([crop(L.fine, [0, 1], RASTER.FINE), crop(L.mask, [1], RASTER.SKI)]);
   const files = { 'shore.vsh.gz': gzipSync(shore, { level: 9 }), 'mask.vtm.gz': gzipSync(mask, { level: 9 }),
-    'shore-phone.vsh.gz': gzipSync(filterShore(shore), { level: 9 }), 'mask-phone.vtm.gz': gzipSync(filterMask(mask, [RASTER.FINE]), { level: 9 }) };
-  const counts = { decks, breakwaters, inland, piers: SH.piers.length, piles, boathouses: bhs, rocks: hRocks.count, harbourTris: meshes[MESH.harbour].pos.length / 9, instances: insts.reduce((s, l) => s + l.length, 0) };
+    'shore-phone.vsh.gz': gzipSync(filterShore(shore), { level: 9 }), [SOUTH.file]: gzipSync(southShore, { level: 9 }), 'mask-phone.vtm.gz': gzipSync(filterMask(mask, [RASTER.FINE]), { level: 9 }) };
+  const counts = { south, southBytes: southShore.length, decks, breakwaters, inland, piers: SH.piers.length, piles, boathouses: bhs, rocks: hRocks.count, harbourTris: meshes[MESH.harbour].pos.length / 9, instances: insts.reduce((s, l) => s + l.length, 0) };
   return { files, raw: { shore: shore.length, mask: mask.length }, counts, layout: L, shoreline: SH };
 }
 

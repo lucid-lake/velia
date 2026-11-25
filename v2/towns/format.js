@@ -222,3 +222,39 @@ export function filterMask(bytes, kinds = [RASTER.FINE]) {
   return encodeMask(M.rasters.filter((r) => kinds.includes(r.kind)).map((r) => ({ kind: r.kind, x0: r.x0, z0: r.z0, cell: r.cell, w: r.w, h: r.h, ch: r.ch,
     data: bytes.slice(r.offs[0], r.offs[0] + r.w * r.h * r.ch) })));
 }
+
+// ---- the south shore's piers: their own file, loaded only on a south start (the owner's rule: a birthplace outside the bay
+// loads its region's detail only when it is picked) ----
+// shore-south.vsh is a shore file of two meshes (MESH.box, MESH.pile: the same unit shapes) whose instances every pier,
+// breakwater and dock of OpenStreetMap inside `area` (world m: x 7,000 to 14,500, z -1,500 to 3,000) needs, on pilings that reach
+// the south level's bed (tools/v2-towns-pack.mjs). The shared shore file holds none of them. `box` is the start's trigger,
+// the buildings' south box (v2/towns/buildings.js SETS.south): a start or a move inside it loads the file.
+export const SHORE_SETS = Object.freeze({
+  south: Object.freeze({ id: 'south', file: 'shore-south.vsh.gz', box: Object.freeze([6000, 19000, -6000, 4500]), area: Object.freeze([7000, 14500, -1500, 3000]) }),
+});
+export const inArea = (a, x, z) => x >= a[0] && x <= a[1] && z >= a[2] && z <= a[3];
+// the extra shore files a start at (x, z) loads (pure)
+export function shoreSetsFor(x, z) {
+  return Object.values(SHORE_SETS).filter((s) => Number.isFinite(x) && Number.isFinite(z) && inArea(s.box, x, z)).map((s) => s.id);
+}
+// a decoded shore plus decoded extra shores (their meshes' instances appended to the same-index mesh of the base, each mesh's
+// instances re-sorted by 1 km chunk, stable) → a decoded shore (the base's meshes; no copy of the extras' geometry)
+export function mergeShore(base, extras) {
+  const chunkKey = (m, i) => Math.floor(m[i * 12 + 11] / CHUNK) * 100000 + Math.floor(m[i * 12 + 9] / CHUNK);
+  const per = base.meshes.map((m, k) => {
+    const list = [];
+    const take = (S, mesh) => { for (let i = mesh.first; i < mesh.first + mesh.count; i++) list.push({ m: S.mats.subarray(i * 12, i * 12 + 12), t: S.tints.subarray(i * 4, i * 4 + 4), key: chunkKey(S.mats, i) }); };
+    take(base, m);
+    for (const S of extras) if (S.meshes[k]) take(S, S.meshes[k]);
+    list.forEach((it, i) => { it.i = i; });
+    list.sort((a, b) => a.key - b.key || a.i - b.i);
+    return list;
+  });
+  const n = per.reduce((s, l) => s + l.length, 0), mats = new Float32Array(n * 12), tints = new Uint8Array(n * 4);
+  let first = 0;
+  const meshes = base.meshes.map((m, k) => {
+    per[k].forEach((it, j) => { mats.set(it.m, (first + j) * 12); tints.set(it.t, (first + j) * 4); });
+    const out = { ...m, first, count: per[k].length }; first += per[k].length; return out;
+  });
+  return { meshes, instances: n, mats, tints };
+}

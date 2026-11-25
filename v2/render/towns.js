@@ -23,12 +23,14 @@ import { WATER_WGSL, TERRAIN_BIND, TERRAIN_HEIGHT } from './terrain.js';
 import { MIRROR_HAZE_M } from './water-aa.js';
 import { SHADOW_STRUCT, SHADOW_READ } from './shadow-read.js';
 import { frustumPlanes, boxInFrustum } from '../terrain/quadtree.js';
-import { decodeShore, MESH, CHUNK } from '../towns/format.js';
+import { decodeShore, mergeShore, MESH, CHUNK, SHORE_SETS } from '../towns/format.js';
 import { inflate } from '../terrain/decode.js';
 
 export const TOWN_FILES = Object.freeze({ shore: new URL('../assets/towns/shore.vsh.gz', import.meta.url), mask: new URL('../assets/towns/mask.vtm.gz', import.meta.url) });
 // the phone's set (far: false; the registry's farTowns row): the bay's instances, Hwy 89 without the ski runs
 export const TOWN_FILES_BAY = Object.freeze({ shore: new URL('../assets/towns/shore-phone.vsh.gz', import.meta.url), mask: new URL('../assets/towns/mask-phone.vtm.gz', import.meta.url) });
+// the extra shore files (towns/format.js SHORE_SETS), each fetched only for a start or a move inside its box (T.loadSets)
+export const SHORE_FILES = Object.freeze({ south: new URL('../assets/towns/shore-south.vsh.gz', import.meta.url) });
 // how far each mesh draws (m): the desktop set, the phone set
 export const RANGE = Object.freeze({
   desktop: { [MESH.box]: 16000, [MESH.pile]: 1500, [MESH.roof]: 9000, [MESH.tower]: 9000, [MESH.harbour]: 25000, [MESH.rock]: 5000 },
@@ -599,14 +601,18 @@ export function createTowns({ device, reg, graph, frameBGL, frameBG = null, U = 
   let casting = true;   // the in-page A/B (main.js hook.setTownsShadow)
   const shRange = Object.fromEntries(SHADOW_MESHES.map((m) => [m, 1e9]));   // the light's box culls (render/shadow.js: ±2.5 km)
   const range = phone ? RANGE.phone : RANGE.desktop;
-  const stats = { shadowDraws: 0, bytes: 0, shoreBytes: 0, maskBytes: 0, maskGpuBytes: 0, instances: 0, verts: 0, draws: 0, drawn: 0, triangles: 0, ready: false, maskReady: false, loadMs: null, log: [] };
+  const stats = { shadowDraws: 0, bytes: 0, shoreBytes: 0, maskBytes: 0, maskGpuBytes: 0, instances: 0, verts: 0, draws: 0, drawn: 0, triangles: 0, ready: false, maskReady: false, loadMs: null, sets: [], log: [] };
   let arr = null, vbuf = null, ibuf = null, instBuf = null, maskBuf = null, maskBytes = null, maskOff = 0;
   const draws = [], planes = new Float64Array(20);
   let loadP = null;
   const t0 = performance.now();
   async function fetchBytes(url) { const r = await fetch(url); if (!r.ok) throw new Error(`towns: ${r.status} ${url}`); const b = new Uint8Array(await r.arrayBuffer()); stats.bytes += b.length; return b; }
-  function landShore(raw) {
-    const S = decodeShore(raw);
+  let baseS = null, vbufs = [];
+  const extraS = new Map(), setLoads = new Map();
+  function landShore(raw) { baseS = decodeShore(raw); buildShore(); }
+  // the GPU's arrays from the base shore and the extra files loaded so far (a later set replaces the buffers whole)
+  function buildShore() {
+    const S = extraS.size ? mergeShore(baseS, [...extraS.values()]) : baseS;
     arr = shoreArrays(S);
     const mk = (a, usage, label) => {
       const size = Math.max(16, Math.ceil(a.byteLength / 4) * 4), src = new Uint8Array(size);
@@ -614,7 +620,9 @@ export function createTowns({ device, reg, graph, frameBGL, frameBG = null, U = 
       const b = device.createBuffer({ label, size, usage: usage | GPUBufferUsage.COPY_DST }); device.queue.writeBuffer(b, 0, src); return b;
     };
     if (mBG) { mAll = mirrorProxies(S); mKeys = new Float64Array(mAll.length / 16); mStats.proxies = mKeys.length; mAt[0] = NaN; }   // #41c
+    for (const b of vbufs) b.destroy();
     vbuf = mk(arr.V, GPUBufferUsage.VERTEX, 'towns-verts'); ibuf = mk(arr.I, GPUBufferUsage.INDEX, 'towns-index'); instBuf = mk(arr.inst, GPUBufferUsage.VERTEX, 'towns-instances');
+    vbufs = [vbuf, ibuf, instBuf];
     stats.instances = S.instances; stats.verts = arr.V.byteLength / STRIDE_V; stats.ready = true;
   }
   function landMask(raw) {
@@ -652,8 +660,22 @@ export function createTowns({ device, reg, graph, frameBGL, frameBG = null, U = 
       stats.loadMs = +(performance.now() - t0).toFixed(1);
     })().catch((e) => { errors.push(`towns: ${e?.message ?? e}`); }));
   }
+  // the extra shore files for ids (SHORE_SETS): fetched once each, after the base shore is in, merged in place
+  function loadSets(ids = []) {
+    return Promise.all(ids.filter((id) => SHORE_SETS[id] && SHORE_FILES[id]).map((id) => {
+      if (!setLoads.has(id)) setLoads.set(id, (async () => {
+        await load();
+        if (!baseS) return;
+        const raw = await fetchBytes(SHORE_FILES[id].href);
+        const gz = (b) => (b[0] === 0x1f && b[1] === 0x8b ? inflate(b) : b);
+        extraS.set(id, decodeShore(await gz(raw)));
+        buildShore(); stats.sets = [...extraS.keys()];
+      })().catch((e) => { errors.push(`towns: ${e?.message ?? e}`); }));
+      return setLoads.get(id);
+    }));
+  }
   return {
-    stats, range, get arrays() { return arr; },
+    stats, range, get arrays() { return arr; }, loadSets,
     get queued() { return !!maskBytes; },
     load, pump, setMarks, setShadow(on) { casting = !!on; },
     // #41c: the shore's mirror, in the aerial pass after the land's (main.js); off (the A/B, or nothing near) the map's
