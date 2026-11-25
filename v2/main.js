@@ -67,6 +67,7 @@ import { setStreamMusic } from '../src/audioFormat.js';   // music: every piece 
 import { visitSeed } from '../src/visitSeed.js';   // music: a seed per visit for the pieces' order (v1's)
 import { weatherMenu } from '../src/sim/weather/weatherMenu.js';
 import { createWeatherWind, steerFlow } from './sim/weatherWind.js';   // the one wind every weather effect reads (the rain, the clouds' drift, the gulls' calls, the storm's track)
+import { mistDrift, mistLevel } from './sim/mist.js';   // storm round 2: the spray mist's drift and level
 import { createWeatherLook, createLensWater, fillLookRecord } from './sim/weatherLook.js';   // a look per weather; the lens's water
 import { createWeatherLookBuffer } from './render/weatherLook.js';
 import { createBoatSim, waterFor, START, FOLLOW, DESK_TRIM } from './sim/boat.js';
@@ -337,6 +338,7 @@ async function boot() {
   let nightOn = flags.night !== false;
   let spumeOn = true;   // the spume (render/spume.js); hook.setSpume, the in-page A/B
   const laneD = [0, 0, 0];   // the lanes' drift so far (x, z m) and the clock it was integrated to (render/spume.js laneDrift)
+  const mistD = [0, 0, 0];   // the spray mist's drift so far (x, z m) and its clock (sim/mist.js mistDrift)
   const sky = createSky({ device, reg, frameBGL, frameBG, U, frameStruct, fullscreen: FULLSCREEN, hdrTarget, msaa: P.msaa, depthFormat, clouds, night });
   const underBack = underOn ? createUnderBack({ device, reg, frameBGL, sky, frameStruct, hdrTarget, msaa: P.msaa, depthFormat, hdrFormat: graph.hdrFormat }) : null;   // phase 2a: the background under the water, the waterline's lens
   clouds.attach(sky); inGroup('night', () => night.attach(sky));   // perf(v2) iOS pipelines: the night's two draws are a group
@@ -1419,6 +1421,10 @@ async function boot() {
     U.set4('windfx', windTex.centre[0], windTex.centre[1], (windTex.fills > 0 && windFx.tex ? WIND_BITS.tex : 0) | (windFx.gust ? WIND_BITS.gust : 0) | (windFx.lanes ? WIND_BITS.lanes : 0) | (windFx.caps ? WIND_BITS.caps : 0), water.significantHeight);
     laneDrift(laneD, windNow.speedMs, windNow.travelRad, clock.t - laneD[2]); laneD[2] = clock.t;   // the lanes' and the foam streaks' drift, integrated (render/spume.js laneDrift)
     U.set4('spume', 0, spumeOn ? 1 : 0, laneD[0], laneD[1]);   // v1's fold threshold for the spume (render/spume.js), from the water's readback; on
+    // storm round 2: the spray mist (sim/mist.js): its wisps ride half the wind at the eye under the outflow (integrated, so a change
+    // of wind never slides them); the level's amount (the quality ladder's rung, none under Reduced Motion on a live page, ?mist)
+    { const mdt = clock.t - mistD[2]; mistDrift(mistD, windStorm.speedMs, windStorm.travelRad, mdt > 0 && mdt <= 1 ? mdt : 0); mistD[2] = clock.t; }
+    U.set4('mist', mistLevel({ rung: LEVELS[Q.level]?.mist, reduced: !P.headless && reducedNow(), flag: flags.spraymist }), 0, mistD[0], mistD[1]);
     U.set4('under', underNow.depth, underNow.h, underNow.sx, underNow.sz);   // phase 2a: the eye under the water (0 in the air: the frame's bytes as before)
     U.set4('underK', UNDER_STATE.on ? 1 : 0, underSplitOn ? 1 : 0, UNDER_STATE.on ? (underTier === 'full' ? 2 : 1) : 0, underNow.bed);   // w: the water's depth at the eye (the bed's light back up)
     U.upload(device.queue, ubuf);

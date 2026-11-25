@@ -1,15 +1,18 @@
 // Storm round 2: the storm cell rides the one wind (v2/sim/weatherWind.js steerFlow → v2/sim/storm.js: the cell, the outflow's
-// front and direction, the strikes, the shaders' drift), deterministic under the URL rows; v1's track unchanged
-// (src/sim/weather/stormArc.js DIR).
+// front and direction, the strikes, the shaders' drift), deterministic under the URL rows; the spray mist (v2/sim/mist.js,
+// render/mist.js) only past its onset and in the storm, along the wind; v1's track unchanged (src/sim/weather/stormArc.js DIR).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createStorm, cellMask, stormFromParams, STORM_TRACK, turnToward } from '../sim/storm.js';
 import { steerFlow, towardOf, WEATHER_WIND } from '../sim/weatherWind.js';
+import { MIST, mistWeight, mistDrift, mistLevel, mistDir } from '../sim/mist.js';
 import { createFrameUniforms, wgslStruct } from '../engine/uniforms.js';
+import { LEVELS } from '../engine/quality.js';
 import { WATER_DRAW_WGSL } from '../render/water.js';
 import { KEY_WGSL } from '../render/clouds.js';
 import { STORM_FOG_WGSL } from '../render/sky.js';
 import { KEY } from '../sim/clouds.js';
+import { mistWgsl } from '../render/mist.js';
 import { windFor } from '../sim/wind.js';
 import { WindField } from '../../src/sim/wind.js';
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
@@ -114,4 +117,37 @@ test('no baked drift left in v2\'s shaders: the water, the clouds and the sky re
     assert.ok(!w.includes(s70) && !w.includes(c70), `${name}: no sin/cos of 70 degrees baked in`);
   }
   assert.match(texts.water, /F\.track\.x/); assert.match(texts.sky, /F\.track/); assert.match(texts.clouds, /CL\.h\.x/);
+});
+
+test('the mist: none under its onset in fair wind, rising from 11 m/s, in the storm whatever the wind, denser in a gust', () => {
+  assert.equal(mistWeight(8, 0, 1), 0); assert.equal(mistWeight(MIST.onset[0], 0, 1), 0);
+  assert.ok(mistWeight(13, 0, 1) > 0.2 && mistWeight(13, 0, 1) < mistWeight(16, 0, 1));
+  assert.equal(mistWeight(16, 0, 1), 1);
+  assert.ok(mistWeight(8, 1, 1) >= MIST.storm * 0.8, 'the storm\'s outflow carries mist at 8 m/s');
+  assert.equal(mistWeight(3, 1, 1), 0, 'a lull ahead of the line: none');
+  assert.ok(mistWeight(14, 0, 1.3) > mistWeight(14, 0, 1) * 1.3, 'a 30 % gust: denser');
+  assert.equal(mistWeight(14, 0, 3), mistWeight(14, 0, 2), 'the gust\'s share capped');
+});
+
+test('the mist follows the wind: its wisps drift along the wind at half its speed, integrated (no slide on a change)', () => {
+  for (const from of [200, 290, 45]) {
+    const [tx, tz] = towardOf(from), trav = Math.atan2(tz, tx);
+    const d = [0, 0, 0];
+    for (let i = 0; i < 600; i++) mistDrift(d, 14, trav, 1 / 60);
+    assert.ok(Math.abs(d[0] - tx * 14 * MIST.speed * 10) < 1e-6 && Math.abs(d[1] - tz * 14 * MIST.speed * 10) < 1e-6);
+    assert.deepEqual(mistDir(trav).map((v) => +v.toFixed(9)), [tx, tz].map((v) => +v.toFixed(9)));
+  }
+  const d = [5, 5, 0]; mistDrift(d, 14, 0, 5); assert.equal(d[0], 5 + 14 * MIST.speed, 'a long step (a cut) integrates at most 1 s');
+});
+
+test('the mist\'s level: the quality ladder (lighter at L2, off at L3), off under Reduced Motion, the A/B flag; its WGSL reads the row', () => {
+  assert.deepEqual(LEVELS.map((l) => mistLevel({ rung: l.mist })), [1, 1, 0.5, 0]);
+  assert.equal(mistLevel({ rung: 1, reduced: true }), 0);
+  assert.equal(mistLevel({ rung: 0, flag: '1' }), 1); assert.equal(mistLevel({ rung: 1, flag: '0' }), 0);
+  const full = mistWgsl(false), lite = mistWgsl(true);
+  assert.equal((full.match(/mistLayer\(p, ang/g) ?? []).length, 2, 'desktop: two layers');
+  assert.equal((lite.match(/mistLayer\(p, ang/g) ?? []).length, 1, 'the phone\'s water: one');
+  const water = WATER_DRAW_WGSL(wgslStruct(), null, false);
+  assert.match(water, /if \(F\.mist\.x > 0\.0\)/, 'off at 0: every pixel skips it');
+  assert.match(water, new RegExp(`MI_ON = vec2f\\(${MIST.onset[0].toFixed(6)}, ${MIST.onset[1].toFixed(6)}\\)`), 'the WGSL takes the JS onset');
 });
