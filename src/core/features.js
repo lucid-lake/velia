@@ -204,6 +204,15 @@ export const POLICIES = Object.freeze({
       if (f === 'lite') return 'lite';
       if (phoneOnly(p, c)) return 'off';
       return !c.headless && lite(p) ? 'lite' : 'full'; } },   // the tablet rule: desktopLike, scaled by lite(p)
+  // --- the paddle-wheeler (South Lake's birthplace, phase C): a generic 46 m stern-wheeler (v2/sim/paddleWheeler.js). Off in play
+  // until her routes come; ?paddle=x,z,heading[,kn] places her for review. full: every LOD and her wake map (a desktop or a tablet at
+  // L0-L1: the tablet rule); lite: the mid and far LODs only, drawn half as far, no wake map (L2-L3 and a phone) ---
+  paddleWheeler: { fixed: true, axes: 'form, gpu', aliases: '?paddle=x,z,heading[,kn] (placed; off without it), ?paddle=0, ?profile=form:phone',
+    why: 'the paddle-wheeler (one pipeline, one draw): off until routed; placed by ?paddle=, full at L0-L1 on a desktop or a tablet, lite (mid and far LODs, no wake map) at L2-L3 and on a phone',
+    tier: (p, c) => { const f = c.flags.paddle == null ? '' : String(c.flags.paddle);
+      if (f === '' || f === '0' || f === 'false' || f === 'off') return 'off';
+      const live = !c.headless || !!p.forced;   // a capture: full (the same frame on every machine)
+      return live && lite(p) ? 'lite' : 'full'; } },
   // --- the phone is for the sail sim (owner, 2026-11-17: "No fireworks, Milky Way, rainbow [on phones]"): desktop
   // only on a phone (a tablet and a desktop keep them); their code, assets and pipelines are never fetched or built there. A
   // capture keeps them unless ?profile= forces the form (v2-perf's phone A/B) ---

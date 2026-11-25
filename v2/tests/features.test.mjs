@@ -213,7 +213,7 @@ test('rockDetail: the close rock on a desktop or a tablet at L0-L1, none on a ph
 });
 test('every policy is named in a six-device table, with its axes and a reason', () => {
   for (const [n, P] of Object.entries(POLICIES)) {
-    assert.ok(NAMES.includes(n) || NAMES_B.includes(n) || NAMES_P.includes(n) || n === 'phoneCard' || n === 'loadPhoneAdvice' || n === 'chartGlass' || n === 'bedBoulders' || n === 'busyLake' || n === 'boatMirrors' || n === 'waterDetail' || n === 'rockDetail' || n === 'regionKayaks' || n === 'stagedKayaks' || n === 'phoneClouds' /* v2/tests/phone-clouds.test.mjs */ || n === 'gennakerCloth' /* v2/tests/gennaker.test.mjs */, `${n}: add it to a six-device table`);
+    assert.ok(NAMES.includes(n) || NAMES_B.includes(n) || NAMES_P.includes(n) || n === 'phoneCard' || n === 'loadPhoneAdvice' || n === 'chartGlass' || n === 'bedBoulders' || n === 'busyLake' || n === 'boatMirrors' || n === 'waterDetail' || n === 'rockDetail' || n === 'regionKayaks' || n === 'stagedKayaks' || n === 'phoneClouds' /* v2/tests/phone-clouds.test.mjs */ || n === 'gennakerCloth' /* v2/tests/gennaker.test.mjs */ || n === 'paddleWheeler' /* v2/tests/paddle-wheeler.test.mjs */, `${n}: add it to a six-device table`);
     assert.ok(P.axes && P.why && typeof P.tier === 'function', n);
   }
 });

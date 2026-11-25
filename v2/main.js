@@ -361,7 +361,7 @@ async function boot() {
   const ospreyDiveOn = feature('ospreyDive').on;
   const wakeKnob = (k) => (flags[k] != null && Number.isFinite(parseFloat(flags[k])) ? parseFloat(flags[k]) : undefined);
   const wakeFx = flags.boat !== false ? createWakeFx({ device, reg, frameBGL, frameBG, U, frameStruct, sky, hdrTarget, msaa: P.msaa, depthFormat, variant: pickVariant(flags),
-    on: !flags.nowake, creature: tessieOn ? 128 : birdsOn && ospreyDiveOn ? 64 : 0, vessel: feature('glassBoat').tier === 'full' ? 192 : 0,   // the glass boat's wake map (render/vesselWake.js)
+    on: !flags.nowake, creature: tessieOn ? 128 : birdsOn && ospreyDiveOn ? 64 : 0, vessel: feature('glassBoat').tier === 'full' || feature('paddleWheeler').tier === 'full' ? 192 : 0,   // the glass boat's and the paddle-wheeler's wake map (render/vesselWake.js)
     length: DEFAULT_DIMS.HULL.lwl, beam: DEFAULT_DIMS.HULL.beam, knobs: { amp: wakeKnob('wake_amp'), rc: wakeKnob('wake_rc'), r0: wakeKnob('wake_r0'), bowGain: wakeKnob('wake_bow') } }) : null;
   hook.wake = wakeFx;
   // the speed feel (sim/speedFeel.js): the water's lee foam and the spray's two kinds, each frame from the drawn pose, by the
