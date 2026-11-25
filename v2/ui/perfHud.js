@@ -10,10 +10,11 @@
 //   GPU      Apple metal-3           the adapter (its description, else vendor and architecture), short
 //   GPU time 2.6 ms                  only with ?diag (the GPU timer stays a diag and bench tool: v2/notes/perf.md)
 // Cost: the frame feeds a fixed ring of 250 ms buckets (no allocation); the text is rebuilt 3 times a second, and only while shown.
-// Setup › Screen › performance stats: on by default; its own stored key (the v1 store is shared with /classic/). ?perfhud=1 shows it
+// Setup › Screen › performance stats: off by default (2026-11-25); its own stored key (the v1 store is shared with /classic/). ?perfhud=1 shows it
 // for one load whatever the stored value (captures, stills), ?perfhud=0 never. Off in a capture, a ?filmui film, a ?shot and an
-// automated browser unless ?perfhud=1 (the goldens never see it).
-//   const hud = createPerfHud({ read, shown, diag })   hud.tick(now, dtMs) each drawn frame; hud.state; hud.el; hud.dispose()
+// automated browser unless ?perfhud=1 (the goldens never see it). A small × in the plate's top-right corner closes it: the same as
+// Setup's off (stored; the row repaints), and for this load even under ?perfhud=1. It sits in its own gutter right of the numbers.
+//   const hud = createPerfHud({ read, shown, diag, onClose })   hud.tick(now, dtMs) each drawn frame; hud.state; hud.el; hud.dispose()
 //   mountPerfRow(root, { settings })                     Setup's row
 export const PERF_HUD = Object.freeze({
   hz: 3,            // text updates a second (2-4 asked)
@@ -22,7 +23,8 @@ export const PERF_HUD = Object.freeze({
   fpsBuckets: 4,    // the last 4 closed buckets: about 1 s for the FPS
   amberFps: 30,     // under this the FPS line goes amber (the governor's slow line; never red, never flashing)
   top: 14,          // px: the top bar's own top (its island stands at 14 px at 1280 x 720)
-  widthEm: 16.8,    // the plate's fixed width (it never breathes as the digits change)
+  widthEm: 16.8,    // the plate's fixed width (it never breathes as the digits change), the × gutter aside
+  closePx: 24,      // the ×'s hit area (a desktop pointer: 24 px or more); its gutter right of the numbers
   edge: 16,         // px from the right edge (the page's side gutter)
   adapterMax: 22,   // characters of the adapter's name
   key: 'lakeshore.v2.perfhud',
@@ -84,7 +86,7 @@ export function perfLines(n) {
 
 const CSS = `
 .lk-perf{position:fixed;top:${PERF_HUD.top}px;right:calc(${PERF_HUD.edge}px + var(--lk-sar,0px));z-index:var(--lk-z-hud,10);pointer-events:none;user-select:none;
-  display:grid;grid-template-columns:auto minmax(0,1fr);width:${PERF_HUD.widthEm}em;column-gap:.7em;row-gap:.05em;padding:.5em .8em;box-sizing:border-box;
+  display:grid;grid-template-columns:auto minmax(0,1fr);width:calc(${PERF_HUD.widthEm}em + ${PERF_HUD.closePx}px);column-gap:.7em;row-gap:.05em;padding:.5em calc(.8em + ${PERF_HUD.closePx}px - 6px) .5em .8em;box-sizing:border-box;
   font:var(--lk-regular,400) var(--lk-fs-caption,15px)/1.25 var(--lk-ui,sans-serif);font-variant-numeric:tabular-nums;letter-spacing:.01em;
   color:var(--lk-ink,rgb(244 244 242 / .94));background:var(--lk-glass,rgb(28 35 64 / .8));-webkit-backdrop-filter:var(--lk-glass-blur);backdrop-filter:var(--lk-glass-blur);
   border:var(--lk-line,1px) solid var(--lk-glass-edge,rgb(244 244 242 / .25));border-radius:var(--lk-glass-r,14px);box-shadow:var(--lk-glass-shadow);
@@ -93,16 +95,29 @@ const CSS = `
 .lk-perf .k{color:rgb(var(--lk-cream,244 244 242) / .8)}
 .lk-perf .v{text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lk-perf .v.warn{color:rgb(var(--lk-amber,232 168 56))}
-@media (prefers-reduced-motion:reduce){.lk-perf,.lk-perf.gone{transition:none}}
+.lk-perf button.x{all:unset;position:absolute;top:3px;right:3px;width:${PERF_HUD.closePx}px;height:${PERF_HUD.closePx}px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;
+  border-radius:6px;cursor:pointer;pointer-events:auto;color:rgb(var(--lk-cream,244 244 242) / .7);transition:background-color .15s linear,color .15s linear}
+.lk-perf.gone button.x{pointer-events:none}
+.lk-perf button.x svg{width:10px;height:10px;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;fill:none}
+.lk-perf button.x:is(:hover,:focus-visible){color:rgb(var(--lk-cream,244 244 242) / .95);background:rgb(var(--lk-cream,244 244 242) / .12)}
+.lk-perf button.x:focus-visible{outline:2px solid rgb(var(--lk-amber,232 168 56) / .9);outline-offset:0}
+@media (prefers-reduced-motion:reduce){.lk-perf,.lk-perf.gone,.lk-perf button.x{transition:none}}
 `;
 
 // read(): the live numbers (main.js), called only when the text is due; shown(): this frame's rule (cheap: booleans)
-export function createPerfHud({ read, shown = () => false, diag = false, hz = PERF_HUD.hz, doc = globalThis.document, clock = () => performance.now() } = {}) {
+export function createPerfHud({ read, shown = () => false, onClose = () => {}, diag = false, hz = PERF_HUD.hz, doc = globalThis.document, clock = () => performance.now() } = {}) {
   if (!doc.getElementById('lk-perf-css')) { const st = doc.createElement('style'); st.id = 'lk-perf-css'; st.textContent = CSS; doc.head.appendChild(st); }
   const el = doc.createElement('div');
-  el.className = 'lk-perf gone'; el.setAttribute('aria-hidden', 'true'); el.dataset.perf = '';
+  el.className = 'lk-perf gone'; el.dataset.perf = '';
   const rows = diag ? 7 : 6, ks = [], vs = [];
-  for (let r = 0; r < rows; r++) { const k = doc.createElement('span'), v = doc.createElement('span'); k.className = 'k'; v.className = 'v'; el.append(k, v); ks.push(k); vs.push(v); }
+  for (let r = 0; r < rows; r++) { const k = doc.createElement('span'), v = doc.createElement('span'); k.className = 'k'; v.className = 'v'; k.setAttribute('aria-hidden', 'true'); v.setAttribute('aria-hidden', 'true'); el.append(k, v); ks.push(k); vs.push(v); }
+  // the ×: closes the panel (the caller stores it as Setup's off); its own gutter, never over a number
+  const x = doc.createElement('button');
+  x.type = 'button'; x.className = 'x'; x.setAttribute('aria-label', 'Close performance stats');
+  x.innerHTML = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 1.5 8.5 8.5M8.5 1.5 1.5 8.5"/></svg>';
+  x.addEventListener('pointerdown', (e) => e.stopPropagation());
+  x.addEventListener('click', (e) => { e.stopPropagation(); x.blur?.(); onClose(); });
+  el.appendChild(x);
   doc.body.appendChild(el);
   const meter = createFrameMeter();
   const every = 1000 / hz;
@@ -121,7 +136,7 @@ export function createPerfHud({ read, shown = () => false, diag = false, hz = PE
     last = lines; paints++;
   }
   return {
-    el,
+    el, close: x,
     tick(now, dtMs) {
       const t0 = clock();
       meter.feed(now, dtMs);
@@ -137,7 +152,7 @@ export function createPerfHud({ read, shown = () => false, diag = false, hz = PE
   };
 }
 
-// the stored choice (on by default): its own key, as tessieSettings.js
+// the stored choice (off by default, 2026-11-25): its own key, as tessieSettings.js; on(fn) hears each change (the row, the panel)
 const pageStore = () => { try { return typeof window !== 'undefined' ? window.localStorage : null; } catch { return null; } };
 let shared = null;
 export function perfHudSettings(store = pageStore()) {
@@ -146,13 +161,15 @@ export function perfHudSettings(store = pageStore()) {
   const read = () => {
     if (memo != null) return memo;
     let v = null; try { v = JSON.parse(store?.getItem?.(PERF_HUD.key) ?? 'null'); } catch { v = null; }
-    memo = v && typeof v === 'object' && v.on === false ? false : true;
+    memo = !!(v && typeof v === 'object' && v.on === true);
     return memo;
   };
+  const fns = new Set();
   const api = {
     store,
     get on() { return read(); },
-    set(v) { memo = !!v; try { store?.setItem?.(PERF_HUD.key, JSON.stringify({ on: memo })); } catch { /* private mode: this page only */ } return memo; },
+    set(v) { memo = !!v; try { store?.setItem?.(PERF_HUD.key, JSON.stringify({ on: memo })); } catch { /* private mode: this page only */ } for (const f of fns) f(memo); return memo; },
+    listen(f) { fns.add(f); return () => fns.delete(f); },
     forget() { memo = null; },
   };
   shared = api;
@@ -172,6 +189,7 @@ export function mountPerfRow(root, { settings = perfHudSettings(), doc = globalT
   const paint = () => { const v = settings.on ? 'on' : 'off'; for (const b of btns) b.setAttribute('aria-checked', String(b.dataset.ph === v)); };
   const click = (e) => { const b = e.target.closest?.('[data-ph]'); if (!b) return; e.stopPropagation(); settings.set(b.dataset.ph === 'on'); paint(); };
   row.addEventListener('click', click);
+  const off = settings.listen?.(paint);   // the panel's × turns it off too
   paint();
-  return { row, buttons: btns, paint, dispose() { row.removeEventListener('click', click); row.remove(); } };
+  return { row, buttons: btns, paint, dispose() { off?.(); row.removeEventListener('click', click); row.remove(); } };
 }

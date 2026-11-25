@@ -1847,8 +1847,10 @@ async function boot() {
   // its meter, the text is rebuilt 3 times a second while it shows. GPU time only with ?diag (the timer is a diag and bench tool)
   const perfPolicy = feature('perfHud').on, perfDiag = flags.diag != null && flags.diag !== '0', perfStore = perfHudSettings();
   const perfNow = { fps: 0, ms: 0, worst: 0, level: 0, scale: 1, draws: 0, tris: 0, pipes: 0, mb: 0, adapter: adapterName(gpu.info), gpuMs: null };
-  const perfHud = perfPolicy ? createPerfHud({ diag: perfDiag,
-    shown: () => perfHudAllowed({ policy: perfPolicy, flag: flags.perfhud, stored: perfStore.on }) && !!m4.ui?.cockpitUp,
+  let perfClosed = false;   // the panel's ×: Setup's off, and closed for this load even under ?perfhud=1 (Setup's on opens it again)
+  if (perfPolicy) perfStore.listen((on) => { perfClosed = !on; });
+  const perfHud = perfPolicy ? createPerfHud({ diag: perfDiag, onClose: () => perfStore.set(false),
+    shown: () => !perfClosed && perfHudAllowed({ policy: perfPolicy, flag: flags.perfhud, stored: perfStore.on }) && !!m4.ui?.cockpitUp,
     read: () => { const g = perfDiag ? graph.gpuMs() : null;
       perfNow.level = Q.level; perfNow.scale = scale; perfNow.draws = graph.counters.calls; perfNow.tris = graph.counters.triangles; perfNow.pipes = reg.built;
       perfNow.mb = gpu.mem?.mb ?? 0; perfNow.gpuMs = g ? g.total : null; return perfNow; } }) : null;

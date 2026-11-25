@@ -4,7 +4,8 @@
 //     module, the key legend and the nav column at 1280 x 720 and 1920 x 1080; its text 2-4 times a second; its own cost
 //   - folded (H), Clear, Tessie played (the played seam), Cruise: the panel, the nav column (Pro on) and the key legend go; raised, they
 //     come back; the helm view keeps the panel and the column (the legend's own rule takes it there)
-//   - Setup › Screen › performance stats: off hides it and survives a reload; ?perfhud=1 shows it whatever Setup holds
+//   - off by default on a fresh profile; Setup › Screen › performance stats on shows it; the panel's × hides it, the row reads off, and
+//     that survives a reload; ?perfhud=1 shows it whatever Setup holds
 //   - an automated browser, a capture (?headless=1) and a tablet: no panel
 // Run by `npm run test:pages:v2` (LAKESHORE_BASE set), or node v2/tests/pages/perfHud.page.mjs --base http://127.0.0.1:<port>
 import { chromium } from 'playwright-core';
@@ -58,6 +59,11 @@ try {
     const { ctx, page, errors } = await open(Q);
     await ready(page); await page.waitForTimeout(2500);
     let v = await vis(page);
+    const row0 = await page.evaluate(() => { const r = document.querySelector('#tp-set-screen [data-set="perfhud"]'); return r ? { k: r.querySelector('.k').textContent, on: r.querySelector('[data-ph=on]').getAttribute('aria-checked'), off: r.querySelector('[data-ph=off]').getAttribute('aria-checked') } : null; });
+    check(!v.perf && v.up && v.nav && v.keys, `a fresh profile: off by default, the cockpit up (${JSON.stringify(v)})`);
+    check(row0?.k === 'performance stats' && row0.off === 'true' && row0.on === 'false', `Setup › Screen has the row, reading off (${JSON.stringify(row0)})`);
+    await page.evaluate(() => document.querySelector('#tp-set-screen [data-ph=on]').click()); await page.waitForTimeout(800);
+    v = await vis(page);
     check(v.perf && v.nav && v.keys && v.up, `Sail, the cockpit up, Pro on: the panel, the nav column and the key legend show (${JSON.stringify(v)})`);
     const st = await page.evaluate(() => window.__velia.perfHud.state);
     check(st.lines?.length === 6 && st.lines.map((l) => l[0]).join() === 'FPS,Worst,Quality,Draws,Memory,GPU', `six lines: ${JSON.stringify(st.lines)}`);
@@ -98,28 +104,39 @@ try {
     await page.evaluate(() => window.__velia.mode.go('cruise')); await page.waitForFunction(() => window.__velia.mode.now() === 'cruise', null, { timeout: 60000 }).catch(() => {});
     await page.waitForTimeout(2000);
     v = await vis(page); check(!v.perf, `Cruise: no panel (${JSON.stringify(v)})`);
-    // Setup › Screen › performance stats: off hides it while the cockpit is up, and survives a reload
+    // the ×: closes it, the same as Setup's off (the row repaints), and survives a reload
     await page.evaluate(() => window.__velia.mode.go('sail')); await page.waitForFunction(() => window.__velia.mode.now() === 'sail' && window.__velia.m4.ui.cockpitUp, null, { timeout: 60000 }).catch(() => {});
     await page.waitForTimeout(1500);
-    const row = await page.evaluate(() => { const r = document.querySelector('#tp-set-screen [data-set="perfhud"]'); return r ? { k: r.querySelector('.k').textContent, on: r.querySelector('[data-ph=on]').getAttribute('aria-checked') } : null; });
-    check(row?.k === 'performance stats' && row.on === 'true', `Setup › Screen has the row, on by default (${JSON.stringify(row)})`);
-    await page.evaluate(() => document.querySelector('#tp-set-screen [data-ph=off]').click()); await page.waitForTimeout(800);
-    v = await vis(page); check(!v.perf && v.up, `Setup off: hidden with the cockpit up (${JSON.stringify(v)})`);
+    v = await vis(page); check(v.perf, `back in Sail: the panel again (${JSON.stringify(v)})`);
+    const X = await page.evaluate(() => { const x = document.querySelector('.lk-perf button.x'), b = x.getBoundingClientRect(), p = document.querySelector('.lk-perf').getBoundingClientRect();
+      const vals = [...document.querySelectorAll('.lk-perf .v, .lk-perf .k')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0);
+      const over = vals.some((r) => r.x < b.right && b.x < r.right && r.y < b.bottom && b.y < r.bottom);
+      const at = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+      return { w: b.width, h: b.height, label: x.getAttribute('aria-label'), corner: Math.round(p.right - b.right) <= 4 && Math.round(b.y - p.y) <= 4, over, top: at === x || x.contains(at) }; });
+    check(X.w >= 24 && X.h >= 24 && X.label === 'Close performance stats' && X.corner && !X.over && X.top, `the ×: ${X.w}x${X.h} px in the top-right corner, "${X.label}", over no number, on top (${JSON.stringify(X)})`);
+    const xc = await page.evaluate(() => { const b = document.querySelector('.lk-perf button.x').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; });
+    const steer0 = await page.evaluate(() => window.__velia.m4.ui.station.steer ?? null);
+    await page.mouse.click(xc[0], xc[1]); await page.waitForTimeout(800);
+    v = await vis(page);
+    const row1 = await page.evaluate(() => document.querySelector('#tp-set-screen [data-ph=off]')?.getAttribute('aria-checked'));
+    check(!v.perf && v.up && row1 === 'true', `a click on the × hides it with the cockpit up; the Setup row reads off (${JSON.stringify(v)}, off ${row1})`);
+    check((await page.evaluate(() => window.__velia.m4.ui.station.steer ?? null)) === steer0, 'the click stayed on the ×');
     check(errors.length === 0, `no page errors (${errors.slice(0, 2).join(' | ') || 'none'})`);
     await page.reload({ waitUntil: 'load' }); await ready(page); await page.waitForTimeout(2000);
     v = await vis(page);
     const row2 = await page.evaluate(() => document.querySelector('#tp-set-screen [data-ph=off]')?.getAttribute('aria-checked'));
-    check(!v.perf && row2 === 'true', `after a reload: still off (${JSON.stringify(v)}, the row's off ${row2})`);
+    check(!v.perf && row2 === 'true', `after a reload: still off, the row reads off (${JSON.stringify(v)}, the row's off ${row2})`);
     await page.goto(`${BASE}/?${Q}&perfhud=1`, { waitUntil: 'load' }); await ready(page); await page.waitForTimeout(2000);
     v = await vis(page); check(v.perf, `?perfhud=1: shown whatever Setup holds (${JSON.stringify(v)})`);
+    await page.evaluate(() => document.querySelector('.lk-perf button.x').click()); await page.waitForTimeout(800);
+    check(!(await vis(page)).perf, '?perfhud=1: the × still closes it for this load');
     await page.goto(`${BASE}/?${Q}&perfhud=0`, { waitUntil: 'load' }); await ready(page); await page.waitForTimeout(1500);
     check(!(await vis(page)).perf, '?perfhud=0: never');
-    await page.evaluate(() => document.querySelector('#tp-set-screen [data-ph=on]')?.click());
     await ctx.close();
   }
   // ---------------- 1920 x 1080: the layout ----------------
   {
-    const { ctx, page, errors } = await open(Q, { viewport: { width: 1920, height: 1080 } });
+    const { ctx, page, errors } = await open(Q, { viewport: { width: 1920, height: 1080 }, keep: { fn: () => { try { localStorage.setItem('lakeshore.v2.perfhud', JSON.stringify({ on: true })); } catch {} }, arg: null } });   // Setup's on
     await ready(page); await page.waitForTimeout(2500);
     await layout(page, '1920x1080');
     check(errors.length === 0, `1920x1080: no page errors (${errors.slice(0, 2).join(' | ') || 'none'})`);

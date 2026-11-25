@@ -13,7 +13,7 @@ level and the governor's scale ("L1 · 0.85×"); draws · triangles · pipelines
 adapter, short. GPU time is a seventh line only with `?diag` (the timer stays diag and bench only). The frame feeds a ring of twenty
 250 ms buckets (typed arrays, no allocation); the text is rebuilt at 3 Hz and only while shown, each cell written only on a change.
 Measured on the M5 Pro Mac, 1280 × 720, headless Chrome under load (load average ≈ 49): **0.009-0.015 ms a frame** all in (meter, rule
-and the paints' share), 0.09-0.16 ms a paint. Setup › Screen › performance stats (on · off, its own key `lakeshore.v2.perfhud`);
+and the paints' share), 0.09-0.16 ms a paint. Setup › Screen › performance stats (on · off, **off by default**, its own key `lakeshore.v2.perfhud`); a small × in the plate's top-right corner (a 24 px target in its own gutter right of the numbers, "Close performance stats") is the same as Setup's off;
 `?perfhud=1` shows it for one load whatever Setup holds, `=0` never. Off in a capture, a `?filmui` film, a `?shot` and an automated
 browser unless `?perfhud=1`, so the goldens are unchanged. The Pro nav column and the key legend follow the same cockpit-up rule on a
 desktop cockpit (their own rules stay: Pro, key hints, the legend leaves in the helm view). Tests: `v2/tests/perf-hud.test.mjs`,

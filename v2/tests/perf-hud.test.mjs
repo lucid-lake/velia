@@ -103,22 +103,26 @@ test('the cockpit up: Sail and Regatta with the drawn cockpit; not folded, Clear
   assert.equal(cockpitUp({ ...up, form: 'grid' }), false, 'the grid form');
 });
 
-test('Setup › Screen › performance stats: on by default; the choice persists in its own key', () => {
+test('Setup › Screen › performance stats: off by default; the choice persists in its own key; the row hears a change from elsewhere', () => {
   const store = memStore();
   const S = perfHudSettings(store);
-  assert.equal(S.on, true, 'on by default');
+  assert.equal(S.on, false, 'off by default (a fresh profile)');
   const tab = el('div'), text = el('div'); text.nextSibling = el('div');
   tab.querySelector = (sel) => (sel === '[data-set="text"]' ? text : sel === '[data-set="perfhud"]' ? (tab.children.find((c) => c.dataset.set === 'perfhud') ?? null) : null);
   const root = { querySelector: (sel) => (sel === '#tp-set-screen' ? tab : null) };
   const R = mountPerfRow(root, { settings: S, doc: { createElement: el } });
   assert.ok(R && R.row.dataset.set === 'perfhud');
-  assert.deepEqual(R.buttons.map((b) => [b.dataset.ph, b.attrs['aria-checked']]), [['on', 'true'], ['off', 'false']]);
-  R.row.listeners.click({ target: R.buttons[1], stopPropagation() {} });
-  assert.equal(S.on, false); assert.equal(R.buttons[1].attrs['aria-checked'], 'true');
+  assert.deepEqual(R.buttons.map((b) => [b.dataset.ph, b.attrs['aria-checked']]), [['on', 'false'], ['off', 'true']]);
+  R.row.listeners.click({ target: R.buttons[0], stopPropagation() {} });
+  assert.equal(S.on, true); assert.equal(R.buttons[0].attrs['aria-checked'], 'true');
+  assert.deepEqual(JSON.parse(store.getItem(PERF_HUD.key)), { on: true });
+  S.forget(); assert.equal(S.on, true, 'on, read back after a reload');
+  S.set(false);   // the panel's ×
+  assert.equal(R.buttons[1].attrs['aria-checked'], 'true', 'the row repaints when the × turns it off');
   assert.deepEqual(JSON.parse(store.getItem(PERF_HUD.key)), { on: false });
   S.forget(); assert.equal(S.on, false, 'read back from the store (a reload)');
   assert.equal(mountPerfRow(root, { settings: S, doc: { createElement: el } }), null, 'once');
-  const fresh = memStore(); fresh.setItem(PERF_HUD.key, 'not json'); assert.equal(perfHudSettings(fresh).on, true, 'a broken value reads as on');
+  const fresh = memStore(); fresh.setItem(PERF_HUD.key, 'not json'); assert.equal(perfHudSettings(fresh).on, false, 'a broken value reads as off');
 });
 
 test('the panel: shown with the rule, hidden at once without it; the text at 3 Hz, never every frame; nothing painted while hidden', () => {
@@ -143,8 +147,8 @@ test('the panel: shown with the rule, hidden at once without it; the text at 3 H
   const fpsCell = H.el.children[1], w0 = fpsCell.writes;
   for (let i = 0; i < 120; i++) { t += 1000 / 60; H.tick(t, 1000 / 60); }
   assert.equal(fpsCell.writes, w0, 'a steady 60 fps writes nothing new');
-  assert.equal(H.el.children.length, 12, 'six rows (no GPU time without ?diag)');
-  assert.equal(createPerfHud({ doc: fakeDoc(), diag: true, read: () => ({}) }).el.children.length, 14, 'seven with ?diag');
+  assert.equal(H.el.children.length, 13, 'six rows (no GPU time without ?diag) and the ×');
+  assert.equal(createPerfHud({ doc: fakeDoc(), diag: true, read: () => ({}) }).el.children.length, 15, 'seven with ?diag');
 });
 
 test('the cost: the frame\'s part (meter and rule) stays far under 0.05 ms', () => {
@@ -154,4 +158,14 @@ test('the cost: the frame\'s part (meter and rule) stays far under 0.05 ms', () 
   const s = H.state;
   assert.ok(s.msPerTick < 0.05, `${s.msPerTick.toFixed(4)} ms a frame`);
   assert.ok(s.msPerPaint < 0.5, `${s.msPerPaint.toFixed(4)} ms a paint`);
+});
+
+test('the ×: a labelled button that calls onClose; its click never reaches the page', () => {
+  let closed = 0, stopped = 0;
+  const H = createPerfHud({ doc: fakeDoc(), shown: () => true, onClose: () => { closed++; }, read: () => ({ level: 0, scale: 1, draws: 0, tris: 0, pipes: 0, mb: 0, adapter: 'x', gpuMs: null }) });
+  assert.equal(H.close.tagName, 'button'); assert.equal(H.close.attrs['aria-label'], 'Close performance stats');
+  H.close.listeners.click({ stopPropagation() { stopped++; } });
+  H.close.listeners.pointerdown({ stopPropagation() { stopped++; } });
+  assert.equal(closed, 1); assert.equal(stopped, 2);
+  assert.ok(PERF_HUD.closePx >= 24, 'a 24 px target or more');
 });
