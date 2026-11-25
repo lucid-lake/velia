@@ -398,7 +398,6 @@ ${(lite ? LITE_TAPS : MIRROR_TAPS).land.offsets.map((o, i) => `  shore += ${(lit
   return base * (1.0 - shore.a * landK) + shore.rgb * landK;
 }
 // --- M5e: the storm's terms on the water (v1's src/weather/uniforms.js waterRain, frontBand, waterSky), off at F.storm.x = 0 ---
-const DX = ${Math.sin(70 * Math.PI / 180).toFixed(6)}; const DZ = ${(-Math.cos(70 * Math.PI / 180)).toFixed(6)};   // the cell's drift (stormArc.js DIR)
 fn hash2w(q: vec2f) -> f32 { return fract(sin(dot(q, vec2f(127.1, 311.7))) * 43758.5453); }
 // storm round 4: Worley's F2 − F1 at p (cell units): 0 on the cells' borders (the foam's web), larger inside (its dark holes)
 fn worleyEdgeW(p: vec2f) -> f32 {
@@ -424,8 +423,9 @@ fn ringsAt(p: vec2f, t: f32, cellM: f32, salt: f32) -> vec2f {
   return d / max(length(d), 1e-4) * (prof * 0.07);
 }
 // the outflow line on the water (stormWind.js's ragged edge): 1 on the band, 0.4 behind it, 0 ahead
+// the drift is the frame's track row (the cell's, on the one wind's steering flow: v2/sim/storm.js)
 fn frontBand(xz: vec2f) -> f32 {
-  let d0 = xz - F.front.xy;
+  let d0 = xz - F.front.xy; let DX = F.track.x; let DZ = F.track.y;
   let a = d0.x * DX + d0.y * DZ; let c = -d0.x * DZ + d0.y * DX;
   let dx = a - F.front.z + sin(c / 310.0 + 1.3) * 60.0 + sin(c / 130.0 - 0.4) * 35.0;
   let edge = exp(-(dx / 130.0) * (dx / 130.0));

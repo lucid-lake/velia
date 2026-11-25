@@ -117,8 +117,9 @@ export function fillParams(out, { cur = 0, prev = 0, fade = 1, on = 1, deck = DE
   out[16] = w.on ? w.slab : 0; out[17] = w.on ? w.shade : 0; out[18] = deck.density; out[19] = layer;
   out[20] = seed; out[21] = night; out[22] = 0; out[23] = 0;
   out[24] = match[0]; out[25] = match[1]; out[26] = match[2]; out[27] = 0;
-  // #18: the towers' growth (v1's cellMask spreads the anvil with it); 28–30 spare
-  out[28] = 0; out[29] = 0; out[30] = 0; out[31] = w.on ? w.tall : 0;
+  // #18: the towers' growth (v1's cellMask spreads the anvil with it); storm round 2: the cell's drift (unit x, z: the one wind's
+  // steering flow, v2/sim/storm.js); 30 spare
+  out[28] = w.on && w.dir ? w.dir[0] : 0; out[29] = w.on && w.dir ? w.dir[1] : 0; out[30] = 0; out[31] = w.on ? w.tall : 0;
   return out;
 }
 const NO_WEATHER = createWeatherState();

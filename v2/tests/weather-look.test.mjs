@@ -49,9 +49,9 @@ test('the clouds drift with the one wind: integrated on the scene clock, placed 
   const before = [...ww.drift];
   ww.update({ eye: [0, 2, 0], t: 110 + 1 / 60, base: { speedMs: 9, dirDeg: 200 }, cut: 0 });
   assert.ok(Math.hypot(ww.drift[0] - before[0], ww.drift[1] - before[1]) < 9 * 1.5 / 60 + 1e-9, 'no jump on a change of wind');
-  // a storm's front: the wind aloft turns to the steering flow (from 250 deg)
+  // a storm's front: the wind aloft turns to the steering flow (the day's 200 deg veered: from 250 deg)
   const a = aloftWind(5, 200, 1);
-  assert.ok(Math.abs(a.fromDeg - WEATHER_WIND.steerFromDeg) < 1e-6 && Math.abs(a.speedMs - WEATHER_WIND.steerMs) < 1e-9);
+  assert.ok(Math.abs(a.fromDeg - (200 + WEATHER_WIND.steerVeerDeg)) < 1e-6 && Math.abs(a.speedMs - WEATHER_WIND.steerMs) < 1e-9);
   ww.update({ eye: [0, 2, 0], t: 111, base, storm: { on: 1, front: 1 }, cut: 0 });
   assert.ok(Math.abs(ww.aloft.fromDeg - 250) < 1e-6, 'under the storm the deck rides its cells\' flow');
   // a time cut re-places the deck where the old drift put it: the same frame whatever came before (determinism under ?hour)

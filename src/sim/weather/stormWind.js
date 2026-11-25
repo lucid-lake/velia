@@ -10,7 +10,7 @@
 //   behind it            × 1.45, gusty (± 30 % in cells ≈ 250 m across, carried downwind), veered toward the outflow's
 //                        direction (from the WSW, 250°) by up to 85 %
 // all scaled by the arc's front envelope (0 before ≈ 50 s, gone by ≈ 260 s). No storm: wind.js never calls this.
-import { arcTime, arcAt, FRONT, DIR, CELL, smooth } from './stormArc.js';
+import { arcTime, arcAt, FRONT, CELL, smooth, dirOf, fromDegOf } from './stormArc.js';
 
 const OUTFLOW = { edge: 0.55, behind: 0.45, lull: 0.18, gusty: 0.3, veer: 0.85, cellM: 250 };
 
@@ -34,9 +34,9 @@ export const frontAlong = (s) => (s - FRONT.atS) * FRONT.speedMs;
 // allocation per point: toTexture runs 65,536 texels a frame); stormWindFrame(state, t) returns (x, z) → a new object.
 const CALM = { gain: 1, fromDeg: CELL.fromDeg, w: 0 };
 export function stormWindFrameInto(state, t) {
-  const s = arcTime(state, t);
-  const env = arcAt(s, state.ref, state.ref).front;
-  if (env <= 0) return (x, z, o) => { o.gain = CALM.gain; o.fromDeg = CALM.fromDeg; o.w = CALM.w; return o; };
+  const s = arcTime(state, t), DIR = dirOf(state), fromDeg = fromDegOf(DIR);   // the drift: the state's steering (v2), else v1's fixed one
+  const env = arcAt(s, state.ref, state.ref, DIR).front;
+  if (env <= 0) return (x, z, o) => { o.gain = CALM.gain; o.fromDeg = fromDeg; o.w = CALM.w; return o; };
   const fa = frontAlong(s), drift = (s - FRONT.atS) * 14, seed = state.seed ?? 1, [rx, rz] = state.ref;
   return (x, z, o) => {
     const dx0 = x - rx, dz0 = z - rz;
@@ -50,7 +50,7 @@ export function stormWindFrameInto(state, t) {
     const g = behind > 0 ? vnoise((a - drift) / OUTFLOW.cellM, c / OUTFLOW.cellM, seed + 17)
       + 0.5 * vnoise((a - drift) / (OUTFLOW.cellM * 0.4), c / (OUTFLOW.cellM * 0.4), seed + 29) : 0;
     const gain = 1 + env * (OUTFLOW.edge * edge + OUTFLOW.behind * behind * (1 + OUTFLOW.gusty * g / 1.5) - OUTFLOW.lull * ahead);
-    o.gain = Math.max(0.2, gain); o.fromDeg = CELL.fromDeg; o.w = env * OUTFLOW.veer * Math.max(behind, edge * 0.6);
+    o.gain = Math.max(0.2, gain); o.fromDeg = fromDeg; o.w = env * OUTFLOW.veer * Math.max(behind, edge * 0.6);
     return o;
   };
 }

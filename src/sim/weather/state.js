@@ -10,13 +10,16 @@
 //   time      the arc's seconds (scene clock)                        front: [x, z, along the drift (m), strength]
 //   sun       [x, y, z] the sun (world, unit)                        bow, bowAmt: the rainbow's light and its 0–1 amount
 //   toRain    [x, z] toward the departing rain                       drift: [x, z] the shade's noise offset (m)
+//   dir       [x, z] the cell's drift (unit): v1's fixed track until a storm with its own steering runs (v2); not in the copied
+//             lists below (v1's bus has no row for it: its shaders keep the fixed track)
+import { DIR } from './stormArc.js';
 export const STORM_TOP_M = 7600;   // the towers' top above the lake (m): an anvil near 9.5 km above sea level
 
 export function createWeatherState() {
   return {
     on: 0, cell: [0, 0, 1], cover: 0, tall: 0, slab: 0, shelfDrop: 0, under: 0, rainCore: 0, shade: 0, gaps: 0, rain: 0,
     dark: 0, gold: 0, flash: 0, flashAdd: 0, haze: 0, time: 0, front: [0, 0, 0, 0], sun: [0, 1, 0], bow: 0, bowAmt: 0,
-    toRain: [1, 0], drift: [0, 0],
+    toRain: [1, 0], drift: [0, 0], dir: [DIR[0], DIR[1]],
   };
 }
 

@@ -724,10 +724,9 @@ The storm read flat and nearly grey; the owner asked for one wind driving the wh
   modifier), after the storm's step. The rain drifts with it, a gust leaning it more (the wind over its 8 s mean × 1.6 extra,
   capped at × 2); the streaks lie along the drop's motion past the camera. The deck's drift is integrated on the scene clock
   (it was the wind's speed × t, so any change of speed slid the whole deck); on a time cut it is re-placed at speed × t, so a
-  steady wind draws the same deck as before. Aloft, a storm's steering flow (250°, 14 m/s) takes the deck by the front's
-  envelope, so the deck and the cells move together. `ww.eye` and `ww.at(x, z)` are the gulls' getter (`hook.weatherWind`,
-  the plug-in context's `weatherWind`). The cells' track itself stays the arc's 70° (stormArc.js DIR, also baked into
-  render/water.js and v1's code): re-steering it to the day's wind is a follow-up once the water work merges.
+  steady wind draws the same deck as before. Aloft, a storm's steering flow (`steerFlow`: the day's wind veered 50°, 14 m/s)
+  takes the deck by the front's envelope, so the deck and the cells move together. `ww.eye` and `ww.at(x, z)` are the gulls'
+  getter (`hook.weatherWind`, the plug-in context's `weatherWind`). The cells' track: § The cell's track below.
 - **A look per weather** (`sim/weatherLook.js` WEATHER_LOOKS): clear, fair (the identity: the composite skips the grade),
   overcast, storm, rain, clearing; weights from the deck's chosen coverage and the storm's dark, rain and gold, eased over
   2.5 s on the scene clock (snapped on a cut). The grade runs after the exposure in the composite: stops (in the grade, since
@@ -743,6 +742,27 @@ The storm read flat and nearly grey; the owner asked for one wind driving the wh
   which has no storm); `?lensrain=0` the A/B.
 - **Cost** (2560 × 1600, M5 Pro, headless, ABBA against main, load 5.6–5.9): the composite +0.07 ms for the grade, +0.21 ms
   more for the lens in the rain (0.16 → 0.44 ms); Clear +0.08 ms; Fair unchanged within the noise.
+
+### The cell's track on the one wind (storm round 2, 2026-11-24: sim/weatherWind.js steerFlow, sim/storm.js, render/water.js, render/clouds.js, render/sky.js)
+The cell rode v1's fixed 70° (stormArc.js DIR), baked into three of v2's shaders and the shade's mask. Now its drift is the
+one wind's steering flow and nothing else holds a bearing:
+- **The steering** (`sim/weatherWind.js steerFlow(fromDeg)`): the day's wind veered by `WEATHER_WIND.steerVeerDeg` (50°). The
+  afternoon breeze is channelled up the lake at the surface (from about 200°, `src/sim/day.js`); the summer flow aloft that
+  carries the cells is SW–W (the arc's own 250°); the surface wind lies backed from the flow over it (the Ekman turn plus the
+  valley's channelling). The highlight afternoon (18:15, from 199.9°) keeps the track within 0.1° of the arc's (the goldens'
+  poses); `?winddir=`, the Sail shifts or the morning's drainage turn it with the wind. The deck's aloft drift uses the same.
+- **The run** (`sim/storm.js`): every start takes the steering now (`createStormSim`'s `steer`; `state.dir`, a unit vector).
+  Each frame `main.js` reads the day's wind first and hands `steerFlow(windNow.dirDeg)` to `storm.update`; a running cell
+  turns toward it with a 45 s time constant (`STORM_TRACK.turnS`), snapped on a new storm, a time cut or a jump, so the track
+  swings slowly about `stormref` and still passes overhead at the arc's 165 s (it crosses the bay's mouth in the goldens' and
+  stormMouth's poses). The array is turned in place, so the wind field's copy of the state (`setStorm`) shares it.
+- **The shared modules** (`src/sim/weather/`): `cellAt`, `arcAt`, `strikesBetween` take the drift (default DIR);
+  `stormWind` blows the outflow from where the cell comes from (`fromDegOf(state.dir)`); `stormSim` writes `W.dir`. v1 passes no
+  drift and keeps DIR and 250° line for line (its shaders keep their own constants; v1 goldens 0 px).
+- **The shaders** read the frame's `track` row (water's outflow band, the sky's deck mask) and the cloud params' `h.xy` (the
+  cell's stretched trailing side). Off the storm the clouds get 0 there (the fair frames' bytes as before).
+- Tests: `v2/tests/storm-track.test.mjs` (the track follows the steering for three winds, the front, the outflow, the strikes and
+  the uniform row; the turn's time constant and the cut; the URL rows deterministic; no 70° constant in the generated WGSL).
 
 ### The spume (2026-11-14: render/spume.js, render/water.js; owner: "port it. It's a wind effect, so it shows in any strong wind, storm or fair")
 v1's recipe (`src/wind-cues.js` whitecapAt, its numbers in `src/sim/windCues.js`), unchanged:

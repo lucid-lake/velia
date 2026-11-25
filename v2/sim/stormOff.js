@@ -24,6 +24,7 @@ export function createStormOff() {
       U.set4('cell', W.cell[0], W.cell[1], W.cell[2], 0);
       U.set4('front', 0, 0, 0, 0);
       U.set4('bow', W.toRain[0], W.toRain[1], 0, 0);
+      U.set4('track', W.dir[0], W.dir[1], 0, 0);
       return 1;
     },
   };

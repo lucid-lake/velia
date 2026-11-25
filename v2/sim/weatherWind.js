@@ -7,10 +7,12 @@
 //                   front all count);
 //   the clouds      their drift (render/clouds.js): the wind aloft, integrated over the scene clock (the deck moves at the
 //                   wind's speed now, never by speed × t, so a changing wind no longer slides the whole deck);
-//   the storm       aloft, a storm's steering flow (stormArc.js CELL: its cells ride from 250 deg) takes over the deck's drift by
-//                   the storm's front envelope, so the deck and the cells move together;
+//   the storm       aloft, a storm's steering flow (steerFlow: the day's wind veered through the lake's channelled surface
+//                   layer) takes over the deck's drift by the storm's front envelope, and the storm cell's track rides the same
+//                   flow (sim/storm.js: the cell, its outflow front, its strikes and the shaders' drift), so the deck, the cells
+//                   and the outflow move together on the one wind;
 //   the gulls       `eye` and `at(x, z)`: the getter their calls read (the gulls' own module reads it; nothing here plays a sound).
-//   const ww = createWeatherWind({ field, steer: { fromDeg: 250, speedMs: 14 } });
+//   const ww = createWeatherWind({ field });   steerFlow(base) → { fromDeg, speedMs, dir }: the storm's steering from the day's wind
 //   ww.update({ eye, t, windT, base, storm, cut })   each frame, after the storm's step (the field has the outflow)
 //   ww.eye → { vx, vz, speedMs, fromDeg, mean, gust }   ww.rain → { vx, vz, lean }   ww.drift → [x, z] (m)   ww.at(x, z, out)
 // Deterministic: no wall clock, no Math.random(); the means and the drift step on the scene clock and reset on a time cut.
@@ -21,8 +23,14 @@ export const WEATHER_WIND = Object.freeze({
   gustLean: 1.6,     // the rain's extra lean per unit of gust (a 30 % gust leans the rain's drift × 1.48 more, on top of its speed)
   gustCap: 1.0,      // at most this much extra
   driftMul: 1.5,     // the deck's drift per m/s of wind aloft (v1's world.js; v2/sim/clouds.js KEY.driftMul)
-  steerFromDeg: 250, // a storm's steering flow aloft (stormArc.js CELL.fromDeg): the cells ride it
-  steerMs: 14,       // its speed (m/s): the deck races under a storm
+  // a storm's steering flow aloft, from the day's wind (no bearing of its own): Tahoe's afternoon breeze is channelled up the
+  // lake's axis at the surface (from about 200 deg, src/sim/day.js) while the summer flow aloft that carries the cells is
+  // south-west to west (about 250 deg: stormArc.js's own basis); the surface wind lies backed from the flow over it by the
+  // friction and the channelling (the Ekman turn: 30–45 deg over rough land, more where the valley steers it), so the flow
+  // aloft is the day's wind veered by this much. A changed wind (?winddir, the shifts, the morning's drainage) turns the
+  // storm's track with it; the highlight day's afternoon keeps the arc's old track within a degree
+  steerVeerDeg: 50,
+  steerMs: 14,       // its speed (m/s): the deck races under a storm (the cell's own pace is the arc's compressed table)
   maxDt: 0.25,       // a frame longer than this is a jump, not a step
 });
 
@@ -36,9 +44,16 @@ export function rainDrift(vx, vz, gust, W = WEATHER_WIND) {
   return { vx: vx * k, vz: vz * k, k, lean: Math.atan2(Math.hypot(vx, vz) * k, 9) };   // lean: from the vertical, at 9 m/s fall (render/storm.js RAIN.fallMs)
 }
 
+// the storm's steering flow from the day's wind (its FROM bearing, deg): the bearing it blows from, its speed and the cells'
+// drift (toward, unit x east, z south): the one source of a storm's track (sim/storm.js turns the running cell to it)
+export function steerFlow(baseFromDeg, W = WEATHER_WIND) {
+  const fromDeg = (((baseFromDeg ?? 0) + W.steerVeerDeg) % 360 + 360) % 360;
+  return { fromDeg, speedMs: W.steerMs, dir: towardOf(fromDeg) };
+}
+
 // the wind aloft: the day's base (free air, no terrain), turned toward the storm's steering flow by w (0–1)
 export function aloftWind(baseSpeed, baseFromDeg, w, W = WEATHER_WIND) {
-  const [bx, bz] = towardOf(baseFromDeg), [sx, sz] = towardOf(W.steerFromDeg);
+  const [bx, bz] = towardOf(baseFromDeg), [sx, sz] = steerFlow(baseFromDeg, W).dir;
   const vx = bx * baseSpeed * (1 - w) + sx * W.steerMs * w, vz = bz * baseSpeed * (1 - w) + sz * W.steerMs * w;
   return { vx, vz, speedMs: Math.hypot(vx, vz), fromDeg: fromOf(vx, vz) };
 }

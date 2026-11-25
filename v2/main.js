@@ -66,7 +66,7 @@ import { arriveOnEntry } from '../src/audio.js';   // music: the gesture that en
 import { setStreamMusic } from '../src/audioFormat.js';   // music: every piece streams (no decoded PCM)
 import { visitSeed } from '../src/visitSeed.js';   // music: a seed per visit for the pieces' order (v1's)
 import { weatherMenu } from '../src/sim/weather/weatherMenu.js';
-import { createWeatherWind } from './sim/weatherWind.js';   // the one wind every weather effect reads (the rain, the clouds' drift, the gulls' calls)
+import { createWeatherWind, steerFlow } from './sim/weatherWind.js';   // the one wind every weather effect reads (the rain, the clouds' drift, the gulls' calls, the storm's track)
 import { createWeatherLook, createLensWater, fillLookRecord } from './sim/weatherLook.js';   // a look per weather; the lens's water
 import { createWeatherLookBuffer } from './render/weatherLook.js';
 import { createBoatSim, waterFor, START, FOLLOW, DESK_TRIM } from './sim/boat.js';
@@ -1317,9 +1317,11 @@ async function boot() {
     // M5e: the storm's step (the arc, the outflow on the wind field, the strikes), then the sea from the wind under the
     // outflow at the eye (v1's modifier: the lull, the line, the gusty veer behind it): the composed tables rebuild only when
     // the rounded wind moves, the cheap re-composition takes the rest; the Weather menu's ease of the deck
-    storm.update(clock.hour);
+    // storm round 2: the day's wind first, so the storm's step rides its steering flow (sim/weatherWind.js steerFlow: the cell's track)
+    windNowAt(clock.hour);
+    storm.update(clock.hour, { steer: steerFlow(windNow.dirDeg), cut: clock.cuts });
     wx.update(clock.t);
-    storm.waterWind(windNowAt(clock.hour), windStorm);   // the day's wind at the hour (windNow), then the outflow on it
+    storm.waterWind(windNow, windStorm);   // the day's wind at the hour (windNow), then the outflow on it
     weatherWind.update({ eye, t: clock.t, windT: B ? B.t : clock.t, base: windNow, storm: { on: storm.weather.on, front: storm.weather.front[3] }, cut: clock.cuts });   // the one wind at the eye (the field has the outflow now)
     const lookNow = wlook.update({ cover: deckCover.value, on: storm.weather.on, dark: storm.weather.dark, rain: storm.weather.rain, gold: storm.weather.gold, t: clock.t, cut: clock.cuts });   // the weather's look, eased
     water.setWind(seaNow(windStorm));   // v1's sea at the boat (spectrum.js): the tables rebuilt only when the wind moves, re-weighted by the fetch

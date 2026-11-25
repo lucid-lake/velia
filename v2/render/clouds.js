@@ -129,12 +129,12 @@ const W = ${W}.0; const H = ${H}.0; const N = ${KEY.steps}; const NL = ${KEY.lig
 const SHAPE_M = ${KEY.shapeM}.0; const DETAIL_M = ${KEY.detailM}.0; const WEATHER_M = ${KEY.weatherM}.0; const MAXD = ${KEY.maxDistance}.0;
 fn hashT(x: u32, y: u32) -> f32 { var h = x * 374761393u + y * 668265263u + 7u * 1442695041u; h = (h ^ (h >> 13u)) * 1274126177u; return f32(h ^ (h >> 16u)) / 4294967296.0; }
 // the storm cell's weight at p (0 fair; 1 inside the cell's core): the shared weather state's cell
-const DIRX = ${Math.sin(70 * Math.PI / 180).toFixed(6)}; const DIRZ = ${(-Math.cos(70 * Math.PI / 180)).toFixed(6)};   // the drift (stormArc.js DIR)
 // #18: v1's cellMask (src/weather/uniforms.js), without its cover (the callers weight by CL.d.w): the trailing side (upwind,
 // behind the core) stretched, the rain's grey stratiform tail following the towers, and the anvil spreading aloft once the
 // tower is up (M5e's port was a plain disc, 0.5 to 1 of the radius: the boat 1.4 radii off stood outside a lit wall)
 fn cellAt(p: vec3f) -> f32 {
   let anvil = smoothstep(4500.0, 7200.0, p.y) * smoothstep(0.6, 1.0, CL.h.w) * 0.35;
+  let DIRX = CL.h.x; let DIRZ = CL.h.y;   // the cell's drift (sim/clouds.js fillParams: the weather state's dir, the one wind's steering)
   let rel = p.xz - CL.d.xy; let a = rel.x * DIRX + rel.y * DIRZ;
   let rel2 = rel + vec2f(DIRX, DIRZ) * (min(a, 0.0) * -0.45);
   return (1.0 - smoothstep(0.38, 1.0, length(rel2) / (CL.d.z * (anvil + 1.0)))) * step(0.001, CL.d.w + CL.e.x);

@@ -459,8 +459,8 @@ fn stormDeckK(d: vec3f) -> f32 {
 // v1's cellMask at q (F.cell: x, z, radius, cover; the trailing side stretched) x the storm's dark ramp, gone in the gold; 0 fair
 fn stormCellAt(q: vec2f) -> f32 {
   if (F.storm.x < 0.5) { return 0.0; }
-  let rel = q - F.cell.xy; let a = rel.x * ${Math.sin(70 * Math.PI / 180).toFixed(6)} + rel.y * ${(-Math.cos(70 * Math.PI / 180)).toFixed(6)};
-  let rel2 = rel + vec2f(${Math.sin(70 * Math.PI / 180).toFixed(6)}, ${(-Math.cos(70 * Math.PI / 180)).toFixed(6)}) * (min(a, 0.0) * -0.45);
+  let rel = q - F.cell.xy; let a = rel.x * F.track.x + rel.y * F.track.y;   // the cell's drift: the frame's track row (v2/sim/storm.js)
+  let rel2 = rel + F.track.xy * (min(a, 0.0) * -0.45);
   let m = (1.0 - smoothstep(0.38, 1.0, length(rel2) / max(F.cell.z, 1.0))) * F.cell.w;
   return clamp(m, 0.0, 1.0) * smoothstep(0.25, 0.75, F.storm.z) * (1.0 - F.storm.w);
 }

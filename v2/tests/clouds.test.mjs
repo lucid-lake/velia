@@ -90,7 +90,7 @@ test('the params record: 32 floats, the schedule and the deck in their slots, th
   assert.deepEqual(Array.from(out.subarray(24, 28)), [1.5, 9, 0.5, 0]);
   w.on = 1; fillParams(out, { weather: w });
   near(out[15], 0.8, 1e-6); assert.equal(out[16], 2500); near(out[17], 0.6, 1e-6);
-  assert.deepEqual(Array.from(out.subarray(28, 31)), [0, 0, 0]); near(out[31], 0.7, 1e-6);
+  near(out[28], w.dir[0], 1e-6); near(out[29], w.dir[1], 1e-6); assert.equal(out[30], 0); near(out[31], 0.7, 1e-6);   // on: the cell's drift (storm round 2)
   fillParams(out, { weather: { ...createWeatherState(), cell: [0, 0, 0] } });
   assert.equal(out[14], 1, 'a zero radius is clamped to 1 m');
 });
