@@ -10,13 +10,14 @@ dates the service reports over the bay. Idempotent: skips files present.
   basin  4 m   tiles of 2,000 px
   lake   32 m  one export
   region 16 m  the lake's box (the runtime's regional photo): 2 x 2 exports
+  south  2 m   the south region's box (built to 4 m and 8 m by build_naip.py): 2 x 2 exports
 """
 import argparse, json, math, os, sys, time, datetime, urllib.parse, urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from naip_frame import LEVELS, utm_bbox, TO_UTM
 
 SVC = 'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPPlus/ImageServer'
-PLAN = {'bay': (0.6, 2000, 60.0), 'basin': (4.0, 2000, 400.0), 'lake': (32.0, 2000, 3200.0), 'region': (16.0, 2000, 1600.0)}
+PLAN = {'bay': (0.6, 2000, 60.0), 'basin': (4.0, 2000, 400.0), 'lake': (32.0, 2000, 3200.0), 'region': (16.0, 2000, 1600.0), 'south': (2.0, 2000, 200.0)}
 
 def get(url, out, tries=4):
     for k in range(tries):
@@ -59,8 +60,8 @@ def main():
                 n = get(SVC + '/exportImage?' + urllib.parse.urlencode(q), out)
                 print(f'  {os.path.basename(out)} {w}x{h} {n/1e6:.1f} MB', flush=True)
                 time.sleep(2)
-    L = LEVELS['bay']; dates = {}
-    for (x, z) in [(0, 0), (L['x0'], L['z0']), (L['x1'], L['z1']), (L['x0'], L['z1']), (L['x1'], L['z0'])]:
+    L = LEVELS['bay' if 'bay' in a.levels.split(',') else a.levels.split(',')[0]]; dates = {}
+    for (x, z) in [((L['x0'] + L['x1']) / 2, (L['z0'] + L['z1']) / 2), (L['x0'], L['z0']), (L['x1'], L['z1']), (L['x0'], L['z1']), (L['x1'], L['z0'])]:
         e, n = TO_UTM.transform(x, -z)
         q = dict(f='json', geometry=json.dumps({'x': e, 'y': n, 'spatialReference': {'wkid': 26910}}), geometryType='esriGeometryPoint',
                  returnGeometry='false', returnCatalogItems='true', returnPixelValues='false')
@@ -69,7 +70,7 @@ def main():
             at = f['attributes']
             if at.get('Category') == 1:
                 dates[at['Name']] = datetime.datetime.fromtimestamp(at['acquisition_date'] / 1000, datetime.UTC).date().isoformat()
-    json.dump({'service': SVC, 'fetched': datetime.date.today().isoformat(), 'primary_footprints': dates}, open(os.path.join(a.out, 'index.json'), 'w'), indent=1)
+    json.dump({'service': SVC, 'fetched': datetime.date.today().isoformat(), 'primary_footprints': dates}, open(os.path.join(a.out, 'index.json' if a.levels == 'bay,region' else f'index-{a.levels.replace(",", "-")}.json'), 'w'), indent=1)
     print(dates)
 
 if __name__ == '__main__':

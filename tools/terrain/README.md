@@ -7,6 +7,7 @@ developer's machine; the game only reads their output. Every input is public dom
 |---|---|---|
 | `tools/terrain/fetch_tahoe.sh` | USGS 3DEP elevation, USGS DDS-55 bathymetry, NLCD 2021, the 3DEP lidar points over Fannette Island | `.cache/terrain/raw/` |
 | `tools/terrain/build_tahoe.py` | `.cache/terrain/raw/` | `terrain/tahoe.json` and `terrain/<level>-{h,d,c}.lsh` |
+| `tools/terrain/carve_channel.mjs` | `terrain/bay-h.lsh`, `basin-h.lsh` | the same files, Emerald Bay's entrance channel carved in (run after `build_tahoe.py`) |
 | `tools/terrain/phone_terrain.mjs` | `terrain/tahoe.json` | `terrain/tahoe-phone.json`, the phone height grids |
 | `tools/ground/fetch_naip.py` | the NAIP Plus image service | `.cache/naip/raw/` |
 | `tools/ground/build_naip.py` | `.cache/naip/raw/`, `terrain/*.lsh` (the de-lighting DEM) | `terrain/naip/albedo-*.webp`, `naip.json` |
@@ -36,3 +37,32 @@ A `.lsh` file is a gzip of a 2-D predicted `uint16` grid (left + up - up-left, m
 the low bytes plane. Heights: `y = -600 + 0.05 q` metres above the lake. Shore distance: `(q - 32768) * 0.5` metres,
 negative on the water. Cover: plain `uint8` classes, gzip (`build_tahoe.py` `NLCD_MAP`). The world frame: a transverse
 Mercator on Fannette Island's summit, x east, z south, y up from the lake surface (`src/sim/geo.js`).
+
+## Region levels
+
+A region level is one fine grid over a shore away from Emerald Bay, built alone into `terrain/<region>/`, in the
+lake-wide frame and codes. The loader will fetch it in place of the bay's when the player is born in that region.
+Today there is one, `south` (South Lake Tahoe, Camp Richardson to Stateline):
+
+| | Desktop | Phone |
+|---|---|---|
+| Box (texel edges, world m) | x 6,992 to 14,512, z -1,504 to 3,008 | the same |
+| Heights | `south-h.lsh`, 4 m, 1880 x 1128 | `south-h2.lsh`, 8 m (2 x 2 block means) |
+| Shore distance | `south-d.lsh`, 4 m | `south-d2.lsh`, 8 m |
+| Cover (NLCD) | `south-c.lsh`, 8 m | the same file |
+| Photo (NAIP 2022) | `photo/full/south/<tx>-<ty>.webp`, 4 m, 256 px tiles | `photo/phone/south/…`, 8 m |
+| Manifests | `south.json`, `photo/manifest.json` | `south-phone.json`, `photo/manifest.json` |
+
+The heights come from the 3DEP 1 m lidar (a Gaussian of 1.6 m, read at the texel centres); the bed from DDS-55 by the
+lake-wide rule, so it meets the 10 m and 32 m levels round it (`v2/tests/south-terrain.test.mjs`). Rebuild it:
+
+```sh
+TAHOE_SETS="south bathy nlcd" bash tools/terrain/fetch_tahoe.sh                     # 1 m lidar, about 180 MB
+.venv/bin/python -I tools/terrain/build_tahoe.py --region south                      # terrain/south/*.lsh, *.json
+.venv/bin/python -I tools/ground/fetch_naip.py --out .cache/naip/raw --levels south  # NAIP at 2 m, about 45 MB
+.venv/bin/python -I tools/ground/build_naip.py --raw .cache/naip/raw --work .cache/naip/work --out .cache/naip/out --levels south
+node tools/v2-photo-tiles.mjs --region south                                          # terrain/south/photo/
+```
+
+The full-size albedo files stay in `.cache/naip/out/` (git-ignored); only the tiles are committed. The build is
+deterministic for the same downloads (gzip with no timestamp; the WebP tiles from the same Chrome).

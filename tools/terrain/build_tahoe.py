@@ -3,6 +3,7 @@
 
     bash tools/terrain/fetch_tahoe.sh [raw root]          # the raw downloads (.cache/terrain/raw, git-ignored)
     .venv/bin/python -I tools/terrain/build_tahoe.py [--raw DIR] [--out terrain]
+    .venv/bin/python -I tools/terrain/build_tahoe.py --region south    # one region level (REGIONS), into terrain/south/
 
 Inputs (all US federal works, public domain; ATTRIBUTION.md):
   - USGS 3DEP Bare Earth DEM (dynamic service; 1 m lidar round the lake, 1/3 arc-second elsewhere), UTM 10N NAD83
@@ -50,6 +51,19 @@ BATHY_SURFACE = 1899.0                     # the survey's own water line (its gr
                                            # are taken below it and hung under today's surface (the level change ignored)
 D_STEP = 0.5                               # shore distance int16 (stored + 32768) * 0.5 m: +-16 km
 D_SUB = {'island': 1, 'bay': 2, 'basin': 2, 'lake': 2, 'ring': 1}   # the distance grid: every k-th texel
+
+# --- the region levels (--region NAME): a fine level over one shore away from the bay, built alone into terrain/NAME/
+# with its own manifests (NAME.json, NAME-phone.json), in the lake-wide frame and codes (y0 from terrain/tahoe.json, so
+# the region's heights meet the shipped levels'). The loader picks one by the birthplace's region; the lake-wide levels
+# are not rebuilt. Each holds heights, the shore distance (every dk-th texel) and NLCD cover (every ck-th texel), and a
+# phone set: the heights' f x f block means (as tools/terrain/phone_terrain.mjs), the distance every pdk-th texel.
+#   south: South Lake Tahoe, Camp Richardson to Stateline: world x 6,992 to 14,512, z -1,504 to 3,008 (texel edges) at
+#   4 m; the heights from the 3DEP 1 m lidar, smoothed (a Gaussian of `smooth` source texels) and read at the texel
+#   centres; the bed from DDS-55 by the lake-wide (first build's) rules, as the 10 m and 32 m levels round it
+REGIONS = {
+    'south': dict(name='south', step=4.0, x0=6994.0, z0=-1502.0, w=1880, h=1128, src='dem1m_south', smooth=1.6,
+                  flat=0.15, dk=1, ck=2, phone=2, pdk=2),
+}
 
 def world_grid(L, k=1):
     xs = L['x0'] + np.arange(0, L['w'], k) * L['step']
@@ -337,12 +351,21 @@ def decode_u16(b, w, h):   # the check: the same as src/terrain-data.js
 NLCD_MAP = {11: 1, 12: 9, 21: 3, 22: 2, 23: 2, 24: 2, 31: 4, 41: 5, 42: 5, 43: 5, 51: 6, 52: 6, 71: 7, 72: 7, 73: 7, 74: 7,
             81: 7, 82: 7, 90: 8, 95: 8}
 
+def block_mean(q, f):
+    """the mean of each f x f block, rounded (texel centres: the block's centre); tools/terrain/phone_terrain.mjs's"""
+    h, w = q.shape[0] // f * f, q.shape[1] // f * f
+    return np.floor(q[:h, :w].astype(np.float64).reshape(h // f, f, w // f, f).sum(axis=(1, 3)) / (f * f) + 0.5).astype(np.uint16)
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--raw', default=os.path.join(REPO, '.cache', 'terrain', 'raw'))
-    ap.add_argument('--out', default=os.path.join(REPO, 'terrain'))
+    ap.add_argument('--out', default=None, help='default terrain/ (terrain/<region>/ with --region)')
     ap.add_argument('--legacy-bed', action='store_true', help="the first build's bed (nearest fill, a straight 5-40 m ramp): the A/B")
+    ap.add_argument('--region', choices=sorted(REGIONS), help='build one region level (REGIONS) and its manifests, nothing else')
     a = ap.parse_args()
+    if a.region:
+        return build_region(a)
+    a.out = a.out or os.path.join(REPO, 'terrain')
     os.makedirs(a.out, exist_ok=True)
 
     srcs = {p: mosaic(a.raw, p) for p in sorted({L['src'] for L in LEVELS})}
@@ -457,6 +480,92 @@ def main():
     manifest['bytes'] = total
     json.dump(manifest, open(os.path.join(a.out, 'tahoe.json'), 'w'), indent=1)
     print(f'total {total / 1e6:.2f} MB in {a.out}')
+
+def build_region(a):
+    """one region level (REGIONS[a.region]) into terrain/<region>/: <r>-h.lsh, <r>-d.lsh, <r>-c.lsh, the phone set's
+    <r>-h<f>.lsh and <r>-d<pdk>.lsh, and the manifests <r>.json and <r>-phone.json (the lake-wide manifests' fields)"""
+    L = REGIONS[a.region]
+    out = a.out or os.path.join(REPO, 'terrain', L['name'])
+    os.makedirs(out, exist_ok=True)
+    lake = json.load(open(os.path.join(REPO, 'terrain', 'tahoe.json')))
+    Y0 = float(lake['y0'])                      # the lake-wide frame's surface (the bay's lidar water), not re-measured
+    assert lake['proj'] == PROJ, 'the lake profile moved: rebuild the lake-wide levels first'
+    dem, tr = mosaic(a.raw, L['src'])
+    bathy, btr = read_bathy(a.raw)
+    E, N = utm_of(L)
+    # the source must cover the level and a margin for the smoothing: no hole may reach a texel
+    src = ndimage.gaussian_filter(np.where(np.isnan(dem), np.nanmean(dem), dem), L['smooth']) if L['smooth'] > 0 else dem
+    h = sample(src, tr, E, N) - Y0
+    hole = ~np.isfinite(sample(dem, tr, E, N))
+    if hole.any(): sys.exit(f"{L['src']}: {int(hole.sum())} texels without lidar: widen the fetch")
+    b = sample(bathy, btr, E, N)
+    wetB = np.isfinite(b) & (b < BATHY_SURFACE - 3)
+    hv = np.round(h[wetB], 1) if wetB.any() else np.round(h, 1)
+    vv, cc = np.unique(hv, return_counts=True); surf = float(vv[np.argmax(cc)])
+    flat = np.abs(h - surf) < L['flat']
+    lab, nl = ndimage.label(flat)
+    sizes = ndimage.sum(np.ones_like(h), lab, range(1, nl + 1))
+    keep = np.zeros(nl + 1, bool)
+    if nl: keep[1 + int(np.argmax(sizes))] = True
+    touch = np.unique(lab[wetB & flat]); keep[touch] = True; keep[0] = False
+    water = keep[lab]
+    bed = legacy_bed(L, water, b)               # the lake-wide rules (REGION's seamless bed is the bay's alone)
+    h = np.where(water, bed, np.maximum(h - surf, 0.05))
+    print(f"{L['name']}: source lake surface {surf + Y0:.2f} m (the frame's {Y0:.2f} m)")
+    q = np.clip(np.round((h - H_OFFSET) / H_STEP), 0, 65535).astype(np.uint16)
+    files = {}
+    def write(fn, data):
+        open(os.path.join(out, fn), 'wb').write(data); files[fn] = len(data)
+    hb = encode_u16(q); write(f"{L['name']}-h.lsh", hb)
+    assert np.array_equal(decode_u16(hb, L['w'], L['h']), q), 'decode mismatch'
+    ent = dict(name=L['name'], step=L['step'], x0=L['x0'], z0=L['z0'], w=L['w'], h=L['h'], height=f"{L['name']}-h.lsh")
+    # the shore distance: signed metres, negative on the lake (as the lake-wide levels)
+    dIn = ndimage.distance_transform_edt(water) * L['step']
+    dOut = ndimage.distance_transform_edt(~water) * L['step']
+    sd = np.where(water, -(dIn - 0.5 * L['step']), dOut - 0.5 * L['step'])
+    def dist(k):
+        sdk = sd[::k, ::k]
+        return sdk, encode_u16(np.clip(np.round(sdk / D_STEP) + 32768, 0, 65535).astype(np.uint16))
+    sdk, db = dist(L['dk']); dfn = f"{L['name']}-d.lsh"; write(dfn, db)
+    ent.update(distance=dfn, dk=L['dk'], dw=sdk.shape[1], dh=sdk.shape[0])
+    # cover: NLCD classes, nearest, every ck-th texel; our lake 1, other NLCD water 10
+    ck = L['ck']
+    Ec, Nc = utm_of(L, ck)
+    nlcd = read_nlcd(a.raw)
+    Xa, Ya = Transformer.from_crs('EPSG:26910', nlcd.crs, always_xy=True).transform(Ec, Nc)
+    band = nlcd.read(1); T = nlcd.transform
+    ci = ((Xa - T.c) / T.a).astype(int); ri = ((Ya - T.f) / T.e).astype(int)
+    if ci.min() < 0 or ri.min() < 0 or ci.max() >= band.shape[1] or ri.max() >= band.shape[0]: sys.exit('NLCD does not cover the region')
+    lut = np.zeros(256, np.uint8)
+    for kk, v in NLCD_MAP.items(): lut[kk] = v
+    cls = lut[band[ri, ci]]
+    wk = water[::ck, ::ck][:cls.shape[0], :cls.shape[1]]
+    cls = np.where(wk, 1, np.where(cls == 1, 10, cls))
+    cfn = f"{L['name']}-c.lsh"; write(cfn, encode_u8(cls))
+    ent.update(cover=cfn, ck=ck, cw=cls.shape[1], ch=cls.shape[0])
+    names = ['-', 'water', 'urban', 'open', 'rock', 'forest', 'shrub', 'grass', 'wet', 'snow', 'pond']
+    print(f"{L['name']} {L['w']}x{L['h']} @ {L['step']:g} m: h {h.min():.1f}..{h.max():.1f} m, water {water.mean():.1%}; cover " +
+          ', '.join(f'{n} {np.mean(cls == i):.0%}' for i, n in enumerate(names) if np.mean(cls == i) > 0.005))
+    head = dict(version=1, region=L['name'], proj=PROJ, origin=dict(lat=LAT0, lon=LON0), y0=Y0,
+                height=dict(offset=H_OFFSET, step=H_STEP), distance=dict(step=D_STEP),
+                box=dict(x0=L['x0'] - L['step'] / 2, z0=L['z0'] - L['step'] / 2,
+                         x1=L['x0'] + (L['w'] - 0.5) * L['step'], z1=L['z0'] + (L['h'] - 0.5) * L['step']),
+                sources=['USGS 3DEP Bare Earth DEM (1 m lidar), public domain',
+                         'USGS DDS-55 Lake Tahoe bathymetry 1998 (Gardner, Mayer, Hughes Clarke), public domain',
+                         'USGS/MRLC NLCD 2021 land cover, public domain'])
+    full = dict(head, levels=[ent], bytes=files[ent['height']] + files[dfn] + files[cfn])
+    # the phone set: the heights' block means, the distance every pdk-th texel, the cover shared
+    f, pdk = L['phone'], L['pdk']
+    qp = block_mean(q, f); hpn = f"{L['name']}-h{f}.lsh"; write(hpn, encode_u16(qp))
+    sdp, dbp = dist(pdk); dpn = f"{L['name']}-d{pdk}.lsh"; write(dpn, dbp)
+    pent = dict(ent, step=L['step'] * f, x0=L['x0'] + L['step'] * (f - 1) / 2, z0=L['z0'] + L['step'] * (f - 1) / 2,
+                w=int(qp.shape[1]), h=int(qp.shape[0]), height=hpn, distance=dpn, dk=pdk, dw=sdp.shape[1], dh=sdp.shape[0],
+                dx0=L['x0'], dz0=L['z0'], dstep=L['step'] * pdk, cx0=L['x0'], cz0=L['z0'], cstep=L['step'] * ck)
+    phone = dict(head, levels=[pent], bytes=files[hpn] + files[dpn] + files[cfn], variant='phone')
+    json.dump(full, open(os.path.join(out, f"{L['name']}.json"), 'w'), indent=1)
+    json.dump(phone, open(os.path.join(out, f"{L['name']}-phone.json"), 'w'), indent=1)
+    for fn, n in files.items(): print(f'  {fn:16s} {n:>9,d} B')
+    print(f"full set {full['bytes']:,d} B, phone set {phone['bytes']:,d} B in {out}")
 
 if __name__ == '__main__':
     main()

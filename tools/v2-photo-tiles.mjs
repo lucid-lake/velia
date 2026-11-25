@@ -5,30 +5,52 @@
 // and v2/photo/manifest.json (every level's size, tile grid and bytes; the alpha range, which the shader reads as the
 // landed flag and the bay's class index). v1's files are untouched.
 //   node tools/v2-photo-tiles.mjs [--quality 0.84] [--check]
+// A region level (the terrain's region levels, tools/terrain/build_tahoe.py --region): its NAIP albedo from
+// tools/ground/build_naip.py --levels <r> --out .cache/naip/out (the full-size files stay in the git-ignored cache),
+// cut the same way into terrain/<r>/photo/<set>/<r>/<tx>-<ty>.webp with terrain/<r>/photo/manifest.json (the full set
+// the region's desktop texel, the phone set twice it). Not wired into the loader by this tool.
+//   node tools/v2-photo-tiles.mjs --region south [--src .cache/naip/out] [--check]
 import { chromium } from 'playwright-core';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, statSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PHOTO_SETS, TILE, tilesOf, tileFile } from '../v2/terrain/photo.js';
+import { PHOTO_SETS as LAKE_SETS, TILE, tilesOf, tileFile } from '../v2/terrain/photo.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 const opt = (k) => { const i = argv.indexOf(`--${k}`); return i < 0 ? null : (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true); };
 const QUALITY = parseFloat(opt('quality') ?? '0.84');
 const CHECK = opt('check') === true;
-const OUT = resolve(ROOT, 'v2/photo');
+const REGION = typeof opt('region') === 'string' ? opt('region') : null;
+const SRC = REGION ? resolve(ROOT, typeof opt('src') === 'string' ? opt('src') : '.cache/naip/out') : resolve(ROOT, 'terrain/naip');
+const OUT = REGION ? resolve(ROOT, 'terrain', REGION, 'photo') : resolve(ROOT, 'v2/photo');
+// a region's sets: its level's box (terrain/<r>/<r>.json) at the desktop texel and at twice it, from build_naip's files
+function regionSets(r) {
+  const M = JSON.parse(readFileSync(resolve(ROOT, 'terrain', r, `${r}.json`), 'utf8'));
+  const meta = JSON.parse(readFileSync(resolve(SRC, 'naip.json'), 'utf8')), naip = meta.levels[r];
+  // the flights over the box (tools/ground/fetch_naip.py's index of the service's footprints), when the raw cache has it
+  const idx = resolve(ROOT, '.cache/naip/raw', `index-${r}.json`);
+  const flights = existsSync(idx) ? [...new Set(Object.values(JSON.parse(readFileSync(idx, 'utf8')).primary_footprints))].sort() : null;
+  const B = M.box, t = M.levels[0].step;
+  const lv = (texel) => { const f = naip.files[String(texel)]; return Object.freeze({ name: r, texel, file: f.file, w: f.w, h: f.h, x0: B.x0, z0: B.z0, x1: B.x0 + f.w * texel, z1: B.z0 + f.h * texel }); };
+  return { sets: Object.freeze({ full: Object.freeze({ [r]: lv(t) }), phone: Object.freeze({ [r]: lv(2 * t) }) }), naip, sun: meta.sun, flights };
+}
+const R = REGION ? regionSets(REGION) : null;
+const PHOTO_SETS = R ? R.sets : LAKE_SETS;
 const CHROME = process.env.LAKESHORE_CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 if (!existsSync(CHROME)) { console.error(`Chrome not found at ${CHROME}; set LAKESHORE_CHROME`); process.exit(2); }
 
 const browser = await chromium.launch({ executablePath: CHROME, headless: true });
-const manifest = { source: 'USDA FSA NAIP 2022 (public domain) via v1 terrain/naip/*.webp (tools/ground/build_naip.py); cut by tools/v2-photo-tiles.mjs', tile: TILE, quality: QUALITY, sets: {} };
+const manifest = R
+  ? { source: `USDA FSA NAIP 2022 (public domain), de-lit and graded by tools/ground/build_naip.py --levels ${REGION}; cut by tools/v2-photo-tiles.mjs --region ${REGION}`, region: REGION, flights: R.flights, sun: R.sun, grade: { median_before: R.naip.median_before, gain_class: R.naip.gain_class, share: R.naip.share }, tile: TILE, quality: QUALITY, sets: {} }
+  : { source: 'USDA FSA NAIP 2022 (public domain) via v1 terrain/naip/*.webp (tools/ground/build_naip.py); cut by tools/v2-photo-tiles.mjs', tile: TILE, quality: QUALITY, sets: {} };
 try {
   const page = await browser.newPage();
   await page.goto('about:blank');
   for (const [setName, set] of Object.entries(PHOTO_SETS)) {
     manifest.sets[setName] = { levels: {} };
     for (const [levelName, L] of Object.entries(set)) {
-      const src = resolve(ROOT, 'terrain/naip', L.file);
+      const src = resolve(SRC, L.file);
       const b64 = readFileSync(src).toString('base64');
       const tiles = tilesOf(L);
       // decode once; cut and encode every tile in the page (canvas → WebP blob → bytes)

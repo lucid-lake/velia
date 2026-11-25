@@ -12,13 +12,21 @@ def unpredict(raw, w, h):
     q = np.cumsum(np.cumsum(r.astype(np.uint64), axis=1), axis=0) & 0xffff
     return q.astype(np.uint16)
 
-def load(terrain_dir):
+def load(terrain_dir, regions=()):
+    """the lake-wide levels (tahoe.json), finest first; each named region level (terrain/<r>/<r>.json) goes in by its
+    step, so composite() lays it over the coarser lake-wide levels it sits in"""
     man = json.load(open(os.path.join(terrain_dir, 'tahoe.json')))
     levels = []
-    for L in man['levels']:
-        raw = gzip.open(os.path.join(terrain_dir, L['height']), 'rb').read()
-        H = man['height']['offset'] + man['height']['step'] * unpredict(raw, L['w'], L['h']).astype(np.float64)
+    def add(L, folder, M):
+        raw = gzip.open(os.path.join(folder, L['height']), 'rb').read()
+        H = M['height']['offset'] + M['height']['step'] * unpredict(raw, L['w'], L['h']).astype(np.float64)
         levels.append(dict(L, H=H))
+    for L in man['levels']: add(L, terrain_dir, man)
+    for r in regions:
+        folder = os.path.join(terrain_dir, r); M = json.load(open(os.path.join(folder, f'{r}.json')))
+        assert M['height'] == man['height'] and M['y0'] == man['y0'], f'{r}: not in the lake-wide codes'
+        for L in M['levels']: add(L, folder, M)
+    levels.sort(key=lambda L: L['step'])          # stable: the lake-wide order is kept
     return man, levels
 
 def composite(levels, xs, zs, blend=12):

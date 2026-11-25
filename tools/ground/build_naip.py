@@ -24,14 +24,15 @@ from scipy import ndimage
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lsh, naip_warp
-from naip_frame import LEVELS, REPO
+from naip_frame import LEVELS, REPO, REGION_LEVELS
 
 SUN = dict(az=144.0, el=68.0, date='2022-07-21', note='azimuth fitted from the image; elevation from the NOAA formula at that azimuth; flight time not published')
 STRENGTH = 0.6
 SATURATION = 1.2   # NAIP's high-sun frame is greyer than the ground seen from the lake (Commons 2011 photo): chroma x 1.2, luminance kept
 # albedo targets (linear luminance). The world is exposed so ground reads about 6.5 x its albedo.
 TARGET = dict(forest=0.0105, brush=0.0185, bare=0.040, sand=0.30)
-PLAN = {'bay': dict(texel=1, tiers=[1, 2, 4]), 'region': dict(texel=16, tiers=[16, 32, 64])}
+PLAN = {'bay': dict(texel=1, tiers=[1, 2, 4]), 'region': dict(texel=16, tiers=[16, 32, 64]),
+        'south': dict(texel=4, tiers=[4, 8])}   # the south region (4 m desktop, 8 m phones): de-lit on its own 4 m DEM
 
 def srgb2lin(v):
     v = v / 255.0
@@ -137,11 +138,11 @@ if __name__ == '__main__':
     ap.add_argument('--levels', default='bay,region'); ap.add_argument('--q', type=int, default=80)
     a = ap.parse_args()
     os.makedirs(a.work, exist_ok=True); os.makedirs(a.out, exist_ok=True)
-    man, lv = lsh.load(os.path.join(REPO, 'terrain'))
     meta = dict(source='USDA FSA NAIP 2022 (4-band, 0.6 m), USGS National Map NAIP Plus ImageServer', capture=SUN['date'], sun=SUN,
                 strength=STRENGTH, targets=TARGET, levels={})
     for name in a.levels.split(','):
         P = PLAN[name]
+        man, lv = lsh.load(os.path.join(REPO, 'terrain'), (name,) if name in REGION_LEVELS else ())
         rgb, W, dem, info = process(name, P['texel'], a.raw, a.work, lv)
         info['files'] = {}
         for k in P['tiers']:
