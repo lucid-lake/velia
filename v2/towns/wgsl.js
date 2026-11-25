@@ -79,19 +79,26 @@ fn townsPaint(p: vec3f, n: vec3f, fp: f32, A: ptr<function, vec3f>, fshare: ptr<
   if (TWN[1] == 0u) { return; }
   let m = twMarks(p.x, p.z, fp);
   if (max(m.x, max(m.y, m.z)) < 0.004) { return; }
-  let n1 = twN(p.xz * 0.012); let n2 = twN(p.xz * 0.07);
-  // the runs in summer: grass and wildflowers, lighter and yellower than the forest floor; thin soil over decomposed
-  // granite from ≈ 600 m above the lake; the winter's last snow near the season's line, longer on north faces
-  let grass = mix(${v3(0x6d7a45)}, ${v3(0x8a8b55)}, n1 * 0.5 + 0.5) * (n2 * 0.1 + 0.95);
-  let flowers = smoothstep(0.55, 0.75, twN(p.xz * 0.35)) * 0.35;
-  let flowered = mix(grass, mix(${v3(0xa89a4c)}, ${v3(0x7d6f8c)}, step(0.0, n2)), flowers);
-  let meadow = mix(flowered, mix(${v3(0xa49b86)}, ${v3(0x8c8c6c)}, n1 * 0.5 + 0.5), smoothstep(600.0, 900.0, p.y + n1 * 60.0));
+  let n1 = twN(p.xz * 0.012); let n2 = twN(p.xz * 0.07); let n3 = twN(p.xz * 0.028 + vec2f(5.3, 2.1));
+  // the runs in summer (South Lake's look, 2026-11-25): clearings in the forest, not painted lines. Low on the mountain a dry
+  // mountain meadow (the grass gone to straw by July, greener in the swales); from ≈ 650 m above the lake thin soil over
+  // decomposed granite with the grass in patches; worn dirt in patches (the cat tracks, the steep pitches); the winter's last
+  // snow only well above the season's line, old and grey, in patches on the shaded top. The run's edge is ragged (a noise on
+  // the mark's share), and the forest's keep-out (twSkiKeep) leaves the edge trees standing, so a run reads as a glade.
+  let grass = mix(${v3(0x55613a)}, ${v3(0x6f7147)}, n1 * 0.5 + 0.5) * (n2 * 0.08 + 0.96);
+  let straw = mix(${v3(0x7d7a4f)}, ${v3(0x8c8460)}, n3 * 0.5 + 0.5);
+  let meadowLow = mix(grass, straw, smoothstep(0.0, 0.7, n3));
+  let soil = mix(${v3(0x857b60)}, ${v3(0x726c58)}, n2 * 0.5 + 0.5);   // decomposed-granite soil
+  let meadowHigh = mix(soil, meadowLow, smoothstep(0.1, 0.7, n1 * 0.6 + n2 * 0.4));
+  var meadow = mix(meadowLow, meadowHigh, smoothstep(650.0, 1000.0, p.y + n1 * 60.0));
+  let worn = smoothstep(0.5, 0.85, twN(p.xz * 0.05 + vec2f(3.1, 1.7))) * 0.6;
+  meadow = mix(meadow, soil * 0.92, worn);
   let north = clamp(-n.z * 3.0, 0.0, 1.0);
   let line = TU.season.x - TU.season2.w - north * TU.season.z;   // the season's snow line, m above the lake
-  let snowW = smoothstep(line - 60.0, line + 120.0, p.y + n1 * 70.0) * smoothstep(-0.35, 0.15, n2);
-  let run = mix(meadow, ${v3(0xdfe3e6)}, snowW);
+  let snowW = smoothstep(line + 60.0, line + 200.0, p.y + n1 * 70.0) * smoothstep(0.1, 0.6, n2) * 0.8;
+  let run = mix(meadow, ${v3(0xd4d8da)}, snowW);
   let asphalt = mix(${v3(0x2e2e2c)}, ${v3(0x45443f)}, (n2 * 0.5 + 0.5) * 0.6);
-  let sk = smoothstep(0.05, 0.6, m.z);
+  let sk = smoothstep(0.08, 0.7, m.z * (0.8 + 0.45 * (twN(p.xz * 0.035) * 0.5 + 0.5)));   // the ragged edge
   var o = mix(${v3(0x4c463c)}, run, sk); var w = sk;
   o = mix(o, asphalt, m.x); w = max(w, m.x);
   *A = mix(*A, o, clamp(w, 0.0, 1.0));

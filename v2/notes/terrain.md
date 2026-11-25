@@ -23,8 +23,8 @@ level's last 12 texels blend into the basin where the basin covers it and into t
 (`tests/region-level.test.mjs`: no step in the heights or the shore distance across its edges). A start in the bay or elsewhere
 fetches none of a region's files; a home-card pick of another level's birthplace reloads the page; no mid-sail swap (the hook is
 in `terrain/region.js`). Load at a Ski Run start: desktop 2.26 MB of `terrain/south/`, a phone 0.76 MB
-(`tests/pages/southStart.page.mjs`). The bay-only layers (the lidar trees, the shore rocks, the bed's stones, the shore break) have
-nothing there yet. The drawn chart does: its sheets past the bay (`ui/chart/ground.js` SHEETS, `tools/v2-chart-bake.mjs`) are baked
+(`tests/pages/southStart.page.mjs`). The bay-only layers follow the level since the South Lake look round (below, § South Lake's
+look); the lidar trees alone stay the bay's. The drawn chart does: its sheets past the bay (`ui/chart/ground.js` SHEETS, `tools/v2-chart-bake.mjs`) are baked
 from the lake's grids with this level set in, the lake's overview (16 m a pixel, 145 kB by day) shipped with the bay's ground, the
 south's detail (6.25 m, 67 kB) fetched only when the chart comes close to it or the start is there (`tests/chart-all-births.test.mjs`).
 
@@ -81,6 +81,44 @@ and transmittance at their screen position and distance. It replaces M1's expone
 (the plan's heightfield horizon march was dropped for a depth map the terrain's own patches draw: one pipeline, the same
 geometry as the scene's, amortised) and v1's NAIP as 256² tiles, as proposed, with the region level at 32 m in place of
 a basin level.
+
+## South Lake's look (2026-11-25: the layers follow the start's level)
+
+Off Ski Run on a summer afternoon: Heavenly forested, the town in trees, the runs as clearings, a sand beach with a clear bed,
+rocks where the shore is rock. Nothing new is fetched for a start in the bay (`tests/south-look.test.mjs`, the page test
+`southStart`); the bay's constants, text and goldens are unchanged. Keyed by the level key (`terrain/region.js levelKeyOfBirth`:
+the region's id, or `bay`):
+
+- **The rules' forest region** (`forest/lod.js REGIONS`, `forestRegion(levelKey, variant)`): a south start scatters the rules'
+  trees over x 6,656 to 17,152, z −6,144 to 5,888 (41 × 47 tiles, the bay's count) in place of the bay's region: Camp
+  Richardson's east edge to Heavenly's summit. On a desktop the south's cells are 9.14 m (28 a tile, 1.96 × the slots, a 24 MB
+  instance buffer, 1.51 M slots in the one-off scatter): Heavenly's face is the hero view at 1.5–4 km, where 12.8 m cells read
+  as dots on a green wall; a phone keeps 20 a tile. The canopy grid (`forest/canopy.js gridOf(variant, R)`) and the tile picker
+  take the same region; `scatterWgsl(R)` and `scatterSlot(ci, cj, ctx, R)` read it. The lidar crowns stay the bay's (the 2022
+  Sierra lidar EPT covers the south box: 7 nodes at depth 3; a south pack is a later bake, a few hundred MB of points).
+- **The ski runs** (`towns/wgsl.js townsPaint`): summer clearings, not painted lines: a dry mountain meadow low (grass gone to
+  straw, greener in the swales), thin soil over decomposed granite from ≈ 650 m above the lake with the grass in patches, worn
+  dirt in patches, the last snow only 60–200 m above the season's line, old and grey, in patches; the mark's share takes a 30 m
+  noise, so the edge is ragged, and the keep-out's thinning leaves the edge trees: a run reads as a glade. The same paint draws
+  Hwy 89's channel in the bay (the road and the cut are untouched).
+- **The rocks' box** (`terrain/rocks-rules.js ROCK_BOXES`, `rocksFor(levelKey)` → `{ box, cols, slots, inland, wgsl }`): the
+  shore rocks, the slope rocks and the bed's stones (`render/rocks.js bedGridsFor(box)`, `bedWindow(discs, grids, box)`) run
+  over the south level's box (530 k slots, the bay's 315 k; the bed's 6.65 M, the bay's 2.6 M; one-off scatters). The south
+  shore is sand on the build's 1:6 shelf, which the bay's band rule reads as a rocky shore, so on the south level a shore rock
+  and an emergent block stand only where the land 12 m uphill climbs at least `SHORE_INLAND` 0.09 (a rocky point, the walls
+  toward Stateline), never under a flat beach or lawn; the bay's text has no such rule (inland 0). The bed's painted and 3D
+  stones keep the slope rule (sand flats with scattered stones off the town's beach).
+- **The shore-break field** (`tools/v2-shore-bake.mjs --region south-lake` → `v2/assets/shore/shore-south.vsf.gz`, 1.18 MB
+  gzip; `render/shore.js shoreFile(levelKey)`, `shoreCap`): the south level composed into the bay's slot (as the page holds it;
+  `src/sim/terrain-data.js loadTerrain(…, { manifest })`), baked over x 7,008 to 14,496, z −1,504 to 3,008 at 2 m texels:
+  2,866 kept tiles (the Keys' canals and the marshes count as shore), 9,718 spray emitters, 5.9 MB of words, so its buffer
+  is 8 MB (the bay's 4). A south start fetches it in place of the bay's `shore.vsf.gz`; the bay start never requests it.
+- **Load at a Ski Run start:** +1.18 MB (the field) after the first frame; 0 bytes of new data for the bay. GPU memory: the
+  forest's instance buffer 24 MB (the bay's 12), the shore buffer 8 MB (4), the bed scatter's groups ≈ 2.5 MB.
+- **Cost** (`v2-perf.mjs`, main 44b8731 against the branch, the Ski Run pose at 15:00, 4 rounds × 120 frames, three look
+  rounds on the GPU at once, load average 24–29, so noise ≈ ±5 ms on the totals): desktop 2560 × 1600 the forest pass
+  0.05 → 0.25 ms, the scene pass 15.4 → 15.2 ms (own medians), triangles 715 k → 785 k; the phone set at 390 × 844 the forest
+  pass 0.00 → 0.07 ms, the scene pass 2.07 → 2.78 ms (the first trees the south has had on a phone), the total 7.1 → 7.3 ms.
 
 ## The forest (M5b: render/forest.js, forest/*)
 

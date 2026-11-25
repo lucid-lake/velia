@@ -12,7 +12,7 @@
 import { TERRAIN_BIND, TERRAIN_HEIGHT, COVER_BIND, GROUND_WGSL, WATER_WGSL } from './terrain.js';
 import { ATMO_WGSL, SKY_READ, AP_READ, LAND_SKY, LAND_LOOK } from './sky.js';
 import { SHADOW_STRUCT, SHADOW_READ } from './shadow-read.js';
-import { ROCKS, ROCKS_WGSL, SLOT_COUNT, COLS } from '../terrain/rocks-rules.js';
+import { ROCKS, ROCKS_WGSL, SLOT_COUNT, COLS, rocksFor, inlandFlatWgsl } from '../terrain/rocks-rules.js';   // rocksFor: the box follows the start's level (South Lake)
 import { frustumPlanes } from '../terrain/quadtree.js';
 import { BED, BED_HASH_WGSL, BED_CELL_WGSL, BED_MORAINE_WGSL, BIG, PHOTO_LOOK, TINT_SHELF, WATER_LOOK, WARP_WGSL, IMAGE_SCATTER, DIRECT_SHARE } from './bed.js';
 import { CAUSTIC_WGSL } from './caustics.js';
@@ -27,9 +27,11 @@ export const PLACED_CAP = 131072;   // rocks placed over the box (the twin count
 // feat/v2-boulders-3d: the bed's 3D stones (a desktop and a tablet at L0-L1): their own placed room, the visible cap, the
 // painted big layer's cells over the same box (render/bed.js BIG: one candidate a cell, as the paint)
 export const BED_PLACED = 262144, BED_CAP_NEAR = 8192, BED_CAP_FAR = 24576;
-const bedGrid = (L) => { const ix0 = Math.floor(ROCKS.box.x0 / L.cell), iz0 = Math.floor(ROCKS.box.z0 / L.cell); return { ix0, iz0, cols: Math.ceil(ROCKS.box.x1 / L.cell) - ix0, rows: Math.ceil(ROCKS.box.z1 / L.cell) - iz0 }; };
-// the painted layers' grids, then the emergent stones' (round 2): one slot a cell each
-export const BED_GRIDS = [...BIG.layers, BED3D.emerge].map(bedGrid);
+const bedGrid = (L, B = ROCKS.box) => { const ix0 = Math.floor(B.x0 / L.cell), iz0 = Math.floor(B.z0 / L.cell); return { ix0, iz0, cols: Math.ceil(B.x1 / L.cell) - ix0, rows: Math.ceil(B.z1 / L.cell) - iz0 }; };
+// the painted layers' grids, then the emergent stones' (round 2): one slot a cell each; over the bay's box (the constants) or
+// the start level's (bedGridsFor: a south start, terrain/rocks-rules.js rocksFor)
+export const bedGridsFor = (B = ROCKS.box) => { const grids = [...BIG.layers, BED3D.emerge].map((L) => bedGrid(L, B)), slots = grids.reduce((n, g) => n + g.cols * g.rows, 0); return { box: B, grids, slots, W: Math.ceil(slots / 64) }; };
+export const BED_GRIDS = bedGridsFor().grids;
 const BL_N = BED_GRIDS.length;   // the painted layers, then the emergent stones (the last)
 const BED_REGION_MAX = 4;   // BED_REGION.maxDiscs (below)
 export const BED_SLOTS = BED_GRIDS.reduce((n, g) => n + g.cols * g.rows, 0);
@@ -42,8 +44,8 @@ export const BED_W = Math.ceil(BED_SLOTS / 64);   // the bed scatter's workgroup
 // the window's slot order; one window → one list. bedWindow(null) is the whole box (no regions: v1's waters, a URL start far off)
 export const BED_REGION = Object.freeze({ marginM: 250, maxDiscs: 4 });
 const BED_CELLS = [...BIG.layers, BED3D.emerge].map((l) => l.cell);
-export function bedWindow(discs = null, G = BED_GRIDS) {
-  const B = ROCKS.box, ds = (discs ?? []).slice(0, BED_REGION.maxDiscs);
+export function bedWindow(discs = null, G = BED_GRIDS, B = ROCKS.box) {   // G, B: the grids and the box (the bay's, or the start level's: bedGridsFor)
+  const ds = (discs ?? []).slice(0, BED_REGION.maxDiscs);
   let x0 = B.x0, z0 = B.z0, x1 = B.x1, z1 = B.z1;
   if (ds.length) {
     x0 = Math.max(B.x0, Math.min(...ds.map((d) => d[0] - d[2]))); x1 = Math.min(B.x1, Math.max(...ds.map((d) => d[0] + d[2])));
@@ -102,17 +104,17 @@ fn rockYaw(b: u32) -> f32 { return f32((b >> 10u) & 255u) / 255.0 * 6.2831853; }
 fn rockTone(b: u32) -> f32 { return f32((b >> 18u) & 255u) / 255.0; }
 fn rockValid(b: u32) -> bool { return ((b >> 28u) & 1u) == 1u; }`;
 
-export const scatterWgsl = ({ bed = false } = {}) => `
+export const scatterWgsl = ({ bed = false, rules = null, bedW = BED_W } = {}) => `   // rules: terrain/rocks-rules.js rocksFor (the box, its inland rule)
 ${TERRAIN_BIND(0)}
 ${COVER_BIND(1)}
 ${TERRAIN_HEIGHT}
 ${GROUND_WGSL}
 ${HASH_WGSL}
 ${PACK_WGSL}
-${ROCKS_WGSL}
+${rules?.wgsl ?? ROCKS_WGSL}
 @group(2) @binding(0) var<storage, read_write> inst: array<vec4f>;
 @group(2) @binding(1) var<storage, read_write> cnt: array<atomic<u32>, 4>;   // the rocks placed, the cull's workgroups, 1, 1 (dispatchWorkgroupsIndirect)
-${bed ? BED_SCATTER_WGSL : ''}
+${bed ? bedScatterWgsl(bedW, rules?.inland ?? 0) : ''}
 // the slots with a rock, packed (the cull then runs over the rocks alone, not the 315 k cells; the order is the GPU's,
 // and the draw is opaque and depth-tested, so the image does not depend on it)
 @compute @workgroup_size(64) fn scatterMain(@builtin(global_invocation_id) g: vec3u) {
@@ -129,7 +131,8 @@ const v3b = (a) => `vec3f(${a.map((x) => x.toFixed(4)).join(', ')})`;
 // the bed's 3D stones (feat/v2-boulders-3d): one candidate in each of the painted big layers' cells, kept exactly where the
 // paint keeps one (the same hash, centre, radius and density at the cell's centre), cut to the clearance rule (v2/sim/
 // bedBoulders.js topMax: no keel or hull ever meets one), none in the clear zones (moorings, boats at anchor, the starts)
-const BED_SCATTER_WGSL = `
+const bedScatterWgsl = (W = BED_W, inland = 0) => `
+${inland > 0 ? inlandFlatWgsl(inland) : ''}
 @group(2) @binding(2) var<storage, read_write> binst: array<vec4f>;
 @group(2) @binding(3) var<storage, read_write> bcnt: array<atomic<u32>, 4>;
 @group(2) @binding(4) var<uniform> ZN: array<vec4f, 64>;   // the clear zones: x, z, r (r 0: unused)
@@ -221,7 +224,8 @@ fn bedSlot(k: u32, put: bool, base: u32) -> u32 {
     let s0 = hash2(id + 71.3); let s1 = hash2(id + 13.9);
     let seed = (id + s0) * BL_CELL[li];
     let hs = terrainHeight(seed.x, seed.y);
-    if (hs < -6.0 || hs > 6.0) { return o; }   // nowhere near the waterline
+    if (hs < -6.0 || hs > 6.0) { return o; }   // nowhere near the waterline${inland > 0 ? `
+    if (inlandFlat(seed)) { return o; }   // the south level (terrain/rocks-rules.js SHORE_INLAND): the land behind must climb too, else the 1:6 shelf under a sand beach would line every beach with blocks` : ''}
     let avg = 0.25 * (terrainHeight(seed.x + 25.0, seed.y) + terrainHeight(seed.x - 25.0, seed.y) + terrainHeight(seed.x, seed.y + 25.0) + terrainHeight(seed.x, seed.y - 25.0));
     let point = smoothstep(0.3, 3.0, hs - avg);
     let isle = select(1.0, EM_ISLE.w, distance(seed, EM_ISLE.xy) < EM_ISLE.z);
@@ -252,7 +256,8 @@ fn bedSlot(k: u32, put: bool, base: u32) -> u32 {
     return o;
   }
   let dep = -h;
-  if (dep <= 0.0 || dep > BB_D1) { return o; }
+  if (dep <= 0.0 || dep > BB_D1) { return o; }${inland > 0 ? `
+  if (dep < 2.5 && inlandFlat(vec2f(x, z))) { return o; }   // the south level (SHORE_INLAND): no 3D stone in the wash of a sand beach (the 1:6 shelf is the build's, not a rocky shore)` : ''}
   let rocky = max(mix(BB_FLATS, 1.0, smoothstep(BB_R0, BB_R1, steep)), bedMoraine(bc.c) * BB_MOR);   // the mouth's moraine (the paint's rule)
   let dk = rocky * (bedPatchy(bc.c) * BB_PATCHY + 1.0 - BB_PATCHY) * bigDepthK(dep);
   if (bc.hx >= BL_DENS[li] * dk || inZone(x, z)) { return o; }
@@ -280,7 +285,7 @@ fn bedDone() { let n = min(atomicLoad(&bcnt[0]), arrayLength(&binst)); atomicSto
 // changed with every load, and the far stones' draw order then moved pixels at the waterline. Three passes, once per
 // scatter: bedCount counts each workgroup's stones (and keeps each slot's count, 2 bits), bedScan sums the counts in
 // workgroup order, bedWrite has each workgroup with stones write them from its first index, its lanes in slot order
-const BED_W = ${BED_W}u; const BW_BITS = ${2 * BED_W}u;   // bwg: the counts, the first indices, the slots' counts
+const BED_W = ${W}u; const BW_BITS = ${2 * W}u;   // bwg: the counts, the first indices, the slots' counts
 var<workgroup> wgSum: atomic<u32>;
 var<workgroup> wgBits: array<atomic<u32>, 4>;
 var<workgroup> wgN: u32;
@@ -634,7 +639,8 @@ ${UNDER_WGSL}
   return vec4f(umFog(umLit(A, n, d, shadow * caust), p), 1.0);
 }`;
 
-export function createRocks({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrain, shadow, hdrTarget, msaa = 1, depthFormat = 'depth32float', bed = false, zones = [], region = null, under = false }) {   // under: phase 2a's twins (src/core/features.js tessieUnder)
+export function createRocks({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrain, shadow, hdrTarget, msaa = 1, depthFormat = 'depth32float', bed = false, zones = [], region = null, under = false, rules = rocksFor('bay') }) {   // under: phase 2a's twins (src/core/features.js tessieUnder); rules: the box (terrain/rocks-rules.js rocksFor: the start level's)
+  const BG = bedGridsFor(rules.box);   // the bed's grids over the same box
   const C = GPUShaderStage.COMPUTE, VX = GPUShaderStage.VERTEX, FR = GPUShaderStage.FRAGMENT;
   const inst = device.createBuffer({ label: 'rocks-placed', size: PLACED_CAP * 16, usage: GPUBufferUsage.STORAGE });
   const cnt = device.createBuffer({ label: 'rocks-count', size: 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC });
@@ -658,7 +664,7 @@ export function createRocks({ device, reg, frameBGL, frameBG, U, frameStruct, sk
     const bargs = device.createBuffer({ label: 'rocks-bed-args', size: 64 + BED_CW * 20, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC });
     const zn = device.createBuffer({ label: 'rocks-bed-zones', size: 64 * 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     // the ordered passes' per-workgroup counts (the scatter's: counts, then first indices; the cull's ride in its args buffer)
-    const swg = device.createBuffer({ label: 'rocks-bed-scatter-groups', size: BED_W * 6 * 4, usage: GPUBufferUsage.STORAGE });
+    const swg = device.createBuffer({ label: 'rocks-bed-scatter-groups', size: BG.W * 6 * 4, usage: GPUBufferUsage.STORAGE });
     const zd = new Float32Array(64 * 4); zones.slice(0, 64).forEach(([x, z, r], i) => { zd[4 * i] = x; zd[4 * i + 1] = z; zd[4 * i + 2] = r; });
     device.queue.writeBuffer(zn, 0, zd);
     const win = device.createBuffer({ label: 'rocks-bed-window', size: BWIN_N * 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });   //
@@ -693,7 +699,7 @@ export function createRocks({ device, reg, frameBGL, frameBG, U, frameStruct, sk
   const shBG = device.createBindGroup({ layout: shBGL, entries: [{ binding: 0, resource: { buffer: vis } }, { binding: 1, resource: { buffer: shadow.buffer } }] });
   const pl = (...g) => device.createPipelineLayout({ bindGroupLayouts: g });
   const f3 = (loc) => ({ arrayStride: 12, attributes: [{ shaderLocation: loc, offset: 0, format: 'float32x3' }] });
-  const mS = reg.shader('rocks-scatter', scatterWgsl({ bed: !!B3 }));
+  const mS = reg.shader('rocks-scatter', scatterWgsl({ bed: !!B3, rules, bedW: BG.W }));
   reg.add('rocks-scatter', { layout: pl(terrain.hbgl, terrain.coverBGL, scatterBGL), compute: { module: mS, entryPoint: 'scatterMain' } });
   reg.add('rocks-scatter-done', { layout: pl(terrain.hbgl, terrain.coverBGL, scatterBGL), compute: { module: mS, entryPoint: 'scatterDone' } });
   if (B3) for (const e of ['bedCount', 'bedScan', 'bedWrite']) reg.add(`rocks-${e}`, { layout: pl(terrain.hbgl, terrain.coverBGL, scatterBGL), compute: { module: mS, entryPoint: e } });   // the bed's stones in slot order
@@ -730,11 +736,11 @@ export function createRocks({ device, reg, frameBGL, frameBG, U, frameStruct, sk
   const mH = reg.shader('rocks-shadow', ROCK_SHADOW_WGSL(frameStruct));
   reg.add('rocks-shadow', { layout: pl(frameBGL, shBGL), vertex: { module: mH, entryPoint: 'vs', buffers: [f3(0), f3(1)] }, primitive: { topology: 'triangle-list', cullMode: 'none' }, depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'less' } });
 
-  const stats = { slots: SLOT_COUNT, cols: COLS, scatters: 0, visible: 0, total: 0, placed: 0, active: false, bed: !!B3, bedVisible: 0, bedFar: 0, bedTotal: 0, bedPlaced: 0, bedOn: true, bedSlots: 0, bedRegions: 0 };
+  const stats = { slots: rules.slots, cols: rules.cols, box: rules.key, scatters: 0, visible: 0, total: 0, placed: 0, active: false, bed: !!B3, bedVisible: 0, bedFar: 0, bedTotal: 0, bedPlaced: 0, bedOn: true, bedSlots: 0, bedRegions: 0 };
   //: the bed's window (the player's regions; the whole box until told)
   let bedWin = null; const winData = new Float32Array(BWIN_N * 4);
   const setWindow = (discs) => {
-    const w = bedWindow(discs && discs.length ? discs : null);
+    const w = bedWindow(discs && discs.length ? discs : null, BG.grids, BG.box);
     if (bedWin && w.key === bedWin.key) return false;
     bedWin = w; stats.bedSlots = w.slots; stats.bedRegions = w.discs.length;
     if (B3) device.queue.writeBuffer(B3.win, 0, bedWindowData(w, winData));
@@ -751,7 +757,7 @@ export function createRocks({ device, reg, frameBGL, frameBG, U, frameStruct, sk
     device.queue.writeBuffer(cnt, 0, zero4);   // before this frame's submit: the count starts at 0
     if (B3) device.queue.writeBuffer(B3.bcnt, 0, zero4);
     pass.setPipeline(reg.get('rocks-scatter')); pass.setBindGroup(0, terrain.heightsBindGroup); pass.setBindGroup(1, terrain.coverBindGroup); pass.setBindGroup(2, scatterBG);
-    pass.dispatchWorkgroups(Math.ceil(SLOT_COUNT / 64));
+    pass.dispatchWorkgroups(Math.ceil(rules.slots / 64));
     pass.setPipeline(reg.get('rocks-scatter-done')); pass.dispatchWorkgroups(1); stats.scatters++;
     if (B3) {   // the bed's stones in slot order: count, sum, write (over 65,535 groups: rows of 65,535, the shader's wid.y), over the window
       const xy = [Math.min(bedWin.W, 65535), Math.ceil(bedWin.W / 65535)];

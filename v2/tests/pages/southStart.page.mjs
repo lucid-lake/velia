@@ -33,22 +33,24 @@ async function load(device, query) {
   const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
   const got = new Map();
   const piers = []; page.on('response', (r) => { if (/assets\/towns\/shore-south[^?]*$/.test(r.url())) piers.push(pathOf(r.url())); });   // not Vite's own ?import module of the URL
+  const breaks = []; page.on('response', (r) => { if (/assets\/shore\/shore[^?]*\.vsf\.gz$/.test(r.url())) breaks.push(pathOf(r.url()).replace(/^.*assets\/shore\//, '')); });   // the shore-break field (South Lake's look: the level's own bake)
   page.on('response', async (r) => { const p = pathOf(r.url()); if (!/^(terrain|photo)\//.test(p)) return; try { got.set(p, (await r.body()).length); } catch { got.set(p, Number(r.headers()['content-length'] ?? 0)); } });
   await page.goto(`${BASE}/${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__velia?.ready === true, null, { timeout: 240000, polling: 200 });
   await page.waitForFunction(() => window.__velia.ground?.stats?.done === true, null, { timeout: 120000, polling: 200 }).catch(() => {});
   await page.waitForTimeout(1500);
-  const info = await page.evaluate(() => { const v = window.__velia, s = v.boat?.state; return { sets: v.towns?.stats?.sets ?? null, instances: v.towns?.stats?.instances ?? 0, level: v.terrainLevel, depth: -v.terrain.field.height(11800, -875), spacing: v.terrain.field.spacing(11800, -875), boat: s ? { x: s.x, z: s.z } : null, grids: v.terrain.grids, photo: v.ground?.stats?.region ?? null }; });
+  const info = await page.evaluate(() => { const v = window.__velia, s = v.boat?.state; return { sets: v.towns?.stats?.sets ?? null, instances: v.towns?.stats?.instances ?? 0, level: v.terrainLevel, depth: -v.terrain.field.height(11800, -875), spacing: v.terrain.field.spacing(11800, -875), boat: s ? { x: s.x, z: s.z } : null, grids: v.terrain.grids, photo: v.ground?.stats?.region ?? null, rocks: v.stats?.().rocks?.box ?? null, forest: v.stats?.().forest?.region ?? null, shore: v.stats?.().shore?.tiles ?? 0 }; });
   const files = [...got.keys()].sort(), south = files.filter((f) => f.startsWith('terrain/south/'));
   const bytes = (fs) => fs.reduce((s, f) => s + got.get(f), 0);
   await ctx.close();
-  return { piers, files, south, southBytes: bytes(south), bay: files.filter(isBay), bayBytes: bytes(files.filter(isBay)), info, errors };
+  return { piers, breaks, files, south, southBytes: bytes(south), bay: files.filter(isBay), bayBytes: bytes(files.filter(isBay)), info, errors };
 }
 const Q = 'mode=sail&hour=15&seed=1&attract=0&music=0&headless=1';
 try {
   {
     const r = await load(DESK, `?${Q}&birth=tessie`);
     check(r.south.length === 0 && r.southBytes === 0, `bay start: 0 bytes of terrain/south/ (${r.south.length} files)`);
+    check(JSON.stringify(r.breaks) === '["shore.vsf.gz"]' && r.info.rocks === 'bay' && r.info.forest?.[0] === -4608, `bay start: the bay's shore-break field alone, the bay's rocks box and forest region (${JSON.stringify(r.breaks)}, ${r.info.rocks}, ${JSON.stringify(r.info.forest)})`);
     check(['terrain/bay-h.lsh', 'terrain/bay-c.lsh', 'terrain/bay-d.lsh'].every((f) => r.files.includes(f)) && r.bay.some((f) => f.startsWith('photo/full/bay/')), `bay start: the bay's level and photo fetched (${(r.bayBytes / 1e6).toFixed(2)} MB)`);
     check(r.info.level?.key === 'bay', `bay start: the page holds the bay's level (${JSON.stringify(r.info.level?.key)})`);
     check(r.piers.length === 0 && r.info.sets?.length === 0, `bay start: the south piers never requested (${r.piers.length} requests, sets ${JSON.stringify(r.info.sets)})`);
@@ -65,6 +67,7 @@ try {
     check(Math.abs(r.info.depth - 22.85) < 0.1 && r.info.spacing === 4, `Ski Run: the live sampler reads ${r.info.depth.toFixed(2)} m at the pin on the ${r.info.spacing} m level`);
     check(r.info.boat && Math.hypot(r.info.boat.x - 11800, r.info.boat.z + 875) < 150 && r.info.boat.x > 11800, `Ski Run: she started at the pin and sails east on the afternoon's reach (${JSON.stringify(r.info.boat)})`);
     check(r.piers.length === 1 && JSON.stringify(r.info.sets) === '["south"]', `Ski Run, desktop: the south piers fetched once and merged (${r.piers.length} request, sets ${JSON.stringify(r.info.sets)}, ${r.info.instances} instances)`);
+    check(JSON.stringify(r.breaks) === '["shore-south.vsf.gz"]' && r.info.shore > 1500 && r.info.rocks === 'south-lake' && r.info.forest?.[0] === 6656, `Ski Run, desktop: the south shore-break field alone (${r.info.shore} tiles), the south rocks box and forest region (${JSON.stringify(r.breaks)}, ${r.info.rocks}, ${JSON.stringify(r.info.forest)})`);
     check(r.errors.length === 0, `Ski Run, desktop: no page errors (${r.errors.slice(0, 2).join(' | ')})`);
   }
   {
@@ -74,6 +77,7 @@ try {
     check(r.southBytes > 0.7e6 && r.southBytes < 0.8e6, `Ski Run, phone: ${r.southBytes} B of terrain/south/ (about 0.75 MB)`);
     check(r.bay.length === 0 && r.info.spacing === 8, `Ski Run, phone: none of the bay's detail, the 8 m level under her (${r.info.spacing} m)`);
     check(r.piers.length === 1 && JSON.stringify(r.info.sets) === '["south"]', `Ski Run, phone: the south piers fetched once and merged (${r.piers.length} request, sets ${JSON.stringify(r.info.sets)})`);
+    check(JSON.stringify(r.breaks) === '["shore-south.vsf.gz"]' && r.info.rocks === 'south-lake' && r.info.forest?.[0] === 6656, `Ski Run, phone: the south shore-break field, rocks box and forest region (${JSON.stringify(r.breaks)}, ${r.info.rocks}, ${JSON.stringify(r.info.forest)})`);
     check(r.errors.length === 0, `Ski Run, phone: no page errors (${r.errors.slice(0, 2).join(' | ')})`);
   }
   {

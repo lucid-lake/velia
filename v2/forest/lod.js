@@ -26,6 +26,23 @@ export const MAX_TILES = 8192;
 // the rules' region: v1's TREE_RULES.region (−4500..5900, −6000..5700) on a 256 m grid that the bay box's edges fall on
 export const REGION = Object.freeze({ x0: -4608, z0: -6144, tile: 256, tw: 41, th: 47, n: 20, cell: 12.8 });
 export const REGION_SLOTS = REGION.tw * REGION.th * REGION.n * REGION.n;
+// The rules' region follows the start's detail level (South Lake's look): a page that starts on a region level (v2/terrain/
+// region.js) scatters the rules' trees over a box of the same tile count round that shore, so the slot count, the instance
+// buffer and the scatter's dispatch are the bay's to the byte; the bay's region is unchanged. A start in the bay (or anywhere
+// without a level) keeps REGION. south: Camp Richardson's east edge to Heavenly's summit (x 6,656 to 17,152, z −6,144 to 5,888).
+// The south's desktop cells are finer (28 a tile, 9.14 m: 1.96 × the slots, a 24 MB instance buffer): Heavenly's face is the hero
+// view at 1.5–4 km, where the lidar's 305 trees a hectare round the bay read as a forest and 12.8 m cells read as dots on a
+// green wall; a phone keeps the bay's 20 (its reach ends at 2.8 km, its memory is the tighter budget).
+export const REGIONS = Object.freeze({   // by the level's key (v2/terrain/region.js levelKeyOfBirth: the region's id, or 'bay')
+  bay: REGION,
+  'south-lake': Object.freeze({ x0: 6656, z0: -6144, tile: 256, tw: 41, th: 47, n: 28, cell: 256 / 28 }),
+});
+const PHONE_N = 20;
+export const forestRegion = (levelKey, variant = 'full') => {
+  const R = REGIONS[levelKey] ?? REGION;
+  return variant === 'phone' && R.n !== PHONE_N ? Object.freeze({ ...R, n: PHONE_N, cell: R.tile / PHONE_N }) : R;
+};
+export const regionSlots = (R = REGION) => R.tw * R.th * R.n * R.n;
 export const TREE_TOP = 60;    // m: the tallest crown a tile's box allows above its ground (lidar max 59 m)
 
 // the cull's per-tree rule at distance d (m) from the eye; u: the tree's hash in [0, 1). → widen (> 0: drawn), or 0
@@ -48,8 +65,9 @@ export function coverNear(d, L) {
 // the tile picker. sources: { trees, shrubs } decoded files (v2/forest/format.js; either may be null) and region (bool:
 // the GPU scatter has run). ground(x0, z0, x1, z1, out) → out = [lo, hi] (m) of the terrain over a box, or lo > hi
 // when no grid holds it. Returns { out (Uint32Array MAX_TILES × 4), count, pick(eye, planes) → count, tested }
-// offsets: where the shrubs and the region's slots start in the one instance buffer (render/forest.js CAP)
-export function createTilePicker({ L, ground, boxInFrustum, offsets = { shrubs: 0, region: 0 } }) {
+// offsets: where the shrubs and the region's slots start in the one instance buffer (render/forest.js CAP); region: the rules'
+// box (REGION, or the start level's: forestRegion)
+export function createTilePicker({ L, ground, boxInFrustum, offsets = { shrubs: 0, region: 0 }, region = REGION }) {
   const out = new Uint32Array(MAX_TILES * 4), gb = new Float64Array(2);
   const src = { trees: null, shrubs: null, region: false };
   let count = 0, tested = 0, overflow = 0;
@@ -83,7 +101,7 @@ export function createTilePicker({ L, ground, boxInFrustum, offsets = { shrubs: 
         }
       }
       if (src.region) {
-        const R = REGION, per = R.n * R.n, base = offsets.region;
+        const R = region, per = R.n * R.n, base = offsets.region;
         const i0 = Math.max(0, Math.floor((ex - L.far - R.x0) / R.tile)), i1 = Math.min(R.tw - 1, Math.floor((ex + L.far - R.x0) / R.tile));
         const j0 = Math.max(0, Math.floor((ez - L.far - R.z0) / R.tile)), j1 = Math.min(R.th - 1, Math.floor((ez + L.far - R.z0) / R.tile));
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {

@@ -38,8 +38,9 @@ export const CANOPY = Object.freeze({
   // view: the cover seen at a slant α to the ground is 1 − (1 − c)^(k (1 + side cot α)), the exponent capped
   look: Object.freeze({ albedo: [0.040, 0.061, 0.038], wrap: 0.3, sunK: 0.62, skyK: 0.62, view: Object.freeze({ k: 1.6, side: 1.0, max: 8 }) }),
 });
-export const gridOf = (variant) => {
-  const g = variant === 'phone' ? CANOPY.phone : CANOPY.desktop;
+// R: the rules' region the grid covers (lod.js REGION, or the start level's: forestRegion; the same tile count, so the same size)
+export const gridOf = (variant, R = REGION) => {
+  const g = { ...(variant === 'phone' ? CANOPY.phone : CANOPY.desktop), x0: R.x0, z0: R.z0, w: R.tw * R.tile, h: R.th * R.tile };
   return { ...g, nx: Math.round(g.w / g.texel), nz: Math.round(g.h / g.texel) };
 };
 

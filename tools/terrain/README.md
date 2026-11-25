@@ -12,7 +12,7 @@ developer's machine; the game only reads their output. Every input is public dom
 | `tools/ground/fetch_naip.py` | the NAIP Plus image service | `.cache/naip/raw/` |
 | `tools/ground/build_naip.py` | `.cache/naip/raw/`, `terrain/*.lsh` (the de-lighting DEM) | `terrain/naip/albedo-*.webp`, `naip.json` |
 | `tools/v2-photo-tiles.mjs` | `terrain/naip/albedo-*.webp` | `v2/photo/<set>/<level>/<tx>-<ty>.webp`, `manifest.json` |
-| `tools/v2-shore-bake.mjs` | `terrain/*.lsh` | `v2/assets/shore/shore.vsf.gz` |
+| `tools/v2-shore-bake.mjs` | `terrain/*.lsh` (`--region <id>`: a region level's grids in the bay's slot) | `v2/assets/shore/shore.vsf.gz` (`shore-<level dir>.vsf.gz` for a region) |
 
 Helpers: `tools/ground/naip_frame.py` (the world frame and the NAIP boxes), `naip_warp.py` (NAIP tiles to a world
 raster), `lsh.py` (reads the `.lsh` grids), `tools/terrain/fetch_island_lidar.py` (the island's lidar points).

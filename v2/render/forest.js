@@ -23,8 +23,8 @@ import { wgslStruct } from '../engine/uniforms.js';
 import { ATMO_WGSL, SKY_READ, AP_READ, LAND_SKY, LAND_LOOK } from './sky.js';
 import { TERRAIN_BIND, TERRAIN_HEIGHT, COVER_BIND, GROUND_WGSL } from './terrain.js';
 import { frustumPlanes, boxInFrustum, TREE } from '../terrain/quadtree.js';
-import { FOREST, REGION, REGION_SLOTS, MAX_TILES, createTilePicker } from '../forest/lod.js';
-import { SCATTER_WGSL } from '../forest/scatter.js';
+import { FOREST, REGION, regionSlots, MAX_TILES, createTilePicker } from '../forest/lod.js';
+import { scatterWgsl } from '../forest/scatter.js';
 import { N_LAYERS } from '../forest/format.js';
 import { SHADOW_STRUCT, SHADOW_READ } from './shadow-read.js';   // M5c: the terrain's shadow on the cards
 import { buildAll, SPECIES, SPECIES_LAYER, VARIANTS, VARIANT_SPREAD, VARIANT_SALT, FL } from '../forest/trees.js';   // T5: the trees as meshes, photographed into the atlas
@@ -348,20 +348,20 @@ ${TOWNS_READ}
 }`;
 
 // the rules' scatter: one thread a slot of the region (v2/forest/scatter.js), a fixed slot a cell
-export const SCATTER_PASS_WGSL = `${TERRAIN_BIND(0)}
+export const scatterPassWgsl = (R = REGION) => `${TERRAIN_BIND(0)}
 ${TERRAIN_HEIGHT}
 ${COVER_BIND(1)}
 ${GROUND_WGSL}
-${SCATTER_WGSL}
+${scatterWgsl(R)}
 struct SP { base: u32, p1: u32, p2: u32, p3: u32 }
 @group(2) @binding(0) var<uniform> SC: SP;
 @group(2) @binding(1) var<storage, read_write> inst: array<vec4f>;
 ${TOWNS_BIND(2, 2)}
 ${TOWNS_READ}
-const PER = ${REGION.n * REGION.n}u; const TWR = ${REGION.tw}u; const NR = ${REGION.n}u;
+const PER = ${R.n * R.n}u; const TWR = ${R.tw}u; const NR = ${R.n}u;
 @compute @workgroup_size(64) fn scatterMain(@builtin(global_invocation_id) g: vec3u) {
   let i = g.x;
-  if (i >= ${REGION_SLOTS}u) { return; }
+  if (i >= ${regionSlots(R)}u) { return; }
   let t = i / PER; let c = i % PER;
   let ci = i32((t % TWR) * NR + c % NR); let cj = i32((t / TWR) * NR + c / NR);
   var rec = scatter(ci, cj);
@@ -369,6 +369,7 @@ const PER = ${REGION.n * REGION.n}u; const TWR = ${REGION.tw}u; const NR = ${REG
   if (rec.w != 0.0 && (twKeepOutR(rec.x, rec.y, f32((bitcast<u32>(rec.w) >> 10u) & 255u) * 0.1) || cellHash(ci, cj, 9) >= twSkiKeep(rec.x, rec.y))) { rec = vec4f(rec.x, rec.y, 0.0, 0.0); }
   inst[SC.base + i] = rec;
 }`;
+export const SCATTER_PASS_WGSL = scatterPassWgsl(REGION);
 
 // the per-frame cull, in a fixed order (the image must not depend on which workgroup ran first: the goldens' --twice):
 // count (a workgroup a picked tile: its survivors) → scan (one workgroup: each tile's first slot, the total, the clamp)
@@ -654,7 +655,8 @@ fn sunAt(h: f32, s: vec3f) -> vec3f {
 }`;
 
 // wind: the water's wind texture (render/water.js windTexture: sim/windTex.js's fills), the one wind the trees sway in
-export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wgslStruct(), sky, terrain, shadow, hdrTarget, msaa = 1, depthFormat = 'depth32float', variant = 'full', errors = [], reach = null, wind = null }) {
+export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wgslStruct(), sky, terrain, shadow, hdrTarget, msaa = 1, depthFormat = 'depth32float', variant = 'full', errors = [], reach = null, wind = null, region = REGION }) {   // region: the rules' box (forest/lod.js forestRegion: the start level's)
+  const REGION_SLOTS = regionSlots(region);
   // the phone pass: a mutable copy, so a quality level's reach (engine/quality.js forestAt: thin, fade, far, shrubFar) can
   // change live through setReach (the picker and the cull read it each frame; the terrain's floor ↔ canopy blend is told too)
   const L = { ...(variant === 'phone' ? FOREST.phone : FOREST.desktop), ...(reach ?? {}) };
@@ -670,7 +672,7 @@ export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wg
   const vis = device.createBuffer({ label: 'forest-visible', size: L.cap * 16, usage: GPUBufferUsage.STORAGE });
   const args = device.createBuffer({ label: 'forest-args', size: 32, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_SRC });
   // T3: the canopy grid (render/canopy.js) from the lidar's trees and the region's slots, re-made with every place and scatter
-  const canopy = createCanopy({ device, reg, inst, variant, ranges: [{ first: OFF.trees, count: 0 }, { first: OFF.region, count: REGION_SLOTS }] });
+  const canopy = createCanopy({ device, reg, inst, variant, region, ranges: [{ first: OFF.trees, count: 0 }, { first: OFF.region, count: REGION_SLOTS }] });
   const tilesBuf = device.createBuffer({ label: 'forest-tiles', size: MAX_TILES * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
   const fuData = new Float32Array(36);
   fuData[32] = 1;   // the sway's gain (setSway)
@@ -754,7 +756,7 @@ export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wg
   reg.add('forest-mip', { layout: pl(mipBGL), compute: { module: mMip, entryPoint: 'mip' } });
   const mPlace = reg.shader('forest-place', PLACE_WGSL);
   reg.add('forest-place', { layout: pl(terrain.hbgl, placeBGL), compute: { module: mPlace, entryPoint: 'place' } });
-  const mScatter = reg.shader('forest-scatter', SCATTER_PASS_WGSL);
+  const mScatter = reg.shader('forest-scatter', scatterPassWgsl(region));
   reg.add('forest-scatter', { layout: pl(terrain.hbgl, terrain.coverBGL, scatterBGL), compute: { module: mScatter, entryPoint: 'scatterMain' } });
   const mCull = reg.shader('forest-cull', CULL_WGSL);
   for (const e of ['reset', 'countTiles', 'scanTiles', 'writeTiles']) reg.add(`forest-${e}`, { layout: pl(cullBGL), compute: { module: mCull, entryPoint: e } });
@@ -773,7 +775,7 @@ export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wg
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { if (i < 0 || j < 0 || i >= NB || j >= NB) continue; const k = 2 * (j * NB + i); if (cellsB[k] < lo) lo = cellsB[k]; if (cellsB[k + 1] > hi) hi = cellsB[k + 1]; }
     out[0] = lo; out[1] = hi; return out;
   }
-  const picker = createTilePicker({ L, ground, boxInFrustum, offsets: OFF });
+  const picker = createTilePicker({ L, ground, boxInFrustum, offsets: OFF, region });
   const planes = new Float64Array(20);
 
   // --- the data stream: a worker decodes; the frame uploads ≤ 1 MB slices ---
@@ -901,7 +903,7 @@ export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wg
     get queued() { return queue.length; },
     load, pump,
     // test only (v2/tests/pages/towns.page.mjs): records [first, first + count) of the instance buffer, read back (makes a buffer)
-    regionSlots: REGION_SLOTS,
+    regionSlots: REGION_SLOTS, region: [region.x0, region.z0, region.tw * region.tile, region.th * region.tile],   // the rules' box (the start level's)
     async readInst(first, count) {
       const buf = device.createBuffer({ size: count * 16, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
       const enc = device.createCommandEncoder(); enc.copyBufferToBuffer(inst, first * 16, buf, 0, count * 16); device.queue.submit([enc.finish()]);
