@@ -16,7 +16,7 @@
 [![WebGPU](https://img.shields.io/badge/WebGPU-raw_WGSL-1C2340.svg)](v2/README.md)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support_Velia-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/lucidlake)
 
-<a href="https://velia.lucidlakelabs.com"><img src="brand/stills/hero-960.jpg" alt="Emerald Bay on Lake Tahoe in Velia: Fannette Island, the forested shore and wind on the water" width="100%"></a>
+<a href="https://velia.lucidlakelabs.com"><img src="docs/album/01-rainbow.jpg" alt="Velia: a rainbow over Lake Tahoe after a storm, a sloop heeled in the rough water" width="100%"></a>
 
 </div>
 
@@ -73,6 +73,10 @@ Every picture is a frame from the game, captured with the HUD off. Nothing is pa
 <tr>
 <td><a href="docs/album/09-ski-run.jpg"><img src="docs/album/thumbs/09-ski-run.jpg" alt="A sailboat off South Lake Tahoe with the ski runs of the mountain behind"></a><br><sub>Off Ski Run, South Lake Tahoe, under the ski slopes.</sub></td>
 <td><a href="docs/album/10-storm.jpg"><img src="docs/album/thumbs/10-storm.jpg" alt="A sailboat in a grey storm with rain on the lens"></a><br><sub>A storm rolls in. Rain hits the lens.</sub></td>
+</tr>
+<tr>
+<td><a href="docs/album/11-glass-kayak.jpg"><img src="docs/album/thumbs/11-glass-kayak.jpg" alt="A clear kayak with two paddlers seen from above over the blue water of Emerald Bay"></a><br><sub>A clear kayak from the glass-bottom tour, seen from above.</sub></td>
+<td><a href="docs/album/12-glass-boat-night.jpg"><img src="docs/album/thumbs/12-glass-boat-night.jpg" alt="The glass-bottom tour boat Velia Travel at night with its kayaks glowing on the dark water"></a><br><sub>The tour boat at night. Its kayaks glow on the dark water.</sub></td>
 </tr>
 </table>
 
