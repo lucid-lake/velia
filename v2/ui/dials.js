@@ -30,12 +30,12 @@ const CSS = `
 :root.lk-dm.lk-dm:not(.lk-flat):not(.lk-cockpit):has(#hands) .lk-cv{left:calc(100vw - ${DIAL_MODULES.hands}px - var(--lk-sar,0px) - var(--lk-dmd))}
 :root.lk-dm :is(.lk-cv,.lk-chart .small){visibility:visible!important;opacity:1!important;transition:opacity var(--lk-calm-fade,.6s) ease}
 /* Calm's dash rule hides the chart's whole layer (calmHud.js DASH): the module keeps it (the enlarged chart's own pane is not affected) */
-html.lk-dm.lk-dm.lk-dm:is(.lk-calm-dash,.lk-puck-chart):not(.lk-dm-off):not(.v2-rg-hub):not(.lk-bino-up):not(.lk-intro-ck) .lk-chart{opacity:1!important;visibility:visible!important}
+html.lk-dm.lk-dm.lk-dm:is(.lk-calm-dash,.lk-puck-chart):not(.lk-dm-off):not(.v2-rg-hub):not(.lk-bino-up):not(.lk-intro-on) .lk-chart{opacity:1!important;visibility:visible!important}
 :root.lk-dm.lk-dm-dim :is(.lk-cv,.lk-chart .small){opacity:${DIAL_MODULES.dim}!important}
 :root.lk-dm.lk-dm-off :is(.lk-cv,.lk-chart .small){opacity:0!important;visibility:hidden!important;pointer-events:none!important}
-/* the pages and moments that clear the screen keep doing so: Regatta's hub, the binoculars, the cinematic intro's cockpit beat, the
+/* the pages and moments that clear the screen keep doing so: Regatta's hub, the binoculars, the cinematic intro (the whole of it: lk-intro-on, set by ui/cinematicIntro.js from its start to its handover), the
    home card over the live lake (their own rules hid .lk-cv and .lk-chart; the modules' visible rule above would outrank them) */
-:root.lk-dm.lk-dm.lk-dm:is(.v2-rg-hub,.lk-bino-up,.lk-intro-ck) :is(.lk-cv,.lk-chart .small),
+:root.lk-dm.lk-dm.lk-dm:is(.v2-rg-hub,.lk-bino-up,.lk-intro-on) :is(.lk-cv,.lk-chart .small),
 :root.lk-dm:has(#lk-load[data-reel-end=live][data-state=home]) :is(.lk-cv,.lk-chart .small){opacity:0!important;visibility:hidden!important;pointer-events:none!important}
 :root.lk-dm button.lk-puck{display:none!important}
 /* a click opens the dial's page (owner, 2026-11-17): the wind face takes the pointer too (its sail lines and rudder still drag) */

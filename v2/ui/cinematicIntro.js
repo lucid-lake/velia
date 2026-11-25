@@ -106,6 +106,9 @@ const CSS = `
 .lk-ibar.t{top:0}.lk-ibar.b{bottom:0}
 ${Object.entries(GROUPS).map(([k, sel]) => `html.lk-intro-${k} :is(${sel}){${GONE}}`).join('\n')}
 ${Object.entries(GROUPS).map(([k, sel]) => `html.lk-intro-rv-${k} :is(${sel}){filter:opacity(var(--lk-intro-a-${k},1))}`).join('\n')}
+/* the whole intro (lk-intro-on, from start to handover): the key legend and the Pro column stay off even through the reveal beats; the dial
+   modules have the same rule in ui/dials.js */
+html.lk-intro-on :is(.lk-keys,.lk-pro){opacity:0!important;visibility:hidden!important;pointer-events:none!important}
 html.lk-intro-rv-bar ${BAR}{translate:0 calc((1 - var(--lk-intro-a-bar,1)) * -8px)}
 `;
 
@@ -132,6 +135,7 @@ export function createIntro({ enabled = false, reduced = () => false, doc = glob
     offInput = () => ac.abort();
   };
   const apply = () => {
+    cls('lk-intro-on', true);   // the intro's own running state (start to handover): dials.js and the CSS above read it
     if (top) { const y = ((1 - s.cover) * 100).toFixed(2); top.style.transform = `translateY(-${y}%)`; bot.style.transform = `translateY(${y}%)`; top.style.display = bot.style.display = s.cover > 0.001 ? '' : 'none'; }
     for (const [k, g] of [['bar', 'bar'], ['ck', 'cockpit'], ['rest', 'rest']]) {
       const a = s.a[g], fading = s.hud[g] && a < 1;
@@ -140,7 +144,7 @@ export function createIntro({ enabled = false, reduced = () => false, doc = glob
     }
   };
   const finish = () => {
-    phase = 'done'; offInput?.(); offInput = null;
+    phase = 'done'; offInput?.(); offInput = null; cls('lk-intro-on', false);
     top?.remove(); bot?.remove(); top = bot = null;
     for (const k of Object.keys(GROUPS)) { cls(`lk-intro-${k}`, false); cls(`lk-intro-rv-${k}`, false); H?.style.removeProperty(`--lk-intro-a-${k}`); }
     if (hushed) { try { hint()?.hush?.(false); } catch { /* the UI stepped aside */ } hushed = false; }
@@ -184,7 +188,7 @@ export function createIntro({ enabled = false, reduced = () => false, doc = glob
       const half = Math.atan(Math.tan(c.fov * Math.PI / 360) * S);
       return { ...c, fov: half * 360 / Math.PI };
     },
-    dispose() { offInput?.(); top?.remove(); bot?.remove(); for (const k of Object.keys(GROUPS)) { cls(`lk-intro-${k}`, false); cls(`lk-intro-rv-${k}`, false); } },
+    dispose() { offInput?.(); top?.remove(); bot?.remove(); cls('lk-intro-on', false); for (const k of Object.keys(GROUPS)) { cls(`lk-intro-${k}`, false); cls(`lk-intro-rv-${k}`, false); } },
   };
   return api;
 }
