@@ -36,7 +36,8 @@ import { mountNetRow } from './netRow.js';   // Setup › Aids › the crew's ne
 import { mountGennakerRow } from './gennakerRow.js';   // Setup › Aids › gennaker: auto | off (round 2)
 import { mountSteadyRow } from './steadyHands.js';   // Setup › Aids › steady hands (owner 2026-11-17)
 import { mountTessieRow } from './tessieSettings.js';   // play as Tessie, phase 2a: her two settings
-import { mountPerfRow } from './perfHud.js';   // Setup › Screen › performance stats (the top-right panel, a desktop only)
+import { mountPerfRow } from './perfHud.js';
+import { mountProRow } from './proHud.js';   // Setup › Screen › Pro instruments (the top-left panel, a desktop only)   // Setup › Screen › performance stats (the top-right panel, a desktop only)
 import { mountMusicRow } from './musicRow.js';   // Setup › Sound › music: Shuffle or By time of day (v2/audio/shuffle.js)   // Regatta R3: Setup's race level row (tiny; the race's chunk stays out)
 import { V2_NEWS } from './news.js';
 import { mountTutorials } from './tutorials.js';   // Help › Tutorials: twelve short chapters (owner 2026-11-18: "a true tutorial")
@@ -145,6 +146,7 @@ export function installFront({ settings, B, windField = null, clock, views = nul
   let steadyRow = mountSteadyRow(root, { settings });   // the let-go heading hold by profile; ui/sail.js applies it each frame
   let tessieRow = feature('playTessie').on ? mountTessieRow(root) : null;   // play as Tessie, phase 2a: Invert up/down, Camera follows her (only where she is playable)
   const perfRow = feature('perfHud').on ? mountPerfRow(root) : null;   // Setup › Screen › performance stats (a desktop only: ui/perfHud.js)
+  const proRow = feature('proHud').on ? mountProRow(root) : null;   // Setup › Screen › Pro instruments (a desktop only: ui/proHud.js)
   let musicRow = mountMusicRow(root, { music });   // the music listens to the store itself (v2/audio/music.js): sound, music, effects; the pick row tells it
   installDesktopNote({ storage: globalThis.localStorage });   // phones and tablets: "Best on a desktop browser", once on the card
 
@@ -175,7 +177,7 @@ export function installFront({ settings, B, windField = null, clock, views = nul
       home.paint();
       return this.birthplaceCard;
     },
-    birthplaceCard: null, menuCard, buildCard, perfRow, get musicRow() { return musicRow; }, get steadyRow() { return steadyRow; },
+    birthplaceCard: null, menuCard, buildCard, perfRow, proRow, get musicRow() { return musicRow; }, get steadyRow() { return steadyRow; },
     get ui() { return ui; },
     // Sail's UI is up: the card is its 'menu'; Pro from the setting
     wire(u) {

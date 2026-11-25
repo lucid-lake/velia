@@ -57,31 +57,31 @@ const BEAT_SVG = `<svg class="tu-svg" viewBox="0 0 300 170" role="img" aria-labe
 // the cockpit's two halves and the phone's screen: each picture's numbered points [x, y] as fractions of it, then the legend's line;
 // the numbers run on across the halves
 export const COCKPIT_PARTS = [
-  { src: COCKPIT_L, w: 1000, h: 237, alt: 'The cockpit, left half: the chart dial, the jib winch, the wheel with the round key and NAV', pins: [
-    [0.165, 0.30, 'Chart dial: heading, speed, depth; opens the chart'],
+  { src: COCKPIT_L, w: 1000, h: 237, alt: 'The cockpit, left half: the Chart, the jib winch, the wheel with the round key and NAV', pins: [
+    [0.165, 0.30, 'Chart: heading, depth, the nearest place; opens the chart'],
     [0.539, 0.25, 'JIB winch: drag round it to trim the front sail'],
     [0.845, 0.84, 'Round key: TACK, GYBE, FREE or REFLOAT'],
     [0.978, 0.70, `${PILOT_LABEL}: the autopilot`],
   ] },
-  { src: COCKPIT_R, w: 1000, h: 295, alt: 'The cockpit, right half: the throttle, the switches, the main winch, the wind dial and a hide tab', pins: [
+  { src: COCKPIT_R, w: 1000, h: 295, alt: 'The cockpit, right half: the throttle, the switches, the main winch, the Coach and a hide tab', pins: [
     [0.116, 0.19, 'Throttle lever: the engine, ahead or astern'],
     [0.284, 0.40, 'SAILS: up or down'],
     [0.367, 0.40, 'ANCHOR: down or up'],
     [0.464, 0.40, 'REEF: A · 0 · 1 · 2'],
     [0.324, 0.25, 'MAIN winch: trims the mainsail'],
-    [0.655, 0.32, 'Wind dial: the wind as she feels it; opens the logbook'],
+    [0.655, 0.32, 'Coach: your boat, the wind and what to do; opens the logbook'],
     [0.909, 0.90, 'Hide tab (one in each corner): fold the cockpit away'],
   ] },
 ];
 export const PHONE_PARTS = [
   { src: PHONE_IMG, w: 1012, h: 468, alt: 'A phone in Sail: the flat controls at the edges of the screen', pins: [
-    [0.074, 0.25, 'Chart dial. Tap: the big chart'],
+    [0.074, 0.25, 'Chart. Tap: the big chart'],
     [0.118, 0.77, 'Steer ring: drag to steer'],
     [0.055, 0.90, `${PILOT_LABEL}: the autopilot`],
     [0.883, 0.77, 'Sheet ring: drag In or Ease to trim'],
     [0.946, 0.90, 'Tack, Gybe, Free or Refloat'],
     [0.955, 0.43, '⋯: sails, engine, anchor, Pro (the reef)'],
-    [0.927, 0.25, 'Wind dial. Tap: raise it'],
+    [0.927, 0.25, 'Coach. Tap: raise it'],
   ] },
 ];
 function pinFig(cls, parts) {
@@ -107,10 +107,11 @@ export const CHAPTERS = [
 
   { id: 'cockpit', title: 'The cockpit', fig: COCKPIT_FIG, figFirst: true, lines: [
     { k: 'The cockpit along the bottom of the screen is your control panel. Click its controls, or use their keys.', t: 'The cockpit along the bottom of the screen is your control panel. Tap its controls.', f: 'On a phone the controls are flat glass at the edges of the screen. Drag the rings, tap the corners.' },
-    'The wind dial’s arrow points from where the wind comes, as she feels it. The shaded wedge at the bow is the no-go zone: point into it and the sails shake.',
+    'The Coach shows your boat from above. Its arrow points from where the wind comes, as she feels it; the shaded wedge is the no-go zone. When something needs doing, it says so on the boat: pull in, ease out, bear away.',
+    'The Chart is your compass and map: the heading on top, a line to the nearest place, amber on the ring where the shore is close.',
     { k: 'The round key and {nav} sit on the wheel’s hub. Chapters 4 and 5 put them to work.', t: 'The round key and {nav} sit on the wheel’s hub. Chapters 4 and 5 put them to work.', f: '{nav} and the turn key sit in the bottom corners. Chapters 4 and 5 put them to work.' },
     { k: 'Fold the cockpit away for the view: a hide tab, or {key:fold}. Again brings it back.', t: 'Fold the cockpit away for the view: tap a hide tab. Tap it again to bring it back.', f: 'Drag the open water to look round. The view comes back behind her by itself.' },
-  ], try: { k: 'Rest the pointer on a dial: it grows. Then click the chart dial.', t: 'Tap the chart dial: the chart opens. Tap Resume to close it.', f: 'Tap ⋯ and look at the Boat rows. Tap ⋯ again to close.' } },
+  ], try: { k: 'Click the Chart: the chart opens. Click Resume to close it.', t: 'Tap the Chart: the chart opens. Tap Resume to close it.', f: 'Tap ⋯ and look at the Boat rows. Tap ⋯ again to close.' } },
 
   { id: 'wind', title: 'Steering and the wind', fig: POINTS_SVG, lines: [
     { k: 'Steer with {key:steer} (or the arrow keys).', t: 'Steer: drag the wheel.', f: 'Steer: drag the left ring. Clockwise turns right (to starboard).' },

@@ -62,7 +62,7 @@ try {
   const wd = await page.evaluate(() => { const r = document.querySelector('.lk-cv .dial').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height * 0.88, w: r.width }; });
   await page.mouse.click(wd.x, wd.y); await page.waitForTimeout(900);
   const c1 = await card();
-  check(wd.w >= 44 && c1.state === 'open', `a click on the wind dial opens the logbook (${JSON.stringify(c1)})`);
+  check(wd.w >= 44 && c1.state === 'open', `a click on the Coach opens the logbook (${JSON.stringify(c1)})`);
   await page.keyboard.press('KeyN'); await page.waitForTimeout(1200);
   const b1 = await map(), c2 = await card();
   check(b1.menu && b1.map && !b1.big && c2.state === 'closed', `N over it: the live map opens, the logbook closes (${JSON.stringify(b1)}, ${c2.state})`);

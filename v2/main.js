@@ -151,6 +151,7 @@ lmEnd('main');   // the engine's chunk and its imports are fetched and run (star
 const errors = [];
 const hook = createHook({ errors });
 window.__velia = hook;
+let navTgNow = null;   // the frame's beacon target (sim/waymark.js targetOf: a pin, the race's next mark, Cruise's, Sail's mark): the Chart's nearest place reads it
 const t0 = performance.now();
 // perf(v2) iOS pipelines: the deferred groups in the order they are built after the first frame (the boat's models first:
 // the hero; then what the opening view shows; then what waits for a time, a weather or a mode); PIPE_SLOW_MS, the first
@@ -1175,7 +1176,7 @@ async function boot() {
   hook.knockdown = { game: kdGame, card: null, get endCard() { return endCard; }, again: () => kdGame && kdAgain(), gust: (o) => B?.setGust(o) };
   // --- end K3 ---
   if (B) m4.attach({ B, windField, clock, terrain, canvas, exposure: expNow, sun: () => sunNow.elevDeg, weather: wx, audio, modes: kdModes,
-    world: { props: () => raceProps, raceKit: () => raceKit(), water, raceOn: () => !!regatta?.on, modeId: () => modes.current, racePlace: async (id) => { if (!regatta?.on) await modes.go(REGATTA.id, { hub: false, deal: false }); return regatta?.racePlace?.(id) ? true : false; },   // a race pin's Race here: into Regatta with no hub, then that place race
+    world: { props: () => raceProps, raceKit: () => raceKit(), water, raceOn: () => !!regatta?.on, navTarget: () => navTgNow, modeId: () => modes.current, racePlace: async (id) => { if (!regatta?.on) await modes.go(REGATTA.id, { hub: false, deal: false }); return regatta?.racePlace?.(id) ? true : false; },   // a race pin's Race here: into Regatta with no hub, then that place race
    race: () => (regatta?.on ? { view: regatta.session?.race?.view('me') ?? null, ui: regatta.ui, aids: regatta.aids } : null), takeHelm: () => cruise?.takeHelm({ button: true }), swapMode: () => (kdGame && kdGame.state !== 'sailing' ? null : modes.swap()), warmCruise: () => modes.warm(), navTarget: () => navSailTg, autoNav: () => autoNavLoad(), kayakMarks: () => plug('kayaks')?.fleet?.marks() ?? [], sailMark: () => beacon?.mark ?? null, navAids: () => aids },   // U10, U15: the chart's kayakers; Sail's practice marks on Regatta's props pipeline (v2/ui/course.js)   // M4; M5e: the theme's sun, the Weather menu; #6: the VHF on the page's sound; Cruise: the card's modes
     music, quality: { pin: (k) => hook.quality?.pin?.(k), state: () => hook.quality?.state ?? null },   // music: the bar's Music, the skipper's voice; Setup's rows (v2/ui/setup.js)
     day: { fireworks: plugins.runs('show.t'), show: () => plugins.first('show.t'), stars: () => ({ band: bandNow, coverage: coverNow, storm: !!storm.running, sun: sunNow.elevDeg }), cue: flags.timerate == null || flags.timerate === '' } });   // the day clock's glue (ui/dayClock.js): the time menu, v1's night-sky line (not under ?timerate); the show is a time event (no evening, no target)
@@ -1426,6 +1427,7 @@ async function boot() {
       const ownC = cruise?.on ? (beacon.latestC ??= createLatest())(sailTg, destTg) : null;
       if (cruise?.on && sailTg && ownC === destTg && destTg) beacon.mark.clear();
       const tg = targetOf({ pin: beacon.pin, race: raceOn ? (regatta.beaconView ? regatta.beaconView() : regatta.session?.race?.view('me')) : null, cruise: cruise?.on && (!sailTg || ownC === destTg) ? dest : null, sail: own === sailTg ? sailTg : null, passage: own === chartTg ? chartTg : null });
+      navTgNow = tg;
       navSailTg = sailing && tg ? { x: tg.x, z: tg.z, key: tg.key, name: (own === chartTg ? chartTg?.name : null) ?? null } : null;   // the pilot head's AUTO target (ui/autopilot.js)
       const snap = beacon.sim.update(tg, B ? B.state : { x: eye[0], z: eye[2] }, lastDt), wy = snap.visible ? water.heightAt(snap.x, snap.z) : 0;
       beaconFx.frame({ snap, y: Number.isFinite(wy) ? wy : 0, focalPx: 0.5 * h / Math.tan(0.5 * fovDeg * DEG), pxScale: h / Math.max(1, canvas.clientHeight || h), t: clock.t, nightK: lv.k, haze: storm.weather.on > 0.5 ? Math.max(storm.weather.rain ?? 0, storm.weather.haze ?? 0) : 0 });

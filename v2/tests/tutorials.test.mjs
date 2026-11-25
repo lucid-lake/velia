@@ -77,7 +77,7 @@ test('the cockpit picture and the phone\'s: every numbered point inside its pict
     for (const [x, y, label] of p.pins) assert.ok(x > 0 && x < 1 && y > 0 && y < 1 && label.length > 3, `${label}: inside (${x}, ${y})`);
   }
   const names = COCKPIT_PARTS.flatMap((p) => p.pins.map((q) => q[2])).join(' | ');
-  for (const s of ['Chart dial', 'JIB winch', 'Round key', 'NAV', 'SAILS', 'ANCHOR', 'REEF', 'MAIN winch', 'Wind dial', 'Hide tab']) assert.ok(names.includes(s), s);
+  for (const s of ['Chart', 'JIB winch', 'Round key', 'NAV', 'SAILS', 'ANCHOR', 'REEF', 'MAIN winch', 'Coach', 'Hide tab']) assert.ok(names.includes(s), s);
 });
 
 test('v1 keeps its own Tutorials list (src/ui/homePages.js), untouched', () => {

@@ -1,27 +1,29 @@
-// The dials' north star, the mock stage (?dials=v2, WIP behind the flag; the design: the private research note 98). Two dials with
-// one job each and a Pro panel:
-//   the chart dial (geo-centric: a compass and the mini map): head-up, the nearest point of interest as a bearing line and its
-//     distance, the shore and the shallows as amber arcs on the compass band, the depth; SOG leaves it for the boat dial
-//   the boat dial (boat-centric: a new sailor's cheat sheet, src/ui/captainView.js coach): each sail's trim word on the drawn sail,
-//     the point of sail and the tack, windward and leeward, the no-go zone, heel, the boat's speed and the wind (real and felt)
-//   the Pro panel: the experts' numbers (COG, TWA, AWA, VMG, HEEL, RUD) on one glass plate above the chart dial, shown with Pro on;
-//     the left edge's nav column steps aside
-// Pure helpers (the cues) are exported for tests; createProPanel mounts the plate.
-import { ensureTokens } from '../../src/ui/tokens.js';
-import { createReadings, fmt } from '../../src/ui/navColumn.js';
+// The dials' north star (owner, 2026-11-25; the design: the private research note 98), the cues both dials read. Two dials with one
+// job each:
+//   the Chart (geo-centric: a compass and the mini map, src/ui/chartplotter.js poi/shoreWarn): head-up, the nearest place as a
+//     bearing line and its distance, the shore and the shallows as amber arcs on the compass band, the depth
+//   the Coach (boat-centric: a new sailor's cheat sheet, src/ui/captainView.js coach): a word only when something needs doing (a
+//     sail luffing or stalled, an overpowered boat, a sheet at its stop, in irons); the colours, the point of sail, the tack,
+//     windward and leeward, SPEED and WIND ("feels N" on the arrow) always
+// The experts' numbers are the Pro instruments panel (ui/proHud.js). Pure helpers, exported for the tests.
 import { BOAT } from '../../src/sim/boat.js';
+import { DIAL_MODULES } from './dials.js';
 
 const DEG = Math.PI / 180;
 export const DIALS_V2 = Object.freeze({
   boatK: 1.0,          // × --lk-d: both dials' size (was 0.8: the words and the mini map need the room)
+  liftPx: 26,          // px above --lk-by: the larger circles clear the cockpit's fold tabs in the bottom corners (was 12)
   overHeelDeg: 20,     // heel past this (smoothed) is overpowered: "ease or reef" (the auto-reef starts at 21°)
   luffFill: 0.5,       // a sail's fill under this is luffing
   stallAt: 0.6,        // a sail's stall over this (and the wind forward of 80°) is stalled
   inSlackDeg: 2,       // a sheet within this of its stop is all the way in (or out)
   gybeAwaDeg: 165,     // the wind this far aft: the gybe zone
   hereM: 200,          // a point of interest closer than this is where she is: the next one is shown
-  poiShort: Object.freeze({ mark: 'Mark', anchorage: 'Anch', race: 'Mark' }),
-  poiKinds: Object.freeze({ mark: 'Mark', birthplace: 'Harbour', anchorage: 'Anchorage', place: 'Landmark', race: 'Next mark' }),
+  poiShort: Object.freeze({ mark: 'Mark', anchorage: 'Anch', race: 'Mark', birthplace: 'Harbour' }),   // with PRO's bearing: the row stays inside the circle
+  poiKinds: Object.freeze({ mark: 'Mark', birthplace: 'Harbour', anchorage: 'Anchorage', race: 'Next mark' }),
+  shoreReachM: 240,    // the shore arcs: land or shallow water this close, on 24 bearings
+  shoreStepM: 30,
+  shoreDepthM: 2.2,    // shallower than this (the draft 1.6 m + 0.6 m) counts
 });
 
 // One sail's state and the book's word for its fix. s: the boat state; sail: 'main' | 'jib'.
@@ -75,55 +77,42 @@ export function nearestPoi(boat, list = []) {
 // nm for the chart's foot: under 1 nm to two places, else one
 export const nmText = (m) => { const nm = m / 1852; return nm < 1 ? nm.toFixed(2).replace(/^0/, '') : nm.toFixed(1); };
 
-// ---- the Pro panel: one glass plate of instrument cells above the chart dial ----
-const PRO_CELLS = ['cog', 'twa', 'vmg', 'awa', 'heel', 'rud'];
-const LABEL = { cog: 'COG', twa: 'TWA', vmg: 'VMG', awa: 'AWA', heel: 'HEEL', rud: 'RUD' };
+// ---- the dials' layout: both at 1.0 x --lk-d (the words and the mini map need the room); a phone's compact Coach keeps the boat, the
+// sails' colours and SPEED, and its tap-to-enlarge brings the words and the rows back ----
 const CSS = `
-:root.lk-dv2 .lk-nav{display:none!important}
-:root.lk-dm.lk-dv2:not(.lk-flat):not(.lk-flat):not(.lk-flat){--lk-dmw:round(calc(var(--lk-d) * ${DIALS_V2.boatK}),1px);--lk-edge-foot:calc(var(--lk-by) + 12px + var(--lk-dmw) + 12px)}
-:root.lk-dm.lk-dv2:not(.lk-flat):not(.lk-flat):not(.lk-flat) .lk-chart .small{width:var(--lk-dmw);height:var(--lk-dmw);left:calc(var(--lk-dm-cx,calc(var(--lk-mx) + var(--lk-sal,0px) + var(--lk-dmw) / 2)) - var(--lk-dmw) / 2)}
+:root.lk-dm.lk-dv2:not(.lk-flat):not(.lk-flat):not(.lk-flat){--lk-dmw:round(calc(var(--lk-d) * ${DIALS_V2.boatK}),1px);--lk-edge-foot:calc(var(--lk-by) + ${DIALS_V2.liftPx}px + var(--lk-dmw) + ${DIAL_MODULES.gap}px)}
+:root.lk-dm.lk-dv2:not(.lk-flat):not(.lk-flat):not(.lk-flat) .lk-chart .small{width:var(--lk-dmw);height:var(--lk-dmw);left:calc(var(--lk-dm-cx,calc(var(--lk-mx) + var(--lk-sal,0px) + var(--lk-dmw) / 2)) - var(--lk-dmw) / 2);bottom:calc(var(--lk-by) + ${DIALS_V2.liftPx}px)}
 :root.lk-dv2 .lk-chart .small .poi i{text-transform:none;letter-spacing:.02em}
-:root.lk-dm.lk-dv2:not(.lk-flat):not(.lk-flat):not(.lk-flat) .lk-cv{--d:var(--lk-dmw);left:calc(var(--lk-dm-wx,calc(100vw - var(--lk-mx) - var(--lk-sar,0px) - var(--lk-dmw) / 2)) - var(--lk-dmw) / 2)}
-.lk-pro2{position:fixed;z-index:var(--lk-z-hud);pointer-events:none;display:grid;grid-template-columns:repeat(3,auto);gap:6px 14px;padding:10px 14px 9px;box-sizing:border-box;
-  border-radius:var(--lk-glass-r,14px);background:var(--lk-glass-dense);backdrop-filter:var(--lk-glass-blur);-webkit-backdrop-filter:var(--lk-glass-blur);box-shadow:inset 0 0 0 1px var(--lk-glass-edge),0 8px 18px rgb(0 0 0 / .3);
-  font:var(--lk-medium) var(--lk-fs-caption)/1 var(--lk-ui);font-variant-numeric:tabular-nums;color:var(--lk-ink);opacity:0;transition:opacity .24s ease;
-  left:calc(var(--lk-dm-cx,calc(var(--lk-mx) + var(--lk-sal,0px) + var(--lk-dmw) / 2)) - var(--lk-dmw) / 2);bottom:calc(var(--lk-by) + 12px + var(--lk-dmw) + 10px)}
-.lk-pro2.on{opacity:1}
-:root.lk-dm-off .lk-pro2,:root.lk-flat .lk-pro2{display:none}
-.lk-pro2 .c{display:flex;flex-direction:column;gap:3px;min-width:3.6em}
-.lk-pro2 i{font-style:normal;letter-spacing:var(--lk-track-caps);color:var(--lk-ink-soft)}
-.lk-pro2 b{font-weight:var(--lk-medium);font-size:var(--lk-fs-num);white-space:nowrap}
-.lk-pro2 small{font-size:var(--lk-fs-caption);color:var(--lk-ink-soft);margin-left:.12em}
-.lk-pro2 em{font-style:normal;font-size:var(--lk-fs-caption);margin-left:.25em;padding:0 .3em;border-radius:.3em;color:rgb(var(--lk-navy))}
-.lk-pro2 em.p{background:rgb(var(--lk-port))}.lk-pro2 em.s{background:rgb(var(--lk-stbd))}.lk-pro2 em:empty{display:none}
+:root.lk-dv2 .lk-chart .small .cogr[hidden]{display:none}
+:root.lk-dm.lk-dv2:not(.lk-flat):not(.lk-flat):not(.lk-flat) .lk-cv{--d:var(--lk-dmw);left:calc(var(--lk-dm-wx,calc(100vw - var(--lk-mx) - var(--lk-sar,0px) - var(--lk-dmw) / 2)) - var(--lk-dmw) / 2);bottom:calc(var(--lk-by) + ${DIALS_V2.liftPx}px)}
+:root.lk-dm.lk-dv2:not(.lk-flat):not(.lk-flat):not(.lk-flat):not(.lk-cockpit):has(#hands) .lk-cv{left:calc(100vw - ${DIAL_MODULES.hands}px - var(--lk-sar,0px) - var(--lk-dmw))}
+:root.lk-dm.lk-dv2.lk-flat:not(.lk-fl-wup) .lk-cv.coach :is(.cg,.rw.c1,.rw.c3){display:none}
+:root.lk-dm.lk-dv2.lk-flat .lk-chart .small :is(.poi,.cogr){display:none}
 `;
-export function createProPanel({ state = () => null, on = () => false, doc = document } = {}) {
-  ensureTokens();
+export function mountDialsLayout(doc = globalThis.document) {
   if (!doc.getElementById('lk-dv2-css')) { const st = doc.createElement('style'); st.id = 'lk-dv2-css'; st.textContent = CSS; doc.head.appendChild(st); }
   doc.documentElement.classList.add('lk-dv2');
-  const el = doc.createElement('div'); el.className = 'lk-pro2';
-  el.innerHTML = PRO_CELLS.map((k) => `<div class="c" data-k="${k}"><i>${LABEL[k]}</i><b><span></span><small></small><em></em></b></div>`).join('');
-  doc.body.appendChild(el);
-  const readings = createReadings();
-  const cells = Object.fromEntries(PRO_CELLS.map((k) => { const c = el.querySelector(`[data-k=${k}]`); return [k, { n: c.querySelector('span'), u: c.querySelector('small'), e: c.querySelector('em') }]; }));
-  let acc = 1;
-  return {
-    el,
-    update(dt = 1 / 60) {
-      const show = !!on();
-      el.classList.toggle('on', show);
-      acc += dt; if (!show || acc < 0.25) return;
-      const s = state(); if (!s) return;
-      const r = readings.step({ cog: s.cog, twsMs: s.trueWind?.speed, twa: s.trueWind?.angle, sogMs: s.sog, heel: s.heel, rudder: s.rudderAngle }, acc); acc = 0;
-      const awa = Math.round((s.apparentWind?.angle ?? 0) / DEG);
-      const rows = { ...Object.fromEntries(['cog', 'twa', 'vmg', 'heel', 'rud'].map((k) => [k, fmt(k, r)])), awa: { num: String(Math.abs(awa)), unit: '°', side: awa > 0 ? 'S' : awa < 0 ? 'P' : '' } };
-      for (const k of PRO_CELLS) {
-        const v = rows[k], c = cells[k], side = String(v.side ?? '').charAt(0).toUpperCase();
-        if (c.n.textContent !== v.num) c.n.textContent = v.num;
-        if (c.u.textContent !== v.unit) c.u.textContent = v.unit;
-        if (c.e.textContent !== side) { c.e.textContent = side; c.e.className = side === 'P' ? 'p' : side === 'S' ? 's' : ''; }
-      }
-    },
-    dispose() { el.remove(); doc.documentElement.classList.remove('lk-dv2'); },
-  };
+  return { dispose() { doc.getElementById('lk-dv2-css')?.remove(); doc.documentElement.classList.remove('lk-dv2'); } };
+}
+
+// The shore arcs (pure): for each of n bearings (true, 0 = north; world x east, z south), the first distance within reach where the
+// ground is above -depth (land, or water too shallow), else 0. heightAt(x, z): m above the lake (negative: the bed).
+export function shoreArcs(heightAt, x, z, { n = 24, reach = DIALS_V2.shoreReachM, step = DIALS_V2.shoreStepM, depth = DIALS_V2.shoreDepthM } = {}) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const b = (i * 2 * Math.PI) / n, sx = Math.sin(b), sz = -Math.cos(b);
+    let hit = 0;
+    for (let d = step; d <= reach; d += step) if (heightAt(x + sx * d, z + sz * d) > -depth) { hit = d; break; }
+    out.push(hit);
+  }
+  return out;
+}
+
+// the Chart's foot row for the nearest place: a short birthplace name, else its kind; PRO adds the bearing (and the label shortens)
+export function poiRow(n, pro = false) {
+  if (!n) return null;
+  const named = n.kind === 'birthplace' && n.name && n.name.length <= 14;
+  const nm = named ? n.name : DIALS_V2.poiKinds[n.kind];
+  return { ...n, name: named ? '' : n.name, label: pro && !named ? (DIALS_V2.poiShort[n.kind] ?? nm) : nm, dText: nmText(n.dM),
+    bText: pro ? ` ${String(Math.round(n.brgDeg) % 360).padStart(3, '0')}°` : '' };
 }

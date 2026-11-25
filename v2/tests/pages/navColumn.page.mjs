@@ -1,11 +1,13 @@
-// The nav column on a live v2 page (v2/ui/nav.js, v2/ui/sail.js; v1's src/ui/navColumn.js and src/ui/passage.js as they are):
-//   the default   a regular player (Pro off, no mark): the left edge is empty
-//   Pro           ?pro=1 or the PRO switch: COG · TWS · TWA | VMG · HEEL · RUD on the left, the boat's own numbers (COG = the
-//                 state's course over ground), refreshed while it sails; the helm view keeps it (the legend goes); Clear takes it
-//   a waypoint    Sail Pro's click on the enlarged chart (chartplotter setWaypoint): MARK WP, DTW, BTW, TTG, XTE join
-//   old keys      v2 has no edge instruments row (owner, 2026-11-17): a stored 'off' never hides the column with Pro on (the owner's
-//                 screenshot: Pro on by the cockpit's switch, the left edge empty), a stored 'always' never shows it with Pro off;
-//                 ?navcol=0|1 still wins
+// The left edge on a live v2 page since 2026-11-25: the nav column is gone; the Pro instruments panel (v2/ui/proHud.js), the
+// performance panel's twin at the top-left, replaced it:
+//   - no .lk-nav and no navColumn on Sail's UI, with the cockpit's PRO on; the passage service stays (the beacon reads it)
+//   - off by default; Setup › Screen › Pro instruments (reads off); on shows it top-left (16 px in, at the bar's top), six lines
+//     (COG, TWA, VMG, AWA, HEEL, RUD), clear of the top bar's Menu, the skipper's line, the Chart and the performance panel, at
+//     1280 x 720 and 1920 x 1080
+//   - the PRO switch no longer decides it (off and on: the panel stays as Setup has it)
+//   - the perf panel's rule: folded (H), Clear, played (Tessie's seam), Cruise take it; the helm view keeps it
+//   - its ×: hides it, the row reads off, and that survives a reload; ?prohud=1 shows it whatever Setup holds, ?prohud=0 never
+//   - a tablet: never
 // Run by `npm run test:pages:v2` (LAKESHORE_BASE set), or node v2/tests/pages/navColumn.page.mjs --base http://127.0.0.1:<port>
 import { chromium } from 'playwright-core';
 
@@ -14,112 +16,101 @@ const BASE = argv.includes('--base') ? argv[argv.indexOf('--base') + 1] : proces
 if (!BASE) { console.error('no server: run `npm run test:pages:v2`, or pass --base'); process.exit(2); }
 let fails = 0;
 const check = (ok, what) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${what}`); if (!ok) fails++; };
-const CHROME = process.env.LAKESHORE_CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const SEEN = { welcomed: true, introShown: true, goalDone: true, cruiseOffered: true, proOffered: true };
-const Q = 'mode=sail&hour=15&wind=2&once=0&noload=1&fv=1&hm=0&chatter=0&hud=full';
-const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--enable-unsafe-webgpu', '--no-first-run'] });
-async function open(query, settings = {}) {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
-  await page.addInitScript((s) => { try { localStorage.setItem('lakeshore.settings.v1', JSON.stringify(s)); } catch { /* blocked */ } }, { ...SEEN, ...settings });
-  await page.goto(`${BASE}/?${query}`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__velia?.ready && window.__velia.m4?.ui?.navColumn && window.__velia.m4.ui.station?.cockpit && window.__velia.boat?.sim?.t > 1, null, { timeout: 240000 });
-  await page.waitForTimeout(1500);
-  return { page, errors };
-}
-// the column as the eye sees it: on, its opacity, the rows shown top to bottom with their strings, its box
-const col = (page) => page.evaluate(() => {
-  const el = document.querySelector('.lk-nav'); if (!el) return null;
-  const rows = [...el.children].filter((r) => !r.classList.contains('fade') && !r.classList.contains('off')).sort((a, b) => +a.style.order - +b.style.order);
-  const text = (r) => (r.dataset.id === 'mark' ? r.textContent.trim() : `${r.querySelector('.v')?.textContent ?? ''}${r.querySelector('.u')?.textContent ?? ''}${r.querySelector('.sd')?.textContent ? ` ${r.querySelector('.sd').textContent}` : ''}`);
-  const b = el.getBoundingClientRect();
-  return { on: el.classList.contains('on'), op: +getComputedStyle(el).opacity, ids: rows.map((r) => r.dataset.id).filter((id) => !id.startsWith('gap')), rows: Object.fromEntries(rows.filter((r) => !r.dataset.id.startsWith('gap')).map((r) => [r.dataset.id, text(r)])),
-    box: { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) } };
+const SEEN = { _v: 2, welcomed: true, introShown: true, goalDone: true, cruiseOffered: true, proOffered: true };
+const Q = 'mode=sail&hour=15&seed=1&noload=1&hud=full&cinema=0&pro=1&once=0&fv=1&hm=0&chatter=0&perfhud=1';
+const browser = await chromium.launch({ executablePath: process.env.LAKESHORE_CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--enable-unsafe-webgpu', '--no-first-run'] });
+const ready = (page) => page.waitForFunction(() => window.__velia?.ready && window.__velia.m4?.ui?.station?.shown && window.__velia.m4.ui.cockpitUp, null, { timeout: 240000 });
+const open = async (url, { viewport = { width: 1280, height: 720 }, keep = null } = {}) => {
+  const ctx = await browser.newContext({ viewport });
+  await ctx.addInitScript((s) => { try { localStorage.setItem('lakeshore.settings.v1', JSON.stringify(s)); } catch {} }, SEEN);
+  if (keep) await ctx.addInitScript(keep);
+  const page = await ctx.newPage(); const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto(`${BASE}/?${url}`, { waitUntil: 'load' });
+  return { ctx, page, errors };
+};
+const shown = (page) => page.evaluate(() => { const e = document.querySelector('.lk-proi'); if (!e) return false; const cs = getComputedStyle(e); return cs.visibility !== 'hidden' && +cs.opacity > 0.05; });
+const boxes = (page) => page.evaluate(() => {
+  const r = (q) => { const e = [...document.querySelectorAll(q)].find((n) => { const cs = getComputedStyle(n); return n.getClientRects().length && cs.visibility !== 'hidden' && +cs.opacity > 0.05; }); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height, r: b.right, b: b.bottom }; };
+  return { pro: r('.lk-proi'), bar: r('.nb .isl'), menu: r('.nb .isl button'), skipper: r('.lk-hint .row.in'), chart: r('.lk-chart .small'), perf: r('.lk-perf'), vw: innerWidth };
 });
-const state = (page) => page.evaluate(() => { const s = window.__velia.m4.ui.services.get('player').phys.state; return { cog: s.cog * 180 / Math.PI, sog: s.sog }; });
-
+const hit = (a, b) => !!a && !!b && a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b;
+const fmt = (b) => (b ? `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.w)}x${Math.round(b.h)}` : 'none');
+const layout = async (page, label) => {
+  await page.evaluate(() => window.__velia.m4.ui.viewSwitch.say('Tap Helm for the helm view')); await page.waitForTimeout(1000);
+  const B = await boxes(page);
+  check(!!B.pro && Math.abs(B.pro.x - 16) <= 1 && Math.abs(B.pro.y - 14) <= 1 && B.pro.h < 200, `${label}: the panel top-left, 16 px in, at the bar's top (${fmt(B.pro)})`);
+  for (const k of ['bar', 'menu', 'skipper', 'chart', 'perf']) check(!hit(B.pro, B[k]), `${label}: clear of the ${k} (${fmt(B.pro)} vs ${fmt(B[k])})`);
+  check(!!B.perf && B.bar.x - B.pro.r >= 24, `${label}: ${Math.round(B.bar.x - B.pro.r)} px left of the top bar (the perf panel at ${fmt(B.perf)})`);
+};
 try {
-  // ---------------- the default: an empty left edge ----------------
   {
-    const { page, errors } = await open(Q);
-    const C = await col(page);
-    check(!!C && C.on === false && C.ids.length === 0, `Pro off, no mark: the left edge is empty (${JSON.stringify(C && { on: C.on, ids: C.ids })})`);
-    // the PRO switch brings the readings (the trim panel's switch, the dock's 'pro')
-    await page.evaluate(() => window.__velia.m4.ui.setPro(true)); await page.waitForTimeout(1200);
-    const P = await col(page);
-    check(P.on && P.op > 0.9 && P.ids.join(' ') === 'cog tws twa vmg heel rud', `Pro on: v1's rows (${P.ids.join(' ')}, opacity ${P.op})`);
-    // the key legend mirrors the column (owner, 2026-11-17): six rows, the column's top and bottom, row height and margin, clear of the cockpit
-    for (const [w, h] of [[1280, 720], [1920, 1080], [1024, 720]]) {   // under 1100 px the legend is off by rule (keyLegend MIN_WIDTH): geometry only
-      await page.setViewportSize({ width: w, height: h }); await page.waitForTimeout(1500);
-      const L = await page.evaluate(() => { const k = document.querySelector('.lk-keys:not(.tp-keys)'), n = document.querySelector('.lk-nav'), kb = k.getBoundingClientRect(), nb = n.getBoundingClientRect();
-        const rows = [...k.querySelectorAll('.kl:not(.off):not(.fade)')];
-        return { on: k.classList.contains('on'), ids: rows.map((r) => r.dataset.id).join(' '), rowH: [...new Set(rows.map((r) => Math.round(r.getBoundingClientRect().height)))].join(),
-          dTop: Math.round(kb.top - nb.top), dBot: Math.round(kb.bottom - nb.bottom), mR: Math.round(innerWidth - kb.right), mL: Math.round(nb.left), wK: kb.width, wN: nb.width, bottom: Math.round(kb.bottom), vh: innerHeight }; });
-      if (w >= 1100) check(L.on && L.ids.split(' ').sort().join(' ') === 'anchor engine jib main tack view' && L.rowH === '36', `${w}x${h}, Pro on: the legend is six 36 px rows (${L.ids}; ${L.rowH})`);
-      check(Math.abs(L.dTop) <= 1 && Math.abs(L.dBot) <= 1, `${w}x${h}: the legend's top and bottom are the column's (${L.dTop}, ${L.dBot} px)`);
-      check(Math.abs(L.wK / L.wN - 1) <= 0.1, `${w}x${h}: the legend is as wide as the column, within 10 % (${Math.round(L.wK)} vs ${Math.round(L.wN)} px)`);
-      check(Math.abs(L.mR - L.mL) <= 1, `${w}x${h}: the legend's right margin is the column's left (${L.mR} vs ${L.mL})`);
-    }
-    await page.setViewportSize({ width: 1280, height: 720 }); await page.waitForTimeout(800);
-    await page.evaluate(() => window.__velia.m4.ui.setPro(false)); await page.waitForTimeout(1200);
-    check((await col(page)).on === false, 'Pro off again: empty');
-    check(errors.length === 0, `no page errors (${errors.join(' | ')})`);
-    await page.close();
-  }
-  // ---------------- ?pro=1: the readings, the boat's numbers, the helm view, Clear, a waypoint ----------------
-  {
-    const { page, errors } = await open(`${Q}&pro=1`);
-    const C = await col(page), s = await state(page);
-    check(C.on && C.ids.join(' ') === 'cog tws twa vmg heel rud', `?pro=1: ${Object.entries(C.rows).map(([k, v]) => `${k.toUpperCase()} ${v}`).join(' · ')}`);
-    const cog = parseInt(C.rows.cog, 10), d = Math.abs(((cog - s.cog + 540) % 360) - 180);
-    check(/^\d{3}°$/.test(C.rows.cog) && d <= 1.5, `COG is the boat's course over ground (${C.rows.cog} vs ${s.cog.toFixed(1)}°)`);
-    check(/^\d+(\.\d)?kn$/.test(C.rows.tws) && /^\d+(\.\d)?kn$/.test(C.rows.vmg) && /^\d+° [PS]$|^0°$/.test(C.rows.twa), 'the units on the face: kn, °, P or S');
-    check(C.box.x >= 10 && C.box.x < 80 && C.box.y > 200 && C.box.y + C.box.h < 720 * 0.86, `on the left margin, above the coaming dials (${JSON.stringify(C.box)})`);
-    // it updates while the boat sails and turns: COG follows
-    await page.keyboard.down('KeyA'); await page.waitForTimeout(3000); await page.keyboard.up('KeyA'); await page.waitForTimeout(2500);   // the pilot takes the helm back and the swing dies
-    const C2 = await col(page), s2 = await state(page);
-    check(C2.rows.cog !== C.rows.cog && Math.abs(((parseInt(C2.rows.cog, 10) - s2.cog + 540) % 360) - 180) <= 3, `a turn to port: COG ${C.rows.cog} → ${C2.rows.cog} (the boat's ${s2.cog.toFixed(1)}°; within 3°: the column samples at 4 Hz)`);
-    // the helm view keeps it (owner decision 4); the key legend goes
+    const { ctx, page, errors } = await open(Q);
+    await ready(page); await page.waitForTimeout(2500);
+    const g = await page.evaluate(() => ({ nav: !!document.querySelector('.lk-nav'), ui: 'navColumn' in window.__velia.m4.ui, svc: !!window.__velia.m4.ui.services.get('navColumn'), passage: !!window.__velia.m4.ui.services.get('passage'), pro: window.__velia.m4.ui.pro }));
+    check(!g.nav && !g.ui && !g.svc && g.passage && g.pro, `the nav column is gone (PRO on), the passage service stays (${JSON.stringify(g)})`);
+    const row = () => page.evaluate(() => { const r = document.querySelector('#tp-set-screen [data-set="prohud"]'); return r ? { k: r.querySelector('.k').textContent, on: r.querySelector('[data-pi=on]').getAttribute('aria-checked'), off: r.querySelector('[data-pi=off]').getAttribute('aria-checked') } : null; });
+    const r0 = await row();
+    check(!(await shown(page)), 'a fresh profile: the Pro panel is off by default');
+    check(r0?.k === 'Pro instruments' && r0.off === 'true', `Setup › Screen has the row, reading off (${JSON.stringify(r0)})`);
+    await page.evaluate(() => document.querySelector('#tp-set-screen [data-pi=on]').click()); await page.waitForTimeout(900);
+    check(await shown(page), 'Setup on: the panel shows');
+    const st = await page.evaluate(() => window.__velia.m4.ui.proHud.state);
+    check(st.lines?.map((l) => l[0]).join() === 'COG,TWA,VMG,AWA,HEEL,RUD' && /^\d{3}°$/.test(st.lines[0][1]) && /kn$/.test(st.lines[2][1]), `six lines: ${JSON.stringify(st.lines)}`);
+    await layout(page, '1280x720');
+    // the PRO switch no longer decides it
+    await page.evaluate(() => window.__velia.m4.ui.setPro(false)); await page.waitForTimeout(800);
+    check(await shown(page), 'PRO off: the panel stays (Setup decides)');
+    await page.evaluate(() => window.__velia.m4.ui.setPro(true));
+    // the perf panel's rule
+    await page.mouse.move(640, 300); await page.keyboard.press('KeyH'); await page.waitForTimeout(1200);
+    check(!(await shown(page)), 'folded (H): gone');
+    await page.keyboard.press('KeyH'); await page.waitForTimeout(1200);
+    check(await shown(page), 'raised: back');
+    await page.evaluate(() => window.__velia.m4.ui.calm.setPreset('clear')); await page.waitForTimeout(1000);
+    check(!(await shown(page)), 'Clear: gone');
+    await page.evaluate(() => window.__velia.m4.ui.calm.setPreset('full')); await page.waitForTimeout(1000);
     await page.evaluate(() => window.__velia.m4.ui.views.set('helm')); await page.waitForTimeout(1500);
-    check((await col(page)).on === true, 'the helm view: the column stays');
-    await page.evaluate(() => window.__velia.m4.ui.views.set('follow')); await page.waitForTimeout(800);
-    // Clear takes it (the Calm HUD's preset)
-    await page.evaluate(() => window.__velia.m4.ui.calm.setPreset('clear')); await page.waitForTimeout(800);
-    const cl = await page.evaluate(() => window.__velia.m4.ui.calm.mode);
-    if (cl === 'clear') { check((await col(page)).on === false, 'Clear: the column goes'); await page.evaluate(() => window.__velia.m4.ui.calm.setPreset('full')); await page.waitForTimeout(800); }
-    // a waypoint on the chart (Sail Pro's click on the enlarged chart): the passage block joins
-    const ok = await page.evaluate(() => { const ui = window.__velia.m4.ui, c = ui.chart?.chart, s = ui.services.get('player').phys.state; if (!c) return false; c.setWaypoint({ x: s.x + 400, z: s.z - 600 }); return true; });
-    await page.waitForTimeout(2200);
-    const W = await col(page);
-    check(ok && W.ids.join(' ') === 'cog tws twa vmg heel rud mark dtw btw ttg xte' && W.rows.mark === 'MARK WP' && /nm$/.test(W.rows.dtw) && /^\d{3}°$/.test(W.rows.btw),
-      `a chart waypoint: ${W.ids.slice(6).map((k) => `${k.toUpperCase()} ${W.rows[k]}`).join(' · ')}`);
-    check(errors.length === 0, `no page errors (${errors.join(' | ')})`);
-    await page.close();
+    check(await shown(page), 'the helm view keeps it');
+    await page.evaluate(() => window.__velia.m4.ui.views.set('follow')); await page.waitForTimeout(1500);
+    await page.evaluate(() => { window.__probeThing = { active: true }; window.__velia.played.add('probe', window.__probeThing); }); await page.waitForTimeout(1000);
+    check(!(await shown(page)), 'played (Tessie\'s seam): gone');
+    await page.evaluate(() => { window.__probeThing.active = false; }); await page.waitForTimeout(1200);
+    await page.evaluate(() => window.__velia.mode.go('cruise')); await page.waitForFunction(() => window.__velia.mode.now() === 'cruise', null, { timeout: 60000 }).catch(() => {});
+    await page.waitForTimeout(2000);
+    check(!(await shown(page)), 'Cruise: gone');
+    await page.evaluate(() => window.__velia.mode.go('sail')); await page.waitForFunction(() => window.__velia.mode.now() === 'sail' && window.__velia.m4.ui.cockpitUp, null, { timeout: 60000 }).catch(() => {});
+    await page.waitForTimeout(1500);
+    check(await shown(page), 'back in Sail: the panel again');
+    // the ×
+    const X = await page.evaluate(() => { const x = document.querySelector('.lk-proi button.x'), b = x.getBoundingClientRect(); const at = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2); return { w: b.width, h: b.height, label: x.getAttribute('aria-label'), top: at === x || x.contains(at), cx: b.x + b.width / 2, cy: b.y + b.height / 2 }; });
+    check(X.w >= 24 && X.h >= 24 && X.label === 'Close Pro instruments' && X.top, `the ×: ${X.w}x${X.h}, "${X.label}", on top`);
+    await page.mouse.click(X.cx, X.cy); await page.waitForTimeout(800);
+    const r1 = await row();
+    check(!(await shown(page)) && r1.off === 'true', `the × hides it; the row reads off (${JSON.stringify(r1)})`);
+    check(errors.length === 0, `no page errors (${errors.slice(0, 2).join(' | ') || 'none'})`);
+    await page.reload({ waitUntil: 'load' }); await ready(page); await page.waitForTimeout(2000);
+    check(!(await shown(page)) && (await row()).off === 'true', 'after a reload: still off');
+    await page.goto(`${BASE}/?${Q}&prohud=1`, { waitUntil: 'load' }); await ready(page); await page.waitForTimeout(2000);
+    check(await shown(page), '?prohud=1: shown whatever Setup holds');
+    await page.goto(`${BASE}/?${Q}&prohud=0`, { waitUntil: 'load' }); await ready(page); await page.waitForTimeout(1500);
+    check(!(await shown(page)) && !(await page.evaluate(() => !!document.querySelector('.lk-proi'))), '?prohud=0: never');
+    await ctx.close();
   }
-  // ---------------- old Setup keys never decide it; ?navcol ----------------
   {
-    const a = await open(Q, { edgeInstruments: 'always' });
-    check((await col(a.page)).on === false, 'a stored "always", Pro off: the left edge stays empty (the column follows Pro)');
-    await a.page.close();
-    // the owner's case: an old 'off' and HUD Calm in the store, Pro switched on by the player (the PRO recess's path)
-    const o = await open(Q.replace('&hud=full', ''), { edgeInstruments: 'off', hud: 'calm' });
-    await o.page.evaluate(() => window.__velia.m4.ui.setPro(true, { user: true }));
-    await o.page.mouse.move(640, 600); await o.page.mouse.move(650, 620); await o.page.waitForTimeout(1500);
-    const O = await col(o.page);
-    check(O.on && O.op > 0.9 && O.ids.join(' ') === 'cog tws twa vmg heel rud', `a stored "off", Pro switched on: the readings show (${O.ids.join(' ')}, opacity ${O.op})`);
-    check(await o.page.evaluate(() => JSON.parse(localStorage.getItem('lakeshore.settings.v1')).proMode === true), 'the switch is remembered (proMode, its only store)');
-    await o.page.close();
-    const n0 = await open(`${Q}&pro=1&navcol=0`);
-    check((await col(n0.page)).on === false, '?navcol=0: never');
-    await n0.page.close();
-    const n1 = await open(`${Q}&navcol=1`, { edgeInstruments: 'off' });
-    check((await col(n1.page)).on === true, '?navcol=1: shown whatever the setting');
-    await n1.page.close();
-    const errs = [...a.errors, ...o.errors, ...n0.errors, ...n1.errors];
-    check(errs.length === 0, `no page errors (${errs.join(' | ')})`);
+    const { ctx, page, errors } = await open(Q, { viewport: { width: 1920, height: 1080 }, keep: () => { try { localStorage.setItem('lakeshore.v2.prohud', JSON.stringify({ on: true })); } catch {} } });
+    await ready(page); await page.waitForTimeout(2500);
+    await layout(page, '1920x1080');
+    check(errors.length === 0, `1920x1080: no page errors (${errors.slice(0, 2).join(' | ') || 'none'})`);
+    await ctx.close();
   }
-} finally {
-  await browser.close();
-}
+  {
+    const { ctx, page } = await open(`${Q}&prohud=1&profile=form:tablet`);
+    await page.waitForFunction(() => window.__velia?.ready, null, { timeout: 240000 }); await page.waitForTimeout(1500);
+    check(await page.evaluate(() => !document.querySelector('.lk-proi') && !document.querySelector('.lk-nav')), 'a tablet (even with ?prohud=1): no panel, no column');
+    await ctx.close();
+  }
+} catch (e) {
+  check(false, `the run: ${String(e).split('\n')[0]}`);
+} finally { await browser.close(); }
 console.log(fails ? `${fails} FAILED` : 'all passed');
 process.exit(fails ? 1 : 0);

@@ -1,6 +1,7 @@
 // Setup holds only what has no other on-screen path (owner, 2026-11-17: "On my left I no longer see the Pro status even though I
 // toggled the Pro button … remove redundant settings from Setup if they can be done from the cockpit and the top bar").
-//   the cause    a stored edgeInstruments 'off' (v1's Setup › Aids row) hid the nav column while the cockpit's PRO was on
+//   the cause    a stored edgeInstruments 'off' (v1's Setup › Aids row) hid the nav column while the cockpit's PRO was on (v2's
+//                column has since gone: the Pro instruments panel, ui/proHud.js)
 //   the fix      v2 takes wind, weather, Pro, auto-reef and edge instruments off its card (setup.js REMOVED_ROWS) and reads a retired
 //                key as its default (v2Settings), so no old stored value can hide the column; v1's page and store are untouched
 import test from 'node:test';
@@ -12,7 +13,7 @@ import { WATERS, WATERS_SOON } from '../../src/sim/waters/index.js';
 import { VESSELS, VESSELS_SOON } from '../../src/sim/vessels/index.js';
 import { SETUP_ROWS, REMOVED_ROWS, RETIRED_KEYS, removeRows, v2Settings } from '../ui/setup.js';
 import { createNavColumn } from '../../src/ui/navColumn.js';
-import { mountNav } from '../ui/nav.js';
+import { createPassage } from '../../src/ui/passage.js';
 import { createServices } from '../../src/sim/core/services.js';
 
 const memStore = (init = {}) => { const m = new Map(Object.entries(init)); return { m, getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v) }; };
@@ -69,17 +70,12 @@ function column(stored, { pro }) {
     createElement: () => { const set = new Set(); const n = { children: [], style: {}, dataset: {}, textContent: '', setAttribute() {}, appendChild(c) { n.children.push(c); return c; }, remove() {},
       classList: { add: (c) => set.add(c), remove: (c) => set.delete(c), toggle: (c, on) => ((on ?? !set.has(c)) ? set.add(c) : set.delete(c)), contains: (c) => set.has(c) } };
       Object.defineProperty(n, 'className', { get: () => [...set].join(' '), set: (v) => { set.clear(); for (const c of String(v).split(/\s+/).filter(Boolean)) set.add(c); } }); return n; } };
-  const v2 = mountNav({ services, settings, getMode: () => 'sail', doc, win });
-  const v1 = createNavColumn({ services: { get: (k) => services.get(k), provide() {} }, settings, getMode: () => 'sail', passage: services.get('passage'), doc, win });
-  v2.update(); v2.update(); v1.update(); v1.update();
-  return { v2: v2.el.classList.contains('on'), v1: v1.el.classList.contains('on') };
+  const v1 = createNavColumn({ services: { get: (k) => services.get(k), provide() {} }, settings, getMode: () => 'sail', passage: createPassage({ services }), doc, win });
+  v1.update(); v1.update();
+  return { v1: v1.el.classList.contains('on') };
 }
 
-test('Pro decides the nav column on v2, whatever old Setup keys the store holds; v1 still honours its row', () => {
-  for (const edgeInstruments of [undefined, 'auto', 'off', 'always']) {
-    const stored = edgeInstruments ? { edgeInstruments } : {};
-    assert.equal(column(stored, { pro: true }).v2, true, `Pro on, stored ${edgeInstruments}: the column shows`);
-    assert.equal(column(stored, { pro: false }).v2, false, `Pro off, stored ${edgeInstruments}: the edge is empty`);
-  }
+// v2 has no nav column since 2026-11-25 (the Pro instruments panel, ui/proHud.js, has its own Setup row): v1 keeps its row
+test('v1 (/classic/) still honours its edge instruments row', () => {
   assert.equal(column({ edgeInstruments: 'off' }, { pro: true }).v1, false, 'v1 (/classic/) keeps its row: off hides it there');
 });

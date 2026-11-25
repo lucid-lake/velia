@@ -15,6 +15,8 @@
 //   const lean = createLeanSkipper({ phone, storage, busy });   // phone: createPhoneQuiet(...); busy(): a manoeuvre is under way
 //   createControlsHint({ ..., phoneQuiet: lean })                // controlsHint asks it through the phone rule's interface
 //   lean.gate(kind)                                              // another channel's line (Cruise's, Regatta's card): may it show now?
+// coachSays(): the Coach (src/ui/captainView.js coach) shows a word on the dial now; while it does, the skill model's trim and
+// steering tips (COACH_HINTS: the same advice) wait, so the advice is never said twice. MUST lines (the knockdown, the shore) stay.
 import { LINE as CALM_LINE } from '../../src/ui/calmHud.js';
 
 export const LEAN = Object.freeze({
@@ -74,6 +76,7 @@ export const LEAN_CLASS = Object.freeze({
   'officer.rc_wrong': MUST, 'officer.rc_pen_pst': MUST, 'officer.rc_pen_wl': MUST, 'officer.rc_pen_mark': MUST,
 });
 export const classOf = (kind) => LEAN_CLASS[kind] ?? CHAT;
+export const COACH_HINTS = Object.freeze(['pull', 'ease', 'irons', 'heavy']);   // the Coach's own words: pull in, ease out, bear away (in irons), ease or reef
 // A TIP that may show again (a nudge, not a lesson): at most max times a session, never within everyS of its own last showing, and
 // never once retired (lean.retire(kind): the player did it; kept in the same store as the once-ever marks). The gap and busy rules hold.
 export const LEAN_REPEAT = Object.freeze({ 'tip.tessie.be': Object.freeze({ everyS: 240, max: 3 }) });
@@ -97,7 +100,7 @@ export function textKind(text) {
 const PHONE_KIND = { 'mark.set': 'reply', 'refuse.plan': 'reply', 'refuse.mark': 'reply', 'refuse.pilot': 'reply', 'tip.plan': 'reply', 'nav.beat': 'reply', 'knock.warn': 'stuck' };
 const phoneKind = (kind) => PHONE_KIND[kind] ?? kind;
 
-export function createLeanSkipper({ phone = null, storage = globalThis.localStorage ?? null, busy = () => false, P = LEAN } = {}) {
+export function createLeanSkipper({ phone = null, storage = globalThis.localStorage ?? null, busy = () => false, coachSays = () => false, P = LEAN } = {}) {
   let t = 0, lastAt = -Infinity, mustAt = -Infinity;
   const holds = new Set();   // a channel's own manoeuvre (Regatta's mark rounding): hold('rounding', on)
   let seen = new Set();
@@ -130,7 +133,8 @@ export function createLeanSkipper({ phone = null, storage = globalThis.localStor
     wants(needs = []) {
       if (t - mustAt < P.mustHoldS) return [];
       const from = phoneOn() ? phone.wants(needs) : needs;
-      for (const n of from) { const k = `hint.${n.hint}`; if (classOf(k) === MUST || (classOf(k) === TIP && tipOk(k))) return [n]; }
+      let coach = false; try { coach = !!coachSays(); } catch { coach = false; }
+      for (const n of from) { const k = `hint.${n.hint}`; if (coach && COACH_HINTS.includes(n.hint)) continue; if (classOf(k) === MUST || (classOf(k) === TIP && tipOk(k))) return [n]; }
       return [];
     },
     said(name, o = {}) { const k = `hint.${name}`; lastAt = t; if (classOf(k) === TIP) remember(k); if (phoneOn()) phone.said(name, o); },

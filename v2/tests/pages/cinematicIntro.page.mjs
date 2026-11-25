@@ -81,11 +81,11 @@ try {
     check(errors.length === 0, `no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }
-  // ---- the 2D dial modules, the key legend and the Pro column stay off for the whole intro, and come back in Sail ----
+  // ---- the 2D dial modules, the key legend and the Pro instruments panel (?prohud=1) stay off for the whole intro, and come back in Sail ----
   {
-    const { page, ctx } = await open(browser, `${BASE}/?mode=sail&${Q}&cinema=1`);
+    const { page, ctx } = await open(browser, `${BASE}/?mode=sail&${Q}&cinema=1&prohud=1`);
     const drawn = () => page.evaluate(() => {
-      const sel = { wind: '.lk-cv', chart: '.lk-chart .small', keys: '.lk-keys:not(.tp-keys)', pro: '.lk-pro' };
+      const sel = { wind: '.lk-cv', chart: '.lk-chart .small', keys: '.lk-keys:not(.tp-keys)', pro: '.lk-proi' };
       const out = { on: document.documentElement.classList.contains('lk-intro-on'), phase: window.__velia.intro.state.phase, t: window.__velia.intro.state.t, hud: JSON.stringify(window.__velia.intro.state.hud) };
       for (const [k, q] of Object.entries(sel)) {
         out[k] = [...document.querySelectorAll(q)].some((e) => {
@@ -106,11 +106,11 @@ try {
     }
     check(n > 20 && beats.size > 1, `sampled the intro through its beats (${n} samples, ${beats.size} HUD states)`);
     check(!seen.has('wind') && !seen.has('chart'), `no dial module drawn at any beat (wind ${seen.get('wind') ?? 0}, chart ${seen.get('chart') ?? 0} of ${n} samples)`);
-    check(!seen.has('keys') && !seen.has('pro'), `no key legend or Pro column drawn at any beat (keys ${seen.get('keys') ?? 0}, pro ${seen.get('pro') ?? 0})`);
+    check(!seen.has('keys') && !seen.has('pro'), `no key legend or Pro instruments panel drawn at any beat (keys ${seen.get('keys') ?? 0}, pro ${seen.get('pro') ?? 0})`);
     await until(page, () => window.__velia.intro.state.phase === 'done', null, 15000);
     await page.waitForTimeout(1500);
     const e = await drawn();
-    check(e.phase === 'done' && !e.on && e.wind && e.chart, `after the handover in Sail: the intro class off, both modules drawn (wind ${e.wind}, chart ${e.chart})`);
+    check(e.phase === 'done' && !e.on && e.wind && e.chart && e.pro, `after the handover in Sail: the intro class off, both modules and the Pro panel drawn (wind ${e.wind}, chart ${e.chart}, pro ${e.pro})`);
     await ctx.close();
   }
   // ---- a key skips it ----

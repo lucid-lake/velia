@@ -6,6 +6,9 @@
 // that swing in and out with W/S and show their state by shape (a belly when drawing, a flutter when luffing, a hard
 // straight line when stalled), the rudder at the stern, and the no-go wedge about the true wind when you point too
 // high. Plain SVG in the DOM: no camera, no GPU.
+// coach (v2, the Coach: owner 2026-11-25): { cues(s, posId) → { main, jib, steer, heel, tack }, pro(), race(), gybeAwaDeg }: the
+// book's words on the drawn boat only when something needs doing, the point of sail, the tack, SPEED, WIND, "feels N" on the arrow;
+// PRO adds AWA, TWA and VMG, Regatta VMG. cv.coachSays: a word is on the dial now (the lean skipper holds the same tip).
 //
 //   const cv = createCaptainView({ state: () => phys.state });   // state(): the boat state (contract.js + crewSheet, mainStall, jibStall)
 //   cv.update(dt, { sinceUse })   // each frame; shows on use, fades `hold` s after; rests faint in a first session
@@ -95,13 +98,14 @@ const CSS = `
 .lk-cv .sect .a{stroke:rgb(var(--lk-cream) / .16)}
 .lk-cv .sect .b{stroke:rgb(var(--lk-cream) / .30)}
 .lk-cv .sect .on{stroke:rgb(var(--lk-cream) / .62)}
-/* the coach (v2 ?dials=v2, the mock stage): the boat dial as a new sailor's cheat sheet: the book's words on the drawn boat */
+/* the Coach (v2's dial modules, owner 2026-11-25): the boat dial as a new sailor's cheat sheet: the book's words on the drawn boat */
 .lk-cv.coach .inr{bottom:8%}
 .lk-cv.coach .rw{gap:.3em}
 .lk-cv.coach .rw b{font-size:var(--lk-fs-label)}
 .lk-cv.coach .rw.c1 b{font-size:var(--lk-fs-caption);letter-spacing:.02em;color:rgb(var(--lk-cream) / .9)}
 .lk-cv.coach .rw i{font-size:var(--lk-fs-caption)}
-.lk-cv.coach .rw i.f{letter-spacing:.02em;text-transform:none;color:var(--lk-ink-soft);margin-left:.2em}
+.lk-cv.coach .rw i.vm{margin-left:.45em}
+.lk-cv.coach .rw .tw{margin-left:.35em;color:var(--lk-ink-soft)}
 .lk-cv.coach .sh.warn{fill:rgb(var(--lk-amber))}
 .lk-cv .cg text{font-family:var(--lk-ui);font-weight:var(--lk-medium);paint-order:stroke;stroke:rgb(var(--lk-brand-navy) / .88);stroke-width:3.2px;stroke-linejoin:round;fill:rgb(var(--lk-cream) / .92);vector-effect:none}
 .lk-cv .cg text.warn{fill:rgb(var(--lk-amber))}
@@ -200,7 +204,7 @@ export function createCaptainView({ root = document.body, state = () => null, on
     </g>
     <g class="windg"><path class="ln wind" d="M0 0 L0 0"/><path class="ln wind head" d=""/></g>
     <path class="ln trend" d="" style="opacity:0"/>
-    ${coach ? '<g class="cg"><text class="ng" text-anchor="middle"></text><text class="ww soft"></text><text class="lw soft"></text><text class="tg main warn" text-anchor="middle"></text><text class="tg jib warn" text-anchor="middle"></text><text class="sc warn" text-anchor="middle"></text><text class="fw soft" text-anchor="middle"></text></g>' : ''}
+    ${coach ? '<g class="cg"><text class="ng" text-anchor="middle"></text><text class="ww soft"></text><text class="lw soft"></text><text class="tg main warn" text-anchor="middle"></text><text class="tg jib warn" text-anchor="middle"></text><text class="sc warn" text-anchor="middle"></text><text class="fw soft" text-anchor="middle"></text><text class="aw soft" text-anchor="middle"></text></g>' : ''}
     ${PLAN}
     <path class="ln target" d=""/>
     <path class="hit hsail" data-k="main" d=""/>
@@ -317,54 +321,65 @@ export function createCaptainView({ root = document.body, state = () => null, on
     if (posEl || coach) posId = pointOfSail(twa / DEG, posId);
     if (posEl) { const L = pointLabel(posId); if (posEl.textContent !== L) posEl.textContent = L; }
     drawSectors(sectors() ? twa : null);
-    if (coach) drawCoach(s, { awa, aws, twa, bx, by, sm, sj, w, tx, ty });
+    if (coach) drawCoach(s, { awa, aws, twa, bx, by, sm, sj, tx, ty });
   }
   // ---- the coach: each sail's word on the sail, the helm's word at the bow, windward and leeward, the no-go zone, the readings ----
   const cq = (c) => el.querySelector(c);
-  const C = coach ? { ng: cq('.cg .ng'), ww: cq('.cg .ww'), lw: cq('.cg .lw'), tm: cq('.cg .tg.main'), tj: cq('.cg .tg.jib'), sc: cq('.cg .sc'), fw: cq('.cg .fw'), r1: cq('.rw.c1'), r2: cq('.rw.c2'), r3: cq('.rw.c3') } : null;
+  const C = coach ? { ng: cq('.cg .ng'), ww: cq('.cg .ww'), lw: cq('.cg .lw'), tm: cq('.cg .tg.main'), tj: cq('.cg .tg.jib'), sc: cq('.cg .sc'), fw: cq('.cg .fw'), aw: cq('.cg .aw'), r1: cq('.rw.c1'), r2: cq('.rw.c2'), r3: cq('.rw.c3') } : null;
   const setT = (n, text, x, y, anchor) => { if (n.textContent !== text) n.textContent = text; if (!text) return; n.setAttribute('x', f1(x)); n.setAttribute('y', f1(y)); n.setAttribute('font-size', f1(FS)); if (anchor) n.setAttribute('text-anchor', anchor); };
   const setH = (n, html) => { if (n._h !== html) { n._h = html; n.innerHTML = html; } };
   const toDial = (p) => [50 + (p[0] - 50) * PLAN_K, PLAN_AT + (p[1] - 50) * PLAN_K];
-  function drawCoach(s, { awa, aws, twa, bx, by, sm, sj, w, tx, ty }) {
-    const lvl = coach.level?.() ?? 'new', isNew = lvl === 'new', words = lvl !== 'race';
+  // One design for every player (owner, 2026-11-25): a word shows only when something needs doing (a sail luffing or stalled, an
+  // overpowered boat, a sheet at its stop, in irons); the colours, the point of sail, the tack, windward and leeward, SPEED, WIND and
+  // "feels" always. coach.pro(): the PRO switch adds AWA by the arrow, TWA by the point of sail and VMG at the foot; coach.race():
+  // VMG at the foot in Regatta.
+  let saying = false;
+  function drawCoach(s, { awa, aws, twa, bx, by, sm, sj, tx, ty }) {
+    const pro = !!coach.pro?.(), race = !!coach.race?.();
     const cues = coach.cues?.(s, posId) ?? {};
     const KNf = (v) => (v * KN);
-    // the sails: amber while luffing or stalled; the word beside the clew (New), the colour alone after
+    // the sails: amber while luffing or stalled; the word beside the clew while a sheet can still fix it
     const tagY = [];
+    let said = false;
     for (const [sail, path, tag, sh] of [['main', main, C.tm, sm], ['jib', jib, C.tj, sj]]) {
       const c = cues[sail] ?? { state: 'draw', word: '' };
-      path.classList.toggle('warn', c.state !== 'draw');
-      const word = isNew && !(c.atStop) ? (sail === 'main' && cues.heel ? cues.heel : c.word) : '';
-      if (sail === 'main' && cues.heel && isNew) path.classList.add('warn');
+      const heel = sail === 'main' && cues.heel ? cues.heel : '';
+      path.classList.toggle('warn', c.state !== 'draw' || !!heel);
+      const word = heel || (c.atStop ? '' : c.word);
       const [cx, cy] = toDial(sh.clew), side = Math.sign(cx - 50) || 1;
       const ty2 = clamp(cy + FS * (sail === 'jib' ? -0.2 : 1.1), 24, 58);
       setT(tag, word, clamp(cx + side * FS * 0.6, 14 + FS * 1.6, 86 - FS * 1.6), ty2);
-      if (word) tagY.push(ty2);
+      if (word) { tagY.push(ty2); said = true; }
     }
-    // the helm's word over the bow (bear away, head up, the gybe zone)
+    // the helm's word over the bow (bear away, head up; the gybe zone): bear away turns the bow to leeward, head up to windward
     const gz = Math.abs(awa) > (coach.gybeAwaDeg ?? 165) * DEG;
-    const ws0 = awa >= 0 ? 1 : -1, steer = isNew ? (cues.steer || (gz ? 'gybe zone' : '')) : '';
-    // bear away turns the bow to leeward, head up to windward: the word sits on that side of the bow
-    setT(C.sc, steer, 50 + (cues.steer === 'bear away' ? -ws0 : cues.steer === 'head up' ? ws0 : 0) * 17, 50 - 35 + FS * 0.35);
-    // the no-go zone's name beside the wedge's bow-side edge (New), only while the bow is within 25° of it
-    const nearNoGo = Math.abs(awa) < w + 25 * DEG, ea = awa - Math.sign(awa || 1) * w * 0.55;
-    setT(C.ng, isNew && nearNoGo && !steer ? 'no-go' : '', bx + Math.sin(ea) * 31, by - Math.cos(ea) * 31 + FS * 0.35);
-    // the felt wind's speed on the arrow's tail (New): the arrow is the wind she feels
-    const ux = Math.sin(awa), uy = -Math.cos(awa), awsK0 = Math.round(KNf(aws));
-    setT(C.fw, isNew && !steer ? `feels ${awsK0}` : '', clamp(tx - ux * 8 + (-uy) * FS * 1.0 * Math.sign(ux || 1), 14 + FS * 2.2, 86 - FS * 2.2), clamp(ty - uy * 8 + ux * FS * 1.0 * Math.sign(ux || 1) + FS * 0.35, 12, 60));
-    // windward (the side the wind comes from) and leeward, near the rim (New): below the arrow when it is forward of the beam, above it aft
-    const ws = awa >= 0 ? 1 : -1, aft = Math.abs(awa) > 90 * DEG, yW0 = aft ? by - FS * 1.9 : by + FS * 2.6;
-    const yW = [yW0, yW0 - FS * 1.3, yW0 - FS * 2.6].find((y) => tagY.every((t) => Math.abs(t - y) > FS * 1.15)) ?? yW0;
-    setT(C.ww, isNew ? 'windward' : '', 50 + ws * 43, yW, ws > 0 ? 'end' : 'start');
-    const lwY = [by + FS * 2.6, by + FS * 0.6, by - FS * 1.4].find((y) => tagY.every((t) => Math.abs(t - y) > FS * 1.15)) ?? by + FS * 2.6;
-    setT(C.lw, isNew ? 'leeward' : '', 50 - ws * 43, lwY, ws > 0 ? 'start' : 'end');
-    // the readings: the point of sail and the tack; the boat's speed; the wind, real and felt
-    const tk = cues.tack ?? '', sog = KNf(s.sog ?? 0).toFixed(1), tws = Math.round(KNf(s.trueWind?.speed ?? 0)), awsK = Math.round(KNf(aws));
-    const tkChip = tk ? `<em class="side ${tk === 'port' ? 'p' : 's'}">${isNew ? (tk === 'port' ? 'port tack' : 'stbd tack') : tk === 'port' ? 'P' : 'S'}</em>` : '';
+    const ws = awa >= 0 ? 1 : -1, steer = cues.steer || (gz ? 'gybe zone' : '');
+    setT(C.sc, steer, 50 + (cues.steer === 'bear away' ? -ws : cues.steer === 'head up' ? ws : 0) * 17, 50 - 35 + FS * 0.35);
+    // the no-go zone's name: only in irons, in the wedge
+    const irons = posId === 'irons';
+    setT(C.ng, irons ? 'no-go' : '', bx + Math.sin(awa) * 31, by - Math.cos(awa) * 31 + FS * 0.35);
+    saying = said || !!cues.steer || irons;
+    // the felt wind's speed on the arrow's tail: the arrow is the wind she feels (it steps aside for a steering word)
+    const ux = Math.sin(awa), uy = -Math.cos(awa), sx = Math.sign(ux || 1);
+    const fwx = clamp(tx - ux * 8 + (-uy) * FS * sx, 14 + FS * 2.2, 86 - FS * 2.2), fwy = clamp(ty - uy * 8 + ux * FS * sx + FS * 0.35, 12, 60);
+    setT(C.fw, steer ? '' : `feels ${Math.round(KNf(aws))}`, fwx, fwy);
+    // PRO: the apparent wind angle on the arrow's other side
     const aw = Math.round(Math.abs(awa) / DEG);
-    setH(C.r1, words ? `<b>${pointLabel(posId)}</b>${tkChip}` : `<i>AWA</i><b>${aw}°</b>${tkChip}`);
-    setH(C.r2, isNew ? `<i>SPEED</i><b>${sog}</b><small>kn</small>` : `<i>SOG</i><b>${sog}</b><small>kn</small>`);
-    setH(C.r3, isNew ? `<i>WIND</i><b>${tws}</b><small>kn</small>` : `<i>TWS</i><b>${tws}</b><i>AWS</i><b>${awsK}</b><small>kn</small>`);
+    setT(C.aw, pro && !steer ? `${aw}°` : '', clamp(tx - ux * 14 - (-uy) * FS * 1.1 * sx, 14 + FS, 86 - FS), clamp(ty - uy * 14 - ux * FS * 1.1 * sx + FS * 0.35, 12, 60));
+    // windward (the side the wind comes from) and leeward, near the rim, clear of the sails' words
+    const aft = Math.abs(awa) > 90 * DEG, yW0 = aft ? by - FS * 1.9 : by + FS * 2.6;
+    const yW = [yW0, yW0 - FS * 1.3, yW0 - FS * 2.6].find((y) => tagY.every((t) => Math.abs(t - y) > FS * 1.15)) ?? yW0;
+    setT(C.ww, 'windward', 50 + ws * 43, yW, ws > 0 ? 'end' : 'start');
+    const lwY = [by + FS * 2.6, by + FS * 0.6, by - FS * 1.4].find((y) => tagY.every((t) => Math.abs(t - y) > FS * 1.15)) ?? by + FS * 2.6;
+    setT(C.lw, 'leeward', 50 - ws * 43, lwY, ws > 0 ? 'start' : 'end');
+    // the readings: the point of sail (PRO: its TWA) and the tack; the boat's speed; the wind (PRO or Regatta: VMG)
+    const tk = cues.tack ?? '', sog = KNf(s.sog ?? 0).toFixed(1), tws = Math.round(KNf(s.trueWind?.speed ?? 0));
+    const tkChip = tk ? `<em class="side ${tk === 'port' ? 'p' : 's'}">${tk === 'port' ? 'port tack' : 'stbd tack'}</em>` : '';
+    const twaT = pro ? `<span class="tw">${Math.round(Math.abs(twa) / DEG)}°</span>` : '';
+    setH(C.r1, `<b>${pointLabel(posId)}${twaT}</b>${tkChip}`);
+    setH(C.r2, `<i>SPEED</i><b>${sog}</b><small>kn</small>`);
+    const vmg = pro || race ? `<i class="vm">VMG</i><b>${Math.abs(KNf(s.sog ?? 0) * Math.cos(twa)).toFixed(1)}</b>` : '';
+    setH(C.r3, `<i>WIND</i><b>${tws}</b><small>kn</small>${vmg}`);
   }
   // the ring: each point of sail an arc on both sides of the true wind (bow up), alternately faint and fainter, the boat's own brighter;
   // the bow's mark at the top falls in the sector she sails
@@ -421,5 +436,5 @@ export function createCaptainView({ root = document.body, state = () => null, on
   }
   function toggle() { if (always) return mode; mode = { auto: 'pinned', pinned: 'off', off: 'auto' }[mode]; return mode; }
   function dispose() { disposed = true; removeEventListener('resize', applyPlan); planRo?.disconnect(); el.remove(); }
-  return { update, toggle, dispose, el, draw, get drag() { return drag; }, get hover() { return hover; }, get mode() { return mode; }, get pinned() { return mode === 'pinned'; }, get visible() { return visible; }, get alpha() { return a; } };
+  return { update, toggle, dispose, el, draw, get drag() { return drag; }, get hover() { return hover; }, get mode() { return mode; }, get pinned() { return mode === 'pinned'; }, get visible() { return visible; }, get alpha() { return a; }, get coachSays() { return saying; } };
 }

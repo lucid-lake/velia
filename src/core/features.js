@@ -306,6 +306,11 @@ export const POLICIES = Object.freeze({
     why: 'the performance stats top-right (FPS, the worst frame, the level and scale, draws, GPU memory, the adapter) with the cockpit up, a desktop only',
     tier: (p, c) => (c.flags.perfhud === '0' || p.form !== 'desktop' ? 'off' : c.flags.perfhud === '1' ? 'on'
       : c.headless || c.flags.filmui === true || c.flags.filmui === '1' || (c.flags.shot != null && c.flags.shot !== '') || globalThis.navigator?.webdriver ? 'off' : 'on') },
+  // the Pro instruments panel (2026-11-25; v2/ui/proHud.js): the performance panel's twin at the top-left, a desktop only (a layout
+  // row beside the top bar and the cockpit). On: the page may show it (Setup's stored choice, off by default, and the cockpit decide)
+  proHud: { fixed: true, axes: 'form', aliases: '?prohud=0 (off), ?prohud=1 (on for this load), ?profile=form:tablet',
+    why: 'the Pro instruments top-left (COG, TWA, VMG, AWA, HEEL, RUD) with the cockpit up, a desktop only; it replaced the nav column',
+    tier: (p, c) => (c.flags.prohud === '0' || p.form !== 'desktop' ? 'off' : 'on') },
   levelRetry: { fixed: true, axes: 'quirks', aliases: '',
     why: 'a level settled on the frame interval alone is retried one up, unless this GPU compiles slowly (slow-compiler)',
     tier: (p) => (p.quirks.includes('slow-compiler') ? 'off' : 'on') },
