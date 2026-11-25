@@ -91,7 +91,7 @@ export const FLAT_ROWS = [
 export const KEY_TESSIE = { id: 'tessie', title: 'Tessie', note: 'Drag to look. Esc opens the menu.', rows: [
   { id: 't-swim', k: ['WASD'], codes: ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], alt: ['↑', '↓', '←', '→'], v: 'swim', g: 'about the camera: W away from it', modes: ['tessie'] },
   { id: 't-dash', k: ['1', '⇧'], codes: ['Digit1', 'ShiftLeft', 'ShiftRight'], v: 'dash', g: 'a burst of speed, then a cooldown', modes: ['tessie'] },
-  { id: 't-bite', k: ['Space'], codes: ['Space', 'KeyF'], v: 'bite', g: 'or F', modes: ['tessie'] },
+  { id: 't-bite', k: ['Space', 'click'], codes: ['Space'], v: 'bite', g: 'Space, or a left click on the water', modes: ['tessie'] },   // no F (owner, 2026-11-24)
   { id: 't-updown', k: ['E', 'Q'], codes: ['KeyE', 'KeyQ'], v: 'up, down', g: 'held', modes: ['tessie'] },
   { id: 't-view', k: ['C'], codes: ['KeyC'], v: 'first or third person', modes: ['tessie'] },
   { id: 't-swap', k: ['T'], codes: ['KeyT'], v: 'be Tessie, back to the Halcyon', g: 'in Sail while she shows herself', modes: ['sail', 'tessie'] },

@@ -44,8 +44,8 @@ test('the sonar: boats about her heading (ahead up, right right), 160 m at the r
   assert.deepEqual(sonarBlips(null, boats), []);
 });
 
-test('the legend: Swim W A S D, Dash 1 / ⇧, Bite Space (SPC), Up / Down E Q, View C, Halcyon T; a line dims after 3 uses and never hides', () => {
-  assert.deepEqual(LEGEND.map((l) => `${l.word} ${l.caps.join(' ')}`), ['Swim W A S D', 'Dash 1 ⇧', 'Bite Space', 'Up / Down E Q', 'View C', 'Halcyon T']);
+test('the legend: Swim W A S D, Dash 1 / ⇧, Bite Space (SPC) or click, Up / Down E Q, View C, Halcyon T; a line dims after 3 uses and never hides', () => {
+  assert.deepEqual(LEGEND.map((l) => `${l.word} ${l.caps.join(' ')}`), ['Swim W A S D', 'Dash 1 ⇧', 'Bite Space click', 'Up / Down E Q', 'View C', 'Halcyon T']);
   assert.equal(legendLineOf('ShiftLeft'), 'dash'); assert.equal(legendLineOf('Digit1'), 'dash'); assert.equal(legendLineOf('Digit2'), null); assert.equal(legendLineOf('ArrowUp'), 'swim'); assert.equal(legendLineOf('KeyR'), null);
   const L = legendLevels({ dash: 3, view: 2 });
   assert.equal(L.length, 6, 'every line stays');

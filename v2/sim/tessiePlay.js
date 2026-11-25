@@ -8,7 +8,7 @@
 //                                       the camera's pitch minus its neutral, rad, + down; phase 1's pitch is read when look is absent),
 //                                       rise (E or ▲ held), sink (Q or ▼ held), lookSteers (false on a tablet), sprint (Shift held: its
 //                                       press is the dash), dash (a dash press this step: the tablet's DASH slot, a pose), bite
-//                                       (Space or F held) }; target: the corners' boat ({ id, x, z, heading, u, d, inReach } or null)
+//                                       (Space held, or a click's pulse) }; target: the corners' boat ({ id, x, z, heading, u, d, inReach } or null)
 //   C.result(hit)                       the page's verdict on the last 'fall' (v2/sim/tessieHits.js): 'Got them!' or the sulk
 //   C.skills                            her skills (v2/sim/tessieSkills.js): C.skills.state('dash') → { phase, k (the ring), level }
 //   C.state  { on, speed, want, dash (the burst runs), sprint (the same: the bubbles read it), noseWant, nose (m under the surface), word,
@@ -42,7 +42,7 @@
 // The strike (step 5; it replaced the run, the breach onto the boat and the 6 s sulk: press to the hit test
 // was 4.2 s, 8–10 s with no steering after a miss, a 24 m/s² brake): one state machine, swim → windup → strike → follow → recover → swim
 // (the bites: sim/tessie.js BITE2) and rise → breach → recover (the breaches), each beat blended in over 0.08 s; no beat sets her speed or
-// her target in one frame. Space (or F) picks the bite by what she is doing:
+// her target in one frame. Space (or a left click) picks the bite by what she is doing:
 //   the dash bite (B3)   during the dash or within PLAY.dashBiteS after it: no wind-up, the strike at 0.25 s, the knockdown × 1.15
 //   the rising strike (R1) locked from PLAY.strikeFrom m or deeper: the warning's rings 1.5 s, the rise at 6 m/s onto a spot off its beam,
 //                        the breach (up 1.1, hang 0.35, down 0.9 s: 2.35 s), her fall the hit (a footprint of 3.5 m while locked)
@@ -104,7 +104,7 @@ export const PLAY = Object.freeze({
 // "Got them!" and "Next time…" are gone). Plain text; [K] marks a key cap (the player draws it as the hint line's .cap; a tablet's
 // lines name no key). Whole short sentences.
 export const LINES = Object.freeze({
-  tip: 'Drag to look. [W][A][S][D] to swim, [⇧] or [1] to dash, [SPC] to bite.', tipTouch: 'Use the stick to swim and drag to look. Tap DASH to dash and Bite to bite.',
+  tip: 'Drag to look. [W][A][S][D] to swim, [⇧] or [1] to dash, [SPC] or click to bite.', tipTouch: 'Use the stick to swim and drag to look. Tap DASH to dash and Bite to bite.',
   fast: 'Faster below the surface. Hold [Q] to dive.', fastTouch: 'Faster below the surface. Hold ▼ to dive.',
   dash: '[⇧] or [1] gives a burst of speed.', dashTouch: 'Tap DASH for a burst of speed.', look: 'Look up to see the boats.' });
 const DEG = Math.PI / 180;
@@ -371,7 +371,7 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       }
       const off = wrap(st.psiWant - n.psi); if (Math.abs(off) > 25 * DEG) { st.psiWant = wrap(n.psi + Math.sign(off) * 25 * DEG); if (Math.sign(st.omega) === Math.sign(off)) st.omega = clamp(st.omega, -rate, rate); }
       if (way == null && !lk) st.psiWant = wrap(n.psi + wrap(st.psiWant - n.psi) * Math.max(0, 1 - dt * 0.5));   // let go: she settles on the way she faces
-      // the bite (Space or F): a press is held bufS; it fires when nothing is striking and the cooldown is over
+      // the bite (Space or a left click): a press is held bufS; it fires when nothing is striking and the cooldown is over
       const biteNow = !!(bite || lunge), pressEdge = biteNow && !lungeWas; lungeWas = biteNow;
       if (pressEdge) st.buf = K.bufS;
       st.rest = Math.max(0, st.rest - dt);
