@@ -16,7 +16,7 @@
 [![WebGPU](https://img.shields.io/badge/WebGPU-raw_WGSL-1C2340.svg)](v2/README.md)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support_Velia-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/lucidlake)
 
-<a href="https://velia.lucidlakelabs.com"><img src="docs/album/01-rainbow.jpg" alt="Velia: a rainbow over Lake Tahoe after a storm, a sloop heeled in the rough water" width="100%"></a>
+<a href="https://velia.lucidlakelabs.com"><img src="docs/album/07-heeled.jpg" alt="Velia: a sloop heeled in a fresh breeze on Lake Tahoe, white clouds over the forested shore" width="100%"></a>
 
 </div>
 
