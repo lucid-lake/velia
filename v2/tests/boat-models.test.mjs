@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import { parseGlb } from '../engine/gltf.js';
 import { buildLifeRing, ORANGE } from '../render/boat/lifeRing.js';
-import { buildBoatModels, v1Material, KIND, MAT_FLOATS, RANGES, faded, hexLinear, whiteData } from '../render/boat/models.js';
+import { buildBoatModels, v1Material, KIND, MAT_FLOATS, RANGES, faded, hexLinear, whiteData, hullSkin, sheerFn } from '../render/boat/models.js';
 import { packGlb, BOAT_MODELS } from '../../tools/build/glb-pack.mjs';
 import { DEFAULT_DIMS } from '../../src/sim/boat/dims.js';
 import CANVAS from '../../src/boat/canvas.json' with { type: 'json' };
@@ -114,4 +114,37 @@ test('the life ring: international orange vinyl, four tape bands, four grab-line
   assert.ok(Math.abs((mx[0] + mn[0]) / 2 - 1.34) < 0.01 && Math.abs((mx[2] + mn[2]) / 2 - 3.983) < 0.01);
   // the built set carries the orange material and no strip of the old teak-coloured pad on the ring
   assert.ok(SET.materialNames.includes('lifering_vinyl') && SET.materialNames.includes('lifering_tape') && SET.materialNames.includes('lifering_line'));
+});
+
+// the race livery (2026-11-25): hull.glb's gelcoat split into the deck and the hull's own skin (hullSkin): the skin under the sheer
+// line, side-facing, on its own material with its depth under the sheer in uv.x; the deck, the trunk and the well keep the gelcoat
+test('the race livery: the hull skin is its own material under the sheer, the deck and trunk stay gelcoat, a partial dims throws', () => {
+  const li = SET.records.findIndex((r) => r.name === 'hull_livery'), gi = SET.records.findIndex((r) => r.name === 'gelcoat');
+  assert.ok(li >= 0 && gi >= 0); assert.equal(SET.records[li].kind, KIND.livery); assert.equal(SET.records[gi].kind, KIND.gelcoat);
+  const sheer = sheerFn(DEFAULT_DIMS);
+  let nL = 0, nG = 0, lowSideGel = 0, trunkLivery = 0;
+  for (let t = 0; t < SET.index.length; t += 3) {
+    const i0 = SET.index[t], m = SET.mat[i0]; if (m !== li && m !== gi) continue;
+    const c = [0, 1, 2].map((k) => (SET.position[SET.index[t] * 3 + k] + SET.position[SET.index[t + 1] * 3 + k] + SET.position[SET.index[t + 2] * 3 + k]) / 3);
+    const ny = SET.normal[i0 * 3 + 1];
+    if (m === li) {
+      nL++;
+      assert.ok(c[1] < sheer(c[2]) + 0.04, `skin over the sheer at ${c}`);
+      for (let k = 0; k < 3; k++) { const i = SET.index[t + k]; assert.ok(Math.abs(SET.uv[i * 2] - (sheer(SET.position[i * 3 + 2]) - SET.position[i * 3 + 1])) < 1e-4, 'uv.x is the depth under the sheer'); }
+      if (c[1] > sheer(c[2]) + 0.03 && Math.abs(c[0]) < 0.6) trunkLivery++;
+    } else {
+      nG++;
+      // a gelcoat face low on the side at the hull's beam would be unpainted hull: none (the well walls are inboard, the trunk is higher)
+      if (Math.abs(ny) < 0.5 && c[1] < 0.85 && Math.abs(c[0]) > 1.2) lowSideGel++;
+    }
+  }
+  assert.ok(nL > 3000 && nG > 3000, `${nL} skin, ${nG} deck triangles`);
+  assert.equal(lowSideGel, 0); assert.equal(trunkLivery, 0);
+  // the hull skin: a face at the beam amidships is skin; the well wall (inward) and the trunk side (over the sheer) are not
+  assert.equal(hullSkin([1.5, 0.5, 0], [1, 0, 0], sheer), true);
+  assert.equal(hullSkin([0.9, 0.7, 2.5], [-1, 0, 0], sheer), false);
+  assert.equal(hullSkin([0.8, 1.2, 0], [1, 0, 0], sheer), false);
+  assert.equal(hullSkin([0.3, 0.5, 4.5], [0, 0.3, 0.95], sheer), true, 'the transom');
+  assert.equal(hullSkin([0, 0.7, 1.4], [0, 0.2, 0.98], sheer), false, 'the companionway face');
+  assert.throws(() => buildBoatModels(Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, parseGlb(v)])), { dims: { HULL: { freeboard: 0.95, anchorPin: [0, 1, -4], throttle: null } }, canvas }), /loa/);
 });

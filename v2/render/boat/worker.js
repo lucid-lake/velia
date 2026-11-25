@@ -2,7 +2,7 @@
 // did), parse them (engine/gltf.js), build v1's boat (boat/models.js: the placements, materials, LOD sets, the merged
 // vertex set), and decode the images into texture layers with their mips (createImageBitmap, resized per level). All of it
 // off the main thread; the arrays and bitmaps come back transferred. The page uploads them a slice a frame.
-//   post { urls: { hull, cockpit, hardware, wheel }, hull: { freeboard, anchorPin, throttle }, canvas: { canvas, trim }, texSize }
+//   post { urls: { hull, cockpit, hardware, wheel }, hull: { freeboard, anchorPin, throttle, loa, lwl, beam, transomZ }, canvas: { canvas, trim }, texSize }
 //   → { set, bitmaps: [[ImageBitmap per mip] per image], wireBytes, files, buildMs, decodeMs } | { error }
 import { parseGlb, gunzipMaybe, imageBytes } from '../../engine/gltf.js';
 import { buildBoatModels } from './models.js';

@@ -7,14 +7,15 @@
 // frame (origin at the mast step: src/sim/boat/dims.js); the boom in its own frame (spars.js buildSpars).
 import { gkDesc, gkClew, GK_DRAW } from './gennaker.js';   //: the gennaker's sheet and tack line
 import { DEFAULT_DIMS } from '../../../src/sim/boat/dims.js';
-import { MeshData, solveRig, buildSpars, sparsFor, wireArrays, srgb } from '../../../src/boat/spars.js';
+import { MeshData, solveRig, buildSpars, sparsFor, wireArrays, srgb, MAT as SPAR_MAT } from '../../../src/boat/spars.js';
 import { mainPoint, jibPoint, sailParams, boomPoint, jibClew, insideMain, offMast, LUFF_Z, RIG as RIG_DEFAULT } from '../../../src/boat/rig.js';
 import { COCKPIT as CK, toRig } from '../../../src/boat/cockpitPoints.js';
 import { hullShape, toHull } from './hullShape.js';
 
 // the art bible's colours (blender/m1_hull.py P.colours, linear RGB) and the materials (metalness, roughness)
+// the race livery (2026-11-25): the boot top cream (boatModels.js LIV_CREAM; the tinted topsides start over it, boat.js topsides())
 export const HULL_COL = Object.freeze({
-  bottom: [0.0137, 0.0232, 0.0409], boot: [0.0137, 0.0307, 0.0497], topsides: [0.80, 0.785, 0.745], tide: [0.74, 0.715, 0.655],
+  bottom: [0.0137, 0.0232, 0.0409], boot: [0.80, 0.77, 0.70], topsides: [0.80, 0.785, 0.745], tide: [0.74, 0.715, 0.655],
   stripe: [0.024, 0.034, 0.109], deck: [0.80, 0.79, 0.755], nonskid: [0.672, 0.655, 0.610], window: [0.0103, 0.0152, 0.0185],
   keel: [0.0137, 0.0232, 0.0409],
 });
@@ -156,6 +157,20 @@ export function buildRigParts(dims = DEFAULT_DIMS) {
   const rig = solveRig(sparsFor(dims)), g = buildSpars(rig);
   return { rig, mast: { ...g.mast.arrays(), triangles: g.mast.triangleCount }, boom: { ...g.boom.arrays(), triangles: g.boom.triangleCount }, wires: g.wires, furler: g.furler };
 }
+// the race look (2026-11-25): v1's anodised spars in carbon: every vertex in the aluminium colour (the mast's and boom's extrusions,
+// the spreaders) goes to a clear-coated carbon (a near-black dielectric at a satin gloss: the sky's mirror on it reads as the weave's
+// sheen); the fittings, the track, the steel and the boots keep their colours. v2 only: src/boat/spars.js (v1's too) is untouched
+export const SPAR_CARBON = Object.freeze({ c: Object.freeze([0.028, 0.030, 0.034]), mr: Object.freeze([0.0, 0.30]) });
+export function carbonSpars(parts, from = SPAR_MAT.alu.c, to = SPAR_CARBON) {
+  for (const m of [parts.mast, parts.boom]) {
+    const c = m.color, mr = m.mr;
+    for (let i = 0, k = 0; i < c.length; i += 3, k += 2) {
+      if (Math.abs(c[i] - from[0]) > 1e-4 || Math.abs(c[i + 1] - from[1]) > 1e-4 || Math.abs(c[i + 2] - from[2]) > 1e-4) continue;
+      c[i] = to.c[0]; c[i + 1] = to.c[1]; c[i + 2] = to.c[2]; mr[k] = to.mr[0]; mr[k + 1] = to.mr[1];
+    }
+  }
+  return parts;
+}
 
 // --- the sails: a (nu + 1) × (nv + 1) grid, its steady shape from rig.js, filled when the trim changes ---------------
 export function sailGrid(nu, nv) {
@@ -234,7 +249,9 @@ export function sag(a, b, slack, n = SEGS, floor = SIDE + 0.02) {
 const legs = (pts, slacks, floor) => pts.slice(1).flatMap((p, i) => sag(pts[i], p, slacks[i] ?? 0, Math.max(4, Math.round(SEGS / (pts.length - 1))), floor).slice(i ? 1 : 0));
 // pro: trav −1 … +1 (state.traveller; + up to windward) moves the car up to 0.35 m off the boom's block, to windward or leeward (v1's lines.js)
 export const travellerCarX = (boomRad, trav = 0) => Math.max(-0.58, Math.min(0.58, boomPoint(boomRad, DECKPTS.traveller(0)[2] - 0.12)[0] * 0.6 - (Math.sign(boomRad) || 1) * 0.35 * trav));
-const ROPE = { sheet: srgb(0xe8e4da), mainHal: srgb(0x4a5a70), jibHal: srgb(0x6b7a5a), jack: srgb(0x3a3f45) };
+// the race look (2026-11-25): colour-coded lines, the Velia palette: the sheets cream, the jib sheets navy, the main halyard brass,
+// the jib halyard navy, the lazy jacks and the topping lift graphite (red and green stay the lights' and the marks')
+const ROPE = { sheet: srgb(0xe8e4da), jibSheet: srgb(0x2b3f6b), mainHal: srgb(0xb08e4c), jibHal: srgb(0x2b3f6b), jack: srgb(0x3a3f45) };
 
 // the line set for one physics state: [{ name, points, diameterM, color }], RIG frame
 export function lineSet(state, t = 0) {
@@ -247,10 +264,10 @@ export function lineSet(state, t = 0) {
     out.push({ name: `mainsheet-${k}`, points: sag([blk[0] + o, blk[1], blk[2]], [car[0] + o, car[1], car[2]], 0.002 + 0.012 * eased + 0.006 * (1 - p.main.fill), 10, CABIN), diameterM: 0.010, color: ROPE.sheet });
   }
   const clew = jibClew(p.jib, t), work = Math.sign(p.jib.sheetRad) || -1;
-  out.push({ name: 'jibsheet-working', points: legs([clew, DECKPTS.jibCar(work, p.jib.lead ?? 0), DECKPTS.winch(work)], [0.003 + 0.012 * (1 - p.jib.fill), 0.01]), diameterM: 0.010, color: ROPE.sheet });
+  out.push({ name: 'jibsheet-working', points: legs([clew, DECKPTS.jibCar(work, p.jib.lead ?? 0), DECKPTS.winch(work)], [0.003 + 0.012 * (1 - p.jib.fill), 0.01]), diameterM: 0.010, color: ROPE.jibSheet });
   const lazy = legs([clew, [0, CABIN + 0.04, -0.3], [-work * 0.45, CABIN + 0.03, 0.4], DECKPTS.jibCar(-work), DECKPTS.winch(-work)], [0.04, 0.02, 0.03, 0.02], CABIN)
     .map((q, i, arr) => (i === 0 || i === arr.length - 1 ? q : [q[0], Math.max(q[1], Math.abs(q[0]) > 0.9 ? SIDE + 0.02 : CABIN + 0.02), q[2]]));
-  out.push({ name: 'jibsheet-lazy', points: lazy, diameterM: 0.010, color: ROPE.sheet });
+  out.push({ name: 'jibsheet-lazy', points: lazy, diameterM: 0.010, color: ROPE.jibSheet });
   const mh = mainPoint(0, 1, p.main);
   const halyard = (name, top, sx, k, color) => {
     const exit = [sx * 0.03, CABIN + 0.32, LUFF_Z + 0.01], w = DECKPTS.halyardWinch(sx), wIn = [w[0] - sx * 0.07, w[1] + 0.02, w[2] - 0.02];
@@ -265,7 +282,7 @@ export function lineSet(state, t = 0) {
     out.push({ name: 'gennaker-sheet', points: legs([gc, blkQ, DECKPTS.winch(gs)], [0.004 + 0.03 * (1 - gd.fill), 0.01]), diameterM: 0.010, color: ROPE.sheet });
     out.push({ name: 'gennaker-tack', points: sag(GK_DRAW.tack, [0, GK_DRAW.tack[1] - 0.2, GK_DRAW.tack[2] + 0.35], 0.002, 6, -1), diameterM: 0.010, color: ROPE.jack });
   }
-  out.push({ name: 'topping-lift', points: sag([0, RIG.mastTop - 0.05, LUFF_Z + 0.05], boomPoint(p.main.boomRad, RIG.boom - 0.05), 0.004, SEGS, CABIN), diameterM: 0.006, color: ROPE.sheet });
+  out.push({ name: 'topping-lift', points: sag([0, RIG.mastTop - 0.05, LUFF_Z + 0.05], boomPoint(p.main.boomRad, RIG.boom - 0.05), 0.004, SEGS, CABIN), diameterM: 0.006, color: ROPE.jack });
   // held inside the main's belly off the mast (rig.js insideMain: the leeward ones ran into the cloth ≈ 0.2 m aft of it)
   // (the first leg gets points 2–12 cm off the mast, so the one crossing stays at the luff groove, inside the mast's width)
   const jack = (pts) => offMast(pts).map((q, i) => (i < 1 ? q : insideMain(q.slice(), p.main, 0.02)));

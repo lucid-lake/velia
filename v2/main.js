@@ -413,8 +413,8 @@ async function boot() {
   // M3b: v1's boat models (the packed GLBs, tools/v2-boat-pack.mjs), streamed after the first frame (a capture: before it)
   const modelOn = boatR && flags.models !== false;
   const modelUrls = Object.fromEntries(['hull', 'cockpit', 'hardware', 'wheel'].map((n) => [n, new URL(`models/boat/${n}.glb.gz`, document.baseURI).href]));
-  const { freeboard, anchorPin, throttle } = DEFAULT_DIMS.HULL;
-  const modelOpts = { hull: { freeboard, anchorPin, throttle }, canvas: CANVAS_VARIANTS.variants[canvasVariant(location.search)] };
+  const { freeboard, anchorPin, throttle, loa, lwl, beam, transomZ } = DEFAULT_DIMS.HULL;   // loa, lwl, beam, transomZ: the hull shape's sheer line (the race livery's datum, boat/models.js hullSkin)
+  const modelOpts = { hull: { freeboard, anchorPin, throttle, loa, lwl, beam, transomZ }, canvas: CANVAS_VARIANTS.variants[canvasVariant(location.search)] };
   // M5b: the forest (render/forest.js): lidar crowns + the rules' trees as baked cards, culled on the GPU; its data
   // streams after the first frame (a capture primes it all first); ?forest=0 leaves the terrain's canopy colour alone
   // --- M5c plug-in: the terrain shadow, the ground (photo tiles + detail), the boulders ---
