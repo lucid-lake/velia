@@ -41,7 +41,7 @@ test('a fake School row is listed by the readers, unedited', async () => {
 
 // mode-name literals ('sail', "cruise" …) in v2's code outside each mode's own folder, comments left out: file → count
 const NAMES = /(['"`])(sail|cruise|regatta|school|fly)\1/g;
-const OWN = ['cruise/', 'regatta/', 'engine/modes.js', 'tests/'];
+const OWN = ['cruise/', 'regatta/', 'plan/', 'engine/modes.js', 'tests/'];
 const ALLOW = {
   'audio/fireworks.js': 3, 'audio/music.js': 7, 'audio/playlist.js': 1, 'audio/tessieMix.js': 1, 'living/kayaks.js': 2,
   'living/tessie.js': 1, 'living/tessiePlayer.js': 3, 'main.js': 5, 'render/kayak/asset.js': 1, 'sim/birds.js': 1,

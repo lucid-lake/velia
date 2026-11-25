@@ -31,7 +31,7 @@ URL rows (`?hour=&cam=&seed=&exposure=&headless=1` and the rest): `v2/engine/fla
 | `terrain/`, `forest/`, `towns/`, `photo/` | streamed lake data and its decoders |
 | `audio/` | beds, music, engine, fireworks sound |
 | `ui/` | HUD, cockpit, front door, plan, logbook, touch and flat controls |
-| `cruise/`, `regatta/`, `stage/`, `living/` | the modes' chunks, the stage venues, the living lake (kayaks, Tessie, plug-ins) |
+| `cruise/`, `regatta/`, `plan/`, `stage/`, `living/` | the modes' chunks, the stage venues, the living lake (kayaks, Tessie, plug-ins) |
 | `tests/`, `golden/`, `assets/` | tests (fast, `slow/`, `pages/`), golden frames, baked assets |
 
 Shared with v1: `src/` (read-only from v2; `v2/notes/engine.md` § Shared modules). The file-by-file tree: `v2/notes/folder-tree.md`.
@@ -42,7 +42,7 @@ The frame graph and depth: `v2/notes/engine.md`.
 
 ### The mode table (refactor round 3 C1, 2026-11-23: engine/modes.js)
 
-One row per mode v2 plays: Sail, Cruise, Regatta. Names, labels, aliases, card looks and the home card's order stay in
+One row per mode v2 plays: Sail, Cruise, Regatta, Plan (phase 1, 2026-11-25: `?mode=plan`, not on the home card yet; `v2/notes/plan.md`). Names, labels, aliases, card looks and the home card's order stay in
 `src/modes/rows.js` (shared with v1 and `tools/loading_shell.py`); `engine/modes.js` adds v2's facts: `chunk` (the dynamic
 import), `enter`/`leave` (the switch's hooks, from the mode's own `plan.js`), `clock` (`sail` | `race` | `own`), `pro`, `race`,
 `swap` (the Sail ⇄ Cruise partner), `home`, `pipes` (its pipeline groups) and `knockdown` (`logbook` | `race` | null).
@@ -215,7 +215,7 @@ The phone Regatta is measured at 31.5 ms (estimate) against the 27.3 ms line:.
 | `v2/notes/ui.md` | UI, clock, nav, plan, front door, launch gate, logbook, first sail, binoculars |
 | `v2/notes/phone.md` | the phone passes, landscape-only, flat and touch controls |
 | `v2/notes/audio.md` | sound beds and music |
-| `v2/notes/cruise.md`, `v2/notes/regatta.md` | the two mode chunks |
+| `v2/notes/cruise.md`, `v2/notes/regatta.md`, `v2/notes/plan.md` | the mode chunks |
 | `v2/notes/living.md` | the kayaks |
 | `v2/notes/perf.md` | budgets, MSAA |
 | `v2/notes/overview.md`, `run-and-tools.md`, `folder-tree.md`, `INDEX.md` | history, commands and URL rows, the file tree, the section list |

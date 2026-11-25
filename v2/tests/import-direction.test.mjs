@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const V2 = join(ROOT, 'v2');
-const MODES = ['regatta', 'cruise'];
+const MODES = ['regatta', 'cruise', 'plan'];
 export const FORBID = Object.freeze({
   sim: (to) => to !== 'sim' && to !== 'terrain' && to !== 'src',
   terrain: (to) => ['ui', 'living', 'stage', 'photo', '(root)', ...MODES].includes(to),
@@ -31,7 +31,7 @@ export const FORBID = Object.freeze({
   ui: (to) => ['(root)', ...MODES].includes(to),
   engine: (to) => ['ui', 'render', '(root)'].includes(to),
   living: (to) => to === '(root)', stage: (to) => to === '(root)', photo: (to) => to === '(root)',
-  regatta: (to) => to === '(root)', cruise: (to) => to === '(root)', assets: (to) => to === '(root)',
+  regatta: (to) => to === '(root)', cruise: (to) => to === '(root)', plan: (to) => to === '(root)', assets: (to) => to === '(root)',
 });
 export const ALLOWED = Object.freeze({
   'sim/knockdownGame.js -> engine/modes.js': 'the mode table (pure rows: each mode\'s knockdown end); engine/modes.js reads only the modes\' plan.js data',

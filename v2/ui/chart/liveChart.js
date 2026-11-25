@@ -32,7 +32,7 @@
 //                              wake (a createWakeStore); null (the default) leaves the chart exactly as it was
 //   });
 //   chart.on('select' | 'action' | 'hover' | 'view' | 'close' | 'mark', fn) → off()
-//       water: a single tap on empty water with no card open (the menu closes on it); select: the row (or null when the card closes); action: { row, action, result }; hover: the row or null; view: { cx, cz, mpp,
+//       water: a single tap on empty water with no card open and no water card to open ({ x, z }: Plan lays a corner there); select: the row (or null when the card closes); action: { row, action, result }; hover: the row or null; view: { cx, cz, mpp,
 //       following }; close: Esc with no card open (the owner closes the chart); mark: { x, z } (a double-tap on the water: Sail's mark)
 //   chart.focus(id)                 glide to a point (a row id, e.g. 'bp-tessie', or a birthplace id) and open its card
 //   chart.select(id | null)         open or close a point's card where it is
@@ -692,7 +692,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       return;
     }
     lastTap = { t, px: p.px, py: p.py };
-    setTimeout(() => { if (lastTap && lastTap.t === t && card.hidden && !destroyed) { lastTap = null; if (!openWater(p.px, p.py)) emit('water', null); } }, CHART_TIMING.dblMs + 30);   // a single tap on empty water: in play its card (Set as target, Add waypoint); else 'water'
+    setTimeout(() => { if (lastTap && lastTap.t === t && card.hidden && !destroyed) { lastTap = null; if (!openWater(p.px, p.py)) { const w = visView().toWorld(p.px, p.py); emit('water', { x: w[0], z: w[1] }); } } }, CHART_TIMING.dblMs + 30);   // a single tap on empty water: in play its card (Set as target, Add waypoint); else 'water'
   }
   function onWheel(e) {
     e.preventDefault(); e.stopPropagation(); hideHint();

@@ -157,7 +157,7 @@ const t0 = performance.now();
 // the hero; then what the opening view shows; then what waits for a time, a weather or a mode); PIPE_SLOW_MS, the first
 // frame's set slower than this marks a slow compiler (engine/pipelines.js); PIPE_STORE, the last load's build time
 const PIPE_ORDER = ['boatModels', 'boatDetail', 'post', 'forest', 'rocks', 'water-alt', 'towns', 'ground', 'kayaks', 'tessie', 'under', 'boatfx', 'shore', 'probes', 'birds', 'night', 'storm', ...modePipes(), 'fireworks', 'sweep'];   // modePipes(): each mode's own groups (engine/modes.js)
-const CRUISE = modeRow('cruise'), REGATTA = modeRow('regatta');   // the two chunk modes this page loads (cruiseLoad, regattaLoad)
+const CRUISE = modeRow('cruise'), REGATTA = modeRow('regatta'), PLAN_ROW = modeRow('plan');   // Plan (v2/plan): its own chunk too   // the two chunk modes this page loads (cruiseLoad, regattaLoad)
 const RACE_PIPE = REGATTA.pipes[0];   // the race's pipeline group (the props, lines and fleet: built behind the card)
 const PIPE_SLOW_MS = 1500;
 const PIPE_STORE = 'velia.v2.pipes';
@@ -228,6 +228,8 @@ async function boot() {
   // and the fireworks read them (race(), cruise(), !cruise?.on). Declared at their own sections, a stage step that ran before those
   // lines threw a TDZ ReferenceError on the built page (a phone's reload with a saved profile hung on the loading screen, 2026-11-18)
   let cruise = null, cruiseP = null, streamDone = null, navSailTg = null, autoNavP = null;
+  let plan = null, planP = null;   // Plan (v2/plan): the chart page with the boat under way
+  const planBoot = bootId === PLAN_ROW.id;   // ?mode=plan: the entrance as Sail's, then Plan once she is entered
   let regatta = null, regattaP = null;
   const Q = { level: qStart.level, built: qStart.level, source: qStart.source, startWhy: qStart.why, why: qStart.why, pending: [], steps: [] };
   profile.setGpu(Q.level);   // the device profile's gpu axis follows the ladder (applyLevel below: every step, the race's too)
@@ -1012,6 +1014,15 @@ async function boot() {
     if (!P.headless) Promise.all([cruise.ready, m4.uiReady]).then(([, u]) => { if (u) cruise.mountUi(u); }).catch((e) => errors.push(`cruise: ${e?.stack ?? e}`));
     return cruise;
   }));
+  // --- Plan (v2/plan, its own chunk): the pilot on the corners laid on the chart, the day clock locked to the sim at the player's rate ---
+  const stepBase = clock.maxSteps;
+  const planLoad = () => (planP ??= PLAN_ROW.chunk().then(({ createPlan }) => {
+    plan = createPlan({ B, windField, clock, flags, P, chart: () => import('./ui/planChart.js').then((m) => m.loadPlanChart()), sun: () => sunNow.elevDeg,
+      tessie: () => { const ts = tessie?.sim?.state; return ts?.visible && ts.centre ? { x: ts.centre[0], z: ts.centre[1] } : null; },
+      onMode: (m) => modes.landed(m), setStepCap: (n) => clock.setMaxSteps(Math.max(stepBase, n)) });
+    if (!P.headless) m4.uiReady.then((u) => { if (u) plan.mountUi(u); }).catch((e) => errors.push(`plan: ${e?.stack ?? e}`));
+    return plan;
+  }));
   // --- Regatta (BACKLOG-v2 #12: v2/regatta, its own chunk, loaded only when a race is asked for): the session, the helper, the
   // race camera and the plates take the frame while a race is on (simFrame, placeCamera, fill); off, nothing of it runs ---
   // (regatta, regattaP: declared at the top, after raceBoot: the passes, the stage and Tessie read regatta)
@@ -1059,10 +1070,11 @@ async function boot() {
   let metricMode = bootId;   // mode_change's from
   const sailClock = createSailClock({ track, visible: () => document.visibilityState !== 'hidden' });   // sailed_2min: visible play time since the card was left (v2/ui/engagement.js)
   addEventListener('lakeshore:entered', () => sailClock.enter(metricMode), { once: true });
-  const modes = createModeSwitch({ initial: bootId, P, flags, clock, B, ready: streamWhole,
-    chunks: { [CRUISE.id]: { load: cruiseLoad, get: () => cruise }, [REGATTA.id]: { load: regattaLoad, get: () => regatta } }, ui: () => m4.ui,
+  const modes = createModeSwitch({ initial: planBoot ? homeId() : bootId, P, flags, clock, B, ready: streamWhole,
+    chunks: { [CRUISE.id]: { load: cruiseLoad, get: () => cruise }, [REGATTA.id]: { load: regattaLoad, get: () => regatta }, [PLAN_ROW.id]: { load: planLoad, get: () => plan } }, ui: () => m4.ui,
     settings: () => pageSettings(), onMode: (m) => { if (m !== metricMode) track('mode_change', { from: metricMode, to: m }); metricMode = m; sailClock.mode(m); m4.front?.home?.setMode?.(m); B?.setReef?.(reefStore.get(m), { silent: true }); }, target: B && !P.headless ? window : null });
   hook.mode = modes;
+  if (planBoot && B && !P.headless) { planLoad(); addEventListener('lakeshore:entered', () => modes.go(PLAN_ROW.id).catch((e) => errors.push(`plan: ${e?.stack ?? e}`)), { once: true }); }   // ?mode=plan: Plan once the card is left
   // the fireworks scene faces the show (owner, 2026-11-18): a Sail cut landing in the show's window (the Fireworks pick, or a time
   // pick that lands in it) turns the boat where she is to face the barges, her speed kept (from the start: the mouth dead ahead)
   if (plugins.runs('start.pose') && B) clock.onCut(({ to }) => {
@@ -1552,12 +1564,13 @@ async function boot() {
     const kts = kdFrame(P.headless ? n * clock.dt : dt);   // K3: the knockdown's slow (1 while she sails)
     if (n > 0) {
       if (filmOn) B.filmStep(n * clock.dt);
-      else { if (regatta?.on) regatta.beforeStep(h, m4.ui?.station?.steer ?? m4.ui?.flat?.helm ?? null); if (!(cruise?.on && cruise.step(n * clock.dt, P.headless ? n * clock.dt : dt))) { B.step(n * clock.dt * kts, h, P.headless ? n * clock.dt : dt); kdGame?.sail(n * clock.dt * kts, B.state.sog); } if (regatta?.on) regatta.afterStep(); if (gust && !cruise?.on) gustNow = gust.update(n * clock.dt, B.state); }   // audit W4: the gust's onset on the sim's clock (v1: gustFx.update(dt × timeScale))   // Regatta: a steer (keys, strip, the cockpit wheel in the hand: R3) hands the helm back; the fleet and the rules to the boat's time   // the hands on the frame's real dt (v1: the sim at timeScale ×, the hands at dt); Cruise: its autopilot each tick
+      else { if (regatta?.on) regatta.beforeStep(h, m4.ui?.station?.steer ?? m4.ui?.flat?.helm ?? null); if (!(cruise?.on && cruise.step(n * clock.dt, P.headless ? n * clock.dt : dt)) && !(plan?.on && plan.step(n * clock.dt, P.headless ? n * clock.dt : dt))) { B.step(n * clock.dt * kts, h, P.headless ? n * clock.dt : dt); kdGame?.sail(n * clock.dt * kts, B.state.sog); } if (regatta?.on) regatta.afterStep(); if (gust && !cruise?.on) gustNow = gust.update(n * clock.dt, B.state); }   // audit W4: the gust's onset on the sim's clock (v1: gustFx.update(dt × timeScale))   // Regatta: a steer (keys, strip, the cockpit wheel in the hand: R3) hands the helm back; the fleet and the rules to the boat's time   // the hands on the frame's real dt (v1: the sim at timeScale ×, the hands at dt); Cruise: its autopilot each tick
     }
     feelFrame();   // the speed feel
     if (!P.headless) m4.afterStep(dt, handsNow);   // M4: the station draws the rudder and the sheets
     if (followOn) placeCamera(dt);
     if (cruise && !P.headless) cruise.update(dt);   // Cruise: its bar, dock, mark ring and lines
+    if (plan && !P.headless) plan.update(dt);   // Plan: the rate's ease, the auto-slow, the handover, its bar and map layer
     const kdt = P.headless ? n * clock.dt : dt; if (kdt > 0) plugins.run('sim.living', kdt);   // kayaks: v1 paddles on the wall clock (not Sail's 2 ×), after the camera
     if (kdt > 0) stage?.step(kdt, { playing: P.headless || birdBeat.playing });   // the stage: the director cues the next act (one at a time)
     if (kdt > 0) plugins.run('sim.tessie', kdt);   // Tessie: the living clock too (her director holds her during a race)
@@ -1706,6 +1719,7 @@ async function boot() {
     beacon.mark.attach(canvas);
   }
   hook.beacon = beacon ? { fx: beaconFx, sim: beacon.sim, pin: (x, z) => { beacon.pin = x == null ? null : { x, z }; }, get mark() { return beacon.mark; }, setDraw: (on) => { beacon.draw = !!on; }, state: () => ({ ...beacon.sim.state(), fx: { ...beaconFx.stats } }) } : null;   // the target beacon (captures, the A/B)
+  hook.plan = { get p() { return plan; }, load: () => planLoad(), stats: () => plan?.stats() ?? null };   // Plan: the controller (corners, rate, helm)
   hook.cruise = { get c() { return cruise; }, load: () => cruiseLoad(), stats: () => cruise?.stats() ?? null };   // Cruise: the controller (voyage, takeHelm, handBack, markAt …)
   hook.water = water;       // water.heightAt(x, z) for the harness and M3
   hook.terrain = terrain;   // terrain.field.height(x, z): the CPU twin of the drawn ground (v1's heightAt once the full grids are in)

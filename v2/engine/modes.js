@@ -20,11 +20,14 @@
 import { MODE_NAMES } from '../../src/modes/rows.js';
 import { CRUISE_SWITCH } from '../cruise/plan.js';
 import { REGATTA_SWITCH } from '../regatta/plan.js';
+import { PLAN_SWITCH } from '../plan/plan.js';
 
 const ROWS = [
   { id: 'sail', chunk: null, clock: 'sail', pro: true, home: true, pipes: [], knockdown: 'logbook', dials: true },
   { id: 'cruise', chunk: () => import('../cruise/index.js'), ...CRUISE_SWITCH, clock: 'own', pro: false, swap: true, pipes: [], knockdown: null, dials: false },
   { id: 'regatta', chunk: () => import('../regatta/index.js'), ...REGATTA_SWITCH, clock: 'race', pro: true, race: true, pipes: ['regatta'], knockdown: 'race', dials: true },
+  // Plan (phase 1): the chart page with the boat under way; not on the home card yet (?mode=plan); the pilot sails, the rate is the player's
+  { id: 'plan', label: 'Plan', chunk: () => import('../plan/index.js'), ...PLAN_SWITCH, clock: 'own', pro: false, needsBoat: true, pipes: [], knockdown: null, dials: true },
 ];
 const KEYS = new Set(['id', 'label', 'aliases', 'card', 'order', 'dev', 'chunk', 'enter', 'leave', 'needsBoat', 'clock', 'pro', 'race', 'swap', 'home', 'pipes', 'knockdown', 'dials']);
 const CLOCKS = ['sail', 'race', 'own'], KNOCKS = ['logbook', 'race', null];
