@@ -16,9 +16,17 @@
 //   9 the kayaks' white rims   10 the kayaks' seats   11 the outboards' charcoal cowlings   12 the all-round white lens   13 the red lens
 //   14 the green lens   15 teak (the swim platform)   16 white vinyl fenders   17 the kayak's LED strip   18 black cord (bungees, lines)
 //   19 the paddles' blades   20 clear polycarbonate (the kayaks' hulls)   21 the smoked side windows and the windscreen   22 the deck's
-//   glass viewing panel   30 a spot on the water (a quad)
+//   glass viewing panel   23 navy canvas (the roof's valance, the helm chair's back)   24 the courtesy LED strips under the cap rail
+//   (cool white at night)   30 a spot on the water (a quad)
+// Look round 3 (owner, 2026-11-25: "the glass boat and the pontoon", more appealing): the pontoon's navy canvas valance round the roof's
+// edge with its cream piping (a tour pontoon's canopy skirt), a helm chair, courtesy LED strips along the inside of the band under the cap
+// rail, a weld seam along each log's crown and a stainless keel guard under each nose; the clear kayak's second (inner) skin 5 mm in (two
+// Fresnel surfaces: the shell reads as a thickness, denser where it turns edge-on), its aluminium keel bar under the LED strip and three
+// cross ribs on the bilge (the frame a clear kayak shows through its floor), a bonded flange outside the rim
 export const SLOT = Object.freeze({ white: 0, band: 1, cream: 2, deck: 3, tube: 4, dark: 5, vinyl: 6, steel: 7, roofUnder: 8, rim: 9, seat: 10, cowl: 11, lensW: 12, lensR: 13, lensG: 14,
-  teak: 15, fender: 16, led: 17, cord: 18, blade: 19, clear: 20, window: 21, floor: 22, spot: 30 });
+  teak: 15, fender: 16, led: 17, cord: 18, blade: 19, clear: 20, window: 21, floor: 22, canvas: 23, courtesy: 24, spot: 30 });
+export const SKIN_T = 0.005;   // m: the clear kayak's polycarbonate, the inner skin this far in
+export const VALANCE = Object.freeze({ drop: 0.16, pipe: 0.018 });   // m: the roof's canvas skirt hangs this far; the cream piping's height at its foot
 export const VF = 7;
 // the pontoon's numbers (the photos: a tall band, windows to the header, the roof the boat's length)
 // the drawn design (a 35 ft hull, 10.7 × 3.7 m): every part is built in this frame, then scaled to her real size (SIZE, below)
@@ -155,6 +163,12 @@ export function buildPontoon({ lod = 'high' } = {}) {
     B.loft(nose, S.tube, { capEnd: true });
     B.cyl([x, y, dz1 + 0.25], [x, y, dz1 + 0.32], r, seg, S.tube, { cap: true, r1: r * 0.9 });
     if (hi) for (const ss of [-1, 1]) B.cyl([x + ss * r * 0.82, y + 0.1, dz0 + 0.5], [x + ss * r * 0.82, y + 0.1, dz1], 0.022, 6, S.tube);
+    if (hi) {
+      B.cyl([x, y + r - 0.004, dz0 + 0.9], [x, y + r - 0.004, dz1 + 0.25], 0.009, 4, S.dark);   // the weld seam along the log's crown
+      // the stainless keel guard under the nose cone (the beaching strip), following the cone's curve to the log's belly
+      const g = []; for (let k = 0; k <= 5; k++) { const t = k / 5, zz = dz0 + 0.9 - t * 1.0, rr = r * Math.sqrt(1 - t * t * 0.92 * 0.83), yy = y + (r - rr) * 0.9; g.push([x, yy - rr + 0.01, zz]); }
+      B.tube(g.reverse(), 0.014, 5, S.steel);
+    }
   }
   // the brackets and cross-members under the deck, seen between the logs
   for (let z = dz0 + 0.5; z < dz1; z += hi ? 0.8 : 2.4) B.box(-hw + 0.15, P.tubeY + P.tubeR - 0.03, z - 0.035, hw - 0.15, P.deckY - 0.1, z + 0.035, S.dark, { top: false });
@@ -195,11 +209,24 @@ export function buildPontoon({ lod = 'high' } = {}) {
     const e = [[-rw, rz0], [rw, rz0], [rw, rz1], [-rw, rz1], [-rw, rz0]].map(([x, z]) => [x, ry + rt * 0.5, z]);
     B.tube(e, rt * 0.55, 8, S.white);
     B.box(-rw + 0.02, ry + rt, rz0 + 0.4, rw - 0.02, ry + rt + 0.012, rz1 - 0.4, S.white, { bottom: false });   // the roof's crowned top skin
+    // the canvas valance: a navy skirt hanging from the roof's edge all round (the cream piping at its foot is the shader's), 2 cm out
+    // from the rolled edge so it reads as cloth over the roof, not a painted band; both faces (seen from inside the cabin too)
+    { const vx = rw + 0.02, vz0 = rz0 - 0.02, vz1 = rz1 + 0.02, vy0 = ry - VALANCE.drop, vy1 = ry + rt * 0.5;
+      const ring = [[-vx, vz0], [vx, vz0], [vx, vz1], [-vx, vz1], [-vx, vz0]];
+      for (let i = 0; i < 4; i++) { const [ax, az] = ring[i], [bx, bz] = ring[i + 1]; B.quad([ax, vy0, az], [bx, vy0, bz], [bx, vy1, bz], [ax, vy1, az], S.canvas); B.quad([ax, vy1, az], [bx, vy1, bz], [bx, vy0, bz], [ax, vy0, az], S.canvas); } }
+    // the helm chair: a stainless pedestal, a white moulded bucket with navy vinyl, a short navy canvas back
+    { const cx = 1.15, cz = -2.95, sy = P.deckY + 0.62;
+      B.cyl([cx, P.deckY, cz], [cx, sy - 0.08, cz], 0.03, 8, S.steel); B.cyl([cx, P.deckY, cz], [cx, P.deckY + 0.02, cz], 0.16, 10, S.steel, { cap: true });
+      B.box(cx - 0.24, sy - 0.08, cz - 0.22, cx + 0.24, sy, cz + 0.22, S.white); B.box(cx - 0.22, sy, cz - 0.2, cx + 0.22, sy + 0.06, cz + 0.2, S.vinyl, { bottom: false });
+      B.box(cx - 0.23, sy, cz + 0.17, cx + 0.23, sy + 0.5, cz + 0.23, S.white); B.box(cx - 0.21, sy + 0.06, cz + 0.14, cx + 0.21, sy + 0.48, cz + 0.17, S.vinyl, { bottom: false }); }
+    // the courtesy LED strips: a thin bar along the inside of each band panel under the cap rail (cool white at night, the deck's edge lit)
+    for (const sx of [-1, 1]) B.box(sx * (hw - 0.044) - 0.008, b1 - 0.05, dz0 + c + 0.2, sx * (hw - 0.044) + 0.008, b1 - 0.035, dz1 - 0.7, S.courtesy, { top: false, bottom: false });
     // the benches along each side, facing in: white bases, navy vinyl cushions and backs (seams in the shader)
     for (const sx of [-1, 1]) {
-      B.box(sx * 1.33 - 0.22, P.deckY, -3.7, sx * 1.33 + 0.22, P.deckY + 0.33, 3.6, S.white, { bottom: false });
-      B.box(sx * 1.33 - 0.24, P.deckY + 0.33, -3.72, sx * 1.33 + 0.24, P.deckY + 0.44, 3.62, S.vinyl, { bottom: false });
-      B.box(sx * 1.62 - 0.05, P.deckY + 0.46, -3.72, sx * 1.62 + 0.05, P.deckY + 0.92, 3.62, S.vinyl, { bottom: false });
+      const z0 = sx > 0 ? -2.45 : -3.7;   // the starboard bench ends short of the helm (its chair stands there)
+      B.box(sx * 1.33 - 0.22, P.deckY, z0, sx * 1.33 + 0.22, P.deckY + 0.33, 3.6, S.white, { bottom: false });
+      B.box(sx * 1.33 - 0.24, P.deckY + 0.33, z0 - 0.02, sx * 1.33 + 0.24, P.deckY + 0.44, 3.62, S.vinyl, { bottom: false });
+      B.box(sx * 1.62 - 0.05, P.deckY + 0.46, z0 - 0.02, sx * 1.62 + 0.05, P.deckY + 0.92, 3.62, S.vinyl, { bottom: false });
     }
     // the helm forward to starboard: the console, its dark dash, the tinted windscreen (glass), the wheel on its hub, the throttle
     B.box(0.8, P.deckY, -4.15, 1.5, P.deckY + 0.95, -3.6, S.white, { bottom: false });
@@ -276,6 +303,11 @@ export function buildKayakShell() {
     return [b * Math.sin(ph), sh - (sh - kl) * Math.max(0, Math.cos(ph)) ** 0.65, z]; };
   const nAt = (i, j) => { const ph = -Math.PI / 2 + Math.PI * j / M; return B.norm([Math.sin(ph), -Math.cos(ph) * 1.4, 0]); };
   for (let i = 0; i < N; i++) for (let j = 0; j < M; j++) B.squad(at(i, j), at(i, j + 1), at(i + 1, j + 1), at(i + 1, j), nAt(i, j), nAt(i, j + 1), nAt(i + 1, j + 1), nAt(i + 1, j), S.clear);
+  // the inner skin (SKIN_T in along the normal, facing in): the shell's second Fresnel surface, so it reads as a sheet with a thickness,
+  // densest where it turns edge-on (the rim's roll, the chines seen from above), and the paddler's legs sit inside a real wall
+  const inA = (i, j) => { const p = at(i, j), n = nAt(i, j); return [p[0] - n[0] * SKIN_T, p[1] - n[1] * SKIN_T, p[2] - n[2] * SKIN_T]; };
+  const inN = (i, j) => { const n = nAt(i, j); return [-n[0], -n[1], -n[2]]; };
+  for (let i = 0; i < N; i++) for (let j = 0; j < M; j++) B.squad(inA(i, j + 1), inA(i, j), inA(i + 1, j), inA(i + 1, j + 1), inN(i, j + 1), inN(i, j), inN(i + 1, j), inN(i + 1, j + 1), S.clear);
   // the clear decks fore and aft of the cockpit (a gentle camber)
   const deck = (za, zb) => { const n = 10, m = 6; for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) {
     const z0 = za + (zb - za) * i / n, z1 = za + (zb - za) * (i + 1) / n, P = (z, f) => { const b = kayakHalfBeam(z); return [b * f, deckY(z, b * f), z]; };
@@ -295,6 +327,20 @@ export function buildKayakFrame({ paddle = false } = {}) {
     if (z0 > K.cockpit[0] && z1 < K.cockpit[1]) B.cyl([sx * (kayakHalfBeam(z0) - 0.02), kayakSheer(z0) - 0.035, z0], [sx * (kayakHalfBeam(z1) - 0.02), kayakSheer(z1) - 0.035, z1], 0.008, 5, S.tube);
   }
   for (const z of K.cockpit) { const b = kayakHalfBeam(z); B.tube([-1, -0.5, 0, 0.5, 1].map((f) => [b * f, deckY(z, b * f) + 0.008, z]), 0.011, 5, S.rim); }
+  // the bonded flange: the two half-shells' lip, 2.2 cm out from the rim (white; from above the outline a clear kayak really shows)
+  for (const sx of [-1, 1]) for (let i = 0; i < n; i++) {
+    const z0 = K.z0 + 0.05 + (K.z1 - K.z0 - 0.1) * i / n, z1 = K.z0 + 0.05 + (K.z1 - K.z0 - 0.1) * (i + 1) / n, b0 = kayakHalfBeam(z0), b1 = kayakHalfBeam(z1), y0 = kayakSheer(z0) - 0.006, y1 = kayakSheer(z1) - 0.006;
+    const a = [sx * b0, y0, z0], b = [sx * (b0 + 0.022), y0, z0], c2 = [sx * (b1 + 0.022), y1, z1], d = [sx * b1, y1, z1];
+    B.squad(a, b, c2, d, [0, 1, 0], [0, 1, 0], [0, 1, 0], [0, 1, 0], S.rim); B.squad(d, c2, b, a, [0, -1, 0], [0, -1, 0], [0, -1, 0], [0, -1, 0], S.rim);
+  }
+  // the frame seen through the floor: the aluminium keel bar along the bilge (the LED strip rides on it) and three cross ribs, each a
+  // thin bar lying on the inner skin from gunwale to gunwale (clear of the seats)
+  for (let i = 0; i < 12; i++) { const z0 = -1.35 + 2.65 * i / 12, z1 = -1.35 + 2.65 * (i + 1) / 12, k0 = kayakKeel((z0 + z1) / 2); B.box(-0.02, k0 + 0.001, z0, 0.02, k0 + 0.012, z1, S.tube, { bottom: false }); }
+  for (const z of [-1.3, -0.25, 1.2]) {
+    const b = kayakHalfBeam(z), sh = kayakSheer(z), kl = kayakKeel(z), pts = [];
+    for (let j = 1; j < 16; j++) { const ph = -Math.PI / 2 + Math.PI * j / 16; pts.push([(b - 0.014) * Math.sin(ph), sh - (sh - kl) * Math.max(0, Math.cos(ph)) ** 0.65 + 0.012, z]); }
+    B.tube(pts, 0.008, 4, S.tube);
+  }
   // the seats: a contoured pad (two slabs) on its pedestal, a backrest on two thin struts
   for (const z of K.seats) {
     const w = 0.2, y = K.seatTop;
