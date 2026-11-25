@@ -29,7 +29,9 @@ async function open(query, settings = {}) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
   await page.addInitScript((s) => { try { localStorage.setItem('lakeshore.settings.v1', JSON.stringify(s)); } catch { /* blocked */ } }, { ...SEEN, ...settings });
-  await page.goto(`${BASE}/?${query}`, { waitUntil: 'load' });
+  // ?dials=cockpit: this page checks the cockpit's own instruments (the old dials, kept one release); the default 2D modules are
+  // v2/tests/pages/dialModules.page.mjs's
+  await page.goto(`${BASE}/?${query}&dials=cockpit`, { waitUntil: 'load' });
   return { page, errors };
 }
 const frames = (page, n = 3) => page.evaluate((k) => new Promise((ok) => { let i = 0; const f = () => (++i >= k ? ok() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);

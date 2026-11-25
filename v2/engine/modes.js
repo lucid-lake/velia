@@ -16,16 +16,17 @@
 //   home       true: where a left race or mode returns (Sail)
 //   pipes      the pipeline groups only this mode needs (engine/buildGate.js PHONE_ORDER, main.js PIPE_ORDER; built behind the card)
 //   knockdown  the knockdown's end: 'logbook' (the end card), 'race' (the race's results card, full time under it), null (none)
+//   dials      true: the chart and wind dials show as their 2D modules (ui/dials.js); false: none (Cruise's passenger view)
 import { MODE_NAMES } from '../../src/modes/rows.js';
 import { CRUISE_SWITCH } from '../cruise/plan.js';
 import { REGATTA_SWITCH } from '../regatta/plan.js';
 
 const ROWS = [
-  { id: 'sail', chunk: null, clock: 'sail', pro: true, home: true, pipes: [], knockdown: 'logbook' },
-  { id: 'cruise', chunk: () => import('../cruise/index.js'), ...CRUISE_SWITCH, clock: 'own', pro: false, swap: true, pipes: [], knockdown: null },
-  { id: 'regatta', chunk: () => import('../regatta/index.js'), ...REGATTA_SWITCH, clock: 'race', pro: true, race: true, pipes: ['regatta'], knockdown: 'race' },
+  { id: 'sail', chunk: null, clock: 'sail', pro: true, home: true, pipes: [], knockdown: 'logbook', dials: true },
+  { id: 'cruise', chunk: () => import('../cruise/index.js'), ...CRUISE_SWITCH, clock: 'own', pro: false, swap: true, pipes: [], knockdown: null, dials: false },
+  { id: 'regatta', chunk: () => import('../regatta/index.js'), ...REGATTA_SWITCH, clock: 'race', pro: true, race: true, pipes: ['regatta'], knockdown: 'race', dials: true },
 ];
-const KEYS = new Set(['id', 'label', 'aliases', 'card', 'order', 'dev', 'chunk', 'enter', 'leave', 'needsBoat', 'clock', 'pro', 'race', 'swap', 'home', 'pipes', 'knockdown']);
+const KEYS = new Set(['id', 'label', 'aliases', 'card', 'order', 'dev', 'chunk', 'enter', 'leave', 'needsBoat', 'clock', 'pro', 'race', 'swap', 'home', 'pipes', 'knockdown', 'dials']);
 const CLOCKS = ['sail', 'race', 'own'], KNOCKS = ['logbook', 'race', null];
 
 // throws on a malformed row (an unknown key, clock or knockdown; a chunk with no enter hook; a duplicate id)
@@ -52,6 +53,7 @@ export const playedIds = () => MODES.map((r) => r.id);
 export const modeRow = (id) => MODES.find((r) => r.id === id) ?? null;
 export const isPlayed = (id) => !!modeRow(id);
 export const isRace = (id) => !!modeRow(id)?.race;
+export const showsDials = (id) => modeRow(id)?.dials === true;   // the dials' modules in this mode (ui/dials.js)
 export const homeId = () => MODES.find((r) => r.home).id;
 export const swapRow = () => MODES.find((r) => r.swap) ?? null;
 export const chunkRows = () => MODES.filter((r) => r.chunk);

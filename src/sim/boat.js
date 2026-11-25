@@ -131,6 +131,10 @@ const sgn = (x) => (x < 0 ? -1 : 1);
 
 const SAIL_STALL = 15 * DEG, SAIL_E = 0.8, LUFF0 = 1 * DEG, LUFF1 = 4 * DEG, FLOG_CD = 0.2;
 const BY_THE_LEE = 10 * DEG;
+// The closest apparent wind the sails draw at (degrees off the bow, against the boat's heading): the tighter-sheeted sail's chord at
+// its lead (the jib's car, its twist allowed) plus the angle of attack where it fills (LUFF1), plus the leeway she makes (the flow
+// meets the sails that much wider than the heading's AWA). 25° + leeway (≈ 1–3°): the wind dial's no-go wedge as a module.
+export const luffAwaDeg = (P = BOAT, leeway = 0) => (Math.max(P.jib.lead, P.main.minDeg * DEG) + LUFF1) / DEG + Math.abs(leeway) / DEG;
 
 // a sail on its leeward side at angle of attack a ≥ 0: [CL ≥ 0, CD]
 function sailCoef(a, clMax, ar) {

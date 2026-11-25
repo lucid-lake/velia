@@ -1,6 +1,6 @@
 // The cockpit's fold tab on the v2 page (v2/ui/foldTab.js, mounted by v2/ui/station.js; owner 2026-11-16: "a slim tab on the cockpit's
 // bottom-left rim, where the folded strip ends up, so the same spot folds and raises it"; it was a chevron on the wheel's boss). Two
-// states only: up, the whole cockpit raised; folded, the whole cockpit lowered out of view (sink 1: no peek, no pucks, no raised dial).
+// states only: up, the whole cockpit raised; folded, the whole cockpit lowered out of view (sink 1: no peek, no pucks; the dials' 2D modules stay, v2/ui/dials.js).
 //   up      a slim navy tab with a cream chevron on the screen's foot under the coaming's left end (left of the chart instrument);
 //           a click folds the cockpit. Focusable: Enter folds; H is its key.
 //   folded  the same tab in the same place (its chevron turned up); a click raises the cockpit.
@@ -50,7 +50,8 @@ try {
   const [rows] = await Promise.all([record(page, 2.5), (async () => { await page.waitForTimeout(120); await page.mouse.click(atUp.x, atUp.y); })()]); await settle(page, true);
   let st = await state(page);
   const ct0 = rows[0].ct, t05 = (rows.find((r) => r.sink >= 0.05)?.ct ?? ct0 + 9) - ct0, t95 = (rows.find((r) => r.sink >= 0.95)?.ct ?? ct0 + 9) - ct0;
-  check(st.folded && st.fold && st.sink === 1 && st.opacity === 0 && !st.peek && !st.pucks && !st.dials && !st.strip, `a click on the tab folds the whole cockpit out of view, no peek, no pucks, no dial (${JSON.stringify(st)})`);
+  // the dials are 2D modules of their own since 2026-11-24 (v2/ui/dials.js): always on in Sail, so they stay when the cockpit folds
+  check(st.folded && st.fold && st.sink === 1 && st.opacity === 0 && !st.peek && !st.pucks && st.dials && !st.strip, `a click on the tab folds the whole cockpit out of view, no peek, no pucks; the dial modules stay (${JSON.stringify(st)})`);
   check(mono(rows, 'sink', 1) && rows.every((r) => r.sink >= 0 && r.sink <= 1), `the fold slides one way, no bounce (sink ${rows.filter((_, i) => i % 6 === 0).map((r) => r.sink.toFixed(2)).join(' ')})`);
   const w05 = rows.find((r) => r.sink >= 0.05)?.t ?? 9, w95 = rows.find((r) => r.sink >= 0.95)?.t ?? 9;
   check(t95 - t05 > 0.15 && t95 - t05 < 0.45, `about 0.4 s, eased (5 % at ${t05.toFixed(2)} s, 95 % at ${t95.toFixed(2)} s of the scene's clock; wall ${w05.toFixed(2)} to ${w95.toFixed(2)} s, ${rows.length} frames)`);

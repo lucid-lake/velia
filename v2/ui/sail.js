@@ -34,6 +34,9 @@ import { createSkills } from '../../src/sail/skills.js';
 import { createWords } from '../../src/ui/words.js';
 import { createCaptainView } from '../../src/ui/captainView.js';
 import { createChartplotter } from '../../src/ui/chartplotter.js';
+import { createDialModules } from './dials.js';   // the two dials as 2D modules (?dials=cockpit: the old dials in the cockpit, one release)
+import { showsDials, homeId } from '../engine/modes.js';
+import { luffAwaDeg, BOAT as BOAT_P } from '../../src/sim/boat.js';
 import { nightOf } from '../../src/ui/chartplotterData.js';   // the live chart's night palette weight (?livechart=1)
 import { REFUSALS } from './birthplaceCard.js';   // the birthplace move's refusals, in plain words
 import { createToolDock, ICONS } from '../../src/ui/toolDock.js';
@@ -186,7 +189,9 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   dock.register({ id: 'logbook', key: '', name: 'logbook', icon: ICONS.logbook, order: 20, action: () => { services.get('logbook')?.logbook?.toggle?.(); } });   // no key (L went): Menu › Logbook
 
   // the dials: the wind dial (captainView) and the small chart (chartplotter): the raised views over the instruments
-  const captain = createCaptainView({ state: () => phys.state, once, always: true });
+  const dialMods = flags.dials !== 'cockpit' && flags.dials !== 'top';
+  const captain = createCaptainView({ state: () => phys.state, once, always: true,
+    ...(dialMods ? { wedge: 'apparent', luffDeg: (s) => Math.round(luffAwaDeg(BOAT_P, s.leeway ?? 0)), pos: true, sectors: () => (settings?.get?.('profile') ?? 'new') === 'new' } : {}) });
   services.provide('captain', captain);
   const terrainShim = { heightAt: (x, z) => terrain.field.height(x, z) };
   // Setup's shallow water (v1's src/sail/grounding.js: the assist bears away from a shoal, the sounder, R.'s words), on the boat's
@@ -403,9 +408,11 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
     if (pin && lg) { if (!pageWas.pin) logApi()?.close?.(); else tg.unpin(); }   // the one that just opened stays
     pageWas.pin = !!tg?.pinned; pageWas.log = logOpen();
   }
+  let dialModules = null;   // made below, once calm is
   const dashHidden = () => !sailing() || !!services.get('played')?.played || !!services.get('menu')?.isOpen || logOpen() || hint.current === 'keys' || binoUp() || chartBig() || hubUp();
   // quiet: the one-thumb controls (thumb.js) never fade, so "Tap to show the helm" is stale there; ?thumb=0's grid still fades and keeps it
   const calm = createCalmHud({ services, settings, getOptions: () => services.get('modeOptions') ?? {}, quiet: () => document.documentElement.classList.contains('lk-one-thumb') || document.documentElement.classList.contains('lk-flat'), foldOnDown: true });   // H only folds, on key-down
+  if (dialMods) dialModules = createDialModules({ calm, inMode: () => showsDials(world.modeId?.() ?? homeId()), played: () => !!services.get('played')?.played, open: { chart: () => openChartPage(), log: () => openLogPage() } });
   services.provide('calm', calm);
   services.provide('controls', { hint, get tools() { return { bino: { k: binoUp() ? 1 : 0 } }; }, ctl, get pro() { return pro; }, proKeys: 'pro-sheet' });   // proKeys: v2's Pro keys (R/F the jib sheet, the lead on the PRO panel; src/ui/keyLegend.js)   // tools.bino.k: v1's shape the key legend reads (it steps aside under the glasses)
   // the key legend's moments read v1's terrain object (keyLegend.js sailFacts: the shore's distance, the depth; the landmarks for
@@ -637,6 +644,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
       // first in the frame, before any DOM write: the Calm HUD's hover tests read the bar's box (v1's calmHud.js), and a read on a
       // clean layout never forces one
       calm.update(Math.min(0.1, dt));
+      dialModules?.update();
       dayClock.step(dt);   // a time pick's fade and its cut, in every mode (Cruise's sheet picks too), before the frame draws
       if (!sailing()) { thumb?.update(dt, null); flat?.update(dt); keyLegend.update(); navColumn.update(); chart?.update(dt); return; }   // Cruise: the Calm HUD, the edges (they hide by mode), the chart
       thumb?.update(dt, hands);   // the upright phone's steer zone and rope into this frame's hands (before the boat's step)
