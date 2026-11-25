@@ -3,6 +3,9 @@
 // tests re-bake a box and compare. Run it again after any change to the bed (tools/terrain/build_tahoe.py).
 //   node tools/v2-shore-bake.mjs [--out v2/assets/shore/shore.vsf.gz] [--check]   --check: re-bake and compare, write nothing
 //   node tools/v2-shore-bake.mjs --png renders/ultra-m3/field.png                  a picture of the field (τ bands, the kept tiles)
+//   node tools/v2-shore-bake.mjs --region south-lake                                a region level's own field (its 4 m heights in the bay's
+//                                      slot, over its box at 2 m texels) → v2/assets/shore/shore-<level dir>.vsf.gz; the page fetches it only
+//                                      for a start on that level (v2/render/shore.js shoreFile)
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,14 +13,29 @@ import { gzipSync, gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { loadTerrain, makeSampler } from '../src/sim/terrain-data.js';
 import { bakeShore, encodeShore, decodeShore, SHORE_BAKE, TILE_TEXELS } from '../v2/sim/shoreField.js';
+import { CURRENT_WATERS } from '../src/sim/waters/current.js';
+import { levelOfRegion, composeLevel, shoreManifest } from '../v2/terrain/region.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); return i < 0 ? null : args[i + 1] ?? true; };
-const OUT = resolve(ROOT, arg('--out') ?? 'v2/assets/shore/shore.vsf.gz');
+const REGION = arg('--region');   // a region's id (the lake profile's regions[] with a level), or null: the bay's box
+const tdir = resolve(ROOT, CURRENT_WATERS.terrain.dir);
+const level = REGION ? levelOfRegion(CURRENT_WATERS, REGION) : null;
+if (REGION && !level) throw new Error(`no region level ${REGION} in the lake profile`);
+const OUT = resolve(ROOT, arg('--out') ?? (level ? `v2/assets/shore/shore-${level.dir}.vsf.gz` : 'v2/assets/shore/shore.vsf.gz'));
 
 const t0 = Date.now();
-const S = makeSampler(await loadTerrain('full'));
-const field = bakeShore({ heightAt: (x, z) => S.height(x, z), log: (m) => console.log(`${((Date.now() - t0) / 1000).toFixed(1)} s  ${m}`) });
+// a region's field: its level composed into the bay's slot (as the page holds it), its box at the bake's 2 m texels
+const regionBox = (() => {
+  if (!level) return null;
+  const M = JSON.parse(readFileSync(resolve(tdir, `${level.dir}/${level.full}`), 'utf8')), L = M.levels[0];
+  const x0 = Math.ceil(M.box.x0 / 32) * 32, z0 = Math.ceil(M.box.z0 / 32) * 32;   // whole 16-texel tiles inside the level's box
+  return { manifest: M, box: { x0, z0, w: Math.floor((M.box.x1 - x0) / 32) * 16, h: Math.floor((M.box.z1 - z0) / 32) * 16, texel: 2 }, L };
+})();
+const lakeM = JSON.parse(readFileSync(resolve(tdir, CURRENT_WATERS.terrain.full), 'utf8'));
+const manifest = level ? shoreManifest(lakeM, composeLevel(level, regionBox.manifest)) : null;
+const S = makeSampler(await loadTerrain('full', CURRENT_WATERS, manifest ? { manifest } : {}));
+const field = bakeShore({ heightAt: (x, z) => S.height(x, z), box: regionBox?.box ?? SHORE_BAKE, log: (m) => console.log(`${((Date.now() - t0) / 1000).toFixed(1)} s  ${m}`) });
 const raw = encodeShore(field);
 const gz = gzipSync(raw, { level: 9 });
 const H = field.head;
@@ -50,4 +68,5 @@ writeFileSync(OUT, gz);
 // the round trip
 const back = decodeShore(gunzipSync(gz));
 if (back.head.nTiles !== H.nTiles || back.tau1.some((v, i) => v !== field.tau1[i])) throw new Error('shore: the round trip differs');
-console.log(`wrote ${OUT} (box ${SHORE_BAKE.x0}…${SHORE_BAKE.x0 + SHORE_BAKE.w * SHORE_BAKE.texel} × ${SHORE_BAKE.z0}…${SHORE_BAKE.z0 + SHORE_BAKE.h * SHORE_BAKE.texel} m)`);
+const BX = regionBox?.box ?? SHORE_BAKE;
+console.log(`wrote ${OUT} (box ${BX.x0}…${BX.x0 + BX.w * BX.texel} × ${BX.z0}…${BX.z0 + BX.h * BX.texel} m)`);

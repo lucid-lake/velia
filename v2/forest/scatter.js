@@ -37,8 +37,8 @@ export function layerWeights(e) {
 // the twin: cell (ci, cj) of the region's global cell grid → { valid, x, z, y, h, r, layer, why }
 //   field: { height(x, z) } (v2/terrain/sample.js), cover(x, z) → 11 class weights (v1's sampler cover()), S: the season
 //   ({ snowLine, fullM, aspectM, maxSlope }), treeline (m ASL), y0 (the lake surface, m ASL)
-export function scatterSlot(ci, cj, { field, cover, S, treeline, y0 }) {
-  const R = REGION, C = R.cell;
+export function scatterSlot(ci, cj, { field, cover, S, treeline, y0 }, R = REGION) {
+  const C = R.cell;
   const x = R.x0 + (ci + 0.15 + 0.7 * cellHash(ci, cj, 1)) * C, z = R.z0 + (cj + 0.15 + 0.7 * cellHash(ci, cj, 2)) * C;
   const no = (why) => ({ valid: false, x, z, why });
   if (inBox(x, z)) return no('box');
@@ -72,9 +72,10 @@ export function scatterSlot(ci, cj, { field, cover, S, treeline, y0 }) {
   return { valid: true, x, z, y, h, r, layer, why: '' };
 }
 
-// the WGSL (render/forest.js prepends the terrain's heights, cover reader and noise): scatter(ci, cj) → the GPU record
-export const SCATTER_WGSL = `
-const RX0 = ${REGION.x0.toFixed(1)}; const RZ0 = ${REGION.z0.toFixed(1)}; const RC = ${REGION.cell};
+// the WGSL (render/forest.js prepends the terrain's heights, cover reader and noise): scatter(ci, cj) → the GPU record;
+// R: the rules' region (lod.js REGION, or the start level's: forestRegion)
+export const scatterWgsl = (R = REGION) => `
+const RX0 = ${R.x0.toFixed(1)}; const RZ0 = ${R.z0.toFixed(1)}; const RC = ${R.cell};
 fn hashU(x: u32) -> u32 { var h = x; h ^= h >> 16u; h *= 0x7feb352du; h ^= h >> 15u; h *= 0x846ca68bu; h ^= h >> 16u; return h; }
 fn cellHash(i: i32, j: i32, k: i32) -> f32 { return f32(hashU((bitcast<u32>(i) * 73856093u) ^ (bitcast<u32>(j) * 19349663u) ^ (bitcast<u32>(k) * 83492791u)) >> 8u) / 16777216.0; }
 fn lnoise(x: f32, z: f32, s: i32) -> f32 {
@@ -120,3 +121,4 @@ fn scatter(ci: i32, cj: i32) -> vec4f {
   if (cellHash(ci, cj, 7) < 0.03) { layer = 5u; h *= 0.8; }
   return vec4f(x, z, y, bitcast<f32>(packTree(h, r, layer)));
 }`;
+export const SCATTER_WGSL = scatterWgsl(REGION);

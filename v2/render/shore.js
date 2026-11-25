@@ -21,7 +21,15 @@ import { decodeShore, gpuWords, gpuLayout, SHORE, SHORE_BAKE, PARAM_WORDS, TILE_
 import { hsLaw, V1_SEA, seaState } from '../sim/spectrum.js';
 
 export const SHORE_FILE = new URL('../assets/shore/shore.vsf.gz', import.meta.url);
+// the field follows the start's detail level (South Lake's look): a page that starts on a region level (v2/terrain/region.js)
+// fetches that level's own bake (tools/v2-shore-bake.mjs --region south) in place of the bay's; a start in the bay fetches
+// the bay's alone, as before. shoreFile(levelKey) → the URL
+export const SHORE_FILES = Object.freeze({ bay: SHORE_FILE, 'south-lake': new URL('../assets/shore/shore-south.vsf.gz', import.meta.url) });   // by the level's key (the region's id); the file by the level's folder
+export const shoreFile = (levelKey) => SHORE_FILES[levelKey] ?? SHORE_FILE;
 export const SHORE_CAP = 4 << 20;   // bytes: the buffer, made at load (the field is ≈ 2.9 MB of words; v2/tests/shore.test.mjs checks it fits)
+// the south level's field holds 2,866 tiles (the Keys' canals and the marshes count as shore): 5.9 MB of words, so its buffer is 8 MB
+export const SHORE_CAPS = Object.freeze({ bay: SHORE_CAP, 'south-lake': 8 << 20 });
+export const shoreCap = (levelKey) => SHORE_CAPS[levelKey] ?? SHORE_CAP;
 // the params' words (f32 unless marked): on (0 | 1: 0 skips everything), w0, w1, f0, f1, the wind's travel x, z, the spray's
 // share, the bay's Hs (the spray's sea), parts (u32 bits: 1 second train, 2 lean, 4 lace), the whitewater's wind share, 0 …; from word 16: the spray's near
 // tiles: count (u32), instances (u32), then per tile (its place I | J << 16, first emitter, count, the instances before it)
@@ -242,10 +250,10 @@ struct PV { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
 }`;
 
 // --- the GPU side ---
-export function createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrainBGL, hdrTarget, msaa = 1, depthFormat = 'depth32float', on = true, sea = 'big' }) {   // sea: the sea state (?sea=; v2/sim/spectrum.js SEA_STATES): the trains' period and the spray's sea
+export function createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrainBGL, hdrTarget, msaa = 1, depthFormat = 'depth32float', on = true, sea = 'big', file = SHORE_FILE, cap = SHORE_CAP }) {   // file, cap: the field's URL and its buffer's bytes (shoreFile, shoreCap: the start level's)   // sea: the sea state (?sea=; v2/sim/spectrum.js SEA_STATES): the trains' period and the spray's sea
   const st = seaState(sea);
   let phone = false;
-  const buf = device.createBuffer({ label: 'shore-field', size: SHORE_CAP, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const buf = device.createBuffer({ label: 'shore-field', size: cap, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
   const params = new Uint32Array(PARAM_WORDS), pf = new Float32Array(params.buffer);
   const stats = { ready: false, bytes: 0, words: 0, tiles: 0, emitters: 0, on: false, near: 0, sprayInstances: 0, loadMs: null, inView: 0, nearestM: null };
   let S = null, layout = null, tileXY = null, tileBox = null, loadP = null, enabled = on;
@@ -266,7 +274,7 @@ export function createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sk
     S = decodeShore(raw);
     layout = gpuLayout(S.head);
     const words = gpuWords(S);
-    if (words.byteLength > SHORE_CAP) throw new Error(`shore: ${words.byteLength} B over the buffer's ${SHORE_CAP}`);
+    if (words.byteLength > cap) throw new Error(`shore: ${words.byteLength} B over the buffer's ${cap}`);
     device.queue.writeBuffer(buf, PARAM_WORDS * 4, words.buffer, PARAM_WORDS * 4, words.byteLength - PARAM_WORDS * 4);
     // each kept tile's place (I, J) and its box (the frame's cull), from the index
     const H = S.head, tw = H.texel * H.tile;
@@ -277,7 +285,7 @@ export function createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sk
   }
   async function load() {
     return (loadP ??= (async () => {
-      const r = await fetch(SHORE_FILE.href); if (!r.ok) throw new Error(`shore: ${r.status}`);
+      const r = await fetch(file.href); if (!r.ok) throw new Error(`shore: ${r.status}`);
       const b = new Uint8Array(await r.arrayBuffer()); stats.bytes = b.length;
       land(b[0] === 0x1f && b[1] === 0x8b ? await inflate(b) : b);   // a host may have inflated the .gz already (Content-Encoding)
     })());

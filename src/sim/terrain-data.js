@@ -108,9 +108,9 @@ const manifestFile = (v = terrainVariant(), waters = CURRENT_WATERS) => (v === '
 // a worker's name: its grid set, the lake (src/waters/current.js reads it) and the day (src/day.js reads it: the season)
 export const workerName = (v = terrainVariant()) => `${v} ${CURRENT_WATERS.id} ${dayToken()}`;
 
-export async function loadTerrain(variant = terrainVariant(), waters = CURRENT_WATERS) {
+export async function loadTerrain(variant = terrainVariant(), waters = CURRENT_WATERS, { manifest: given = null } = {}) {   // given: a composed manifest (a region level in the bay's slot: v2/terrain/region.js shoreManifest) in place of the file's
   const dir = waters.terrain.dir, read = (name) => readFile(name, dir);
-  const manifest = JSON.parse(new TextDecoder().decode(await read(manifestFile(variant, waters))));
+  const manifest = given ?? JSON.parse(new TextDecoder().decode(await read(manifestFile(variant, waters))));
   const keep = variant === 'phone' && typeof document !== 'undefined';   // the page of a phone keeps the bytes for its workers
   const levels = await Promise.all(manifest.levels.map(async (L) => {
     const [hb, db, cb] = await Promise.all([read(L.height), read(L.distance), L.cover ? read(L.cover) : null]);

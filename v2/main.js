@@ -13,7 +13,7 @@ import { createSailClock } from './ui/engagement.js';   // v1's play counts (sta
 import { LEVELS, LEVER_ROWS, LEVER_OFF, leverRows, pinnedLevel, readSignals, guessLevel, gpuKey, readStored, writeStored, startLevel, levelParams, levelCaps, cloudPixels, forestAt, pendingRows, createLadder, createRaceLadder, createBusyProbe, createMsaaSwitch, msaaOf } from './engine/quality.js';   // the phone pass: the quality ladder
 import { createDiag, createCrashLog } from './engine/diag.js';
 import { createSweep } from './engine/sweep.js';   // perf(v2) phone: ?diag=2, the sweep on the phone itself   // the phone pass: ?diag=1, the panel for phone screenshots
-import { FOREST } from './forest/lod.js';
+import { FOREST, forestRegion } from './forest/lod.js';   // forestRegion: the rules' trees' box follows the start's level (South Lake)
 import { createCanvasSizer } from './engine/canvas.js';
 import { createSimClock, sailSchedule } from './engine/clock.js';
 import { DEFAULT_TIMERATE } from '../src/sim/timeOfDay.js';
@@ -36,7 +36,7 @@ import { createPost, BLOOM, DITHER_LSB, bloomGain } from './render/bloom.js';   
 import { createSky, SUN, nightFloor } from './render/sky.js';
 import { createWater, LOOP } from './render/water.js';
 import { laneDrift } from './render/spume.js';   // the wind lanes' and the foam streaks' drift, integrated each frame
-import { createShore } from './render/shore.js';   // #56 M3: the breakers, the swash, the spray (Ultra-Water's shore, MIT)
+import { createShore, shoreFile, shoreCap } from './render/shore.js';   // #56 M3: the breakers, the swash, the spray (Ultra-Water's shore, MIT); shoreFile: the start level's bake
 import { createTerrain } from './render/terrain.js';
 import { UNDER_STATE } from './render/underState.js';   // play as Tessie, phase 2a: the eye under the water
 import { createUnderBack, LENS } from './render/underBack.js';
@@ -47,7 +47,8 @@ import { createForest } from './render/forest.js';
 import { createClouds } from './render/clouds.js';
 import { createTerrainShadow } from './render/shadow.js';   // M5c: the terrain's sun shadow
 import { createGround } from './render/ground.js';          // M5c: the ground photo tiles and the detail set
-import { createRocks, BED_REGION } from './render/rocks.js';            // M5c: the shore and island boulders;: the bed's stones by region
+import { createRocks, BED_REGION } from './render/rocks.js';
+import { rocksFor } from './terrain/rocks-rules.js';   // the rocks' and the bed's stones' box follows the start's level (South Lake)            // M5c: the shore and island boulders;: the bed's stones by region
 import { createNight } from './render/night.js';            // M5e: the stars, the Milky Way, the town and nav lights
 import { nightLevels, NIGHT, nightLoadDue, nightCover, purkinjeAmount, purkinjeScale } from './sim/night.js';
 // M5e: v1's thunderstorm on v2's frame (sim/storm.js), its rain and bolts (render/storm.js) and v1's thunder (src/weather/stormAudio.js):
@@ -403,7 +404,7 @@ async function boot() {
   const exhaustFx = flags.boat !== false ? inGroup('boatfx', () => createExhaustFx({ device, reg, frameBGL, frameBG, U, frameStruct, sky, hdrTarget, msaa: P.msaa, depthFormat })) : null;
   const shoreMirror = createShoreMirrorTarget(device);   // #41c: the shore's mirror (the towns fill it in the aerial pass; the water reads it)
   // #56 M3: the shore field (render/shore.js): its buffer and the spray's pipeline now, the baked field after the first frame
-  const shore = flags.shore !== false ? inGroup('shore', () => createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrainBGL: terrain.hbgl, hdrTarget, msaa: P.msaa, depthFormat, sea: flags.sea })) : null;
+  const shore = flags.shore !== false ? inGroup('shore', () => createShore({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrainBGL: terrain.hbgl, hdrTarget, msaa: P.msaa, depthFormat, sea: flags.sea, file: shoreFile(levelKey), cap: shoreCap(levelKey) })) : null;
   let shoreLoad = null;
   const water = createWater({ liteFirst, device, reg, graph, frameBGL, frameBG, U, frameStruct, sky, night, terrainBGL: terrain.hbgl, reflectView: terrain.reflectView, hdrTarget, msaa: P.msaa, depthFormat, seed: 1337 + P.seed, dt: clock.dt, wake: wakeFx, asyncSea: !P.headless && flags.filmui !== true, groundAt: (x, z) => terrain.field.height(x, z), shoreMirror, m1: flags.m1 !== false, crest: flags.crest !== false, jelly: flags.jelly !== false, shore, detail: feature('waterDetail').tier === 'on', under: underOn, sea: flags.sea });   //: the variation layer and the persistent foam   // #56 M1: ?m1=0 the water before   // #21, #25: the sea field's land mask and the CPU surface's depth   // the day clock: a live page's sea tables built in a worker (a moving wind never stops a frame)
   const windBlend = createWindBlend({ device, reg, out: water.windTexture });   // fix(v2) shadow stepping: the wind texture's two newest fills cross-faded a frame (the gust patches drift, never step)
@@ -426,7 +427,7 @@ async function boot() {
   const ground = inGroup('ground', () => createGround({ device, reg, terrain, variant: pickVariant(flags), photo: flags.photo !== false, detail: flags.detail !== false, rock: feature('rockDetail').tier === 'on', errors, region: region?.photoLevel ?? null }));   // the close rock's two layers (render/rockDetail.js)
   // the boulders (render/rocks.js): v1's shore band and the slopes' rocks, scattered on the GPU, culled, one indirect draw
   const rocks = flags.rocks !== false ? inGroup('rocks', () => createRocks({ device, reg, frameBGL, frameBG, U, frameStruct, sky, terrain, shadow: tshadow, hdrTarget, msaa: P.msaa, depthFormat,
-    bed: feature('bedBoulders').tier === 'full', zones: clearZones({ moorings, anchored: ANCHORED_BOATS, birthplaces: listBirthplaces(CURRENT_WATERS, { all: true }) }), under: underOn })) : null;
+    bed: feature('bedBoulders').tier === 'full', rules: rocksFor(levelKey), zones: clearZones({ moorings, anchored: ANCHORED_BOATS, birthplaces: listBirthplaces(CURRENT_WATERS, { all: true }) }), under: underOn })) : null;
   const rocksOn = () => !!rocks && PG.rocks;   // perf(v2) iOS pipelines: scattered, culled and drawn once their group is built
   if (rocks) { let cp = false; graph.onBeforeSubmit((enc) => { cp = rocksOn() && rocks.copyCount(enc); }); graph.onAfterSubmit(() => { if (cp) rocks.afterSubmit(cp); }); }   // the boulders receive the shadow and do not cast (a 1 m rock in a 2.4 m texel map shadowed itself)
   if (flags.bed === false) terrain.setLook({ bed: 0, caustics: 0 });
@@ -438,6 +439,7 @@ async function boot() {
   hook.caustics = caustics;
   hook.setCaustics = (on) => { caustics?.setLook({ on: !!on }); terrain.setLook({ caustics: on ? 1 : 0 }); };   // the in-page A/B (tools/v2-caustics.mjs ab): the splat and the bed's tap off and on
   const forest = flags.forest !== false ? inGroup('forest', () => createForest({ device, reg, graph, frameBGL, U, frameStruct, sky, terrain, hdrTarget, msaa: P.msaa, depthFormat, variant: pickVariant(flags), errors, shadow: tshadow, wind: water.windTexture,   // the trees sway in the water's wind texture (forest/sway.js)
+    region: forestRegion(levelKey, pickVariant(flags)),   // the rules' box round the start's level (a south start: Heavenly and the town; the bay's unchanged)
     reach: forestAt(pickVariant(flags) === 'phone' ? FOREST.phone : FOREST.desktop, Q.level) })) : null;   // the phone pass: the level's reach
   terrain.setForest(forest?.L ?? { thin: 0, fade: 0, far: 0 }, !!forest);
   if (forest) terrain.attach({ canopy: forest.canopy });   // T3: the far forest's canopy grid on the terrain (render/canopy.js)

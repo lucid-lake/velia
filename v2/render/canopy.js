@@ -110,8 +110,8 @@ fn canopyIn(xz: vec2f) -> f32 {
   return smoothstep(0.0, ${f(CANOPY.edgeM)}, min(min(lo.x, lo.y), min(hi.x, hi.y))) * TU.canopy2.y;
 }`;
 
-export function createCanopy({ device, reg, inst, ranges, variant = 'full' }) {
-  const G = gridOf(variant === 'phone' ? 'phone' : 'desktop'), n = G.nx * G.nz;
+export function createCanopy({ device, reg, inst, ranges, variant = 'full', region = undefined }) {   // region: the rules' box (forest/lod.js forestRegion)
+  const G = gridOf(variant === 'phone' ? 'phone' : 'desktop', region), n = G.nx * G.nz;
   const S = GPUBufferUsage.STORAGE;
   const sumC = device.createBuffer({ label: 'canopy-words', size: n * 4, usage: S | GPUBufferUsage.COPY_SRC });
   const sumT = device.createBuffer({ label: 'canopy-tops', size: n * 4, usage: S });
