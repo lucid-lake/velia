@@ -1,0 +1,10 @@
+{
+  "name": "v2-ski-run",
+  "url": "http://127.0.0.1:5174/?hour=15&wind=2&wlook=clear&birth=ski-run&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "South Lake (Phase A): the Ski Run start on South Lake's own 4 m level and photo, the follow camera turned to Heavenly over the town; pending: no reference until the owner has seen it (bless, then drop pending)"
+}
