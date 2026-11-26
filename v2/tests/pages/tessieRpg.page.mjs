@@ -21,7 +21,7 @@
 //     hulls in the world, ticks on the SONAR dial's rim, its word "300 M"; the ring); a click on the Sonar slot while it cools does nothing
 // Phase 4 (Tail Surge, v2/sim/tessieSurge.js): 4 winds up 1.2 s (the slot amber), then the slap: the wave's cream ring on the water
 //     runs out to 40 m, a busy-lake sailboat laid 20 m abeam heels away from her; a click on the slot while it cools does nothing; in a
-//     strong wind (?wind=4, the fleet out 25 s, then a gust laying one past 21°) a boat leaning past 20° moved 9 m off her just before the slap goes over (scored as wrecked)
+//     strong wind (?wind=4, the fleet out 25 s, then a gust laying one past 22°) a boat leaning past 20° moved 9 m off her just before the slap goes over (scored as wrecked)
 // Evidence: TESSIE_RPG4_SHOT=<prefix> saves <prefix>-wave.png (0.9 s after the slap) and <prefix>-knock.png (the knockdown, 2.5 s after).
 // Evidence: TESSIE_RPG3_SHOT=<prefix> saves <prefix>-lure.png (2.5 s after the lure) and <prefix>-sonar.png (1 s after the ping).
 // TESSIE_RPG_SHOT=<png> saves the Tessie page as drawn; TESSIE_RPG2_SHOT=<prefix> saves her HUD during the level-up line
@@ -335,20 +335,32 @@ try {
       const again = await page.evaluate(() => window.__velia.tessiePlay.stats().log.surge.at);
       check(again === w1.surge.at, 'a click on the Surge slot while it cools does nothing (no second slap)');
     } else {
-      // the boat leaning most (past 20° in 21 kn, once the fleet has sailed 25 s) moved 9 m off her middle, 30° off her bow, just before
-      // the slap, its heel kept
+      // the boat leaning most (about 20° in 21 kn, once the fleet has sailed 25 s) moved 9 m off her middle, 30° off her bow, in the
+      // wind-up's last 0.5 s (kept there, its heel kept, the most-heeled re-picked each 50 ms); a slap that finds no boat past 20° is
+      // tried again after the 30 s cooldown (up to four slaps: the gusts come and go)
       await page.waitForTimeout(25000);
-      await page.waitForFunction(() => (window.__velia.busy.lake?.liveBoats ?? []).some((b) => !b.knock && Math.abs(b.phys.state.heel) > 21 * Math.PI / 180), null, { timeout: 40000, polling: 100 }).catch(() => {});   // a gust lays one past 21°
-      await page.keyboard.press('Digit4'); await page.waitForTimeout(1050);
-      const mv = await page.evaluate(() => {
-        const V = window.__velia, c = V.tessie.sim.state.centre, n = V.tessie.sim.state.nose, live = (V.busy.lake?.liveBoats ?? []).filter((b) => !b.knock);
-        const b = live.sort((p, q) => Math.abs(q.phys.state.heel) - Math.abs(p.phys.state.heel))[0]; if (!b) return null;
-        const q = b.phys.state, a = n.psi + 30 * Math.PI / 180; q.x = c[0] + Math.sin(a) * 9; q.z = c[1] - Math.cos(a) * 9;
-        return { id: b.id, lean: +(q.heel * 180 / Math.PI).toFixed(1) };
-      });
-      await page.waitForTimeout(2600);
+      let mv = null, k = null;
+      for (let tries = 0; tries < 4; tries++) {
+        if (tries) await page.waitForTimeout(29000);
+        await page.waitForFunction(() => (window.__velia.busy.lake?.liveBoats ?? []).some((b) => !b.knock && Math.abs(b.phys.state.heel) > 21 * Math.PI / 180), null, { timeout: 30000, polling: 50 }).catch(() => {});
+        const at0 = await page.evaluate(() => window.__velia.tessiePlay.stats().log.surge?.at ?? null);
+        await page.keyboard.press('Digit4'); await page.waitForTimeout(700);
+        for (let i = 0; i < 12; i++) {
+          const m = await page.evaluate(() => {
+            const V = window.__velia, st = V.tessiePlay.stats(); if (st.log.surge?.slap) return null;   // slapped: leave it be
+            const c = V.tessie.sim.state.centre, n = V.tessie.sim.state.nose, live = (V.busy.lake?.liveBoats ?? []).filter((b) => !b.knock);
+            const b = live.sort((p, q) => Math.abs(q.phys.state.heel) - Math.abs(p.phys.state.heel))[0]; if (!b) return null;
+            const q = b.phys.state, a = n.psi + 30 * Math.PI / 180; q.x = c[0] + Math.sin(a) * 9; q.z = c[1] - Math.cos(a) * 9;
+            return { id: b.id, lean: +(q.heel * 180 / Math.PI).toFixed(1) };
+          });
+          if (!m) break; mv = m; await page.waitForTimeout(50);
+        }
+        await page.waitForTimeout(2600);
+        k = await page.evaluate((i) => { const V = window.__velia, st = V.tessiePlay.stats(), b = V.busy.lake.liveBoats.find((o) => o.id === i); return { at: st.log.surge?.at, slap: st.log.surge?.slap, capsized: !!b?.knock?.capsized, wrecked: V.tessiePlay.bounty.state().byType.sail.wrecked }; }, mv?.id);
+        if (k.at === at0) continue;   // (no new press: the cooldown)
+        if (k.slap?.knock) break;
+      }
       if (process.env.TESSIE_RPG4_SHOT) await page.screenshot({ path: `${process.env.TESSIE_RPG4_SHOT}-knock.png` });
-      const k = await page.evaluate((i) => { const V = window.__velia, st = V.tessiePlay.stats(), b = V.busy.lake.liveBoats.find((o) => o.id === i); return { slap: st.log.surge.slap, capsized: !!b?.knock?.capsized, wrecked: V.tessiePlay.bounty.state().byType.sail.wrecked }; }, mv?.id);
       // the rule as the slap saw it (its lean then: a gust comes and goes in the 0.15 s after the move)
       const lean = k.slap?.knock?.lean ?? k.slap?.heels.find((x) => x.id === mv?.id)?.lean;
       if (k.slap?.knock) check(k.slap.knock.id === mv.id && k.slap.over.includes(mv.id) && k.capsized && k.wrecked === 10, `strong wind: the boat leaning ${lean}° 9 m off goes over and is scored (${JSON.stringify({ knock: k.slap?.knock, over: k.slap?.over, capsized: k.capsized, wrecked: k.wrecked })})`);
