@@ -35,7 +35,7 @@ import { GLOW_FLOATS, NAV_GLOW, navLevel, navSector } from './night.js';
 import { steerTo, stepHull, HULL, GAIT } from '../../src/sim/kayaks/agent.js';
 import { createStroke, strokeStep, meanForce } from './kayak-stroke.js';
 import { pickLook } from '../../src/sim/props/paddler/look.js';
-import { LURE } from './tessieLure.js';
+import { CURIOUS as LURE } from './curious.js';   // play as Tessie's Lure (not her code: a phone loads this)
 
 const DEG = Math.PI / 180, KN = 0.514444;
 import { wrap as wrapPi } from '../../src/sim/core/math.js';

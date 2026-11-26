@@ -6,20 +6,15 @@
 //   lureTargets(her { x, z }, list [{ id, kind, x, z }], { rangeM, seen(id) → bool, halcyon }) → the ids lured, nearest first
 //   curiousHeading(s { x, z, heading }, at { x, z }, windFrom, noGoDeg) → the heading toward the point, never inside the no-go cone
 //   lureSplashes(x, z, n) → n points (seeded by index: the golden angle) for the small splashes round her, within LURE.splashM
-import { wrap } from '../../src/sim/core/math.js';
-
-const DEG = Math.PI / 180;
+import { CURIOUS, curiousHeading } from './curious.js';
+export { curiousHeading };
 export const LURE = Object.freeze({
   seenS: 45,          // s: a boat that saw her this recently ignores the lure (the RPG's seen window)
   ringM: 30,          // m: the ring of small splashes on the water (the in-world ring's radius)
   ringGrowS: 1.5, ringS: 4,   // s: the ring runs out to ringM over ringGrowS and fades by ringS
   splashM: 9,         // m: the small splashes lie within this of her (a school's shimmer)
   splashes: 6,        // the creature-map rings over the cast (LURE_CAST_S)
-  arriveM: 25,        // m: a curious sailboat or the glass boat this near the ring stops closing (luffs and drifts)
-  kayakArriveM: 10,   // m: a curious kayaker stops paddling this near
-  slowM: 60,          // m: inside this a curious sailboat eases her sheets (she slows to look)
-  easeDeg: 80,        // the sheets eased to this while she slows
-  noGoDeg: 50,        // the no-go cone either side of the wind (the busy lake's)
+  ...CURIOUS,         // arriveM, kayakArriveM, slowM, easeDeg, noGoDeg (sim/curious.js)
   kinds: Object.freeze(['sail', 'glass', 'kayak', 'halcyon']),   // what turns (the paddleboards and South Lake's traffic: not yet)
 });
 
@@ -36,10 +31,6 @@ export function lureTargets(her, list = [], { rangeM = 120, seen = () => false, 
   return out;
 }
 
-export function curiousHeading(s, at, windFrom, noGoDeg = LURE.noGoDeg) {
-  const h = Math.atan2(at.x - s.x, -(at.z - s.z)), off = wrap(h - windFrom), lim = noGoDeg * DEG;
-  return Math.abs(off) >= lim ? h : wrap(windFrom + (off >= 0 ? lim : -lim));   // inside the cone: its nearer edge (a close reach toward it)
-}
 
 export function lureSplashes(x, z, n = LURE.splashes, out = []) {
   out.length = 0;

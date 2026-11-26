@@ -45,7 +45,7 @@ import { createChannelHelm, CHANNEL_HELM } from '../sim/channelHelm.js';
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
 import { busyRegionsOf } from '../sim/regions.js';   // the region table (refactor round 3 C5)
 import { clearLook, CLEAR } from '../sim/clearLook.js';
-import { LURE, curiousHeading } from '../sim/tessieLure.js';   // play as Tessie's Lure: the curious kind   // the clear look (moved to sim/, refactor round 3 C6: Tessie's flee reads it too)
+import { CURIOUS as LURE, curiousHeading } from '../sim/curious.js';   // play as Tessie's Lure: the curious kind (not her code: a phone loads this)   // the clear look (moved to sim/, refactor round 3 C6: Tessie's flee reads it too)
 
 const DEG = Math.PI / 180, TAU = 2 * Math.PI;
 const wrap = (a) => { a %= TAU; return a > Math.PI ? a - TAU : a < -Math.PI ? a + TAU : a; };

@@ -49,7 +49,7 @@ import { poseRows } from './kayak-clip.js';
 import { blendRows } from './kayak-rigid.js';
 import { createRoll, rollImpulse, stepRoll, ROLL } from './kayak-roll.js';
 import { hash01 } from '../../src/sim/kayaks/plan.js';
-import { LURE } from './tessieLure.js';
+import { CURIOUS as LURE } from './curious.js';   // play as Tessie's Lure (not her code: a phone loads this)
 
 const SPAWN_CLEAR_M = 250, RETIRE_M = 400;   // v1's: a kayak appears or leaves only this far from the camera
 const PAIR_FULL_M = 150;                     // v1's: the pair stays full inside this whatever the tier's cap

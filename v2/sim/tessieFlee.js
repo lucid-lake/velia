@@ -7,7 +7,7 @@
 //                                        the skipper turns curious toward it while it lasts (out of the no-go cone, clear water), then flees again;  B.drive(F.drive) ... B.drive(null);  F.state { heading, n }
 import { Helm } from '../../src/sim/boat.js';
 import { clearLook } from './clearLook.js';
-import { curiousHeading } from './tessieLure.js';
+import { curiousHeading } from './curious.js';
 
 export const FLEE = Object.freeze({ twaDeg: 130, everyS: 10, lookS: 30, tries: 14, stepDeg: 12 });
 const DEG = Math.PI / 180;
