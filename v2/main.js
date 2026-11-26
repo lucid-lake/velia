@@ -1559,7 +1559,7 @@ async function boot() {
     if (!P.headless) m4.beforeStep(dt, h);   // M4: the station's hands go in (the wheel, the winches, the Tack assist)
     if (birthCamUntil != null) {
       const st = cardNow();
-      if (birthCamArm) { if (st == null || st === 'gone') { birthCamArm = false; birthCamUntil = B.t + BIRTH.camHoldS; } }
+      if (birthCamArm) { if (P.headless || st == null || st === 'gone') { birthCamArm = false; birthCamUntil = B.t + BIRTH.camHoldS; } }
       else if (B.t >= birthCamUntil) { birthCamUntil = null; B.follow.chase = true; }   // the hero shown: the camera's chase on again
     }
     birthplaces?.step(P.headless ? n * clock.dt : dt);   // a birthplace move's veil and its place, before the boat's step
