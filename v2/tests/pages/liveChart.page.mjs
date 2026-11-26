@@ -54,6 +54,13 @@ check(!s.following, 'zoom: a zoom about the pointer leaves the boat');
 await page.focus('.lk-livechart'); await page.keyboard.press('Digit1'); await page.waitForTimeout(450);
 s = await st();
 check(Math.abs(s.view.mpp - s.zoom.max) < 0.01 || Math.abs(s.view.mpp - 6.5) < 0.01, `zoom: 1 is the whole bay (${s.view.mpp.toFixed(2)} m/px)`);
+// the boat over the map: her words are plain haloed text (no plate) and never sit at full strength on a name or a pin; she reserves no room
+await page.waitForTimeout(400);
+const bw = await lc(() => { const el = document.querySelector('.lk-livechart .lkp-cb'), w = el?.querySelector('.inr'); if (!w) return null; const cs = getComputedStyle(w), r = w.getBoundingClientRect(), a = +cs.opacity;
+  const over = window.__velia.m4.ui.services.get('liveChart').marks().filter((m) => r.right > m[0] && r.left < m[2] && r.bottom > m[1] && r.top < m[3]).length;
+  return { bg: cs.backgroundColor, border: cs.borderTopWidth, blur: cs.backdropFilter, a, over, side: el.dataset.words }; });
+check(bw && /rgba\(0, 0, 0, 0\)|transparent/.test(bw.bg) && bw.border === '0px' && (!bw.blur || bw.blur === 'none'), `the boat's words: no plate behind them (${JSON.stringify(bw)})`);
+check(bw && (bw.over === 0 || bw.a < 0.5), `the boat's words: clear of every name and pin, or faded where they would cover one (${bw?.over} under them, opacity ${bw?.a}, ${bw?.side})`);
 await page.keyboard.press('Equal'); await page.waitForTimeout(450);
 const s2 = await st();
 check(s2.view.mpp < s.view.mpp * 0.75, `zoom: + zooms in (${s.view.mpp.toFixed(2)} → ${s2.view.mpp.toFixed(2)})`);

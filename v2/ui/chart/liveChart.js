@@ -40,7 +40,7 @@
 //   chart.setGlass(a)               the ground at opacity a (0.9: the menu over the live lake; the host blurs what is behind, mapScreen.js)
 //   chart.recentre()                follow the boat again (0.4 s glide)
 //   chart.show(on), chart.setMode(mode), chart.setInsets(insets), chart.resize()
-//   chart.state, chart.stats(), chart.toClient(x, z), chart.destroy()
+//   chart.state, chart.stats(), chart.toClient(x, z), chart.marks() (the shown names' and points' boxes, client px), chart.destroy()
 import { TOKENS, FONT, UI, ensureTokens } from '../../../src/ui/tokens.js';
 import { GROUND, SHEETS, GROUND_PALETTES, groundSteps, groundSize } from './ground.js';
 import { GROUND_BAKE } from './groundData.js';
@@ -328,7 +328,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
 
   // ---- drawing ----
   const stats = { draws: 0, ms: [], max: 0, touchMax: 0, touchSum: 0 };
-  const drawn = { pois: [], labels: [], ground: 'none', sheets: [], navLine: [] };
+  const drawn = { pois: [], labels: [], ground: 'none', sheets: [], navLine: [], lay: [], nById: new Map() };
   const P = [0, 0];
   // touch() is a live feature read (features.js publishes every policy on each call: 0.1 ms or more under load; about 80 reads a draw
   // pushed the draw past 1.5 ms). The draw reads it at most twice a second (and at once after show or a resize: touchAt = -Infinity);
@@ -508,9 +508,8 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       if (kr && !LABEL_OF[r.id]) keep.push([x - kr, y - kr, x + kr, y + kr]);   // a place with its own name nearby (the island): its name may pass close
     }
     drawn.pois = pois;
-    // the boat (kept clear of names)
+    // the boat reserves no room: names, pins and anchorages keep their own spots; she and her words are drawn light over them
     const b = boat();
-    if (b) { v.toPx(b.x, b.z, P); keep.push([P[0] - 13, P[1] - 13, P[0] + 13, P[1] + 13]); }
     // the scale and north (bottom-right, drawn last) keep their corner clear of names too
     const sc = scaleGeo(mpp);
     keep.push([sc.nx - 12, sc.y - 32, sc.x1 + 4, sc.y + 6]);
@@ -559,17 +558,17 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       g.globalAlpha = INK.lifted; g.drawImage(s.cv, P[0] + 12, P[1] - s.h / 2, s.w, s.h); g.globalAlpha = 1;
       out.push({ id: n.id, shown: true, alpha: 1 });
     }
-    drawn.labels = out;
-    // the boat: the sloop in binnacle amber on a dark under-stroke, the one-minute vector ahead
+    drawn.labels = out; drawn.lay = lay; drawn.nById = nById;
+    // the boat: the sloop in binnacle amber on a dark under-stroke, the one-minute vector ahead (both only while the map's boat layer is off)
     if (b) {
       v.toPx(b.x, b.z, P);
       const hd = b.heading ?? 0, [hx, hy] = v.dirPx(hd), [cx, cy] = v.dirPx(b.cog ?? hd), vv = ((b.sog ?? 0) * 60) / mpp;
-      if (vv > 3) { g.beginPath(); g.moveTo(P[0], P[1]); g.lineTo(P[0] + cx * vv, P[1] + cy * vv); g.strokeStyle = rgba(bg, 0.7); g.lineWidth = 3.4; g.stroke(); g.strokeStyle = A(0.9); g.lineWidth = 1.4; g.stroke(); }
+      if (vv > 3 && ownBoat) { g.beginPath(); g.moveTo(P[0], P[1]); g.lineTo(P[0] + cx * vv, P[1] + cy * vv); g.strokeStyle = rgba(bg, 0.7); g.lineWidth = 3.4; g.stroke(); g.strokeStyle = A(0.9); g.lineWidth = 1.4; g.stroke(); }
       if (ownBoat) { g.save(); g.translate(P[0], P[1]); g.rotate(Math.atan2(hx, -hy));
       const k = touchNow ? 1.5 : 1.3;
       g.beginPath(); g.moveTo(0, -7.5 * k); g.bezierCurveTo(3.6 * k, -3.5 * k, 3.4 * k, 3 * k, 2.4 * k, 5.5 * k); g.lineTo(-2.4 * k, 5.5 * k); g.bezierCurveTo(-3.4 * k, 3 * k, -3.6 * k, -3.5 * k, 0, -7.5 * k); g.closePath();
       g.strokeStyle = rgba(bg, 0.85); g.lineWidth = 3.6; g.stroke(); g.fillStyle = A(0.3); g.fill(); g.strokeStyle = A(1); g.lineWidth = 1.6; g.stroke();
-      g.restore(); }   // ownBoat false: the map's boat layer (mapBoat.js) draws her instead
+      g.restore(); }   // ownBoat false: the map's boat layer (mapBoat.js) draws her, her heading and her wake instead
     }
     // the wind: one quiet arrow in the top-left corner (past the owner's inset), the knots beside it in tabular numerals at 60 %
     const tw = b?.trueWind, wind = src('wind', null) ?? (tw ? { fromRad: (b.heading ?? 0) + tw.angle, kn: tw.speed / 0.514444 } : null);
@@ -895,6 +894,24 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     get ux() { return uxApi; },
     resize() { layout(); placeCard(); dirty = true; },
     runAction: (id) => runAction(rowById(id) ?? rowById(selId)),
+    // what the map shows that the boat's words must not cover: each shown name's box and each point's mark, in client px [x0, y0, x1, y1]
+    // (built only when asked: the map boat's layer reads it a frame, the draw never does)
+    marks() {
+      const out = [], r = cv.getBoundingClientRect(), ox = r.left, oy = r.top;
+      for (const L of drawn.lay) {
+        if (!L.shown || !Number.isFinite(L.x) || (alphas.get(L.id) ?? 0) < 0.3) continue;
+        const n = drawn.nById.get(L.id), al = L.align ?? n?.align, x0 = al === 'left' ? 0 : al === 'right' ? -L.w : -L.w / 2, a = ((n?.angle ?? 0) * Math.PI) / 180;
+        const cs = Math.cos(a), sn = Math.sin(a);
+        let mx0 = Infinity, my0 = Infinity, mx1 = -Infinity, my1 = -Infinity;
+        for (const [px, py] of [[x0, -L.h / 2], [x0 + L.w, -L.h / 2], [x0, L.h / 2], [x0 + L.w, L.h / 2]]) {
+          const qx = L.x + px * cs - py * sn, qy = L.y + px * sn + py * cs;
+          mx0 = Math.min(mx0, qx); my0 = Math.min(my0, qy); mx1 = Math.max(mx1, qx); my1 = Math.max(my1, qy);
+        }
+        out.push([ox + mx0, oy + my0, ox + mx1, oy + my1]);
+      }
+      for (const p of drawn.pois) out.push([ox + p.px - 9, oy + p.py - 9, ox + p.px + 9, oy + p.py + 9]);
+      return out;
+    },
     toClient(x, z) { const r = cv.getBoundingClientRect(), q = visView().toPx(x, z); return { x: r.left + q[0], y: r.top + q[1] }; },
     get shown() { return shown; },
     openWater: (x, z) => { const q = visView().toPx(x, z); return openWater(q[0], q[1]); },   // a test's and a probe's way to the water card
