@@ -104,7 +104,7 @@ export function installFront({ settings, B, windField = null, clock, views = nul
   seedProfile(settings);   // no skill question: a new player starts as New (Setup › Aids › your sailing changes it)
   const home = createHome({
     current: modes?.current ?? 'sail',
-    voyage: (w, v) => ({ waters: w.place, vessel: boatLine(v).replace(' · ', ' '), place: bp ? bp.name() : '' }),   // "Emerald Bay · Halcyon 28 ft · Tessie's water ›"
+    voyage: (w, v) => ({ waters: w.place, vessel: boatLine(v).replace(' · ', ' '), place: bp ? bp.name() : '' }),   // "Emerald Bay · Halcyon 28 ft · Off Fannette ›"
     onMode: (id) => { if (!isPlayed(id)) return false; enterLandscape(); return modes?.go?.(id) ?? true; },   // a phone: full screen and the landscape lock on the tap (ui/landscape.js; refused: the CSS turn stands)   // Sail | Cruise: the page switches (it tells the card when it lands: home.setMode)
     ...logLinks(() => ui),
     inside: (t) => !!ui?.services.get('mapScreen')?.insideHost(t),   // a press on the map behind the panel keeps the menu open

@@ -6,7 +6,7 @@
 //   [⛵ Halcyon] [~ Tessie]  the vessel (owner, 2026-11-20): two buttons in the row's slot, each an icon and a name, the
 //                            chosen one lit amber; a press picks at once (no plate). Where feature('playTessie') is off (a phone) Halcyon
 //                            alone, a plain label
-//   ⌖ Tessie's water ›      the start: the Start plate (a pick selects its pin on the map, like a click on it)
+//   ⌖ Off Fannette ›        the start: the Start plate (a pick selects its pin on the map, like a click on it)
 //   ◷ 4 Jul · 15:00 · Fair · 16 kn S ›   the conditions (owner, 2026-11-20: one row for the clock, the weather and the wind; a narrow
 //                            panel drops the wind's speed, then its word): the conditions plate (Time of day · Weather · Wind)
 // The other rows open the same small glass plate beside the panel (owner, 2026-11-20; the plates' words and
@@ -191,7 +191,7 @@ export function mountPanelPlan({ root, services, chart = null, showTessie = () =
   const LABEL = { waters: 'Waters', boat: 'Boat', start: 'Start', cond: 'Conditions' };
   function buildPlate(k) {
     const c = cond();
-    const d = { tessie: !!showTessie?.(), births: (bp()?.list?.() ?? []).filter((r) => !r.locked).map((r) => ({ id: r.id, name: r.name, disabled: boat === 'tessie' && !deepOk(r) })) };
+    const d = { tessie: !!showTessie?.(), births: (bp()?.list?.() ?? []).filter((r) => !r.locked).map((r) => ({ id: r.id, name: r.name, mark: r.mark ?? '', disabled: boat === 'tessie' && !deepOk(r) })) };
     if (k === 'cond') {
       if (!c) return false;
       d.times = (c.time?.rows ?? []).filter((r) => r.id !== 'fireworks').map((r) => ({ id: r.id, name: TIME_NAMES[r.id] ?? r.name }));

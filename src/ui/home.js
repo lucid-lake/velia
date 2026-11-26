@@ -61,7 +61,7 @@ export function createHome({ root = document.getElementById('lk-load'), body = d
   pickToEnter = false,   // v2 (owner, 2026-11-15: "I need the enter mode gone"): the first card has no ENTER and no lit mode; only a tap (or a tabbed-to mode's own Enter or Space) enters, a loading-time tap still queues and lights its mode; in play the running mode stays lit
   deskEnter = () => false,   // v2 desktop (owner, 2026-11-17: "the Sail button is highlighted, and pressing Enter enters Sail"): with pickToEnter, true on a keyboard hand: the first card lights a mode (Sail first; arrows and Tab move it) and Enter or Space starts it. A phone or tablet (false): no lit mode, no Enter start. Still no ENTER button
   escFirst = () => false,   // true: a page over the game takes Esc first (the shell: the logbook, the pinned chart, the raised binoculars)
-  voyage = null,   // v2: the card's voyage line as { waters, vessel, place }: "Emerald Bay · Halcyon 28 ft · Tessie's water ›"; none: v1's "Emerald Bay · Lake Tahoe · Halcyon · 28 ft"
+  voyage = null,   // v2: the card's voyage line as { waters, vessel, place }: "Emerald Bay · Halcyon 28 ft · Off Fannette ›"; none: v1's "Emerald Bay · Lake Tahoe · Halcyon · 28 ft"
   inside = () => false,   // v2: true for a target that belongs to the card though it is not in it (the live map behind the panel): a press there does not close the menu
   mapKeys = () => false,   // v2: true when the key is for the live map behind the panel (its host has the focus): the keys reach it (Tab walks its points, Enter opens one, arrows pan, + and − zoom)
   menuEsc = () => false,   // v2: true when the live map took Esc first (it closed its own card); the menu stays

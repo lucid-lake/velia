@@ -753,7 +753,7 @@ async function boot() {
   // ?windspeed/?winddir pin a steady base (v1's world.js)
   // Sail's wind shifts by the player's experience (owner, 2026-11-17; v2/sim/wind.js sailShiftProfile, src/sim/sail-shifts.js): the
   // profile at boot, then each frame (windNowAt) as the mode, Setup's profile or Pro change; 'off' in Cruise and Regatta
-  // the birthplace (73 § 2; owner, 2026-11-18): a Sail page starts at the saved pick, ?birth=, or Tessie's water on
+  // the birthplace (73 § 2; owner, 2026-11-18): a Sail page starts at the saved pick, ?birth=, or Off Fannette on
   // a first visit, on a reach off the live wind (below, once the field exists); ?start= / ?heading= alone pin today's pose (the
   // goldens, the page tests). Cruise and Regatta keep their own starts (Cruise takes a chosen pick: cruiseBirth below)
   let cruiseBirth = () => null;   // set with the birthplaces' service (below)

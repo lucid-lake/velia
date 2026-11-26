@@ -164,7 +164,7 @@ export function buildPois(src = {}, { mode = 'play' } = {}) {
   const add = (r) => rows.push({ ...r, zoomClass: r.zoomClass ?? KINDS[r.kind].cls, action: actionFor(r.kind, mode) });
   // a birthplace past the chart's paper (a region its sheets do not cover yet; South Lake's is on the paper) stands at the paper's edge
   // toward it, its name with the continuation mark; a tap picks it as any pin (the service moves her to the real place)
-  for (const b of src.birthplaces ?? []) { const e = edgePoint(b.x, b.z, PAPER); add({ id: `bp-${b.id}`, ref: b.id, kind: 'birthplace', x: e.x, z: e.z, name: e.far ? farName(b.name) : b.name, line: e.far ? farLine(b.why, e) : b.why ?? '', lit: b.id === src.current, ...(e.far ? { far: true, at: [b.x, b.z] } : {}) }); }
+  for (const b of src.birthplaces ?? []) { const e = edgePoint(b.x, b.z, PAPER); add({ id: `bp-${b.id}`, ref: b.id, kind: 'birthplace', x: e.x, z: e.z, name: e.far ? farName(b.name) : b.name, line: e.far ? farLine(b.why, e) : b.why ?? '', ...(b.mark ? { mark: b.mark } : {}), lit: b.id === src.current, ...(e.far ? { far: true, at: [b.x, b.z] } : {}) }); }
   for (const a of src.anchorages ?? []) add({ id: `an-${Math.round(a.x)}-${Math.round(a.z)}`, kind: 'anchorage', x: a.x, z: a.z, name: a.name,
     line: a.depth != null ? `${Math.round(a.depth)} m of water, good holding.` : 'Good holding.', lit: !!a.lit });   // lit: the boat is inside it (the anchorage cue)
   for (const p of src.places ?? []) add({ id: `pl-${p.id}`, ref: p.id, kind: 'place', x: p.x, z: p.z, name: p.name, line: p.line ?? '', zoomClass: p.zoomClass });
