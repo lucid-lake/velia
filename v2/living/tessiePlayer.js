@@ -488,11 +488,14 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       log.swaps.push({ out: true, at: +clock.toFixed(1) });
       return true;
     },
-    // the chart's "Be Tessie": the boat moved to her water under the veil (the birthplace's move), she rises 150 m off it
-    async fromChart() {
+    // the chart's "Be Tessie": the boat moved to her water under the veil (the birthplace's move), she rises 150 m off it.
+    // id: the flagged pin's row (the card's ref); else the row that carries her mark (her own row folded into Off Fannette)
+    async fromChart(id = null) {
       const why = W.can('chart', self.ctx()); if (why && why !== 'card') return { ok: false, why };
       if (W.as === 'tessie') self.back({ cut: true });
-      const r = birthplaces ? await birthplaces.moveTo('tessie') : { ok: true };
+      const rows = birthplaces?.list?.() ?? [];
+      const to = (id && rows.some((r) => r.id === id) ? id : null) ?? rows.find((r) => r.mark)?.id ?? id;
+      const r = birthplaces ? await birthplaces.moveTo(to) : { ok: true };
       if (!r?.ok) return r ?? { ok: false, why: 'unknown' };
       pendingChart = true;
       svc()?.get?.('menu')?.close?.();
