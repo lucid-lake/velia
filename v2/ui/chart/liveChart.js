@@ -46,6 +46,7 @@ import { GROUND, SHEETS, GROUND_PALETTES, groundSteps, groundSize } from './grou
 import { GROUND_BAKE } from './groundData.js';
 import { SHEET_BAKE } from './sheetData.js';
 import { REFUSALS } from '../birthplaceCard.js';
+import { drawTessieGlyph, tessieGlyphWidth } from './tessieGlyph.js';
 import { SIZES, BOOKMARKS, INK, NIGHT_INK, HIT_PX, ACTION_WORDS, namesFor, chartView, zoomAbout, panBy, clampView, zoomRange, centreFor, classVisible,
   fadeTo, buildPois, aimOf, poiShown, hitTest, walkOrder, layoutLabels, ease, sheetWanted } from './chartModel.js';
 import { mountMapUx, drawWake, UX } from './mapUx.js';   // ?mapux=1 only ('s mock): the eased crosshair, the layers, your wake
@@ -162,8 +163,9 @@ function nameSprite(text, { fs, italic, ink, dpr, halo = null, mark = '' }) {
     });
   }
   w = Math.max(1, w - track);
-  // a pin's small second word (Off Fannette's 'Tessie'): caps at 0.58 of the name, fainter, a space after it
-  if (mark) { const ms = fs * 0.58; w += fs * 0.55; for (const ch of String(mark)) { meas.font = font(ms); glyphs.push({ c: ch.toUpperCase(), s: ms, x: w, a: 0.7 }); w += meas.measureText(ch.toUpperCase()).width + track * 0.8; } w -= track * 0.8; }
+  // a pin that carries Tessie's flag: her tiny logo after the name, about 0.8 of the name's size tall (11 to 14 px), a gap before it
+  const gh = Math.round(fs * 0.8), gx = mark ? w + fs * 0.5 : 0;
+  if (mark) w = gx + tessieGlyphWidth(gh);
   const h = Math.ceil(fs * 1.4), cv = canvas2d(Math.ceil((w + 4) * dpr), Math.ceil(h * dpr)), g = cv.getContext('2d');
   g.scale(dpr, dpr); g.textBaseline = 'alphabetic'; g.fillStyle = rgba(ink, 1);
   if (halo) { g.shadowColor = rgba(halo, NIGHT_INK.haloA); g.shadowBlur = Math.max(2, fs * 0.22); }   // the night's soft halo: the name reads on the bright sand
@@ -172,8 +174,8 @@ function nameSprite(text, { fs, italic, ink, dpr, halo = null, mark = '' }) {
     for (const q of glyphs) { g.font = font(q.s); g.strokeText(q.c, 2 + q.x, fs * 1.05); }
     g.shadowBlur = 0;
   }
-  for (const q of glyphs) { g.font = font(q.s); g.globalAlpha = q.a ?? 1; g.fillText(q.c, 2 + q.x, fs * 1.05); }
-  g.globalAlpha = 1;
+  for (const q of glyphs) { g.font = font(q.s); g.fillText(q.c, 2 + q.x, fs * 1.05); }
+  if (mark) drawTessieGlyph(g, 2 + gx, fs * 1.05, gh, rgba(ink, 0.82));
   return { cv, w: w + 4, h };
 }
 
@@ -294,7 +296,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     const bp = services?.get?.('birthplace');
     const list = bp ? bp.list().filter((r) => !r.locked) : [];
     rows = buildPois({ birthplaces: list, current: bp?.current ?? null, anchorages: src('anchorages', []), aids: src('aids', []), places: src('places', []),
-      areas: src('areas', []), channel: src('channel', null), barges: src('barges', []), raceMarks: src('raceMarks', []), racePins: src('racePins', []), corners: curMode === 'entrance' ? [] : src('corners', []) }, { mode: curMode });   // the hunts' corners in play and the hub, not at the entrance (no lake yet)
+      areas: src('areas', []), beTessie: !!src('beTessie', false), channel: src('channel', null), barges: src('barges', []), raceMarks: src('raceMarks', []), racePins: src('racePins', []), corners: curMode === 'entrance' ? [] : src('corners', []) }, { mode: curMode });   // the hunts' corners in play and the hub, not at the entrance (no lake yet)
     uxApi?.setRaces?.(rows.some((r) => r.kind === 'racePin'));   //: the Races layer is in the bar only while the page has pins (Regatta)
     if (uxApi) rows = rows.filter((r) => r.lit || uxApi.visible(r));   // the layers (?mapux=1); a lit point (the chosen pin, the cue) always shows
   }

@@ -226,7 +226,7 @@ const ledger = (page) => page.evaluate(() => [...document.querySelectorAll('#lk-
   // the start row: a pick selects its pin like a click (the entrance picks it); no start
   await page.click('#lk-load .lk-ledger [data-lr=place]'); await page.waitForTimeout(300);
   const ps = await plate();
-  check(ps.kind === 'start' && ps.cells.length === 5 && ps.cells.includes('Off Ski Run') && ps.cells.includes('Off Fannette Tessie*') && !ps.cells.includes('Surprise me'), `plates: the Start plate lists the birthplaces, no Surprise me (${ps.cells.join('|')})`);
+  check(ps.kind === 'start' && ps.cells.length === 5 && ps.cells.includes('Off Ski Run') && ps.cells.some((c) => /^Off Fannette\b.*\*$/.test(c) && /Tessie's water/.test(c)) && !ps.cells.includes('Surprise me'), `plates: the Start plate lists the birthplaces, no Surprise me (${ps.cells.join('|')})`);
   await page.click('#lk-load .lk-cond [data-pc="start:fannette"]'); await page.waitForTimeout(900);
   const afterPick = await page.evaluate(() => ({ sel: window.__velia.m4.ui.services.get('liveChart').state.selected, chosen: window.__velia.m4.ui.services.get('birthplace').chosen, st: document.getElementById('lk-load').dataset.state }));
   check(afterPick.sel === 'bp-fannette' && afterPick.chosen === 'fannette' && afterPick.st === 'home' && !(await plate()).shown, `plates: a Start pick selects and lights its pin, closes the plate and does not start (${JSON.stringify(afterPick)})`);
@@ -336,8 +336,8 @@ for (const how of ['button', 'dblclick', 'keyboard']) {
   const { ctx, page, errors } = await open(DESK, '?mode=sail&hour=15&seed=1&attract=0&livechart=0', { live: false });
   const r = await page.evaluate(() => ({ host: !!document.querySelector('.lk-livechart'), mini: !!document.querySelector('#lk-load .lk-bp .lk-bp-plate'), attr: document.documentElement.dataset.mapCard ?? null, w: document.querySelector('#lk-load .lk-card').getBoundingClientRect().width }));
   check(!r.host && r.mini && r.attr === null && r.w > 400, `?livechart=0: today's card with its mini chart, no live chart (${JSON.stringify(r)})`);
-  const mk = await page.evaluate(() => [...document.querySelectorAll('#lk-load .lk-bp-pin .mk')].map((e) => `${e.closest('.lk-bp-pin').dataset.id}:${e.textContent}`));
-  check(mk.join() === 'fannette:Tessie', `?livechart=0: the card's chart carries Tessie's small mark on the Off Fannette pin alone (${mk.join()})`);
+  const mk = await page.evaluate(() => [...document.querySelectorAll('#lk-load .lk-bp-pin svg.tg')].map((e) => `${e.closest('.lk-bp-pin').dataset.id}:${e.getAttribute('aria-label')}`));
+  check(mk.join() === "fannette:Tessie's water", `?livechart=0: the card's chart carries Tessie's tiny logo on the Off Fannette pin alone (${mk.join()})`);
   check(errors.length === 0, `?livechart=0: no page errors (${errors.slice(0, 2).join(' | ')})`);
   await ctx.close();
 }

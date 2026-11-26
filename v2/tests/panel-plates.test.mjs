@@ -31,8 +31,8 @@ test('Boat: no plate any more (the row is two buttons); the boats’ words stay,
 test('Start: the birthplaces in the map’s names, no Surprise me', () => {
   const h = plateHtml('start', { births: [{ id: 'fannette', name: 'Off Fannette', mark: 'Tessie' }, { id: 'vikingsholm', name: 'Vikingsholm' }] });
   assert.deepEqual(keys(h), ['start:fannette', 'start:vikingsholm']);
-  assert.match(h, /Off Fannette <small class="mk">Tessie<\/small>/, 'the Start plate: Tessie\'s small mark beside the name');
-  assert.equal((h.match(/class="mk"/g) ?? []).length, 1);
+  assert.match(h, /Off Fannette <svg class="tg"[^>]*aria-label="Tessie's water"/, 'the Start plate: Tessie\'s tiny logo beside the name');
+  assert.equal((h.match(/class="tg"/g) ?? []).length, 1); assert.doesNotMatch(h, />Tessie</, 'the logo, not the word');
   assert.doesNotMatch(h, /Surprise/);
 });
 

@@ -89,23 +89,15 @@ try {
   const ISLAND_M = 162;
   const sc = await c.page.evaluate(() => { const st = window.__velia.m4.ui.chart.chart.state, s = document.querySelector('.lk-chart .small canvas').clientWidth;   /* its layout size (the cockpit's dial shows it scaled) */ return { small: 1000 / (s / 2), zoom: st.zoom, rangeM: st.rangeM }; });
   check(small && a0.small[0]?.id === 'tessieWaters' && a0.small[0].ring && a0.small[0].w >= 12 && a0.small[0].w <= 20 && a0.small[0].w < ISLAND_M / sc.small, `chart: the small chart (the dial's map) draws her glyph, ${a0.small[0]?.w?.toFixed(1)} px, under the island's ${(ISLAND_M / sc.small).toFixed(1)} px, with its ring`);
-  // the live map (Phase 2b: the menu's screen, opened by Menu, Esc or N) replaced the enlarged chart. It draws her water as
-  // an area point (a dashed ring when lifted, no glyph, no skipper's flash: the card carries her line), so what is tested there is
-  // that the point exists, its card's Set as target puts Sail's mark at her edge toward the boat, and the beacon lights on it
+  // the live map (Phase 2b: the menu's screen, opened by Menu, Esc or N): her water is no longer a point of its own (owner, 2026-11-25:
+  // Off Fannette carries her tiny logo); the pin's card is hers too: Sail from here, and Be Tessie where she can be played
   await openMap(c.page);
-  const pt = await c.page.evaluate(() => (window.__velia.m4.ui.services.get('liveChart').state.pois ?? []).find((p) => p.id === 'ar-tessieWaters') ?? null);
-  check(pt?.kind === 'area', `live map: her water is a point on the map (${pt?.id})`);
-  await c.page.evaluate(() => { window.__velia.beacon?.mark?.clear?.(); window.__velia.m4.ui.services.get('liveChart').focus('ar-tessieWaters'); });
-  await c.page.waitForFunction(() => window.__velia.m4.ui.services.get('liveChart').state.card?.name === "Tessie's water", null, { timeout: 8000 }).catch(() => {});
-  const card = await c.page.evaluate(() => ({ st: window.__velia.m4.ui.services.get('liveChart').state.card, text: document.querySelector('.lk-livechart .lkc-card')?.textContent ?? '' }));
-  check(card.st?.name === "Tessie's water" && card.st.action === 'Sail here' && card.text.includes('Give her room.'), `live map: her card names her water, offers Set as target and says her line (${JSON.stringify(card.st)})`);
-  await c.page.click('.lk-livechart .lkc-card .go');
-  const routed = await c.page.waitForFunction(() => !!window.__velia.beacon?.mark?.mark, null, { timeout: 8000 }).then(() => true, () => false);
-  await c.page.waitForTimeout(600);
-  const tap = await c.page.evaluate(() => { const s = window.__velia.beacon.state(); return { mark: window.__velia.beacon.mark.mark, beacon: { x: s.x, z: s.z, phase: s.phase } }; });
-  const wp = tap.mark ?? {}, inW = Math.hypot(wp.x - 300, wp.z + 130);
-  check(routed && inW > 150 && inW <= 210, `live map: Set as target puts the mark at her edge toward the boat (${JSON.stringify(tap.mark)}, ${inW.toFixed(0)} m from her centre)`);
-  check((tap.beacon.phase === 'in' || tap.beacon.phase === 'on') && Math.hypot(tap.beacon.x - wp.x, tap.beacon.z - wp.z) < 30, `live map: the beacon lights on her water (${JSON.stringify(tap.beacon)})`);
+  const pt = await c.page.evaluate(() => (window.__velia.m4.ui.services.get('liveChart').state.pois ?? []).filter((p) => p.kind === 'area' || p.id === 'bp-fannette').map((p) => `${p.id}:${p.mark ?? ''}`));
+  check(pt.join() === 'bp-fannette:Tessie', `live map: no area point for her water; Off Fannette carries her flag (${pt.join()})`);
+  await c.page.evaluate(() => { window.__velia.m4.ui.services.get('liveChart').focus('bp-fannette'); });
+  await c.page.waitForFunction(() => window.__velia.m4.ui.services.get('liveChart').state.card?.name === 'Off Fannette', null, { timeout: 8000 }).catch(() => {});
+  const card = await c.page.evaluate(() => ({ st: window.__velia.m4.ui.services.get('liveChart').state.card, more: [...document.querySelectorAll('.lk-livechart .lkc-card [data-act]')].map((b) => b.dataset.act) }));
+  check(card.st?.name === 'Off Fannette' && card.st.action === 'Sail from here' && card.more.includes('beTessie'), `live map: the pin's card offers Sail from here and Be Tessie (${JSON.stringify(card)})`);
   await closeMap(c.page);
   await c.page.evaluate(() => { const b = window.__velia.boat; b.state.x = 330; b.state.z = -120; if (b.phys?.state) { b.phys.state.x = 330; b.phys.state.z = -120; } });
   const visited = await c.page.waitForFunction(() => window.__velia.m4.ui.chart.chart.state.areas.small.every((a) => !a.ring) && localStorage.getItem('lakeshore.tessieWaters.v1') === '1', null, { timeout: 8000 }).then(() => true, () => false);

@@ -114,7 +114,11 @@ const SRC = {
 test('the points: one action each, by where the chart is open (72 § 4)', () => {
   const rows = buildPois(SRC, { mode: 'play' }), by = (id) => rows.find((r) => r.id === id);
   assert.equal(by('bp-fannette').action, 'sail'); assert.equal(by('bp-fannette').lit, true); assert.equal(by('bp-narrows').lit, false);
-  assert.equal(by('bp-fannette').mark, 'Tessie', 'Off Fannette carries Tessie\'s small mark into the chart\'s row'); assert.equal(rows.filter((r) => r.mark).length, 1);
+  assert.equal(by('bp-fannette').mark, 'Tessie', 'Off Fannette carries Tessie\'s flag (her tiny logo) into the chart\'s row'); assert.equal(rows.filter((r) => r.mark).length, 1);
+  assert.equal(by('bp-fannette').actions, undefined, 'no Be Tessie unless she can be played');
+  assert.deepEqual(buildPois({ ...SRC, beTessie: true }, { mode: 'play' }).find((r) => r.id === 'bp-fannette').actions, ['sail', 'beTessie'], 'in play her card adds Be Tessie');
+  assert.equal(buildPois({ ...SRC, beTessie: true }, { mode: 'entrance' }).find((r) => r.id === 'bp-fannette').actions, undefined, 'never at the entrance');
+  assert.equal(buildPois({ ...SRC, areas: [], beTessie: true }, { mode: 'play' }).some((r) => r.kind === 'area'), false, 'no area point of her water');
   assert.equal(by('an--400-0').action, 'anchor');
   assert.equal(by('pl-fannette').action, 'target'); assert.equal(by('ar-tessieWaters').action, 'target'); assert.equal(by('ch-mouth').action, 'target');
   assert.equal(by('bu-g1').action, null, 'a buoy: a card only'); assert.equal(by('bu-g1').line, '"1" Fl G 4s');

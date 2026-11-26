@@ -67,6 +67,8 @@ test('the facts the owner asked for are there, true to the code', () => {
     'Never charge her', 'Tessie said no.', '21:44', 'Dawn 05:36', 'Osprey 17', 'to port', 'starboard tack', 'Settings that help', 'your sailing', 'Set sail', 'Resume', 'Cruise ⇄', 'Add waypoint', 'Set course', 'Clear route', 'double-click']) assert.ok(all.includes(s), s);
   // what is not on main stays out: no glass boat, no white rival hulls, no meteors; the top bar has no Chart button since the Sail ⇄ Cruise one
   assert.doesNotMatch(all, /glass[- ]bottom|glass boat|white hull|meteor|shooting star|Chart on the top bar|Tap Chart/i);
+  assert.doesNotMatch(all, /Surprise me|for a random one/, 'Surprise me is gone (owner, 2026-11-25)');
+  assert.match(all, /Off Fannette/, 'the start page names Off Fannette (Tessie\u2019s water joined it)');
   assert.doesNotMatch(all, /show the welcome again|welcome-again/, 'no skill question to reopen (owner 2026-11-21: Setup only)');
   assert.doesNotMatch(all, /\(owner|research\/|notes\/|BACKLOG|Lakeshore/, 'no internal names');
 });

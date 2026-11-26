@@ -86,6 +86,18 @@ test('Off Fannette carries Tessie\'s small mark and the tea house line; the old 
   assert.ok(depthAt(f.x, f.z) >= 10, `Tessie (the vessel) starts there: ${depthAt(f.x, f.z).toFixed(1)} m of water, her pins need 10 m`);
 });
 
+test('the opening camera faces Fannette Island: heading plus the glance lands on the island within 1 degree in every wind (already within 10 degrees of it: no glance); the heading stays the wind rule\'s', () => {
+  const f = ROWS.find((r) => r.id === 'fannette'), toIsland = (Math.atan2(f.look[0] - f.x, -(f.look[1] - f.z)) * 180 / Math.PI + 360) % 360;
+  for (const windDeg of [0, 45, 90, 135, 180, 195, 200, 225, 270, 315]) {
+    const p = birthPose(f, { windDeg, depthAt });
+    assert.ok(Math.abs(Math.abs(((p.headingDeg - windDeg + 540) % 360) - 180) - 105) < 1e-6 || p.rule !== 'reach', `wind ${windDeg}: still the reach rule (${p.headingDeg})`);
+    const faced = (p.headingDeg + p.camYawDeg + 360) % 360, miss = Math.abs(((faced - toIsland + 540) % 360) - 180);
+    assert.ok(miss < 1 || (p.camYawDeg === 0 && miss <= f.camOffDeg) || Math.abs(p.camYawDeg) === BIRTH.camMaxDeg, `wind ${windDeg}: camera ${faced.toFixed(1)} deg vs island ${toIsland.toFixed(1)} (${miss.toFixed(1)} off)`);
+  }
+  const p = birthPose(f, { windDeg: 195, depthAt });
+  assert.ok(Math.abs(p.camYawDeg) > 10, `the 195 deg wind: the camera turns ${p.camYawDeg.toFixed(1)} deg to the island, it was 34 deg short of the old 35 deg rule`);
+});
+
 test('the first visit: Off Fannette, within 600 m of the island; the saved pick; ?birth= wins once; ?start= / ?heading= pin today\'s pose', () => {
   const first = resolveStart({ waters: W, settings: store() });
   assert.deepEqual(first, { id: 'fannette', pick: 'fannette', source: 'first' });

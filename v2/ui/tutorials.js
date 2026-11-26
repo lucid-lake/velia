@@ -160,7 +160,7 @@ export const CHAPTERS = [
   { id: 'start', title: 'Where to start', lines: [
     'Every sail starts at a named place, a pin on the map: Off Fannette, Vikingsholm, The narrows and Open lake.',
     'Your first sail starts Off Fannette, the tea house 200 m off the bow, over the deep water Tessie calls home (the pin carries her name).',
-    { k: 'On the first screen, click a pin, then <b>Sail from here</b>: she starts there. Or <b>Surprise me</b> for a random one.', t: 'On the first screen, tap a pin, then <b>Sail from here</b>: she starts there. Or <b>Surprise me</b> for a random one.' },
+    { k: 'On the first screen, click a pin, then <b>Sail from here</b>: she starts there.', t: 'On the first screen, tap a pin, then <b>Sail from here</b>: she starts there.' },
     { k: 'While you sail, open the menu ({key:menu}), click a pin, then Sail from here. A short fade, and she is there.', t: 'While you sail, tap Menu, tap a pin, then Sail from here. A short fade, and she is there.' },
     'She always starts with the wind on her side (a reach), never stuck head to wind. Velia remembers your pick.',
     'Not during a race, and not while she is knocked down.',
