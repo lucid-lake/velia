@@ -1,54 +1,32 @@
 // The dials' north star (owner, 2026-11-25): the Coach's cues, the Chart's nearest place and shore arcs, the Pro instruments panel,
 // the lean skipper holding the same advice while the Coach says it. No browser (the live page: v2/tests/pages/dialModules.page.mjs,
 // proColumn.page.mjs, navColumn.page.mjs).
-//   the Coach's words appear only on the physics' conditions: luffing (fill < 0.5) "pull in", stalled (stall > 0.6, wind forward
-//     of 80°) "ease out", overpowered (heel > 20°) "ease or reef", a sheet at its stop hands the word to the helm (bear away,
-//     head up), in irons bear away; a drawing boat says nothing
+//   the Coach writes no word (owner 2026-11-25): trimCue and heelCue only colour the sails; the skipper's trim tips are never held
 //   the nearest place: the beacon's target (a mark, the race's next mark) first, else the nearest birthplace or anchorage past 200 m
 //   the shore arcs: the bearings with land or shallow water within 240 m, none in open water
 //   the Pro panel: off by default, the stored choice persists, ?prohud= overrides, the shown rule (the cockpit up, not the intro,
 //     not closed), the × calls onClose, its six lines
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { trimCue, steerCue, heelCue, tackOf, nearestPoi, nmText, shoreArcs, sheetAtStop, poiRow, DIALS_V2 } from '../ui/dialsV2.js';
+import { trimCue, heelCue, nearestPoi, nmText, shoreArcs, poiRow, DIALS_V2 } from '../ui/dialsV2.js';
 import { createProHud, proHudAllowed, proHudShown, proHudSettings, proLines, mountProRow, PRO_HUD } from '../ui/proHud.js';
 import { createLeanSkipper, COACH_HINTS } from '../ui/leanSkipper.js';
-import { BOAT } from '../../src/sim/boat.js';
 import { createReadings } from '../../src/ui/navColumn.js';
 
 const D = Math.PI / 180;
 const boat = (o = {}) => ({ mainFill: 1, jibFill: 1, mainStall: 0, jibStall: 0, boomAngle: 35 * D, jibAngle: 32 * D, apparentWind: { angle: -60 * D, speed: 5 }, trueWind: { angle: -75 * D, speed: 4 }, heel: 0, sog: 2.5, cog: 0, rudderAngle: 0, ...o });
 
-test('the Coach says nothing while she draws; luffing says pull in, stalled ease out (wind forward of 80°)', () => {
-  assert.deepEqual(trimCue(boat(), 'main'), { state: 'draw', word: '' });
-  assert.equal(steerCue(boat(), 'closeReach'), '');
-  assert.equal(heelCue(5), '');
-  const luff = trimCue(boat({ jibFill: 0.3 }), 'jib');
-  assert.equal(luff.state, 'luff'); assert.equal(luff.word, 'pull in'); assert.equal(luff.atStop, false);
-  const stall = trimCue(boat({ mainStall: 0.8 }), 'main');
-  assert.equal(stall.state, 'stall'); assert.equal(stall.word, 'ease out');
-  // a run's sails are stalled by nature: no word with the wind aft of 80°
+test('the Coach colours a sail and says nothing: luffing (fill < 0.5), stalled (stall > 0.6, wind forward of 80°), overpowered over 20° of heel', () => {
+  assert.deepEqual(trimCue(boat(), 'main'), { state: 'draw' });
+  assert.equal(heelCue(5), false);
+  assert.deepEqual(trimCue(boat({ jibFill: 0.3 }), 'jib'), { state: 'luff' });
+  assert.deepEqual(trimCue(boat({ mainStall: 0.8 }), 'main'), { state: 'stall' });
+  // a run's sails are stalled by nature: no amber with the wind aft of 80°
   assert.equal(trimCue(boat({ mainStall: 0.9, apparentWind: { angle: 150 * D, speed: 3 } }), 'main').state, 'draw');
   // the thresholds themselves
   assert.equal(trimCue(boat({ mainFill: DIALS_V2.luffFill + 0.01 }), 'main').state, 'draw');
   assert.equal(trimCue(boat({ mainStall: DIALS_V2.stallAt - 0.01 }), 'main').state, 'draw');
-});
-
-test('a sheet at its stop hands the word to the helm: luffing all the way in bears away, stalled all the way out heads up; in irons bears away', () => {
-  const inStop = boat({ jibFill: 0.2, jibAngle: BOAT.jib.lead });
-  assert.equal(sheetAtStop(inStop, 'jib', 'in'), true);
-  assert.equal(trimCue(inStop, 'jib').atStop, true);
-  assert.equal(steerCue(inStop, 'close'), 'bear away');
-  const outStop = boat({ mainStall: 0.9, boomAngle: BOAT.main.maxDeg * D });
-  assert.equal(steerCue(outStop, 'closeReach'), 'head up');
-  assert.equal(steerCue(boat(), 'irons'), 'bear away');
-});
-
-test('overpowered over 20° of heel: ease or reef; the tack from the true wind\'s side', () => {
-  assert.equal(heelCue(DIALS_V2.overHeelDeg + 1), 'ease or reef');
-  assert.equal(heelCue(-(DIALS_V2.overHeelDeg + 1)), 'ease or reef');
-  assert.equal(heelCue(DIALS_V2.overHeelDeg - 1), '');
-  assert.equal(tackOf(-60 * D), 'port'); assert.equal(tackOf(60 * D), 'starboard'); assert.equal(tackOf(0), ''); assert.equal(tackOf(Math.PI), '');
+  assert.equal(heelCue(DIALS_V2.overHeelDeg + 1), true); assert.equal(heelCue(-(DIALS_V2.overHeelDeg + 1)), true); assert.equal(heelCue(DIALS_V2.overHeelDeg - 1), false);
 });
 
 test('the nearest place: the beacon\'s target first, else the nearest birthplace or anchorage past 200 m; the bearing is true', () => {
@@ -88,7 +66,7 @@ test('the shore arcs: land or water under 2.2 m within 240 m, on 24 bearings; no
   assert.deepEqual(shoreArcs(() => -2.3, 0, 0), new Array(24).fill(0));
 });
 
-test('the lean skipper holds the trim and steering tips while the Coach shows a word; MUST lines still pass', () => {
+test('the lean skipper still holds its trim tips for a Coach that says a word (the hook stays); the Coach says none now, so none wait', () => {
   let says = true;
   const store = { m: new Map(), getItem(k) { return this.m.get(k) ?? null; }, setItem(k, v) { this.m.set(k, v); } };
   const lean = createLeanSkipper({ storage: store, coachSays: () => says });

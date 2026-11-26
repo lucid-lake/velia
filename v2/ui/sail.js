@@ -35,7 +35,7 @@ import { createCaptainView } from '../../src/ui/captainView.js';
 import { createChartplotter } from '../../src/ui/chartplotter.js';
 import { cockpitUp } from './cockpitUp.js';   // the cockpit up: the performance stats and the Pro instruments panels follow it
 import { createDialModules } from './dials.js';   // the two dials as 2D modules (?dials=cockpit: the old dials in the cockpit, one release)
-import { trimCue, steerCue, heelCue, tackOf, nearestPoi, poiRow, shoreArcs, mountDialsLayout, DIALS_V2 } from './dialsV2.js';   // the dials' north star: the Chart and the Coach
+import { trimCue, heelCue, nearestPoi, poiRow, shoreArcs, mountDialsLayout, DIALS_V2 } from './dialsV2.js';   // the dials' north star: the Chart and the Coach
 import { createProHud, proHudAllowed, proHudShown, proHudSettings } from './proHud.js';   // the Pro instruments panel, top-left (Setup › Screen; replaced the nav column)
 import { showsDials, homeId } from '../engine/modes.js';
 import { luffAwaDeg, BOAT as BOAT_P } from '../../src/sim/boat.js';
@@ -144,8 +144,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   // sails going up or down, the anchor going down or coming up
   const ANCHOR_WORK = new Set(['falling', 'down', 'weighing', 'up']);   // not 'held' (nor 'stowed'): at anchor is quiet water, so "Anchor's holding." (a tip) can show
   const leanBusy = () => !!assist?.active || !!B.carryKeep || Math.abs((phys.state.furl ?? 0) - furlWantNow()) > 0.03 || ANCHOR_WORK.has(B.sea?.tackle?.state?.anchor?.phase);
-  let captainRef = null;   // the Coach (below): while it shows a word, the skill model's same advice waits (leanSkipper.js coachSays)
-  const lean = createLeanSkipper({ phone: phoneQuiet, storage: store, busy: leanBusy, coachSays: () => !!captainRef?.coachSays });
+  const lean = createLeanSkipper({ phone: phoneQuiet, storage: store, busy: leanBusy });
   services.provide('lean', lean);
   const hint = createControlsHint({ services, state: () => phys.state, once, skills, words, proKeys: () => pro, pilot: () => B.assists?.pilot !== false, voice, phoneQuiet: lean,
     lean: true });   // the lean key set (owner 2026-11-20): no H list (the key legend always shows the keys; Menu › Keys has them all), no H+5/6/7 (Setup › Aids has them), no "hold H" whisper
@@ -195,14 +194,13 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   const dialMods = flags.dials !== 'cockpit' && flags.dials !== 'top';
   const dialsV2 = dialMods;   // the Chart and the Coach (owner, 2026-11-25): the modules' one design; ?dials=cockpit keeps the old dials
   if (dialsV2) mountDialsLayout();
-  let heelS = 0;   // the heel, smoothed (about 0.3 s at 60 fps), for the overpowered word
-  const coach = dialsV2 ? { pro: () => pro, race: () => !!world.raceOn?.(), gybeAwaDeg: DIALS_V2.gybeAwaDeg, cues: (s, posId) => {
+  let heelS = 0;   // the heel, smoothed (about 0.3 s at 60 fps), for the overpowered amber
+  const coach = dialsV2 ? { pro: () => pro, race: () => !!world.raceOn?.(), cues: (s, posId) => {
     heelS += ((s.heel ?? 0) * 180 / Math.PI - heelS) * 0.05;
-    return { main: trimCue(s, 'main'), jib: trimCue(s, 'jib'), steer: steerCue(s, posId), heel: heelCue(heelS), tack: tackOf(s.trueWind?.angle ?? 0) };
+    return { main: trimCue(s, 'main'), jib: trimCue(s, 'jib'), heel: heelCue(heelS) };
   } } : null;
   const captain = createCaptainView({ state: () => phys.state, once, always: true,
     ...(dialMods ? { wedge: 'apparent', luffDeg: (s) => Math.round(luffAwaDeg(BOAT_P, s.leeway ?? 0)), pos: !dialsV2, coach } : {}) });
-  captainRef = captain;
   // the Pro instruments panel (ui/proHud.js): a desktop, Setup's row (off by default) or ?prohud=1, the cockpit up, not the intro
   const proPolicy = feature('proHud').on, proStore = proHudSettings(), proFlag = parseV2Flags(globalThis.location?.search ?? '').prohud ?? null;
   let proClosed = false;   // the ×: Setup's off, and closed for this load even under ?prohud=1
@@ -393,6 +391,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
       ];
       screen = mountMapScreen({ host, services, ux: wakeStore ? { wake: wakeStore, layers: true, cursor: true } : null, mapHint: { seen: () => !!settings?.get('mapHintSeen'), done: () => settings?.set('mapHintSeen', true), sailSeen: () => !!settings?.get('sailHereSeen'), sailDone: () => settings?.set('sailHereSeen', true) }, box: feature('phoneCard').on, glass: feature('chartGlass').on,
         sources: { boat: () => phys.state, track, night: () => nightOf(sun()), mark: () => (mode === 'cruise' ? cruiseDest : world.sailMark?.()?.mark ?? null),
+          navLine: () => { const pl = services.get('pilot'), m = world.sailMark?.()?.mark; return m && pl?.engaged ? pl.nav?.line ?? null : null; },   // the pilot's routed line to the target (NAV on): the planner's legs round land
           route: () => { const c = mode === 'cruise' ? null : getPlan()?.course; return c && c.route.length ? { pts: c.route, active: !!c.active, leg: c.leg ?? 0 } : null; },
           anchorages: () => { if (world.raceOn?.()) return []; const L = sea?.anchorages ?? [], c = sea?.cue?.spot; return c ? L.map((a) => (a === c ? { ...a, lit: true } : a)) : L; }, aids: () => world.navAids?.() ?? [], places: () => places,
           areas: () => (tessie ? [{ ...tessie, line: 'Deep water under the north wall. Give her room.', ...(feature('playTessie').on && !world.raceOn?.() ? { actions: ['beTessie'] } : {}) }] : []),   // Be Tessie: desktop and tablet, never in a race

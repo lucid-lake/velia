@@ -178,6 +178,8 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
   // events: a pin tapped at the entrance is the pick; a move in the menu closes it so the veil is seen; the card's Esc goes to the chart's card first
   const offSel = chart.on('select', (row) => { if (entrance && st() === 'home' && row?.kind === 'birthplace') bp()?.pick?.(row.ref); });
   const offAct = chart.on('action', (e) => { if (!entrance && e.action === 'sail' && e.result?.ok) home()?.close?.(); });
+  // a press on the boat on the map resumes sailing from where she is: the same close as Esc or Resume (NAV is kept as it is)
+  const offBoat = chart.on('boat', () => { if (!entrance && st() === 'menu') home()?.close?.(); });
   // a tap on the water no longer closes the menu (owner, 2026-11-18): in play it opens the water's card (Set as target, Add waypoint);
   // the menu closes by its ×, Esc or Resume only
   const offView = chart.on('view', (v) => { if (!entrance && st() === 'menu') lastMpp = v.mpp; });
@@ -196,7 +198,7 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
     },
     plan, fact, dock,
     insideHost: (t) => host.contains(t) || !!plan?.contains(t),
-    destroy() { dock?.dispose(); plan?.dispose(); fact?.dispose(); mo?.disconnect(); ro?.disconnect(); offSel(); offAct(); offView(); chart.destroy(); lake(false); host.remove(); delete html.dataset.mapCard; },
+    destroy() { dock?.dispose(); plan?.dispose(); fact?.dispose(); mo?.disconnect(); ro?.disconnect(); offSel(); offAct(); offBoat(); offView(); chart.destroy(); lake(false); host.remove(); delete html.dataset.mapCard; },
   };
   return api;
 }

@@ -3,9 +3,9 @@
 //   desktop 1280 x 720 and 1920 x 1080: both modules at 1.0 x --lk-d, bottom-left (the Chart) and bottom-right (the Coach), the
 //     cockpit's faces plain; nothing overlaps them: the top bar, the skipper's line, the key legend, the Pro instruments and the
 //     performance panels, the throttle, the fold tabs; no left-edge column
-//   the Coach: the no-go wedge centred on the apparent wind, its half-angle luffAwaDeg; the point of sail and the tack; SPEED and
-//     WIND, "feels N" on the arrow; no sector ring; a word only on the physics' conditions (a drawing boat: none; an eased jib:
-//     "pull in" on the jib, and the skipper's same tip held); PRO adds AWA by the arrow, TWA by the point of sail, VMG beside SPEED;
+//   the Coach: the no-go wedge centred on the apparent wind, its half-angle luffAwaDeg; the point of sail (no tack chip); SPEED and
+//     WIND; no sector ring; no action word and no "feels N" ever (an eased jib: amber on the jib, nothing written, and the skipper's
+//     trim tip is not held); PRO adds AWA by the arrow, TWA by the point of sail, VMG beside SPEED;
 //     PRO off takes them away; Regatta shows VMG with PRO off
 //   the Chart: the nearest place (the set mark first, else the nearest birthplace or anchorage past 200 m) as its foot row and
 //     line; the shore arcs within 240 m in a narrow bay; PRO adds COG under HDG and the bearing on the row
@@ -97,8 +97,8 @@ try {
       const wd = await page.evaluate(() => {
         const s = window.__velia.m4.ui.services.get('player').phys.state, d = document.querySelector('.lk-cv .wedge').getAttribute('d');
         const n = d.match(/-?\d+(\.\d+)?/g).map(Number);   // M bx by L x0 y0 A r r 0 0 1 x1 y1 Z
-        return { awa: s.apparentWind.angle, leeway: s.leeway ?? 0, n, pos: document.querySelector('.lk-cv .rw.c1 b')?.textContent, tack: document.querySelector('.lk-cv .rw.c1 em')?.textContent ?? '',
-          c2: document.querySelector('.lk-cv .rw.c2')?.textContent, c3: document.querySelector('.lk-cv .rw.c3')?.textContent, fw: document.querySelector('.lk-cv .cg .fw')?.textContent, arcs: document.querySelectorAll('.lk-cv .sect path').length,
+        return { awa: s.apparentWind.angle, leeway: s.leeway ?? 0, n, pos: document.querySelector('.lk-cv .rw.c1 b')?.textContent, chip: document.querySelectorAll('.lk-cv .rw.c1 em').length,
+          c2: document.querySelector('.lk-cv .rw.c2')?.textContent, c3: document.querySelector('.lk-cv .rw.c3')?.textContent, fw: document.querySelectorAll('.lk-cv .cg .fw').length, arcs: document.querySelectorAll('.lk-cv .sect path').length,
           ww: document.querySelector('.lk-cv .cg .ww')?.textContent, lw: document.querySelector('.lk-cv .cg .lw')?.textContent };
       });
       const [bx, by, x0, y0] = wd.n, [x1, y1] = wd.n.slice(-2);
@@ -106,22 +106,22 @@ try {
       const a0 = ang(x0, y0), a1 = ang(x1, y1), half = ((a1 - a0 + 540) % 360 - 180) / 2, mid = a0 + half;
       const want = Math.round(luffAwaDeg(BOAT, wd.leeway)), awa = wd.awa * 180 / Math.PI;
       check(Math.abs(((mid - awa + 540) % 360) - 180) < 1.5 && Math.abs(half - want) < 1.2, `the wedge centred on the apparent wind (mid ${mid.toFixed(1)}° vs AWA ${awa.toFixed(1)}°), half-angle ${half.toFixed(1)}° = luffAwaDeg ${want}°`);
-      check(['In irons', 'Close-hauled', 'Close reach', 'Beam reach', 'Broad reach', 'Running'].includes(wd.pos) && /^(port|stbd) tack$/.test(wd.tack), `the point of sail and the tack ("${wd.pos}", "${wd.tack}")`);
-      check(/^SPEED\d+\.\dkn$/.test(wd.c2) && /^WIND\d+kn$/.test(wd.c3) && /^feels \d+$/.test(wd.fw) && wd.ww === 'windward' && wd.lw === 'leeward', `SPEED, WIND, "feels N", windward and leeward (${wd.c2} | ${wd.c3} | ${wd.fw})`);
+      check(['In irons', 'Close-hauled', 'Close reach', 'Beam reach', 'Broad reach', 'Running'].includes(wd.pos) && wd.chip === 0 && !/tack/i.test(wd.pos), `the point of sail, no tack chip ("${wd.pos}")`);
+      check(/^SPEED\d+\.\dkn$/.test(wd.c2) && /^WIND\d+kn$/.test(wd.c3) && wd.fw === 0 && wd.ww === 'windward' && wd.lw === 'leeward', `SPEED, WIND, no "feels N", windward and leeward (${wd.c2} | ${wd.c3})`);
       check(wd.arcs === 0, `no sector ring for anyone (${wd.arcs})`);
-      // a word only on the physics' conditions: trim both sheets to drawing, then ease the jib past its luff
+      // no word, ever: ease the jib past its luff and read the dial's text
       const words = () => page.evaluate(() => { const s = window.__velia.m4.ui.services.get('player').phys.state, q = (c) => document.querySelector(`.lk-cv .cg ${c}`)?.textContent ?? '';
-        return { jibFill: +(s.jibFill ?? 1).toFixed(2), mainFill: +(s.mainFill ?? 1).toFixed(2), mainStall: +(s.mainStall ?? 0).toFixed(2), jibStall: +(s.jibStall ?? 0).toFixed(2), jib: q('.tg.jib'), main: q('.tg.main'), sc: q('.sc'), ng: q('.ng'),
-          jibAmber: document.querySelector('.lk-cv .sail.jib').classList.contains('warn'), says: window.__velia.m4.ui.captain.coachSays, line: document.querySelector('.lk-hint .row.in')?.textContent ?? '' }; });
+        return { jibFill: +(s.jibFill ?? 1).toFixed(2), mainFill: +(s.mainFill ?? 1).toFixed(2), mainStall: +(s.mainStall ?? 0).toFixed(2), jibStall: +(s.jibStall ?? 0).toFixed(2), text: document.querySelector('.lk-cv').textContent,
+          jibAmber: document.querySelector('.lk-cv .sail.jib').classList.contains('warn'), held: 'coachSays' in window.__velia.m4.ui.captain, line: document.querySelector('.lk-hint .row.in')?.textContent ?? '' }; });
       await page.keyboard.down('KeyW'); await page.waitForTimeout(2500); await page.keyboard.up('KeyW');
       await page.keyboard.down('KeyS'); await page.waitForTimeout(400); await page.keyboard.up('KeyS');
       await page.evaluate(() => { let n = 0; const id = setInterval(() => { window.__velia.boat.sim.station({ jib: -0.04 }); if (++n > 60) clearInterval(id); }, 50); });
       await page.waitForTimeout(3600);
       const w1 = await words();
       const jibLuff = w1.jibFill < 0.5, mainLuff = w1.mainFill < 0.5;
-      check(jibLuff && w1.jib === 'pull in' && w1.jibAmber, `an eased jib luffing (fill ${w1.jibFill}): amber, "pull in" on the jib (${JSON.stringify(w1)})`);
-      check((mainLuff ? w1.main === 'pull in' : w1.mainStall > 0.6 ? w1.main === 'ease out' : w1.main === '') && !w1.ng, `the main's word matches its physics (fill ${w1.mainFill}, stall ${w1.mainStall}: "${w1.main}"); no "no-go" out of irons`);
-      check(w1.says && !/pull the sails in|shaking/i.test(w1.line), `the Coach speaks, the skipper's same tip waits ("${w1.line}")`);
+      check(jibLuff && w1.jibAmber, `an eased jib luffing (fill ${w1.jibFill}): amber on the jib (${JSON.stringify(w1)})`);
+      check(!/pull in|ease out|ease or reef|bear away|head up|no-go|gybe zone|feels|tack/i.test(w1.text), `the dial writes no action word, no "feels", no tack chip ("${w1.text}")`);
+      check(!w1.held, 'the skipper holds no tip for the Coach (coachSays gone)');
       // the Chart: the nearest place and the shore arcs (the default start lies in a narrow bay)
       const cp = () => page.evaluate(() => { const st = window.__velia.m4.ui.chart.chart.stats(), s = window.__velia.m4.ui.services.get('player').phys.state;
         const bp = (window.__velia.m4.ui.services.get('birthplace')?.list?.() ?? []).map((r) => ({ kind: 'birthplace', name: r.name, x: r.x, z: r.z }));

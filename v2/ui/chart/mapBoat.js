@@ -1,14 +1,14 @@
 // The boat on Plan's map: the Coach's own drawing (src/ui/captainView.js coachBoat, the group the cockpit's Coach dial draws too): the
-// hull, the sails at the live trim with their words when something needs doing, the boom, the rudder, the apparent-wind arrow with
-// "feels N", the no-go wedge, windward and leeward; turned to the heading on the north-up map, every word kept upright; under her a
-// small navy chip (the chart's own ink) with the point of sail, the tack, SPEED and WIND. 70 px at the lake zoom to 130 px in a cove (smaller than the
-// mock's 110–200, 2026-11-25), words at 11 px, the chip folded under 80 px; port and starboard in muted tones, the words kept.
+// hull, the sails at the live trim (amber when one needs trim), the boom, the rudder, the apparent-wind arrow,
+// the no-go wedge, windward and leeward; no action words; turned to the heading on the north-up map, every word kept upright; under her a
+// small navy chip (the chart's own ink) with the point of sail, SPEED and WIND. 70 px at the lake zoom to 130 px in a cove (smaller than the
+// mock's 110–200, 2026-11-25), words at 11 px, the chip folded under 80 px; port and starboard in muted tones.
 // One factory, so a later drawing replaces it in one place: setMapBoat(factory).
 //   const b = mountMapBoat({ root, state })   root: the map's layer element; state(): the boat state (B.state)
 //   b.place({ x, y, sizePx, headingDeg }), b.update(dt), b.destroy(), b.el
 import { coachBoat, ensureCaptainCss, CAPTAIN } from '../../../src/ui/captainView.js';
 import { luffAwaDeg, BOAT as BOAT_P } from '../../../src/sim/boat.js';
-import { trimCue, steerCue, heelCue, tackOf, DIALS_V2 } from '../dialsV2.js';
+import { trimCue, heelCue, DIALS_V2 } from '../dialsV2.js';
 
 export const MAP_BOAT = Object.freeze({ minPx: 70, maxPx: 130, chipPx: 80, pxPerScale: 340, wordPx: 11 });
 // the boat's size for the map's scale (screen px per metre): the lake zoom's glance to a cove's every word
@@ -49,9 +49,9 @@ function coachMapBoat({ root, state }) {
   el.firstChild.style.setProperty('--cv-ink', String(CAPTAIN.on));
   host.appendChild(el);
   let size = 100, heelS = 0, t = 0;
-  const coach = { pro: () => false, race: () => false, gybeAwaDeg: DIALS_V2.gybeAwaDeg, cues: (s, posId) => {
+  const coach = { pro: () => false, race: () => false, cues: (s, posId) => {
     heelS += ((s.heel ?? 0) * 180 / Math.PI - heelS) * 0.05;
-    return { main: trimCue(s, 'main'), jib: trimCue(s, 'jib'), steer: steerCue(s, posId), heel: heelCue(heelS), tack: tackOf(s.trueWind?.angle ?? 0) };
+    return { main: trimCue(s, 'main'), jib: trimCue(s, 'jib'), heel: heelCue(heelS) };
   } };
   // the plan at the dial's full size, centred (the chip sits outside, under her); words at 11 px on screen
   const boat = coachBoat({ svg: el.querySelector('svg'), scale: () => ({ k: 0.62, at: 50, fs: (MAP_BOAT.wordPx * 100) / size }), coach, wedge: 'apparent',

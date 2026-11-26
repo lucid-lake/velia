@@ -6,9 +6,10 @@
 // that swing in and out with W/S and show their state by shape (a belly when drawing, a flutter when luffing, a hard
 // straight line when stalled), the rudder at the stern, and the no-go wedge about the true wind when you point too
 // high. Plain SVG in the DOM: no camera, no GPU.
-// coach (v2, the Coach: owner 2026-11-25): { cues(s, posId) → { main, jib, steer, heel, tack }, pro(), race(), gybeAwaDeg }: the
-// book's words on the drawn boat only when something needs doing, the point of sail, the tack, SPEED, WIND, "feels N" on the arrow;
-// PRO adds AWA, TWA and VMG, Regatta VMG. cv.coachSays: a word is on the dial now (the lean skipper holds the same tip).
+// coach (v2, the Coach: owner 2026-11-25): { cues(s, posId) → { main, jib, heel }, pro(), race() }: the
+// Coach draws no action words, no tack chip and no "feels N": the boat with its sail colours (amber when a sail needs trim), the
+// point of sail, SPEED, WIND, windward and leeward, the wedge and the arrow;
+// PRO adds AWA, TWA and VMG, Regatta VMG.
 //
 //   const cv = createCaptainView({ state: () => phys.state });   // state(): the boat state (contract.js + crewSheet, mainStall, jibStall)
 //   cv.update(dt, { sinceUse })   // each frame; shows on use, fades `hold` s after; rests faint in a first session
@@ -177,7 +178,7 @@ export function ensureCaptainCss() {
 // 100 100"> the no-go wedge and its edges, the plan (hull, port and starboard edges, sheets, boom, sails, mast, rudder), the apparent
 // wind's arrow, the trend chevron and, with coach, the words; draw(s) moves them all. scale() → { k, at, fs }: the plan's size (of 100),
 // its centre's height and the words' size, all in the viewBox's units. rows: the readings' three elements (coach) to fill, or null.
-//   const b = coachBoat({ svg, scale, coach, wedge, luffDeg, rows })   b.layout(), b.draw(s, { t, trend, nogo, cue }), b.posId, b.saying, b.planG
+//   const b = coachBoat({ svg, scale, coach, wedge, luffDeg, rows })   b.layout(), b.draw(s, { t, trend, nogo, cue }), b.posId, b.planG
 export function coachBoat({ svg, scale = () => ({ k: 0.62, at: 44, fs: 7 }), coach = null, wedge: wedgeMode = 'true', luffDeg = () => CAPTAIN.wedgeDeg, rows = null }) {
   let K = 0.62, AT = 44, FS = 7;
   svg.insertAdjacentHTML('beforeend', `<path class="wedge" d=""/>
@@ -198,7 +199,7 @@ export function coachBoat({ svg, scale = () => ({ k: 0.62, at: 44, fs: 7 }), coa
     </g>
     <g class="windg"><path class="ln wind" d="M0 0 L0 0"/><path class="ln wind head" d=""/></g>
     <path class="ln trend" d="" style="opacity:0"/>
-    ${coach ? '<g class="cg"><text class="ng" text-anchor="middle"></text><text class="ww soft"></text><text class="lw soft"></text><text class="tg main warn" text-anchor="middle"></text><text class="tg jib warn" text-anchor="middle"></text><text class="sc warn" text-anchor="middle"></text><text class="fw soft" text-anchor="middle"></text><text class="aw soft" text-anchor="middle"></text></g>' : ''}`);
+    ${coach ? '<g class="cg"><text class="ww soft"></text><text class="lw soft"></text><text class="aw soft" text-anchor="middle"></text></g>' : ''}`);
   const q = (c) => svg.querySelector(c);
   const planG = q('g.plan'), wedge = q('.wedge'), nedgeP = q('.nedge.p'), nedgeS = q('.nedge.s'), boom = q('.boom'), sheetM = q('.sheet.main'), sheetJ = q('.sheet.jib'), main = q('.sail.main'), jib = q('.sail.jib'), rud = q('.rud'), wind = q('.wind'), head = q('.wind.head'), trendEl = q('.trend');
   // every moving line has a dark under-stroke, a hair wider (the chart-plotter way of keeping a line on any ground)
@@ -206,8 +207,8 @@ export function coachBoat({ svg, scale = () => ({ k: 0.62, at: 44, fs: 7 }), coa
   const D = (ln, d) => { ln.setAttribute('d', d); ln._u?.setAttribute('d', d); };
   const layout = () => { const o = scale(); K = o.k; AT = o.at; FS = o.fs; planG.setAttribute('transform', `translate(50 ${AT}) scale(${K}) translate(-50 -50)`); };
   layout();
-  let posId = null, saying = false;
-  const C = coach ? { ng: q('.cg .ng'), ww: q('.cg .ww'), lw: q('.cg .lw'), tm: q('.cg .tg.main'), tj: q('.cg .tg.jib'), sc: q('.cg .sc'), fw: q('.cg .fw'), aw: q('.cg .aw'), r1: rows?.[0] ?? null, r2: rows?.[1] ?? null, r3: rows?.[2] ?? null } : null;
+  let posId = null;
+  const C = coach ? { ww: q('.cg .ww'), lw: q('.cg .lw'), aw: q('.cg .aw'), r1: rows?.[0] ?? null, r2: rows?.[1] ?? null, r3: rows?.[2] ?? null } : null;
   const setT = (n, text, x, y, anchor) => { if (n.textContent !== text) n.textContent = text; if (!text) return; n.setAttribute('x', f1(x)); n.setAttribute('y', f1(y)); n.setAttribute('font-size', f1(FS)); if (anchor) n.setAttribute('text-anchor', anchor); };
   const setH = (n, html) => { if (!n) return; if (n._h !== html) { n._h = html; n.innerHTML = html; } };
   const toDial = (p) => [50 + (p[0] - 50) * K, AT + (p[1] - 50) * K];
@@ -266,61 +267,39 @@ export function coachBoat({ svg, scale = () => ({ k: 0.62, at: 44, fs: 7 }), coa
     if (coach) drawCoach(s, { awa, aws, twa, bx, by, sm, sj, tx, ty });
     return { awa, aws, twa, side };
   }
-  // One design for every player (owner, 2026-11-25): a word shows only when something needs doing (a sail luffing or stalled, an
-  // overpowered boat, a sheet at its stop, in irons); the colours, the point of sail, the tack, windward and leeward, SPEED, WIND and
-  // "feels" always. coach.pro(): the PRO switch adds AWA by the arrow, TWA by the point of sail and VMG beside SPEED; coach.race():
+  // One quiet design for every player (owner, 2026-11-25): no action words, no tack chip, no "feels N"; the sail colours, the point of
+  // sail, windward and leeward, SPEED and WIND. coach.pro(): the PRO switch adds AWA by the arrow, TWA by the point of sail and VMG beside SPEED; coach.race():
   // VMG beside SPEED in Regatta.
   function drawCoach(s, { awa, aws, twa, bx, by, sm, sj, tx, ty }) {
     const pro = !!coach.pro?.(), race = !!coach.race?.();
     const cues = coach.cues?.(s, posId) ?? {};
     const KNf = (v) => (v * KN);
-    // the sails: amber while luffing or stalled; the word beside the clew while a sheet can still fix it
-    const tagY = [];
-    let said = false;
-    for (const [sail, path, tag, sh] of [['main', main, C.tm, sm], ['jib', jib, C.tj, sj]]) {
-      const c = cues[sail] ?? { state: 'draw', word: '' };
-      const heel = sail === 'main' && cues.heel ? cues.heel : '';
-      path.classList.toggle('warn', c.state !== 'draw' || !!heel);
-      const word = heel || (c.atStop ? '' : c.word);
-      const [cx, cy] = toDial(sh.clew), side = Math.sign(cx - 50) || 1;
-      const yMax = AT + 30 * K - FS * 0.2;   // above the readings at any size (a phone's enlarged dial too)
-      let ty2 = clamp(cy + FS * (sail === 'jib' ? -0.2 : 1.1), Math.min(24, yMax), yMax);
-      if (tagY.some((t) => Math.abs(t - ty2) < FS * 1.1)) ty2 = Math.max(FS, Math.min(...tagY) - FS * 1.15);   // never on the other sail's word
-      setT(tag, word, clamp(cx + side * FS * 0.6, 14 + FS * 1.6, 86 - FS * 1.6), ty2);
-      if (word) { tagY.push(ty2); said = true; }
+    // the sails: amber while luffing, stalled or overpowered (the quiet cue; no word, owner 2026-11-25)
+    for (const [sail, path] of [['main', main], ['jib', jib]]) {
+      const c = cues[sail] ?? { state: 'draw' };
+      path.classList.toggle('warn', c.state !== 'draw' || (sail === 'main' && !!cues.heel));
     }
-    // the helm's word over the bow (bear away, head up; the gybe zone): bear away turns the bow to leeward, head up to windward
-    const gz = Math.abs(awa) > (coach.gybeAwaDeg ?? 165) * DEG;
-    const ws = awa >= 0 ? 1 : -1, steer = cues.steer || (gz ? 'gybe zone' : '');
-    setT(C.sc, steer, 50 + (cues.steer === 'bear away' ? -ws : cues.steer === 'head up' ? ws : 0) * 17, 50 - 35 + FS * 0.35);
-    // the no-go zone's name: only in irons, in the wedge
-    const irons = posId === 'irons';
-    setT(C.ng, irons ? 'no-go' : '', bx + Math.sin(awa) * 31, by - Math.cos(awa) * 31 + FS * 0.35);
-    saying = said || !!cues.steer || irons;
-    // the felt wind's speed on the arrow's tail: the arrow is the wind she feels (it steps aside for a steering word)
     const ux = Math.sin(awa), uy = -Math.cos(awa), sx = Math.sign(ux || 1);
-    const fwx = clamp(tx - ux * 8 + (-uy) * FS * sx, 14 + FS * 2.2, 86 - FS * 2.2), fwy = clamp(ty - uy * 8 + ux * FS * sx + FS * 0.35, 12, 60);
-    setT(C.fw, steer ? '' : `feels ${Math.round(KNf(aws))}`, fwx, fwy);
+    const ws = awa >= 0 ? 1 : -1;
     // PRO: the apparent wind angle on the arrow's other side
     const aw = Math.round(Math.abs(awa) / DEG);
-    setT(C.aw, pro && !steer ? `${aw}°` : '', clamp(tx - ux * 24 - (-uy) * FS * 1.2 * sx, 14 + FS, 86 - FS), clamp(ty - uy * 24 - ux * FS * 1.2 * sx + FS * 0.35, 12, 60));
-    // windward (the side the wind comes from) and leeward, near the rim, clear of the sails' words
+    setT(C.aw, pro ? `${aw}°` : '', clamp(tx - ux * 24 - (-uy) * FS * 1.2 * sx, 14 + FS, 86 - FS), clamp(ty - uy * 24 - ux * FS * 1.2 * sx + FS * 0.35, 12, 60));
+    // windward (the side the wind comes from) and leeward, near the rim
     const aft = Math.abs(awa) > 90 * DEG, yW0 = aft ? by - FS * 1.9 : by + FS * 2.6;
-    const yW = [yW0, yW0 - FS * 1.3, yW0 - FS * 2.6].find((y) => tagY.every((t) => Math.abs(t - y) > FS * 1.15)) ?? yW0;
+    const yW = yW0;
     setT(C.ww, 'windward', 50 + ws * 43, yW, ws > 0 ? 'end' : 'start');
-    const lwY = [by + FS * 2.6, by + FS * 0.6, by - FS * 1.4].find((y) => tagY.every((t) => Math.abs(t - y) > FS * 1.15)) ?? by + FS * 2.6;
+    const lwY = by + FS * 2.6;
     setT(C.lw, 'leeward', 50 - ws * 43, lwY, ws > 0 ? 'start' : 'end');
-    // the readings: the point of sail (PRO: its TWA) and the tack; the boat's speed; the wind (PRO or Regatta: VMG)
-    const tk = cues.tack ?? '', sog = KNf(s.sog ?? 0).toFixed(1), tws = Math.round(KNf(s.trueWind?.speed ?? 0));
-    const tkChip = tk ? `<em class="side ${tk === 'port' ? 'p' : 's'}">${tk === 'port' ? 'port tack' : 'stbd tack'}</em>` : '';
+    // the readings: the point of sail (PRO: its TWA); the boat's speed; the wind (PRO or Regatta: VMG)
+    const sog = KNf(s.sog ?? 0).toFixed(1), tws = Math.round(KNf(s.trueWind?.speed ?? 0));
     const twaT = pro ? `<span class="tw">${Math.round(Math.abs(twa) / DEG)}°</span>` : '';
-    setH(C.r1, `<b>${pointLabel(posId)}${twaT}</b>${tkChip}`);
+    setH(C.r1, `<b>${pointLabel(posId)}${twaT}</b>`);
     // PRO or Regatta: VMG beside SPEED at the foot (one unit for both, so the row stays inside the circle)
     const vmg = pro || race ? Math.abs(KNf(s.sog ?? 0) * Math.cos(twa)).toFixed(1) : null;
     setH(C.r2, vmg != null ? `<i>SPEED</i><b>${sog}</b><i class="vm">VMG</i><b>${vmg}</b><small>kn</small>` : `<i>SPEED</i><b>${sog}</b><small>kn</small>`);
     setH(C.r3, `<i>WIND</i><b>${tws}</b><small>kn</small>`);
   }
-  return { layout, draw, planG, get posId() { return posId; }, get saying() { return saying; } };
+  return { layout, draw, planG, get posId() { return posId; } };
 }
 
 // always: the wind circle is always visible, like the chart (owner, 2026-10-30): pinned from the start, V never hides it
@@ -461,5 +440,5 @@ export function createCaptainView({ root = document.body, state = () => null, on
   }
   function toggle() { if (always) return mode; mode = { auto: 'pinned', pinned: 'off', off: 'auto' }[mode]; return mode; }
   function dispose() { disposed = true; removeEventListener('resize', applyPlan); planRo?.disconnect(); el.remove(); }
-  return { update, toggle, dispose, el, draw, get drag() { return drag; }, get hover() { return hover; }, get mode() { return mode; }, get pinned() { return mode === 'pinned'; }, get visible() { return visible; }, get alpha() { return a; }, get coachSays() { return boat.saying; } };
+  return { update, toggle, dispose, el, draw, get drag() { return drag; }, get hover() { return hover; }, get mode() { return mode; }, get pinned() { return mode === 'pinned'; }, get visible() { return visible; }, get alpha() { return a; } };
 }

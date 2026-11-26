@@ -2,22 +2,18 @@
 // job each:
 //   the Chart (geo-centric: a compass and the mini map, src/ui/chartplotter.js poi/shoreWarn): head-up, the nearest place as a
 //     bearing line and its distance, the shore and the shallows as amber arcs on the compass band, the depth
-//   the Coach (boat-centric: a new sailor's cheat sheet, src/ui/captainView.js coach): a word only when something needs doing (a
-//     sail luffing or stalled, an overpowered boat, a sheet at its stop, in irons); the colours, the point of sail, the tack,
-//     windward and leeward, SPEED and WIND ("feels N" on the arrow) always
+//   the Coach (boat-centric: a new sailor's cheat sheet, src/ui/captainView.js coach): no action words (owner 2026-11-25: too
+//     noisy): the sail colours (amber on a sail that needs trim), the point of sail, windward and leeward, SPEED and WIND
 // The experts' numbers are the Pro instruments panel (ui/proHud.js). Pure helpers, exported for the tests.
-import { BOAT } from '../../src/sim/boat.js';
 import { DIAL_MODULES } from './dials.js';
 
 const DEG = Math.PI / 180;
 export const DIALS_V2 = Object.freeze({
   boatK: 1.0,          // × --lk-d: both dials' size (was 0.8: the words and the mini map need the room)
   liftPx: 26,          // px above --lk-by: the larger circles clear the cockpit's fold tabs in the bottom corners (was 12)
-  overHeelDeg: 20,     // heel past this (smoothed) is overpowered: "ease or reef" (the auto-reef starts at 21°)
+  overHeelDeg: 20,     // heel past this (smoothed) is overpowered, the main amber (the auto-reef starts at 21°)
   luffFill: 0.5,       // a sail's fill under this is luffing
   stallAt: 0.6,        // a sail's stall over this (and the wind forward of 80°) is stalled
-  inSlackDeg: 2,       // a sheet within this of its stop is all the way in (or out)
-  gybeAwaDeg: 165,     // the wind this far aft: the gybe zone
   hereM: 200,          // a point of interest closer than this is where she is: the next one is shown
   poiShort: Object.freeze({ mark: 'Mark', anchorage: 'Anch', race: 'Mark', birthplace: 'Harbour' }),   // with PRO's bearing: the row stays inside the circle
   poiKinds: Object.freeze({ mark: 'Mark', birthplace: 'Harbour', anchorage: 'Anchorage', race: 'Next mark' }),
@@ -26,41 +22,18 @@ export const DIALS_V2 = Object.freeze({
   shoreDepthM: 2.2,    // shallower than this (the draft 1.6 m + 0.6 m) counts
 });
 
-// One sail's state and the book's word for its fix. s: the boat state; sail: 'main' | 'jib'.
-//   → { state: 'draw' | 'luff' | 'stall', word: '' | 'pull in' | 'ease out' }
+// One sail's state, which colours it: 'draw' | 'luff' (fill under luffFill) | 'stall' (stalled, wind forward of 80°). s: the boat state;
+// sail: 'main' | 'jib'. The Coach shows it as amber on the sail and says nothing.
 export function trimCue(s, sail = 'main') {
-  if (!s) return { state: 'draw', word: '' };
+  if (!s) return { state: 'draw' };
   const fill = sail === 'jib' ? s.jibFill ?? 1 : s.mainFill ?? 1, stall = sail === 'jib' ? s.jibStall ?? 0 : s.mainStall ?? 0;
   const awa = Math.abs(s.apparentWind?.angle ?? 0);
-  if (fill < DIALS_V2.luffFill) return { state: 'luff', word: 'pull in', atStop: sheetAtStop(s, sail, 'in') };
-  if (stall > DIALS_V2.stallAt && awa < 80 * DEG) return { state: 'stall', word: 'ease out', atStop: sheetAtStop(s, sail, 'out') };
-  return { state: 'draw', word: '' };
+  if (fill < DIALS_V2.luffFill) return { state: 'luff' };
+  if (stall > DIALS_V2.stallAt && awa < 80 * DEG) return { state: 'stall' };
+  return { state: 'draw' };
 }
-// A sheet at its stop: the sail cannot follow the word, so the helm must (luffing all the way in: bear away; stalled all the way out: head up)
-export function sheetAtStop(s, sail, end = 'in') {
-  const a = Math.abs((sail === 'jib' ? s?.jibAngle : s?.boomAngle) ?? 0) / DEG;
-  const lo = sail === 'jib' ? BOAT.jib.lead / DEG : BOAT.main.minDeg, hi = sail === 'jib' ? BOAT.jib.maxDeg : BOAT.main.maxDeg;
-  return end === 'in' ? a <= lo + DIALS_V2.inSlackDeg : a >= hi - DIALS_V2.inSlackDeg;
-}
-// The helm's word: '' | 'bear away' | 'head up' (in irons, or a sail that cannot be trimmed further)
-export function steerCue(s, posId = null) {
-  if (!s) return '';
-  if (posId === 'irons') return 'bear away';
-  for (const sail of ['jib', 'main']) {
-    const c = trimCue(s, sail);
-    if (c.state === 'luff' && c.atStop) return 'bear away';
-    if (c.state === 'stall' && c.atStop) return 'head up';
-  }
-  return '';
-}
-// Heel: '' | 'ease or reef' (overpowered); heelDeg smoothed by the caller
-export const heelCue = (heelDeg) => (Math.abs(heelDeg) > DIALS_V2.overHeelDeg ? 'ease or reef' : '');
-// The tack from the true wind's side (+ from starboard): 'starboard' | 'port' | '' (head to wind or dead downwind)
-export function tackOf(twaRad) {
-  const a = Math.abs(twaRad) / DEG;
-  if (a < 3 || a > 177) return '';
-  return twaRad > 0 ? 'starboard' : 'port';
-}
+// Overpowered: the heel past overHeelDeg (heelDeg smoothed by the caller); the main goes amber
+export const heelCue = (heelDeg) => Math.abs(heelDeg) > DIALS_V2.overHeelDeg;
 
 // The single nearest point of interest: the set mark first (or the next race mark), else the nearest of the rest.
 // boat { x, z }; list [{ kind, name, x, z }] → { kind, name, x, z, dM, brgDeg (true, 0 = north) } | null
@@ -87,8 +60,8 @@ const CSS = `
 :root.lk-dm.lk-dv2:not(.lk-flat):not(.lk-flat):not(.lk-flat) .lk-cv{--d:var(--lk-dmw);left:calc(var(--lk-dm-wx,calc(100vw - var(--lk-mx) - var(--lk-sar,0px) - var(--lk-dmw) / 2)) - var(--lk-dmw) / 2);bottom:calc(var(--lk-by) + ${DIALS_V2.liftPx}px)}
 :root.lk-dm.lk-dv2:not(.lk-flat):not(.lk-flat):not(.lk-flat):not(.lk-cockpit):has(#hands) .lk-cv{left:calc(100vw - ${DIAL_MODULES.hands}px - var(--lk-sar,0px) - var(--lk-dmw))}
 :root.lk-dm.lk-dv2.lk-flat:not(.lk-fl-wup) .lk-cv.coach :is(.cg,.rw.c1,.rw.c3){display:none}
-/* a phone's enlarged Coach is still small: the words that ask for an action and the point of sail; windward, leeward, feels, the tack chip and PRO's extras stay off */
-:root.lk-dm.lk-dv2.lk-flat .lk-cv.coach :is(.cg .ww,.cg .lw,.cg .fw,.cg .aw,.rw.c1 em,.rw.c1 .tw){display:none}
+/* a phone's enlarged Coach is still small: the point of sail; windward, leeward and PRO's extras stay off */
+:root.lk-dm.lk-dv2.lk-flat .lk-cv.coach :is(.cg .ww,.cg .lw,.cg .aw,.rw.c1 .tw){display:none}
 :root.lk-dm.lk-dv2.lk-flat .lk-chart .small :is(.poi,.cogr){display:none}
 `;
 export function mountDialsLayout(doc = globalThis.document) {

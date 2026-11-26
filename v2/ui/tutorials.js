@@ -107,7 +107,7 @@ export const CHAPTERS = [
 
   { id: 'cockpit', title: 'The cockpit', fig: COCKPIT_FIG, figFirst: true, lines: [
     { k: 'The cockpit along the bottom of the screen is your control panel. Click its controls, or use their keys.', t: 'The cockpit along the bottom of the screen is your control panel. Tap its controls.', f: 'On a phone the controls are flat glass at the edges of the screen. Drag the rings, tap the corners.' },
-    'The Coach shows your boat from above. Its arrow points from where the wind comes, as she feels it; the shaded wedge is the no-go zone. When something needs doing, it says so on the boat: pull in, ease out, bear away.',
+    'The Coach shows your boat from above. Its arrow points from where the wind comes, as she feels it; the shaded wedge is the no-go zone. A sail that needs trimming turns amber.',
     'The Chart is your compass and map: the heading on top, a line to the nearest place, amber on the ring where the shore is close.',
     { k: 'The round key and {nav} sit on the wheel’s hub. Chapters 4 and 5 put them to work.', t: 'The round key and {nav} sit on the wheel’s hub. Chapters 4 and 5 put them to work.', f: '{nav} and the turn key sit in the bottom corners. Chapters 4 and 5 put them to work.' },
     { k: 'Fold the cockpit away for the view: a hide tab, or {key:fold}. Again brings it back.', t: 'Fold the cockpit away for the view: tap a hide tab. Tap it again to bring it back.', f: 'Drag the open water to look round. The view comes back behind her by itself.' },
