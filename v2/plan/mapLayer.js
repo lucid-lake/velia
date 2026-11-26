@@ -18,7 +18,7 @@ const CSS = `
 const pad3 = (n) => String(Math.round(((n % 360) + 360) % 360)).padStart(3, '0');
 
 export function mountPlanMap({ chart, plan, B, windField, clock, say = () => {} }) {
-  const lkc = chart.el, doc = lkc.ownerDocument;
+  const lkc = chart.el, doc = globalThis.document;
   if (!doc.getElementById('lkp-map-css')) { const st = doc.createElement('style'); st.id = 'lkp-map-css'; st.textContent = CSS; doc.head.appendChild(st); }
   const cv = doc.createElement('canvas'); cv.className = 'lkp-map'; lkc.appendChild(cv);
   const g = cv.getContext('2d');

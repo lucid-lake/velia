@@ -26,7 +26,7 @@ const CSS = `
 .lkp-boat .lk-cv[data-small] .inr{display:none!important}
 .lkp-boat .lk-cv .inr{font-size:11px;padding:3px 8px 4px;border-radius:9px}
 .lkp-boat .lk-cv .rw i,.lkp-boat .lk-cv .rw b,.lkp-boat .lk-cv .rw em{font-size:11px!important}
-/* port and starboard muted for the map (owner, 2026-11-25: the red read too loud); TODO(glass): take --lk-port / --lk-stbd from the glass tokens when they land */
+/* port and starboard muted on the map (2026-11-25); TODO(glass): the glass tokens --lk-port / --lk-stbd when they land */
 .lkp-boat{--lk-port:var(--plan-port,190 122 106);--lk-stbd:var(--plan-stbd,108 158 130)}
 .lkp-boat .lk-cv .rw em.p,.lkp-boat .lk-cv .rw em.s{background:transparent!important;color:rgb(var(--plan-gl-ink,244 240 232))}
 .lkp-boat .lk-cv .rw em.p{box-shadow:inset 0 0 0 1px rgb(var(--lk-port))}
@@ -34,7 +34,7 @@ const CSS = `
 `;
 
 function defaultBoat({ root, state }) {
-  const doc = root.ownerDocument;
+  const doc = globalThis.document;
   if (!doc.getElementById('lkp-boat-css')) { const st = doc.createElement('style'); st.id = 'lkp-boat-css'; st.textContent = CSS; doc.head.appendChild(st); }
   const host = doc.createElement('div'); host.className = 'lkp-boat'; root.appendChild(host);
   const cv = createCaptainView({ root: host, state, always: true, once: false, wedge: 'apparent', storage: null });
