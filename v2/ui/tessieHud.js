@@ -13,7 +13,9 @@
 //          "Lv 1" at its lower right, "DASH ⇧" under it; a tablet taps it to dash
 //   KEYS   the right edge above the sonar: Sail's key legend itself (the UI audit, owner 2026-11-21: src/ui/keyLegend.js's classes and CSS,
 //          lk-keys lk-edgepair six: its ink 60 % / 15 % learned, the --lk-mx margin, the edge foot (raised clear of the sonar), its one cap,
-//          SPC); each line dims after 3 uses and never hides; Setup › key hints off hides it, as Sail's; a desktop 1100 px wide or more only
+//          SPC); each line dims after 3 uses and never hides; Setup › key hints off hides it, as Sail's; a desktop 1100 px wide or more only;
+//          the Tessie RPG (rpg, ?tessierpg=1): a first line "Tessie · Lv N" with a 2 px cream fill under it, the share of XP toward the
+//          next level (hud.level({ level, k }))
 import { SLOT_COUNT, slotLabel } from '../sim/tessieSkills.js';
 import { CAP_RULE, capFace, ensureLegendStyle } from '../../src/ui/keyLegend.js';
 export { CAP_RULE };
@@ -114,6 +116,10 @@ const HUD_CSS = `#lk-tplay .tp-sonar{position:absolute;right:22px;bottom:22px;wi
 #lk-tplay .tp-slot.empty:hover{border-color:rgb(var(--lk-cream) / .4)}
 #lk-tplay .tp-slot .kn{position:absolute;left:-3px;top:-3px;padding:0 4px;border-radius:6px;background:rgb(var(--lk-brand-navy) / .85);border:1px solid rgb(var(--lk-cream) / .4);font:600 10px/1.3 var(--lk-ui,system-ui);letter-spacing:.04em;pointer-events:none}
 #lk-tplay .tp-slot.empty .kn{background:none;border-color:transparent;opacity:.4}
+#lk-tplay .tp-keys .kl.tp-lv{position:relative}
+#lk-tplay .tp-keys .kl.tp-lv .w{grid-column:1 / -1}
+#lk-tplay .tp-keys .kl.tp-lv .xp{position:absolute;left:0;right:0;bottom:5px;height:2px;background:rgb(var(--lk-cream) / .22);box-shadow:0 0 3px rgb(var(--lk-brand-navy) / .6)}
+#lk-tplay .tp-keys .kl.tp-lv .xp b{display:block;height:100%;width:0;background:rgb(var(--lk-cream) / .92)}
 @media (prefers-reduced-motion:reduce){#lk-tplay .tp-slot .rg{transition:none}}`;
 
 const GLYPH = '<path class="gl" d="M18 26h10M15 32h13M18 38h10M34 24l8 8-8 8"/>';   // the dash: three speed lines and a chevron
@@ -123,7 +129,7 @@ const SONAR_SVG = (cone) => `<svg viewBox="0 0 132 132"><circle cx="66" cy="66" 
 <g class="bls"></g><path class="me" d="M66 59l4 10h-8z" style="fill:rgb(var(--lk-cream) / .95)"/></svg><b class="sw">SONAR</b>`;
 
 // the DOM: the sonar, the skills row, the legend, made in the play's layer; returns { paint(frame), place(layout), count(code), el }
-export function mountHud({ root, doc = globalThis.document, skills = [], storage = null, onSlot = null, keyHints = () => true } = {}) {
+export function mountHud({ root, doc = globalThis.document, skills = [], storage = null, onSlot = null, keyHints = () => true, rpg = false } = {}) {
   if (!root || !doc) return null;
   if (!doc.getElementById('lk-thud-css')) { const st = doc.createElement('style'); st.id = 'lk-thud-css'; st.textContent = HUD_CSS; doc.head.appendChild(st); }
   const sonar = doc.createElement('div'); sonar.className = 'tp-sonar tp-hud'; sonar.setAttribute('aria-hidden', 'true'); sonar.innerHTML = SONAR_SVG(HUD.sonar.coneDeg * DEG);
@@ -138,7 +144,7 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
   ensureLegendStyle(doc);   // Sail's legend: the edge pair, the rows, the cap
   const legend = doc.createElement('div'); legend.className = 'lk-keys lk-edgepair right six tp-keys tp-hud'; legend.setAttribute('aria-hidden', 'true');
   const cap = (k) => { const f = capFace(k); return `<span class="cap${f.length > 2 ? ' wide' : ''}">${f}</span>`; };
-  legend.innerHTML = LEGEND.map((l) => `<div class="kl" data-id="${l.id}"><span class="caps">${l.caps.map(cap).join(l.sep ? `<span class="sep">${l.sep}</span>` : '')}</span><span class="w">${l.word}</span></div>`).join('');
+  legend.innerHTML = (rpg ? '<div class="kl tp-lv" data-id="level"><span class="w">Tessie · Lv 1</span><i class="xp"><b></b></i></div>' : '') + LEGEND.map((l) => `<div class="kl" data-id="${l.id}"><span class="caps">${l.caps.map(cap).join(l.sep ? `<span class="sep">${l.sep}</span>` : '')}</span><span class="w">${l.word}</span></div>`).join('');
   root.append(sonar, row, legend);
   for (const b of row.querySelectorAll('.tp-slot.sk')) b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); onSlot?.(b.dataset.skill); });
   let counts = {}; try { counts = JSON.parse(storage?.getItem(HUD.storeKey) ?? '{}') ?? {}; } catch { counts = {}; }
@@ -190,6 +196,14 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
     // the legend shows while she is played, on a wide desktop, with Setup › key hints on (Sail's legend's own setting)
     legendOn() { let hints = true; try { hints = keyHints() !== false; } catch { /* */ } const on = legendVisible({ shown, layout: lay, keyHints: hints }); legend.hidden = !on; legend.classList.toggle('on', on); return on; },
     get layout() { return lay; },
+    // the RPG's level line (rpg only): "Tessie · Lv N" and the fill's share k (0…1) of this level's XP
+    level({ level = 1, k = 0 } = {}) {
+      const row = legend.querySelector('.tp-lv'); if (!row) return false;
+      const w = row.querySelector('.w'), txt = `Tessie · Lv ${level}`; if (w.textContent !== txt) w.textContent = txt;
+      row.querySelector('.xp b').style.width = `${(Math.min(1, Math.max(0, k)) * 100).toFixed(1)}%`;
+      row.dataset.level = String(level);
+      return true;
+    },
   };
   return api;
 }

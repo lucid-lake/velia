@@ -23,6 +23,10 @@
 //                                  knocked, reduced, services, touch, headless, waterAt, floorAt, underOn, settings })
 //   P.step(dt) after her plug-in's step; c = P.camera(dt, c, orbit) last in placeCamera; P.threat() for the busy lake's escape;
 //   P.become(entry) / P.back(); P.active; P.stats()
+//   the RPG       (rpg: ?tessierpg=1; v2/sim/tessieBounty.js) each knockdown she makes is scored into her bounty by its kind, the depth and
+//                 HIDDEN at the strike's start and whether the boat had seen her (within RPG.seenS before it); a breach, a fall or a
+//                 surfacing that splashes a kayak pair scores one splash a pair (RPG.splashS apart); her legend's first line shows her
+//                 level and its XP fill; a click or tap on her depth dial or her sonar opens the Logbook on its Tessie page
 import { createTessiePlay, LINES as PLAY_LINES, PLAY } from '../sim/tessiePlay.js';
 import { hitRule, createTessieHits } from '../sim/tessieHits.js';
 import { createSwap } from '../sim/tessieSwap.js';
@@ -33,13 +37,15 @@ import { heightAt as tessieHeightAt, reachAt } from '../sim/tessie.js';
 import { tessieSettings } from '../ui/tessieSettings.js';   // phase 2a: Invert up/down, Camera follows her
 import { mountHud, hudLayout, capLine } from '../ui/tessieHud.js';   //: the sonar, the skills row, her keys on the right edge
 import { skillOfCode } from '../sim/tessieSkills.js';   // the dash's keys: the slot's 1 and Shift
-import { Press } from '../../src/ui/pointer.js';   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
+import { Press } from '../../src/ui/pointer.js';
+import { createTessieBounty } from '../sim/tessieBounty.js';   // the Tessie RPG (rpg, ?tessierpg=1): each wreck scored into her bounty and level   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
 
 const DEG = Math.PI / 180;
 export const TESSIE_KEYS = new Set(['ShiftLeft', 'ShiftRight', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyT', 'KeyC', 'KeyE', 'KeyQ', 'Digit1']);   // phase 2a: E rises, Q sinks
 // the boat's keys: nothing while you are her (F: the bite's old second key, owner 2026-11-24: Space and the click are enough; R, Q, E, Z, X, Y, K, G, I, J, U, + and −; B, ` and 0 too)
 const INERT = new Set(['KeyF', 'KeyR', 'KeyZ', 'KeyX', 'KeyY', 'KeyK', 'KeyG', 'KeyI', 'KeyJ', 'KeyU', 'Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract', 'Digit0', 'KeyB', 'Backquote', 'Digit2', 'Digit3', 'Digit4']);   // Digit2 … 4: the skills row's reserved slots do nothing yet (owner, 2026-11-21)
 const COUNT_KEY = 'lakeshore.tessie.knocks.v1';   // her lines' once-ever marks are the lean skipper's store now (v2/ui/leanSkipper.js 'tip.tessie.*')
+export const RPG = Object.freeze({ seenS: 45, splashS: 45, kinds: Object.freeze({ sail: true, glass: true, halcyon: true, kayak: true }) });   // the bounty's kinds today (the rest come with their boats)
 const HALCYON = { L: 8.5, B: 3.0 }, BUSY_HULL = { L: 8.5, B: 3.0 }, GLASS = { L: 12.2, B: 3.8 };
 export const PLAYER = Object.freeze({ offM: 150, veilOut: 0.22, veilIn: 0.4, reachDelayS: 2, reachM: [100, 90, 115, 80, 125], reachConeDeg: 20, holdNearM: 30, dialM: 20, arrowV: 0.2, lookUpM: 6, fastS: 3, chevV: Object.freeze([1.5, 6.5, 15]), dashLineS: 2 });   // dashLineS: a boat in her corners out of reach this long, once ever: the dash's line   //: the fast line after 3 s swimming at the surface; the speed chevrons lit past 1.5, 6.5 and 15 m/s   // phase 2a: the dial's 0–20 m, its ▲/▼ past 0.2 m/s, the first dive's line, the first time past 6 m
 
@@ -86,6 +92,7 @@ const PLAYER_CSS = `#lk-tplay{position:fixed;inset:0;z-index:4;pointer-events:no
 #lk-tplay .tp-dial .chev path[data-on]{opacity:1}
 #lk-tplay .tp-dial .chev[data-dash] path[data-on]{stroke:rgb(var(--lk-amber,240 172 64))}
 #lk-tplay .tp-dial .ar{position:absolute;left:0;right:0;top:92px;text-align:center;font:600 12px/1 var(--lk-ui,system-ui);opacity:.85}
+#lk-tplay [data-door]{pointer-events:auto;cursor:pointer}
 #lk-tplay .tp-lunge:active,#lk-tplay .tp-lunge[aria-pressed=true]{background:rgb(var(--lk-amber,240 172 64) / .25)}
 html[data-tessie-play].lk-calm-bar .lk-view{opacity:1!important;visibility:visible!important;pointer-events:auto!important}
 html[data-tessie-play] .lk-view.off{opacity:1!important;transform:none!important;pointer-events:auto!important}
@@ -200,7 +207,7 @@ export function createClickBite({ on = () => true, bite = () => {}, now = () => 
 export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, sups = () => null, traffic = () => [], birthplaces = null, veil = null,
   project = null, focal = () => 600, canvas = null, mode = () => 'sail', race = () => false, knocked = () => false, reduced = () => false,
   services = () => null, touch = () => false, headless = false, storage = (() => { try { return globalThis.localStorage ?? null; } catch { return null; } })(),
-  waterAt = null, floorAt = null, underOn = true, settings = null, keyHints = () => true } = {}) {
+  waterAt = null, floorAt = null, underOn = true, settings = null, keyHints = () => true, rpg = false, day = () => { try { return new Date().toLocaleDateString('en-CA'); } catch { return null; } } } = {}) {
   const sim = plugin.sim;
   const C = createTessiePlay({ sim, depthAt }), H = createTessieHits(), W = createSwap(), cam = createTessieCam(), glide = createGlide();
   let flee = null, fleeOn = false, view = 'third', clock = 0, entryT = 0, reachDone = true, holdCamUntil = -1, veilT = null, lastPose = null, lastBoatPose = null;
@@ -210,7 +217,10 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const held = new Set(), touchIn = { x: 0, y: 0, dive: false, lunge: false, up: false, down: false, dash: false, id: null, ox: 0, oy: 0 };
   const prefs = settings ?? tessieSettings(storage);   // phase 2a: Invert up/down, Camera follows her
   let surfaceT = 0, tapDive = 0, dashPulse = false;
-  const log = { knocks: [], spooks: 0, falls: 0, hits: 0, lastFall: null, swaps: [], tips: [] };
+  const log = { knocks: [], spooks: 0, falls: 0, hits: 0, lastFall: null, swaps: [], tips: [], bounty: [] };
+  const bounty = rpg ? createTessieBounty({ storage }) : null;
+  const sawAt = new Map(), splashAt = new Map();   // the RPG: when each boat last saw her; when each kayak was last splashed (s, her clock)
+  let strike = null, biteWas = null, lungeWas = null;   // the RPG: the strike under way ({ at, depthM, hidden, seen: Set, skill })
   let knockTotal = 0; try { knockTotal = +(storage?.getItem(COUNT_KEY) ?? 0) || 0; } catch { /* */ }
   const doc = headless ? null : globalThis.document ?? null;
   const loadEl = () => doc?.getElementById('lk-load') ?? null;
@@ -233,8 +243,18 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
 <div class="tp-touch" hidden><div class="tp-look"></div><div class="tp-zone"></div><div class="tp-stick" hidden><i class="knob"></i></div><button class="tp-lunge" type="button" aria-pressed="false">Bite</button><button class="tp-ud tp-up" type="button" aria-pressed="false" aria-label="Up">▲ Up</button><button class="tp-ud tp-dn" type="button" aria-pressed="false" aria-label="Down">▼ Down</button></div>`;
     doc.body.appendChild(el);
     //: the sonar, the skills row (a tablet taps DASH to dash), her keys on the right edge
-    hud = mountHud({ root: el, skills: C.skills.list(), storage, keyHints, onSlot: (id) => { if (id === 'dash') touchIn.dash = true; } });
+    hud = mountHud({ root: el, skills: C.skills.list(), storage, keyHints, rpg: !!bounty, onSlot: (id) => { if (id === 'dash') touchIn.dash = true; } });
     hud?.show(false);
+    if (bounty) {
+      hud?.level(bounty.legend());
+      // the door: a click or tap on her depth dial or her sonar opens the Logbook on its Tessie page
+      for (const d of [q('.tp-dial'), hud?.el.sonar]) {
+        if (!d) continue;
+        d.dataset.door = 'logbook'; d.removeAttribute('aria-hidden'); d.setAttribute('role', 'button'); d.setAttribute('aria-label', 'Tessie in the Logbook');
+        d.addEventListener('pointerdown', (e) => e.stopPropagation());
+        d.addEventListener('click', (e) => { e.stopPropagation(); self.openLog(); });
+      }
+    }
     // the dial's track: 0 to 20 m over a 270° sweep from lower left
     q('.tk').setAttribute('d', arc(0, 1));
     // the tablet: the floating stick in the left 40 %, a drag elsewhere looks, the Bite button
@@ -419,8 +439,43 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     else if (b.kind === 'halcyon') { const P = B.phys?.P; if (P) { B.shove({ K: H.rollK(P, away) * mult }); ok = true; } }
     else if (b.kind === 'kayak' && b.bite) ok = !!kayaks()?.bite?.(b.id.slice(2), e ? { x: e.x, z: e.z } : {});   // round B: over, a swim, righted, away
     else if (b.sim) ok = !!b.sim.hit(b.id, hitRule(b.kind), away);   // South Lake: a runabout knocked down; the jet ski's rider and the paddle-wheeler splashed only
+    if (ok) scoreWreck(b);
     if (ok) { pullUntil = clock + 5; knockTotal++; try { storage?.setItem(COUNT_KEY, String(knockTotal)); } catch { /* */ } log.knocks.push({ id: b.id, kind: b.kind, side: r.side, at: +clock.toFixed(1), d: r.d }); }
     return ok;
+  }
+
+  // ---- the RPG: a wreck and a splash into her bounty ----
+  function scoreWreck(b) {
+    const kind = bounty && RPG.kinds[b.kind] ? b.kind : null; if (!kind) return null;
+    const st = strike ?? { depthM: C.state.nose, hidden: !!C.state.hidden, seen: null, skill: null };
+    const r = bounty.score({ kind, depthM: st.depthM, hidden: st.hidden, seen: !!st.seen?.has(b.id), skill: st.skill }, { day: day() });
+    if (r) { log.bounty.push({ kind, xp: r.xp, first: r.first, levels: r.levels, at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); }
+    return r;
+  }
+  // a breach, a fall or a surfacing at (x, z): one splash for the kayaks it spooks (a pair: one), none twice within RPG.splashS
+  function scoreSplash(x, z, list) {
+    if (!bounty) return null;
+    const ids = H.splash(x, z, list).filter((id) => list.find((o) => o.id === id)?.kind === 'kayak');
+    const fresh = ids.filter((id) => !(clock - (splashAt.get(id) ?? -Infinity) < RPG.splashS));
+    if (!fresh.length) return null;
+    for (const id of ids) splashAt.set(id, clock);
+    const r = bounty.score({ kind: 'kayak', splash: true, depthM: 0, hidden: false, seen: false }, { day: day() });
+    if (r) { log.bounty.push({ kind: 'kayak', splash: true, xp: r.xp, first: r.first, levels: r.levels, at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); }
+    return r;
+  }
+  // the strike's start (a bite or a rise begun this step): her depth, HIDDEN and the boats that had seen her, kept for its hit
+  function watchStrike(nose0, hidden0) {
+    const bt = C.state.bite, ln = C.state.lunge;
+    const fresh = (bt && bt !== biteWas) || (ln && ln !== lungeWas);
+    if (fresh) {
+      const seen = new Set(); for (const [id, t] of sawAt) if (clock - t <= RPG.seenS) seen.add(id);
+      strike = { at: clock, depthM: nose0, hidden: hidden0, seen, skill: bt && bt !== biteWas ? (bt.kind === 'dash' ? 'dash' : null) : 'rise' };
+    }
+    biteWas = bt; lungeWas = ln;
+  }
+  function watchSeen(list, n) {
+    const th = self.threat(); if (!th || !n) return;
+    for (const b of list) if (b.kind !== 'kayak' && b.kind !== 'sup' && Math.hypot(b.x - n.x, b.z - n.z) <= th.seeM) sawAt.set(b.id, clock);
   }
 
   // ---- the swap ----
@@ -443,6 +498,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const self = {
     get active() { return W.as === 'tessie'; }, get as() { return W.as; }, get pill() { return W.pill; }, beLine, ctl: C, hits: H, swap: W, cam,
     get knocks() { return knockTotal; },
+    get bounty() { return bounty; },   // the RPG's (null without ?tessierpg=1)
+    // the door: the Logbook on its Tessie page (the dials' click; the RPG only)
+    openLog() { const L = svc()?.get?.('logbook')?.logbook; if (!bounty || !L?.show) return false; L.show('tessie'); return true; },
     girthAt: (i, N) => reachAt(i * sim.L / Math.max(1, N - 1), sim.L),   // phase 2b: her body's reach at spine frame i of N (m: her bubbles leave her skin)
     // a fixed pose (tools/v2-perf.mjs, the evidence): her nose held at `nose` m (E / Q as the keys would), the look held at `look` rad (+ down),
     // swim: W held (her body follows her nose's path; at a drift it lags it by tens of seconds); sprint: Shift held; chase: W toward the
@@ -548,7 +606,10 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       if (lk?.id && lk.id !== lockWas) lockAt = clock;   // the corners close in once on a new lock
       lockWas = lk?.id ?? null;
       pinTg = tg; lastTg = tg;
+      const nose0 = C.state.nose, hidden0 = !!C.state.hidden;
+      if (bounty) watchSeen(list, n);
       C.step(dt, cardUp() ? {} : hands(), { target: tg, lock: lk });
+      if (bounty) watchStrike(nose0, hidden0);
       for (const e of C.events) {
         if (e.type === 'contact') {
           // a bite's hit test: her head within 3.0 m of the locked hull (2.0 m otherwise)
@@ -563,11 +624,12 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
           const r = H.fall(e, list, clock, { hitM: e.locked ? H.K.lock.footM : H.K.hitM });   // the rising strike's fall: 3.5 m while locked
           log.lastFall = { x: +e.x.toFixed(1), z: +e.z.toFixed(1), hit: r.hit?.id ?? null, d: r.d ?? null, at: +clock.toFixed(1) };
           const ok = r.hit ? knock(r) : false; if (ok) log.hits++;
-          spookAt(e.x, e.z, H.K.spookM); log.spooks += r.spooked.length;
+          spookAt(e.x, e.z, H.K.spookM); log.spooks += r.spooked.length; scoreSplash(e.x, e.z, list);
           C.result(ok);
-        } else if (e.type === 'surfaced') spookAt(e.x, e.z, H.K.spookM);
+        } else if (e.type === 'surfaced') { spookAt(e.x, e.z, H.K.spookM); scoreSplash(e.x, e.z, list); }
       }
-      for (const e of sim.state.events) if (e.type === 'breach' || e.type === 'break') spookAt(e.x, e.z, H.K.spookM);
+      for (const e of sim.state.events) if (e.type === 'breach' || e.type === 'break') { spookAt(e.x, e.z, H.K.spookM); scoreSplash(e.x, e.z, list); }
+      if (bounty && !C.state.bite && !C.state.lunge) strike = null;
       // the kayaks and the glass boat are solid to her (the sailboats: the sim's own hold)
       // (round B: not the kayak she is biting: her jaw meets its hull, not the water beside it)
       const biting = C.state.bite?.target?.id ?? C.state.lunge?.target?.id ?? null;
