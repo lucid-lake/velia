@@ -32,7 +32,7 @@ SATURATION = 1.2   # NAIP's high-sun frame is greyer than the ground seen from t
 # albedo targets (linear luminance). The world is exposed so ground reads about 6.5 x its albedo.
 TARGET = dict(forest=0.0105, brush=0.0185, bare=0.040, sand=0.30)
 PLAN = {'bay': dict(texel=1, tiers=[1, 2, 4]), 'region': dict(texel=16, tiers=[16, 32, 64]),
-        'south': dict(texel=4, tiers=[4, 8])}   # the south region (4 m desktop, 8 m phones): de-lit on its own 4 m DEM
+        'south': dict(texel=4, tiers=[4, 8]), 'rubicon': dict(texel=4, tiers=[4, 8])}   # the south region (4 m desktop, 8 m phones): de-lit on its own 4 m DEM
 
 def srgb2lin(v):
     v = v / 255.0

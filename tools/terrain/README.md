@@ -43,7 +43,7 @@ Mercator on Fannette Island's summit, x east, z south, y up from the lake surfac
 A region level is one fine grid over a shore away from Emerald Bay, built alone into `terrain/<region>/`, in the
 lake-wide frame and codes. The page fetches it in place of the bay's only when the player starts at a birthplace in that region
 (the region row's `level` in `src/waters/<lake>.json`; `v2/terrain/region.js`, `v2/notes/terrain.md` § Region levels).
-Today there is one, `south` (South Lake Tahoe, Camp Richardson to Stateline):
+Today there are two: `south` (South Lake Tahoe, Camp Richardson to Stateline) and `rubicon` (below):
 
 | | Desktop | Phone |
 |---|---|---|
@@ -70,6 +70,20 @@ TAHOE_SETS="south bathy nlcd" bash tools/terrain/fetch_tahoe.sh                 
 .venv/bin/python -I tools/ground/fetch_naip.py --out .cache/naip/raw --levels south  # NAIP at 2 m, about 45 MB
 .venv/bin/python -I tools/ground/build_naip.py --raw .cache/naip/raw --work .cache/naip/work --out .cache/naip/out --levels south
 node tools/v2-photo-tiles.mjs --region south                                          # terrain/south/photo/
+```
+
+The second, `rubicon` (Rubicon Point and the D.L. Bliss cliffs on the west shore, the tahoe-west region's start), is built the
+same way over world x -900 to 1,700, z -6,300 to -3,700 (650 x 650 at 4 m; desktop 319 kB of grids and 109 kB of photo,
+phone 112 kB and 35 kB). Its pin "Rubicon Point" sits at (680, -4900), 223 m deep, 216 m off the shore and 300 m from the light
+on the cliff (render/lighthouse.js):
+
+```sh
+TAHOE_SETS="rubicon" bash tools/terrain/fetch_tahoe.sh                               # 1 m lidar, about 44 MB
+.venv/bin/python -I tools/terrain/build_tahoe.py --region rubicon
+.venv/bin/python -I tools/ground/fetch_naip.py --out .cache/naip/raw --levels rubicon
+.venv/bin/python -I tools/ground/build_naip.py --raw .cache/naip/raw --work .cache/naip/work --out .cache/naip/out --levels rubicon
+node tools/v2-photo-tiles.mjs --region rubicon
+node tools/v2-shore-bake.mjs --region tahoe-west                                     # v2/assets/shore/shore-rubicon.vsf.gz
 ```
 
 The full-size albedo files stay in `.cache/naip/out/` (git-ignored); only the tiles are committed. The build is

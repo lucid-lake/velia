@@ -18,7 +18,6 @@ import { courseToWind } from '../regatta/geometry.js';
 import { createRegattaSession, sailToLine } from '../regatta/session.js';
 import { createBoatSim, waterFor } from '../sim/boat.js';
 import { createBusyLake } from '../living/busyLake.js';
-import { birthplaceRows } from '../sim/regions.js';
 import { craftOf } from '../../src/sim/craft/index.js';
 import { nearDiff } from '../../tools/near.mjs';
 
@@ -56,9 +55,12 @@ function regatta(seed) {
   return out;
 }
 
+// the busy lake on the region table the seam was pinned on (fixtures/regions-before.json: its rows and birthplaces), so a later
+// move of a route or a birthplace in the lake profile leaves the physics' pins alone
+const BEFORE = JSON.parse(readFileSync(new URL('./fixtures/regions-before.json', import.meta.url), 'utf8'));
 function busy(seed) {
-  const BP = birthplaceRows(CURRENT_WATERS);
-  const L = createBusyLake({ seed, birthplaces: BP, depthAt: () => 30, windAt: steadyWind(5, 225), tier: 'full', starts: [[CURRENT_WATERS.start.x, CURRENT_WATERS.start.z]] });
+  const BP = BEFORE.birthplaces;
+  const L = createBusyLake({ seed, birthplaces: BP, regions: BEFORE.REGIONS, depthAt: () => 30, windAt: steadyWind(5, 225), tier: 'full', starts: [[CURRENT_WATERS.start.x, CURRENT_WATERS.start.z]] });
   const bp = BP[0], S = { x: bp.x, z: bp.z, heading: 0, u: 0, v: 0, yawRate: 0 };
   for (let i = 0; i < 60 * 15; i++) L.post(S, 1 / 60, i / 60, { eye: [bp.x, 2, bp.z], hour: 13 });
   const out = L.liveBoats.map((b) => [b.id, ...st(b.phys)]);

@@ -11,13 +11,14 @@ dates the service reports over the bay. Idempotent: skips files present.
   lake   32 m  one export
   region 16 m  the lake's box (the runtime's regional photo): 2 x 2 exports
   south  2 m   the south region's box (built to 4 m and 8 m by build_naip.py): 2 x 2 exports
+  rubicon 2 m  the Rubicon region's box (the same): 1 x 1 export
 """
 import argparse, json, math, os, sys, time, datetime, urllib.parse, urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from naip_frame import LEVELS, utm_bbox, TO_UTM
 
 SVC = 'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPPlus/ImageServer'
-PLAN = {'bay': (0.6, 2000, 60.0), 'basin': (4.0, 2000, 400.0), 'lake': (32.0, 2000, 3200.0), 'region': (16.0, 2000, 1600.0), 'south': (2.0, 2000, 200.0)}
+PLAN = {'bay': (0.6, 2000, 60.0), 'basin': (4.0, 2000, 400.0), 'lake': (32.0, 2000, 3200.0), 'region': (16.0, 2000, 1600.0), 'south': (2.0, 2000, 200.0), 'rubicon': (2.0, 2000, 200.0)}
 
 def get(url, out, tries=4):
     for k in range(tries):

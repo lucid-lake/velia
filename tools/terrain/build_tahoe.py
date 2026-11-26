@@ -70,6 +70,11 @@ D_SUB = {'island': 1, 'bay': 2, 'basin': 2, 'lake': 2, 'ring': 1}   # the distan
 REGIONS = {
     'south': dict(name='south', step=4.0, x0=6994.0, z0=-1502.0, w=1880, h=1128, src='dem1m_south', smooth=1.6,
                   flat=0.15, dk=1, ck=2, phone=2, pdk=2, bed='seamless', bed_ease=200.0),
+    # rubicon: Rubicon Point and the D.L. Bliss cliffs on the west shore, 4 km north of Emerald Bay's mouth: world x -900 to
+    # 1,700, z -6,300 to -3,700 (texel edges) at 4 m, by the same rules as the south's. The pin "Rubicon Point" (the
+    # tahoe-west region's birthplace) sits 250 m north-east of the point's tip, over the drop-off
+    'rubicon': dict(name='rubicon', step=4.0, x0=-898.0, z0=-6298.0, w=650, h=650, src='dem1m_rubicon', smooth=1.6,
+                    flat=0.15, dk=1, ck=2, phone=2, pdk=2, bed='seamless', bed_ease=200.0),
 }
 
 def world_grid(L, k=1):

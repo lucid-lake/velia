@@ -26,13 +26,14 @@ export const REFUSALS = Object.freeze({
 });
 // the desktop chart's window in the world's metres (x0, z0, width, height; x east, z south, Fannette's summit 0, 0), framed on every
 // birthplace of the region table (owner, 2026-11-24: the default view includes the new birthplace): 900 m round them east and west for the
-// names, at least 700 m north and south, no flatter than 2.4 : 1, on a 100 m grid. The bake (tools/v2-minichart-bake.mjs) reads it
+// names, at least 700 m north and south (and 7 % of the width: a pin's name keeps its room when the pins run far north, as Rubicon Point's),
+// no flatter than 2.4 : 1, on a 100 m grid. The bake (tools/v2-minichart-bake.mjs) reads it
 export function miniBoxOf(rows) {
   const pts = rows.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.z));
   if (!pts.length) return Object.freeze([-900, -1800, 3500, 2700]);
   const xs = pts.map((r) => r.x), zs = pts.map((r) => r.z), r100 = (v) => Math.round(v / 100) * 100;
   const x0 = r100(Math.min(...xs) - 900), x1 = r100(Math.max(...xs) + 900), w = x1 - x0;
-  const zc = (Math.min(...zs) + Math.max(...zs)) / 2, h = r100(Math.max(Math.max(...zs) - Math.min(...zs) + 1400, w / 2.4));
+  const zc = (Math.min(...zs) + Math.max(...zs)) / 2, h = r100(Math.max(Math.max(...zs) - Math.min(...zs) + 2 * Math.max(700, 0.07 * w), w / 2.4));
   return Object.freeze([x0, r100(zc - h / 2), w, h]);
 }
 export const MINI_BOX = miniBoxOf(birthplaceRows(CURRENT_WATERS));
@@ -40,7 +41,7 @@ export const MINI_BOX = miniBoxOf(birthplaceRows(CURRENT_WATERS));
 const DESK_SIDE = { vikingsholm: 'l', fannette: 'br', tessie: 'r', narrows: 'r', lake: 'r', 'ski-run': 'l' };   // Off Ski Run: near the east edge, its name inward
 // the pins' places in the box, percent of its width and height: a loose chart of the bay (west left, north up), not a survey
 const SPOT = {
-  vikingsholm: [9, 74, 'r'], fannette: [27, 52, 'r'], tessie: [47, 62, 'r'], narrows: [64, 30, 'r'], lake: [84, 11, 'l'],
+  vikingsholm: [9, 74, 'r'], fannette: [27, 52, 'r'], tessie: [47, 62, 'r'], narrows: [64, 30, 'r'], lake: [50, 8, 'r'],
 };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 

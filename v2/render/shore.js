@@ -24,7 +24,7 @@ export const SHORE_FILE = new URL('../assets/shore/shore.vsf.gz', import.meta.ur
 // the field follows the start's detail level (South Lake's look): a page that starts on a region level (v2/terrain/region.js)
 // fetches that level's own bake (tools/v2-shore-bake.mjs --region south) in place of the bay's; a start in the bay fetches
 // the bay's alone, as before. shoreFile(levelKey) → the URL
-export const SHORE_FILES = Object.freeze({ bay: SHORE_FILE, 'south-lake': new URL('../assets/shore/shore-south.vsf.gz', import.meta.url) });   // by the level's key (the region's id); the file by the level's folder
+export const SHORE_FILES = Object.freeze({ bay: SHORE_FILE, 'south-lake': new URL('../assets/shore/shore-south.vsf.gz', import.meta.url), 'tahoe-west': new URL('../assets/shore/shore-rubicon.vsf.gz', import.meta.url) });   // by the level's key (the region's id); the file by the level's folder
 export const shoreFile = (levelKey) => SHORE_FILES[levelKey] ?? SHORE_FILE;
 export const SHORE_CAP = 4 << 20;   // bytes: the buffer, made at load (the field is ≈ 2.9 MB of words; v2/tests/shore.test.mjs checks it fits)
 // the south level's field holds 2,866 tiles (the Keys' canals and the marshes count as shore): 5.9 MB of words, so its buffer is 8 MB

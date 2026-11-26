@@ -4,7 +4,7 @@
 # exported in UTM 10N (EPSG:26910, NAD83) metres, float32 GeoTIFF. Free, no key. Idempotent: skips files present.
 #   bash tools/terrain/fetch_tahoe.sh [repo root]     (Python: .venv, see tools/terrain/README.md)
 #   TAHOE_SETS=south bash tools/terrain/fetch_tahoe.sh    only the named sets (lake-wide: bay basin lake ring bathy nlcd
-#                                                          island; the regions: south); default: the lake-wide ones
+#                                                          island; the regions: south rubicon); default: the lake-wide ones
 set -euo pipefail
 ROOT="${1:-$(cd "$(dirname "$0")/../.." && pwd)}"
 SETS=" ${TAHOE_SETS:-bay basin lake ring bathy nlcd island} "
@@ -32,6 +32,9 @@ want ring  && dem dem100m_ring 701000 4265000 801000 4365000 100   # the far Sie
 # The south region (build_tahoe.py --region south): South Lake Tahoe, world x 6,992 to 14,512, z -1,504 to 3,008, 1 m
 # lidar with a 200 m margin; it also reads the lake-wide bathy and nlcd sets, and the 30 m lake DEM for its edges
 want south && dem dem1m_south 758000 4312800 766000 4317800 1
+# The Rubicon region (build_tahoe.py --region rubicon): Rubicon Point and D.L. Bliss on the west shore, world x -900 to 1,700,
+# z -6,300 to -3,700, 1 m lidar with a 200 m margin (the same lake-wide bathy and nlcd sets)
+want rubicon && dem dem1m_rubicon 749900 4319100 753100 4322300 1
 # USGS DDS-55 Lake Tahoe bathymetry (1998 multibeam, 10 m ArcInfo export grid, elevations in m), public domain
 want bathy && { [ -s "$RAW/lt_bathy.e00.gz" ] || curl -sf --retry 3 -m 600 -o "$RAW/lt_bathy.e00.gz" https://pubs.usgs.gov/dds/dds-55/pacmaps/exports/lt_bathy.e00.gz
   [ -s "$RAW/lt_meta.htm" ] || curl -sf --retry 3 -m 60 -o "$RAW/lt_meta.htm" https://pubs.usgs.gov/dds/dds-55/pacmaps/lt_meta.htm; }

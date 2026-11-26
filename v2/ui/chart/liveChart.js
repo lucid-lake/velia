@@ -58,6 +58,7 @@ const GROUND_URLS = Object.freeze({
 const SHEET_URLS = Object.freeze({
   lake: Object.freeze({ day: new URL('../../assets/chart/lake-day.webp', import.meta.url).href, night: new URL('../../assets/chart/lake-night.webp', import.meta.url).href }),
   south: Object.freeze({ day: new URL('../../assets/chart/south-day.webp', import.meta.url).href, night: new URL('../../assets/chart/south-night.webp', import.meta.url).href }),
+  rubicon: Object.freeze({ day: new URL('../../assets/chart/rubicon-day.webp', import.meta.url).href, night: new URL('../../assets/chart/rubicon-night.webp', import.meta.url).href }),
 });
 const WATER_WORDS = Object.freeze({ sailHere: 'Sail here', waterTarget: 'Set as target', waypoint: 'Add waypoint', setCourse: 'Set course', clearRoute: 'Clear route', clearTarget: 'Clear target' });
 export const CHART_TIMING = Object.freeze({ zoomS: 0.25, glideS: 0.4, focusS: 0.5, hz: 10, sliceMs: 4, tapPx: 6, dblMs: 320, trackMin: 20 });
@@ -507,8 +508,8 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
         boxes.push([Math.min(...pts.map((q) => q[0])) - 6, Math.min(...pts.map((q) => q[1])) - 4, Math.max(...pts.map((q) => q[0])) + 6, Math.max(...pts.map((q) => q[1])) + 4]);
       }
       g.font = `italic 400 11px ${UI}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = rgba(ink, INK.sounding + (NIGHT_INK.sounding - INK.sounding) * night);
-      const south = sheetOf('south', 'day') ? SHEET_BAKE.south?.soundings ?? [] : [];   // the south's numerals once its sheet is in
-      for (const [x, z, d] of [...GROUND_BAKE.soundings, ...south]) {
+      const lazy = Object.values(SHEETS).filter((S) => S.lazy && sheetOf(S.id, 'day')).flatMap((S) => SHEET_BAKE[S.id]?.soundings ?? []);   // a detail sheet's numerals once it is in
+      for (const [x, z, d] of [...GROUND_BAKE.soundings, ...lazy]) {
         if (!inView(x, z, 10)) continue;
         const sx = P[0], sy = P[1];
         if (boxes.some((bx) => sx + 8 > bx[0] && sx - 8 < bx[2] && sy + 6 > bx[1] && sy - 6 < bx[3])) continue;

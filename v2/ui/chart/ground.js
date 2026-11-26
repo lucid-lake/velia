@@ -36,9 +36,11 @@ export const GROUND = Object.freeze({
 //           five and Off Ski Run, chartModel.js frameBirthplaces) lies on paper at every landscape size; shipped with the bay's
 //   south   South Lake at the bay's own scale (6.25 m a pixel): fetched only when the view comes to it close up or the start is
 //           there (chartModel.js sheetWanted), the region-load rule
+//   rubicon Rubicon Point and the D.L. Bliss shore (terrain/rubicon) at the same scale, by the same rule
 export const SHEETS = Object.freeze({
   lake: Object.freeze({ id: 'lake', box: Object.freeze({ x0: -9600, z0: -9600, x1: 16000, z1: 8000 }), mpp: 16, lazy: false }),
   south: Object.freeze({ id: 'south', box: Object.freeze({ x0: 4000, z0: -1600, x1: 14600, z1: 3200 }), mpp: 6.25, lazy: true, loadMpp: 12 }),
+  rubicon: Object.freeze({ id: 'rubicon', box: Object.freeze({ x0: -1600, z0: -6600, x1: 2400, z1: -3000 }), mpp: 6.25, lazy: true, loadMpp: 12 }),
 });
 // the paper: the widest box any sheet covers (the view's clamp, the zoom-out's limit, where a pin counts as past the chart: edge.js)
 export const PAPER = SHEETS.lake.box;

@@ -24,6 +24,7 @@ export const COLS = Math.ceil((ROCKS.box.x1 - ROCKS.box.x0) / ROCKS.cell);
 export const ROCK_BOXES = Object.freeze({   // by the level's key (v2/terrain/region.js levelKeyOfBirth: the region's id, or 'bay')
   bay: ROCKS.box,
   'south-lake': Object.freeze({ x0: 6992, z0: -1504, x1: 14512, z1: 3008 }),   // terrain/south/south.json's box (Camp Richardson to Stateline)
+  'tahoe-west': Object.freeze({ x0: -900, z0: -6300, x1: 1700, z1: -3700 }),   // terrain/rubicon/rubicon.json's box (Rubicon Point and the D.L. Bliss cliffs: a granite shore, the bay's rules)
 });
 // The south shore is sand: its bed is the build's 1:6 shelf from the waterline, which the bay's band rule reads as a rocky shore
 // (steep past the beach's 0.06–0.16), so every beach there grew a row of boulders. On the south level a shore rock stands only
