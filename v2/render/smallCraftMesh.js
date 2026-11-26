@@ -1,6 +1,7 @@
 // South Lake's small power craft (v2/living/powerTraffic.js), all by code: a generic 6.6 m bowrider runabout and a 3.2 m sit-down jet
 // ski, each with its seated figure. Pure: plain arrays, no GPU (the tests and render/smallCraft.js build them once). Two LODs each in
-// one vertex set (near: the lofted hull with its sheer, deadrise and chines, the windscreen, the console, the seats, the outboard or the
+// one vertex set (near: the lofted hull (a raked stem, a flared bow, the sheer rising forward, a deep V forward carried aft at 19°,
+// rounded chines, a crowned deck, a rubrail), the wrap-around windscreen, the console, the seats, the outboard or the
 // jet's hood, the figure; far: a few dozen triangles of hull, deck block and figure), each LOD drawn in one call for every craft of
 // its kind (instanced). No names, no lettering, no liveries: the hull's colour and its one stripe are the instance's (the region row's
 // hull and stripe). The figures' slots (>= SLOT.rider) duck in the vertex shader when Tessie splashes them (nobody goes in the water).
@@ -15,32 +16,66 @@ export const LOD_M = Object.freeze({ power: 300, jetski: 200, hyst: 0.08 });    
 export const DRAW_M = Object.freeze({ full: Object.freeze({ power: 4000, jetski: 2500 }), lite: Object.freeze({ power: 2000, jetski: 1200 }) });
 export const KINDS = Object.freeze(['power', 'jetski']);
 
-// a hull's shape: length L, beam B, its sheer, keel and chine along it (u 0 at the stem, 1 at the transom)
+// a hull's shape: length L, beam B, its sheer (ys) rising to the bow (sheerBow over sheerRun), the keel with its forefoot rising
+// forward, the deadrise (deg) from the transom's to the entry's, the chine's half-width (a share of the sheer's) and its own fuller-
+// aft entry (the topsides flare out above it at the bow), the stem's rake (m aft per m down at the stem), the chine's round (m), the
+// deck's crown (m) (u 0 at the stem, 1 at the transom)
 export const HULLS = Object.freeze({
-  power: Object.freeze({ L: POWER.power.length, B: POWER.power.beam, sheer: 0.86, sheerBow: 0.28, keel: -0.34, forefoot: 0.5, deadrise: 0.3, chine: 0.9, entry: 0.36, stripe: Object.freeze([0.42, 0.6]) }),
+  power: Object.freeze({ L: POWER.power.length, B: POWER.power.beam, sheer: 0.84, sheerBow: 0.38, sheerRun: 0.62, keel: -0.34, forefoot: 0.52, footRun: 0.34, deadrise: 19, deadriseBow: 52, chine: 0.88, entry: 0.44, chineEntry: 0.6, rake: 0.8, round: 0.11, crown: 0.07, stripe: Object.freeze([0.42, 0.6]) }),
   jetski: Object.freeze({ L: POWER.jetski.length, B: POWER.jetski.beam, sheer: 0.5, sheerBow: 0.12, keel: -0.2, forefoot: 0.3, deadrise: 0.16, chine: 0.86, entry: 0.4, stripe: Object.freeze([0.3, 0.42]) }),
 });
 export function hullAt(H, u) {
   u = Math.max(0, Math.min(1, u));
-  const hb = H.B / 2 * (u < H.entry ? Math.sin((u / H.entry) * Math.PI / 2) ** 0.7 : 1 - 0.05 * ((u - H.entry) / (1 - H.entry)));
-  const ys = H.sheer + (u < 0.45 ? H.sheerBow * (1 - u / 0.45) ** 2 : -0.04 * (u - 0.45));
-  const yk = H.keel + (u < 0.3 ? H.forefoot * (1 - u / 0.3) ** 2 : 0);
-  return { hb, ys, yk, yc: yk + H.deadrise * (hb / (H.B / 2)), xc: hb * H.chine };
+  const half = H.B / 2;
+  // the deck's plan: a fine point at the stem opening to a full bow, then a hint of taper to the transom
+  const hb = half * (u < H.entry ? Math.sin((u / H.entry) * Math.PI / 2) ** 0.85 : 1 - 0.05 * ((u - H.entry) / (1 - H.entry)));
+  const ys = H.sheer + (u < H.sheerRun ? H.sheerBow * (1 - u / H.sheerRun) ** 1.8 : -0.05 * (u - H.sheerRun) / (1 - H.sheerRun));
+  const yk = H.keel + (u < H.footRun ? H.forefoot * (1 - u / H.footRun) ** 2 : 0);
+  // the chine's plan runs finer than the deck's at the bow (the flare), its V deep forward and carried aft at the transom's deadrise
+  const xc = half * H.chine * (u < H.chineEntry ? Math.sin((u / H.chineEntry) * Math.PI / 2) ** 1.1 : 1 - 0.05 * ((u - H.chineEntry) / (1 - H.chineEntry)));
+  const dr = (H.deadrise + (H.deadriseBow - H.deadrise) * Math.max(0, 1 - u / 0.65) ** 1.5) * Math.PI / 180;
+  return { hb, ys, yk, yc: Math.min(ys - 0.12 * (hb / half), yk + xc * Math.tan(dr)), xc };
 }
 
-function hull(B, H, n) {
-  const zAt = (u) => -H.L / 2 + u * H.L;
-  // the sides as one open sheet per station pair: port sheer, port chine, keel, starboard chine, starboard sheer (smooth across
-  // the chine's run, sharp at the sheer where the deck meets it)
-  const ring = (u) => { const s = hullAt(H, u), z = zAt(u); return [[-s.hb, s.ys, z], [-s.xc, s.yc, z], [0, s.yk, z], [s.xc, s.yc, z], [s.hb, s.ys, z]]; };
-  const rows = []; for (let i = 0; i <= n; i++) rows.push(ring((i / n) ** 1.15));
+// a side's section at u (sx −1 port, +1 starboard): sheer, the chine's round (above, on, below), keel; the stem raked (the lower points
+// drawn aft near the bow, so her sheer keeps the 6.6 m and the stem leans forward from the forefoot)
+function section(H, u, sx, round) {
+  const s = hullAt(H, u), z0 = -H.L / 2 + u * H.L, w = Math.max(0, 1 - u / 0.3) ** 2;
+  const P = (x, y) => [sx * x, y, z0 + H.rake * (s.ys - y) * w];
+  if (!round) return [P(s.hb, s.ys), P(s.xc, s.yc), P(0, s.yk)];
+  const C = [s.xc, s.yc], toS = [s.hb - s.xc, s.ys - s.yc], toK = [-s.xc, s.yk - s.yc];
+  const lS = Math.hypot(...toS) || 1, lK = Math.hypot(...toK) || 1, r = Math.min(H.round, 0.3 * lS, 0.3 * lK);
+  const cu = [C[0] + toS[0] / lS * r, C[1] + toS[1] / lS * r], cl = [C[0] + toK[0] / lK * r, C[1] + toK[1] / lK * r];
+  const cm = [C[0] * 0.45 + (cu[0] + cl[0]) / 2 * 0.55, C[1] * 0.45 + (cu[1] + cl[1]) / 2 * 0.55];
+  return [P(s.hb, s.ys), P(cu[0], cu[1]), P(cm[0], cm[1]), P(cl[0], cl[1]), P(0, s.yk)];
+}
+
+function hull(B, H, n, near) {
+  const us = []; for (let i = 0; i <= n; i++) us.push((i / n) ** 1.15);
   const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-  const R = rows.length, N = 5;
-  const nrm = (i, j) => B.norm(cross(sub(rows[Math.min(R - 1, i + 1)][j], rows[Math.max(0, i - 1)][j]), sub(rows[i][Math.min(N - 1, j + 1)], rows[i][Math.max(0, j - 1)])));
-  for (let i = 0; i < R - 1; i++) for (let j = 0; j < N - 1; j++) B.squad(rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j], nrm(i, j), nrm(i, j + 1), nrm(i + 1, j + 1), nrm(i + 1, j), SLOT.hull);
-  // the deck (flat between the sheers, a little crown) and the transom
-  for (let i = 0; i < R - 1; i++) { const a = rows[i], b = rows[i + 1]; B.quad(a[4], a[0], b[0], b[4], SLOT.deck); }
-  const t = rows[R - 1]; B.quad(t[0], t[1], t[3], t[4], SLOT.hull); B.tri(t[1], t[2], t[3], SLOT.hull);
+  // each side its own sheet (sheer to keel; smooth across the chine's round, a sharp crease at the keel and at the sheer)
+  const sides = [-1, 1].map((sx) => us.map((u) => section(H, u, sx, near)));
+  for (const rows of sides) {
+    const R = rows.length, N = rows[0].length;
+    const nrm = (i, j) => B.norm(cross(sub(rows[Math.min(R - 1, i + 1)][j], rows[Math.max(0, i - 1)][j]), sub(rows[i][Math.min(N - 1, j + 1)], rows[i][Math.max(0, j - 1)])));
+    for (let i = 0; i < R - 1; i++) for (let j = 0; j < N - 1; j++) B.squad(rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j], nrm(i, j), nrm(i, j + 1), nrm(i + 1, j + 1), nrm(i + 1, j), SLOT.hull);
+  }
+  const [port, stbd] = sides, R = port.length, N = port[0].length;
+  // the deck: a crowned foredeck and cockpit sole between the sheers (port sheer, the crown, starboard sheer)
+  for (let i = 0; i < R - 1; i++) {
+    const a0 = port[i][0], a1 = stbd[i][0], b0 = port[i + 1][0], b1 = stbd[i + 1][0];
+    const ca = [0, a0[1] + H.crown * Math.abs(a0[0]) / (H.B / 2), a0[2]], cb = [0, b0[1] + H.crown * Math.abs(b0[0]) / (H.B / 2), b0[2]];
+    if (near) { B.quad(a0, ca, cb, b0, SLOT.deck); B.quad(ca, a1, b1, cb, SLOT.deck); } else B.quad(a1, a0, b0, b1, SLOT.deck);
+  }
+  // the rubrail: a dark band along each sheer, a hand deep
+  if (near) for (const rows of sides) for (let i = 0; i < R - 1; i++) {
+    const a = rows[i][0], b = rows[i + 1][0], o = Math.sign(a[0] || b[0] || 1) * 0.025;
+    B.quad([a[0] + o, a[1] + 0.01, a[2]], [b[0] + o, b[1] + 0.01, b[2]], [b[0] + o, b[1] - 0.07, b[2]], [a[0] + o, a[1] - 0.07, a[2]], SLOT.dark);
+  }
+  // the transom: a fan from its middle
+  const tp = port[R - 1], ts = stbd[R - 1], ring = [...tp, ...ts.slice(0, N - 1).reverse()], c = [0, (tp[0][1] + tp[N - 1][1]) / 2, tp[0][2]];
+  for (let j = 0; j < ring.length - 1; j++) B.tri(c, ring[j], ring[j + 1], SLOT.hull);
+  B.tri(c, ring[ring.length - 1], ring[0], SLOT.hull);
 }
 
 // a seated figure: hips at (x, y, z) facing the bow; lean (rad forward); vest: a buoyancy aid (the jet ski's rider); hands to (hx, hy, hz)
@@ -65,20 +100,23 @@ function figure(B, { x, y, z, lean = 0.15, vest = false, hands = null, near = tr
 export function buildCraft(kind, { lod = 'near' } = {}) {
   const B = builder(), H = HULLS[kind], near = lod === 'near';
   if (kind === 'power') {
-    hull(B, H, near ? 22 : 5);
+    hull(B, H, near ? 20 : 6, near);
     const s = hullAt(H, 0.42), y0 = s.ys;
     if (near) {
-      // the windscreen: two raked panes either side of the walk-through, framed; the console behind it on the starboard side
+      // the windscreen: a wrap-around in two halves either side of the walk-through, raked aft about 40°, each half three panes (the
+      // front, the corner swept aft, the wing back along the gunwale), lower toward the sides; a bright frame along the top
       for (const sx of [-1, 1]) {
-        const x0 = sx * 0.12, x1 = sx * (s.hb - 0.08), zf = -0.75, zb = -0.48, yb = y0 + 0.02, yt = y0 + 0.36;
-        B.quad([x0, yb, zf], [x1, yb, zf + 0.05], [x1, yt, zb + 0.05], [x0, yt, zb], SLOT.glass);
-        B.cyl([x0, yt, zb], [x1, yt, zb + 0.05], 0.018, 4, SLOT.metal);
+        const base = [[0.14, -0.86], [0.55, -0.8], [0.9, -0.62], [0.97, -0.22]], hs = [0.4, 0.38, 0.32, 0.2];
+        const bot = base.map(([f, z]) => { const q = hullAt(H, (z + H.L / 2) / H.L); return [sx * Math.min(f * q.hb, q.hb - 0.05), q.ys + 0.01, z]; });
+        const top = bot.map((p, k) => [p[0] - sx * 0.05 * k / 3, p[1] + hs[k], p[2] + hs[k] * (0.85 - 0.35 * k / 3)]);
+        for (let k = 0; k < 3; k++) B.quad(bot[k], bot[k + 1], top[k + 1], top[k], SLOT.glass);
+        B.tube(top, 0.016, 4, SLOT.metal);
       }
       B.box(0.25, y0, -0.45, 0.95, y0 + 0.38, -0.05, SLOT.hull);
       B.box(0.55, y0 + 0.38, -0.32, 0.62, y0 + 0.45, -0.25, SLOT.dark);   // the wheel's hub
       // the seats: the helm and the companion's bucket seats, the stern bench across, the bow's cushions
       for (const sx of [-0.6, 0.6]) { B.box(sx - 0.26, y0, 0.25, sx + 0.26, y0 + 0.36, 0.75, SLOT.seat); B.box(sx - 0.26, y0 + 0.36, 0.68, sx + 0.26, y0 + 0.82, 0.8, SLOT.seat); }
-      B.box(-1.05, y0, 2.15, 1.05, y0 + 0.34, 2.75, SLOT.seat); B.box(-1.05, y0 + 0.34, 2.68, 1.05, y0 + 0.7, 2.85, SLOT.seat);
+      const yb = hullAt(H, 0.85).ys + 0.02; B.box(-1.05, yb, 2.15, 1.05, yb + 0.34, 2.75, SLOT.seat); B.box(-1.05, yb + 0.34, 2.68, 1.05, yb + 0.7, 2.85, SLOT.seat);
       const sb = hullAt(H, 0.2); B.box(-sb.hb * 0.7, sb.ys, -2.2, sb.hb * 0.7, sb.ys + 0.14, -1.35, SLOT.seat);
       // the outboard on the transom: cowling, the leg into the water
       B.box(-0.28, y0 + 0.05, H.L / 2 + 0.02, 0.28, y0 + 0.82, H.L / 2 + 0.66, SLOT.dark);
