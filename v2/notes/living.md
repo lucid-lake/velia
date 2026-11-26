@@ -236,3 +236,17 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
   her free paddlers paddle over. Rank 4: the Halcyon's flee (`sim/tessieFlee.js` `lure`).
 - **Sonar** marks every boat within the ping's range (no paddleboards): rings projected onto the water under the hulls (a pooled SVG
   layer in the play's own DOM, `.tp-world`), ticks on the SONAR dial's rim, the dial's word the range. Ranks: `sim/tessieSkills.js`.
+
+## Tessie's Tail Surge (`?tessierpg=1`; sim/tessieSurge.js, sim/waveRoll.js, living/tessiePlayer.js)
+
+- **The press:** a 1.2 s wind-up (her tail's flick, rings on her water), then the slap (her `slap` splash, the creature map's rings at
+  full amplitude, a solid cream ring on the water, `.tp-world .sr`, running out to the rank's ring over 2 s). Ranks: ring 40/48/56/64 m,
+  knock radius 12/14/16/18 m, heel 35/38/41/45°, every 30 s (`sim/tessieSkills.js` `SURGE_RANKS`).
+- **The wave** reaches each boat by its distance from her middle and heels it away from her: the full angle inside the knock radius,
+  easing to 30 % of it at the ring. `busyLake.wave(id, { heel })` and the Halcyon's `B.wave({ heel })` carry the hull to that heel over
+  0.5 s, hold 0.6 s and let it go over 0.9 s (`sim/waveRoll.js`: a stiff spring on the path plus the righting arm's moment; a hull
+  already leaning that far gets nothing). The glass boat: her scripted roll (`tourBoat.knock(side, peakDeg)`).
+- **The knock rule:** one boat (the nearest) inside the knock radius already heeled past 20° by its own wind goes over (her knockdown,
+  scored as wrecked); under 7.5 kn at the boat (the Light band) nothing goes over. Measured on the busy lake (seed 1, 30 s settled): the
+  boats' own heel peaks at 5° in 5 kn, 14° in 10 kn, 18° in 12 kn, 20° in 15 kn, 22–23° in 18–24 kn, so knocks come in a strong wind.
+- **The kayakers** within 20 m of her middle are splashed (one bounty splash a slap, a breach's rule) and spooked.

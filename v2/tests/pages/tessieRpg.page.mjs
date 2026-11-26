@@ -18,6 +18,10 @@
 // Phase 3 (Lure and Sonar, v2/sim/tessieLure.js, tessieSonar.js): 2 fires the Lure (a busy-lake sailboat laid 90 m ahead of her,
 //     crossing, turns toward her; the slot's ring amber then cooling; the lure's ring on the water); 3 pings (the marks under the
 //     hulls in the world, ticks on the SONAR dial's rim, its word "300 M"; the ring); a click on the Sonar slot while it cools does nothing
+// Phase 4 (Tail Surge, v2/sim/tessieSurge.js): 4 winds up 1.2 s (the slot amber), then the slap: the wave's cream ring on the water
+//     runs out to 40 m, a busy-lake sailboat laid 20 m abeam heels away from her; a click on the slot while it cools does nothing; in a
+//     strong wind (?wind=4, the fleet out 25 s, then a gust laying one past 21°) a boat leaning past 20° moved 9 m off her just before the slap goes over (scored as wrecked)
+// Evidence: TESSIE_RPG4_SHOT=<prefix> saves <prefix>-wave.png (0.9 s after the slap) and <prefix>-knock.png (the knockdown, 2.5 s after).
 // Evidence: TESSIE_RPG3_SHOT=<prefix> saves <prefix>-lure.png (2.5 s after the lure) and <prefix>-sonar.png (1 s after the ping).
 // TESSIE_RPG_SHOT=<png> saves the Tessie page as drawn; TESSIE_RPG2_SHOT=<prefix> saves her HUD during the level-up line
 // at 1280 and 1180 (<prefix>-1280.png, <prefix>-1180.png). Run by `npm run test:pages:v2 -- tessieRpg`, or
@@ -288,6 +292,63 @@ try {
     check(errors.length === 0, `phase 3: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }
+  // ---- phase 4: Tail Surge ----
+  for (const strong of [false, true]) {
+    const SAVE4 = { ...SAVE, _v: 2, xp: 52, ranks: { dash: 1, lure: 1, sonar: 1, surge: 1, breach: 0 }, trials: { lure: 5, sonar: 5, surge: 5, breach: 5 } };
+    const { ctx, page, errors } = await open(`${strong ? Q.replace('wind=3', 'wind=4') : Q}&tessierpg=1`, SAVE4);
+    await page.evaluate(() => window.__velia.tessiePlay.become('menu'));
+    const inT = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie' && !document.querySelector('#lk-tplay .tp-sonar')?.hidden && window.__velia.tessie.sim.state.nose, null, { timeout: 30000 }).then(() => true, () => false);
+    check(inT, `phase 4${strong ? ' (strong wind)' : ''}: you are her`);
+    await page.waitForTimeout(2500);
+    const tag = strong ? 'strong wind' : 'phase 4';
+    if (!strong) {
+      // a busy-lake sailboat laid 20 m off her middle, 35° off her bow (in the camera's view), on her heading (she is at the surface)
+      const laid = await page.evaluate(() => {
+        const V = window.__velia, L = V.busy.lake, n = V.tessie.sim.state.nose, c = V.tessie.sim.state.centre, live = L?.liveBoats ?? []; if (!live.length) return null;
+        const a = n.psi + 35 * Math.PI / 180, id = live[0].id; L.lay(id, { x: c[0] + Math.sin(a) * 20, z: c[1] - Math.cos(a) * 20, heading: n.psi, speed: 1.5 }); return id;
+      });
+      await page.waitForTimeout(400);
+      const heel0 = await page.evaluate((i) => Math.abs(window.__velia.busy.lake.liveBoats.find((o) => o.id === i)?.phys.state.heel ?? 0) * 180 / Math.PI, laid);
+      await page.keyboard.press('Digit4'); await page.waitForTimeout(400);
+      const w1 = await page.evaluate(() => { const st = window.__velia.tessiePlay.stats(), s = document.querySelector('#lk-tplay .tp-slot[data-skill=surge]'); return { surge: st.log.surge, fx: st.rpg.surgeFx, ink: s.dataset.ink, ring: document.querySelector('#lk-tplay .tp-world .sr')?.getAttribute('visibility') }; });
+      check(w1.surge?.rank === 1 && w1.surge.ringM === 40 && w1.fx?.phase === 'windup' && !w1.surge.slap, `4 winds up: rank 1, 40 m, no slap yet at 0.4 s (${JSON.stringify(w1)})`);
+      check(w1.ink === 'amber' && w1.ring === 'hidden', `the Surge slot runs amber; no ring before the slap (${JSON.stringify({ ink: w1.ink, ring: w1.ring })})`);
+      await page.waitForTimeout(1700);
+      if (process.env.TESSIE_RPG4_SHOT) await page.screenshot({ path: `${process.env.TESSIE_RPG4_SHOT}-wave.png` });
+      const w2 = await page.evaluate((i) => { const st = window.__velia.tessiePlay.stats(), w = document.querySelector('#lk-tplay .tp-world'); return { slap: st.log.surge.slap, ring: w.querySelector('.sr')?.getAttribute('visibility'), r: +(w.dataset.surge || 0), heel: Math.abs(window.__velia.busy.lake.liveBoats.find((o) => o.id === i)?.phys.state.heel ?? 0) * 180 / Math.PI }; }, laid);
+      const h = w2.slap?.heels.find((x) => x.id === laid);
+      // the boat's peak heel over the 2 s after this (the wave reaches it at its distance / 20 m/s)
+      for (let i = 0; i < 20; i++) { w2.heel = Math.max(w2.heel, await page.evaluate((id) => Math.abs(window.__velia.busy.lake.liveBoats.find((o) => o.id === id)?.phys.state.heel ?? 0) * 180 / Math.PI, laid)); await page.waitForTimeout(100); }
+      check(!!w2.slap && Math.abs(w2.slap.at - w1.surge.at - 1.2) < 0.15, `the slap 1.2 s after the press (${JSON.stringify(w2.slap && { at: w2.slap.at, press: w1.surge.at })})`);
+      check(w2.ring === 'visible' && w2.r > 20 && w2.r <= 40, `the wave's ring on the water, running out to 40 m (${w2.r} m)`);
+      check(!!h && h.heelDeg > 15 && Math.abs(w2.heel - h.heelDeg) < 4 && w2.heel > heel0 + 8, `the boat ${h?.d} m off heels away from her (${heel0.toFixed(0)}° → ${w2.heel.toFixed(0)}°, the wave's ${h?.heelDeg}°)`);
+      const so = await page.evaluate(() => { const r = document.querySelector('#lk-tplay .tp-slot[data-skill=surge]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+      await page.mouse.click(so.x, so.y); await page.waitForTimeout(200);
+      const again = await page.evaluate(() => window.__velia.tessiePlay.stats().log.surge.at);
+      check(again === w1.surge.at, 'a click on the Surge slot while it cools does nothing (no second slap)');
+    } else {
+      // the boat leaning most (past 20° in 21 kn, once the fleet has sailed 25 s) moved 9 m off her middle, 30° off her bow, just before
+      // the slap, its heel kept
+      await page.waitForTimeout(25000);
+      await page.waitForFunction(() => (window.__velia.busy.lake?.liveBoats ?? []).some((b) => !b.knock && Math.abs(b.phys.state.heel) > 21 * Math.PI / 180), null, { timeout: 40000, polling: 100 }).catch(() => {});   // a gust lays one past 21°
+      await page.keyboard.press('Digit4'); await page.waitForTimeout(1050);
+      const mv = await page.evaluate(() => {
+        const V = window.__velia, c = V.tessie.sim.state.centre, n = V.tessie.sim.state.nose, live = (V.busy.lake?.liveBoats ?? []).filter((b) => !b.knock);
+        const b = live.sort((p, q) => Math.abs(q.phys.state.heel) - Math.abs(p.phys.state.heel))[0]; if (!b) return null;
+        const q = b.phys.state, a = n.psi + 30 * Math.PI / 180; q.x = c[0] + Math.sin(a) * 9; q.z = c[1] - Math.cos(a) * 9;
+        return { id: b.id, lean: +(q.heel * 180 / Math.PI).toFixed(1) };
+      });
+      await page.waitForTimeout(2600);
+      if (process.env.TESSIE_RPG4_SHOT) await page.screenshot({ path: `${process.env.TESSIE_RPG4_SHOT}-knock.png` });
+      const k = await page.evaluate((i) => { const V = window.__velia, st = V.tessiePlay.stats(), b = V.busy.lake.liveBoats.find((o) => o.id === i); return { slap: st.log.surge.slap, capsized: !!b?.knock?.capsized, wrecked: V.tessiePlay.bounty.state().byType.sail.wrecked }; }, mv?.id);
+      // the rule as the slap saw it (its lean then: a gust comes and goes in the 0.15 s after the move)
+      const lean = k.slap?.knock?.lean ?? k.slap?.heels.find((x) => x.id === mv?.id)?.lean;
+      if (k.slap?.knock) check(k.slap.knock.id === mv.id && k.slap.over.includes(mv.id) && k.capsized && k.wrecked === 10, `strong wind: the boat leaning ${lean}° 9 m off goes over and is scored (${JSON.stringify({ knock: k.slap?.knock, over: k.slap?.over, capsized: k.capsized, wrecked: k.wrecked })})`);
+      else check(!!mv && Math.abs(lean) <= 20 && !k.capsized, `strong wind: the boat leaning only ${lean}° at the slap (not past 20°) only heels (${JSON.stringify(k.slap?.heels)})`);
+    }
+    check(errors.length === 0, `${tag}: no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await ctx.close();
+  }
   // ---- the flag off: nothing of it ----
   {
     const { ctx, page, errors } = await open(Q, SAVE);
@@ -300,9 +361,9 @@ try {
     check(!off.level && off.doors === 0 && off.pe === 'none' && off.bounty === null, `flag off: no level line, no door, no bounty (${JSON.stringify(off)})`);
     const four = await page.evaluate(() => ({ slots: [...document.querySelectorAll('#lk-tplay .tp-skills .tp-slot')].map((s) => s.dataset.skill ?? `empty${s.dataset.slot}`), lv: document.querySelector('#lk-tplay .tp-slot[data-skill=dash] .lv')?.textContent, pips: document.querySelectorAll('#lk-tplay .tp-slot .pp').length, halo: document.querySelectorAll('#lk-tplay [data-halo]').length, lines: document.querySelectorAll('#lk-tplay .tp-keys .kl').length }));
     check(four.slots.join() === 'dash,empty2,empty3,empty4' && four.lv === 'Lv 1' && four.pips === 0 && four.halo === 0 && four.lines === 6, `flag off: today's four slots, "Lv 1" on the dash, six legend lines (${JSON.stringify(four)})`);
-    await page.keyboard.press('Digit2'); await page.keyboard.press('Digit3'); await page.waitForTimeout(200);
-    const off3 = await page.evaluate(() => ({ world: !!document.querySelector('#lk-tplay .tp-world'), rim: document.querySelectorAll('#lk-tplay .tp-sonar .rim line').length, lure: window.__velia.tessiePlay.stats().log.lure ?? null }));
-    check(!off3.world && off3.rim === 0 && off3.lure === null, `flag off: 2 and 3 do nothing, no world marks (${JSON.stringify(off3)})`);
+    await page.keyboard.press('Digit2'); await page.keyboard.press('Digit3'); await page.keyboard.press('Digit4'); await page.waitForTimeout(1500);
+    const off3 = await page.evaluate(() => ({ world: !!document.querySelector('#lk-tplay .tp-world'), rim: document.querySelectorAll('#lk-tplay .tp-sonar .rim line').length, lure: window.__velia.tessiePlay.stats().log.lure ?? null, surge: window.__velia.tessiePlay.stats().log.surge ?? null }));
+    check(!off3.world && off3.rim === 0 && off3.lure === null && off3.surge === null, `flag off: 2, 3 and 4 do nothing, no world marks (${JSON.stringify(off3)})`);
     check(errors.length === 0, `flag off: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }

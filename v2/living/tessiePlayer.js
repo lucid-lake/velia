@@ -39,6 +39,12 @@
 // forgets it. Sonar: one ping marks every boat within range for the mark time: a faint cream ring on the water under each hull
 // (rank 3: a heading tail), ticks on the SONAR dial's rim, its word the range (v2/sim/tessieSonar.js); the boats within SONAR.hearM
 // hear it unless she is HIDDEN. A free trial is spent only when the skill really fires (ready, not cooling)
+// Phase 4 (the RPG): Tail Surge (slot 4, key 4, a click or tap; v2/sim/tessieSurge.js, SURGE_RANKS). A 1.2 s wind-up (her tail lifts:
+// a flick, rings on her water), then the slap (her 'slap' splash, the creature map's ring at full amplitude, a cream ring on the water
+// running out to the rank's ring radius over 2 s). The boats inside heel away from her as it reaches them (the busy lake's sailboats and
+// the Halcyon by sim/waveRoll.js, the glass boat by her scripted roll); one boat within the knock radius already heeled past 20° goes
+// over (her knockdown, scored as wrecked; never in Light wind); the kayakers within 20 m are splashed (scored, as a breach's); the slap
+// reveals her to the boats inside. Every 30 s
 import { createTessiePlay, LINES as PLAY_LINES, PLAY } from '../sim/tessiePlay.js';
 import { hitRule, createTessieHits } from '../sim/tessieHits.js';
 import { createSwap } from '../sim/tessieSwap.js';
@@ -51,6 +57,7 @@ import { mountHud, hudLayout, capLine, HUD } from '../ui/tessieHud.js';   //: th
 import { skillOfCode, RPG_SLOT_COUNT, createSkills, RPG_SKILLS_TABLE, LURE_RANKS, SONAR_RANKS, LURE_CAST_S } from '../sim/tessieSkills.js';
 import { LURE, lureTargets, lureSplashes } from '../sim/tessieLure.js';
 import { SONAR, sonarPing, rimMarks, markRing } from '../sim/tessieSonar.js';   // the dash's keys: the slot's 1 and Shift
+import { SURGE, SURGE_RANKS, surgeResolve } from '../sim/tessieSurge.js';
 import { Press } from '../../src/ui/pointer.js';
 import { createTessieBounty, BOUNTY_KIND, SKILL_ORDER } from '../sim/tessieBounty.js';
 import { createLevelUp, LEVEL_UP } from '../sim/tessieLevelUp.js';
@@ -116,6 +123,7 @@ const PLAYER_CSS = `#lk-tplay{position:fixed;inset:0;z-index:4;pointer-events:no
 #lk-tplay .tp-world line{stroke:rgb(var(--lk-cream) / .62);stroke-width:1.5;stroke-linecap:round}
 #lk-tplay .tp-world[hidden]{display:none}
 #lk-tplay .tp-world .lr{fill:none;stroke:rgb(var(--lk-cream) / .8);stroke-width:1.8;stroke-dasharray:2 7;stroke-linecap:round}
+#lk-tplay .tp-world .sr{fill:none;stroke:rgb(var(--lk-cream) / .78);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 #lk-tplay .tp-lunge:active,#lk-tplay .tp-lunge[aria-pressed=true]{background:rgb(var(--lk-amber,240 172 64) / .25)}
 html[data-tessie-play].lk-calm-bar .lk-view{opacity:1!important;visibility:visible!important;pointer-events:auto!important}
 html[data-tessie-play] .lk-view.off{opacity:1!important;transform:none!important;pointer-events:auto!important}
@@ -255,6 +263,10 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const seenRecently = (id) => clock - (sawAt.get(id) ?? -Infinity) <= LURE.seenS;
   SKILL_RUN.lure = (rank) => runLure(rank);
   SKILL_RUN.sonar = (rank) => runSonar(rank);
+  SKILL_RUN.surge = (rank) => runSurge(rank);
+  // phase 4: the Tail Surge under way { rank, row, t0, slapAt (null: the wind-up), x, z (the ring's centre), due: [the boats the wave has yet
+  // to reach], ctx (the strike's record for the bounty), stir (the wind-up's rings laid) }
+  let surgeFx = null;
   const sawAt = new Map(), splashAt = new Map();   // the RPG: when each boat last saw her; when each kayak was last splashed (s, her clock)
   let strike = null, biteWas = null, lungeWas = null;   // the RPG: the strike under way ({ at, depthM, hidden, seen: Set, skill })
   let knockTotal = 0; try { knockTotal = +(storage?.getItem(COUNT_KEY) ?? 0) || 0; } catch { /* */ }
@@ -280,9 +292,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     if (bounty) {   // phase 3: the world's marks (the ping's rings under the hulls, their tails, the lure's ring), projected onto the water
       // the marks are world: they sit beneath every HUD piece (the legend, the slots, the dials, the top bar, the skipper's line), whose
       // boxes are cut out of the layer's mask (the legend has no plate, so a ring would show between its letters)
-      el.insertAdjacentHTML('afterbegin', `<svg class="tp-world" hidden aria-hidden="true"><defs><mask id="tp-wm" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%"><rect width="100%" height="100%" fill="#fff"/><g class="cut"></g></mask></defs><g mask="url(#tp-wm)">${'<ellipse class="mk" visibility="hidden"/>'.repeat(SONAR.max)}${'<line class="tl" visibility="hidden"/>'.repeat(SONAR.max)}<path class="lr" fill="none" visibility="hidden"/></g></svg>`);
+      el.insertAdjacentHTML('afterbegin', `<svg class="tp-world" hidden aria-hidden="true"><defs><mask id="tp-wm" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%"><rect width="100%" height="100%" fill="#fff"/><g class="cut"></g></mask></defs><g mask="url(#tp-wm)">${'<ellipse class="mk" visibility="hidden"/>'.repeat(SONAR.max)}${'<line class="tl" visibility="hidden"/>'.repeat(SONAR.max)}<path class="lr" fill="none" visibility="hidden"/><path class="sr" fill="none" visibility="hidden"/></g></svg>`);
       const w = el.querySelector('.tp-world');
-      world = { el: w, mk: [...w.querySelectorAll('.mk')], tl: [...w.querySelectorAll('.tl')], lr: w.querySelector('.lr'), cut: w.querySelector('.cut'), cutT: -1, on: new Uint8Array(SONAR.max * 2 + 1) };
+      world = { el: w, mk: [...w.querySelectorAll('.mk')], tl: [...w.querySelectorAll('.tl')], lr: w.querySelector('.lr'), sr: w.querySelector('.sr'), cut: w.querySelector('.cut'), cutT: -1, on: new Uint8Array(SONAR.max * 2 + 2) };
     }
     doc.body.appendChild(el);
     //: the sonar, the skills row (a tablet taps DASH to dash), her keys on the right edge
@@ -475,7 +487,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   // a knockdown. mult: the dash bite's × 1.15; e: the contact (her jaw on the rail, the transom or the topsides, or her
   // back under the bottom; the owner's son, 2026-11-21: "attacking the water at the side of the sailboat, not really the boat"): the boat is
   // jolted at that point, shoved and heeled away from her (lifted from below), its crew letting the sheets fly (the sails shake)
-  function knock(r, mult = 1, e = null) {
+  function knock(r, mult = 1, e = null, ctx = null) {   // ctx: the strike's record for the bounty (the Tail Surge's own; null: the bite's)
     const b = r.hit; let ok = false;
     const away = e ? -r.side : r.side;   // a bite pushes it over away from her; a fall's weight on the rail (a breach) rolls it toward her
     let bump = null;
@@ -489,15 +501,15 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     else if (b.kind === 'halcyon') { const P = B.phys?.P; if (P) { B.shove({ K: H.rollK(P, away) * mult }); ok = true; } }
     else if (b.kind === 'kayak' && b.bite) ok = !!kayaks()?.bite?.(b.id.slice(2), e ? { x: e.x, z: e.z } : {});   // round B: over, a swim, righted, away
     else if (b.sim) ok = !!b.sim.hit(b.id, hitRule(b.kind), away);   // South Lake: a runabout knocked down; the jet ski's rider and the paddle-wheeler splashed only
-    if (ok) scoreWreck(b);
+    if (ok) scoreWreck(b, ctx);
     if (ok) { pullUntil = clock + 5; knockTotal++; try { storage?.setItem(COUNT_KEY, String(knockTotal)); } catch { /* */ } log.knocks.push({ id: b.id, kind: b.kind, side: r.side, at: +clock.toFixed(1), d: r.d }); }
     return ok;
   }
 
   // ---- the RPG: a wreck and a splash into her bounty ----
-  function scoreWreck(b) {
+  function scoreWreck(b, ctx = null) {
     const kind = bounty ? RPG.kinds[b.kind] ?? null : null; if (!kind) return null;
-    const st = strike ?? { depthM: C.state.nose, hidden: !!C.state.hidden, seen: null, skill: null };
+    const st = ctx ?? strike ?? { depthM: C.state.nose, hidden: !!C.state.hidden, seen: null, skill: null };
     const splash = kind === 'jetski';   // the jet ski's rider is splashed (he ducks), never wrecked
     const r = bounty.score({ kind, depthM: st.depthM, hidden: st.hidden, seen: !!st.seen?.has(b.id), skill: st.skill, splash }, { day: day() });
     if (r) { log.bounty.push({ kind, ...(splash ? { splash } : {}), xp: r.xp, first: r.first, levels: r.levels, at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); leveled(r); }
@@ -611,10 +623,75 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     log.sonar = { at: +clock.toFixed(1), rank, rangeM: row.rangeM, markS: row.markS, ids: found.map((m) => m.id), heard };
     return true;
   }
+  function runSurge(rank) {
+    const row = SURGE_RANKS[rank], n = nose(); if (!R || !row || !n || W.as !== 'tessie' || !sim.state.spine) return false;
+    R.rank('surge', rank); if (!R.press('surge')) return false;
+    const tl = tailAt();
+    surgeFx = { rank, row, t0: clock, slapAt: null, x: tl.x, z: tl.z, due: [], ctx: null, stir: 0 };
+    sim.emit?.('flick', 'tail');   // her tail lifts: its drops and its sound
+    sim.ring?.(tl.x, tl.z, 0.6);
+    log.surge = { at: +clock.toFixed(1), rank, ringM: row.ringM, knockM: row.knockM, heelDeg: row.heelDeg, slap: null };
+    return true;
+  }
+  // her tail's tip and her body's middle on the water
+  function tailAt() { const sp = sim.state.spine, o = (sp.length / 8 - 1) * 8; return { x: sp[o], z: sp[o + 2] }; }
+  // the boats as the wave sees them: the sailboats' and the Halcyon's heel now and the wind at them
+  function surgeList() {
+    return targets().map((b) => {
+      if (b.kind === 'sail') { const q = b.ref.phys.state; return { ...b, heelDeg: (q.heel ?? 0) / DEG, twsMs: q.trueWind?.speed }; }
+      if (b.kind === 'halcyon') return { ...b, heelDeg: (B.state.heel ?? 0) / DEG, twsMs: B.state.trueWind?.speed };
+      return b;
+    });
+  }
+  // the slap: the splash, the ring at full amplitude, the plan of who heels, who goes over, which kayaks are splashed
+  function surgeSlap(fx) {
+    const c = sim.state.centre ?? [fx.x, fx.z], tl = tailAt();
+    fx.slapAt = clock; fx.x = c[0]; fx.z = c[1];
+    sim.emit?.('slap', 'tail', 1.6);
+    sim.ring?.(tl.x, tl.z, 1); sim.ring?.(c[0], c[1], 1);
+    const list = surgeList(), plan = surgeResolve({ x: c[0], z: c[1] }, list, fx.row), by = new Map(list.map((b) => [b.id, b]));
+    const seen = new Set(); for (const [id, t] of sawAt) if (clock - t <= RPG.seenS) seen.add(id);
+    fx.ctx = { depthM: Math.max(0, C.state.nose ?? 0), hidden: false, seen, skill: 'surge' };   // the slap shows her: never an unseen wreck
+    fx.due = [...plan.heels.map((h) => ({ ...h, b: by.get(h.id) })), ...(plan.knock ? [{ ...plan.knock, knock: true, b: by.get(plan.knock.id) }] : [])].sort((a, b) => a.atS - b.atS);
+    // the kayakers within SURGE.kayakM: splashed (scored once, as a breach's) and spooked
+    const near = list.filter((b) => b.kind === 'kayak' || b.kind === 'sup');
+    const kay = plan.kayaks.length ? scoreSplash(c[0], c[1], near) : null;
+    spookAt(c[0], c[1], SURGE.kayakM);
+    casts.push({ type: 'surge', x: c[0], z: c[1] });
+    log.surge.slap = { at: +clock.toFixed(1), x: +c[0].toFixed(1), z: +c[1].toFixed(1), heels: plan.heels.map((h) => ({ id: h.id, d: +h.d.toFixed(1), lean: +h.lean.toFixed(1), heelDeg: +h.heelDeg.toFixed(1), side: h.side })),
+      knock: plan.knock ? { id: plan.knock.id, d: +plan.knock.d.toFixed(1), lean: +plan.knock.lean.toFixed(1), side: plan.knock.side } : null, light: plan.light, kayaks: plan.kayaks, splashXp: kay?.xp ?? 0, seen: plan.seen, over: [] };
+  }
+  // the wave reaching a boat: its heel (or the one boat's knockdown), and she is seen
+  function surgeReach(fx, h) {
+    const b = h.b; if (!b) return;
+    if (h.knock) {
+      const ok = knock({ hit: b, side: h.side, d: h.d }, 1, null, fx.ctx);
+      if (ok) { soundKnocks.push({ hit: true, boat: b.kind, x: b.x, z: b.z, where: 'rail', mult: 1 }); log.surge.slap.over.push(b.id); }
+    } else {
+      const heel = h.side * h.heelDeg * DEG;
+      if (b.kind === 'sail') busy()?.wave?.(b.id, { heel });
+      else if (b.kind === 'halcyon') B.wave?.({ heel });
+      else if (b.kind === 'glass') tour()?.knock?.(h.side, h.heelDeg);
+    }
+    if (b.kind !== 'kayak' && b.kind !== 'sup') sawAt.set(b.id, clock);   // the slap reveals her
+  }
+  function surgeStep() {
+    const fx = surgeFx; if (!fx) return;
+    const u = clock - fx.t0;
+    if (fx.slapAt == null) {
+      if (fx.stir === 0 && u >= SURGE.windupS * 0.5) { fx.stir = 1; const c = sim.state.centre; if (c) sim.ring?.(c[0], c[1], 0.5); }   // the water stirs as she coils
+      if (u >= SURGE.windupS) surgeSlap(fx);
+      return;
+    }
+    const v = clock - fx.slapAt;
+    while (fx.due.length && v >= fx.due[0].atS) surgeReach(fx, fx.due.shift());
+    if (v > SURGE.waveS + SURGE.fadeS && !fx.due.length) surgeFx = null;
+  }
   // each step while she is played: the two rings' clocks, the lure's splashes, the marks running out
   function skillsStep(dt) {
     if (!R) return;
     R.step(dt);
+    surgeStep();
     if (lureFx) {
       const k = (clock - lureFx.t0) / LURE_CAST_S;
       while (lureFx.n < LURE.splashes && k >= lureFx.n / LURE.splashes) {   // the small splashes over the cast: rings on her water (the creature map)
@@ -634,7 +711,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     plugin.playing = on;
     const H2 = doc?.documentElement;
     if (H2) H2.toggleAttribute('data-tessie-play', on);
-    if (!on) { plugin.playDip = 1; plugin.sound?.played?.({ on: false }); }
+    if (!on) { plugin.playDip = 1; plugin.sound?.played?.({ on: false }); surgeFx = null; }   // a surge under way ends with her play
     if (dom()) {
       q('.tp-dial').hidden = !on; q('.tp-touch').hidden = !on || !touch(); q('.tp-aim').hidden = true;
       layoutKey = ''; hud?.show(on); if (on) placeHud();
@@ -827,7 +904,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     stats() {
       return { as: W.as, entry: W.entry, pill: W.pill, view, viewK: cam.state.viewK, fleeOn, knocks: knockTotal, under: lastUnder ? { ...lastUnder } : null, look: +cam.look.toFixed(4), eye: lastPose?.pos ? lastPose.pos.map((v) => +v.toFixed(2)) : null, ctl: { ...C.state, lunge: C.state.lunge ? { phase: C.state.lunge.phase, kind: C.state.lunge.kind, t: +C.state.lunge.t.toFixed(2), target: C.state.lunge.target?.id ?? null } : null, bite: C.state.bite ? { kind: C.state.bite.kind, t: +C.state.bite.t.toFixed(2), target: C.state.bite.target?.id ?? null, locked: C.state.bite.locked, hit: C.state.bite.hit } : null, strike: C.state.strike }, lock: lastLock ? { ...lastLock, k: +lastLock.k.toFixed(2) } : null, bite: sim.biteState ? { kind: sim.biteState.kind, phase: sim.biteState.phase, t: +sim.biteState.t.toFixed(2), gape: +(sim.state.gape ?? 0).toFixed(3) } : null,
         log: { ...log, knocks: log.knocks.slice(-8), swaps: log.swaps.slice(-8) }, tipsWant: tips.waiting, beLine: { waiting: beLine.waiting, shown: beLine.shown }, glide: glide.active, aim: lastAim,
-        rpg: levelUp ? { ...levelUp.state, halo: levelUp.halo(), dash: C.skills.state('dash'), lure: R.state('lure'), sonar: R.state('sonar'),
+        rpg: levelUp ? { ...levelUp.state, halo: levelUp.halo(), dash: C.skills.state('dash'), lure: R.state('lure'), sonar: R.state('sonar'), surge: R.state('surge'),
+          surgeFx: surgeFx ? { phase: surgeFx.slapAt == null ? 'windup' : 'wave', t: +(clock - surgeFx.t0).toFixed(2), ringM: surgeFx.row.ringM, due: surgeFx.due.length } : null,
           marks: [...marks.keys()], ping: ping ? { rangeM: ping.rangeM, left: +(ping.until - clock).toFixed(2), tail: ping.tail } : null, lureRing: !!lureFx, halcyonLure: !!halcyonLure } : null };
     },
   };
@@ -846,11 +924,12 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const pA = [0, 0, 0], pB = [0, 0, 0], RING_FLAT = 0.3, LURE_SEGS = 40;
   // the lure's ring as the true circle on the water, projected point by point (she is near the eye: an ellipse would not hold); only
   // while it shows (LURE.ringS after a cast)
-  function circleAt(e, x, z, r) {
+  // (segs, near: the Tail Surge's wider ring passes under the eye: finer, and cut nearer than near m so no chord dives off the frame)
+  function circleAt(e, x, z, r, segs = LURE_SEGS, near = 0.5) {
     let d = '', pen = false;
-    for (let k = 0; k <= LURE_SEGS; k++) {
-      const a = k / LURE_SEGS * 2 * Math.PI, p = project(x + Math.sin(a) * r, 0, z - Math.cos(a) * r, pA);
-      if (!p || !(p[2] > 0.5)) { pen = false; continue; }
+    for (let k = 0; k <= segs; k++) {
+      const a = k / segs * 2 * Math.PI, p = project(x + Math.sin(a) * r, 0, z - Math.cos(a) * r, pA);
+      if (!p || !(p[2] > near)) { pen = false; continue; }
       d += `${pen ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`; pen = true;
     }
     if (!d) return false;
@@ -880,7 +959,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   }
   function paintWorld(list) {
     if (!world || !project) return;
-    if (ping || lureFx) cutHud(); else world.cutT = -1;
+    if (ping || lureFx || surgeFx?.slapAt != null) cutHud(); else world.cutT = -1;
     let i = 0;
     if (ping) for (const b of list) {
       if (i >= SONAR.max) break;
@@ -900,6 +979,11 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const L = lureFx, u = L ? clock - L.t0 : 0, on = !!L && circleAt(world.lr, L.x, L.z, LURE.ringM * Math.min(1, 0.15 + 0.85 * u / LURE.ringGrowS));
     if (on) world.lr.setAttribute('stroke-opacity', Math.max(0, Math.min(1, (LURE.ringS - u) / (LURE.ringS - LURE.ringGrowS))).toFixed(2));
     vis(SONAR.max * 2, world.lr, on);
+    // the Tail Surge's wave: out from her middle to the ring radius over SURGE.waveS, fading over SURGE.fadeS
+    const F = surgeFx, v = F?.slapAt != null ? clock - F.slapAt : -1, son = v >= 0 && circleAt(world.sr, F.x, F.z, F.row.ringM * Math.min(1, Math.max(0.08, v / SURGE.waveS)), 120, 6);
+    if (son) world.sr.setAttribute('stroke-opacity', Math.max(0, Math.min(1, 1 - (v - SURGE.waveS) / SURGE.fadeS)).toFixed(2));
+    vis(SONAR.max * 2 + 1, world.sr, son);
+    world.el.dataset.surge = son ? String(Math.round(F.row.ringM * Math.min(1, v / SURGE.waveS))) : '';
   }
   function paint(tg, list = [], dt = 0) {
     if (!el) return;
@@ -909,7 +993,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     placeHud();
     const th = self.threat(), n0 = nose();
     hudStates.dash = C.skills.state('dash');
-    if (R) { hudStates.lure = R.state('lure'); hudStates.sonar = R.state('sonar'); }
+    if (R) { hudStates.lure = R.state('lure'); hudStates.sonar = R.state('sonar'); hudStates.surge = R.state('surge'); }
     // the ping's rim (10 Hz: the dial's own rate): a tick at each marked boat's bearing
     if (ping && n0 && (rimT < 0 || clock - rimT >= 0.1)) { rimT = clock; rimMarks(n0, list, (id) => marks.has(id), rimOut); pingArg.rangeM = ping.rangeM; }
     hud?.paint({ t: clock, states: hudStates, her: n0, boats: list, targetId: tg?.id ?? null, lockId: lastLock?.id ?? null, seen: (b, d) => !!th && b.kind !== 'kayak' && d <= th.seeM, hidden: st.hidden, ping: ping ? pingArg : null });

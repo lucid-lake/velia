@@ -111,8 +111,8 @@ export const TOUR_ROUTE = Object.freeze([
 
 // her wake's record (render/vesselWake.js): a sample every dt s, kept keep s (the wash's 36 s and the V's 24 s), the kayaks' kayakKeep s
 // Tessie's knock: over in upS to peakDeg, then righted over rightS (a damped ease back: no capsize, a pontoon)
-export function knockHeel(t, side, K = TOUR) {
-  const k = K.knock ?? TOUR.knock, peak = k.peakDeg * Math.PI / 180;
+export function knockHeel(t, side, K = TOUR, peakDeg = null) {   // peakDeg: a smaller heel (Tessie's Tail Surge's wave), else the knock's
+  const k = K.knock ?? TOUR.knock, peak = (peakDeg ?? k.peakDeg) * Math.PI / 180;
   if (t <= 0) return 0;
   if (t < k.upS) { const u = t / k.upS; return side * peak * u * u * (3 - 2 * u); }
   const u = Math.min(1, (t - k.upS) / k.rightS);
@@ -462,7 +462,7 @@ export function createTourBoat({ route = TOUR_ROUTE, depthAt = () => 10, onBump 
     separate(S);
   }
   function post(S, dt, t = 0, windFromDeg = () => 270) {
-    if (knockS && dt > 0) { knockS.t += dt; boat.heel = knockHeel(knockS.t, knockS.side, K); if (knockS.t > (K.knock ?? TOUR.knock).rightS + (K.knock ?? TOUR.knock).upS) { knockS = null; boat.heel = 0; } }
+    if (knockS && dt > 0) { knockS.t += dt; boat.heel = knockHeel(knockS.t, knockS.side, K, knockS.peakDeg); if (knockS.t > (K.knock ?? TOUR.knock).rightS + (K.knock ?? TOUR.knock).upS) { knockS = null; boat.heel = 0; } }
     if (!active) return;
     ticks++;
     const wf = windFromDeg(boat.x, boat.z);
@@ -546,8 +546,9 @@ export function createTourBoat({ route = TOUR_ROUTE, depthAt = () => 10, onBump 
       return boat;
     },
     get held() { return holdLeft > 0; },
-    // Tessie's weight on her rail: she heels to `side` (+1 starboard) and rights in K.knock.rightS (a scripted hull)
-    knock(side = 1) { knockS = { side: side >= 0 ? 1 : -1, t: 0 }; return true; },
+    // Tessie's weight on her rail: she heels to `side` (+1 starboard) and rights in K.knock.rightS (a scripted hull); peakDeg: her Tail
+    // Surge's wave heels her less (null: the knock's K.knock.peakDeg)
+    knock(side = 1, peakDeg = null) { knockS = { side: side >= 0 ? 1 : -1, t: 0, peakDeg: Number.isFinite(peakDeg) ? peakDeg : null }; return true; },
     // Tessie's Lure: underway she turns curious toward (x, z) for s seconds; her free paddlers within r paddle over
     lure(x, z, s = 12, r = 120) {
       let n = 0;

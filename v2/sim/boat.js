@@ -19,6 +19,7 @@ import { BoatOnWater } from '../../src/sim/boat/ride.js';
 import { calmPose, reducedNow } from './steadyCamera.js';   // Reduce Motion (the OS's setting; sim/steadyCamera.js)
 import { createHeaveFilter, createLowPass } from './ease.js';   // step D3: the follow camera rides the slow heave, not each wave; the cameras' slow speed
 import { wrap } from '../../src/sim/core/math.js';
+import { waveRollStep } from './waveRoll.js';   // play as Tessie's Tail Surge: her ring wave's roll (not her code)
 import { FollowCamera, FOLLOW } from '../../src/sim/boat/followCamera.js';
 import { createGround } from '../../src/sim/boat/ground.js';
 import { groundTerrain } from '../../src/sim/boat/groundTerrain.js';
@@ -130,7 +131,7 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
   let driver = null, driverSea = false;   // driverSea: Sail's AUTO drives, the seamanship still runs (B.drive(fn, { sea: true }))
   // an outside roll moment (B.shove: Tessie's tail sweep under the lee side): from t0 (sim s) K N·m rises over
   // riseS, holds holdS, falls over fallS, added to the roll rate each tick (the physics still decides whether she goes over)
-  let shoveS = null;
+  let shoveS = null, waveS = null;   // waveS: Tessie's Tail Surge's wave under her
   // capsized and held (B.capsize: Tessie's strike, owner 2026-11-20: "the end card appears and the boat stays capsized"): after each tick she is
   // eased onto her side (CAPSIZE_HOLD.lieDeg, a slow bob), her way and her swing die, and she drifts slowly with the wind; never righting
   // until a fresh start (B.place) or B.capsize(false)
@@ -141,7 +142,7 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
     const w = windAt(s.x, s.z, simT); s.x += w.vx * H.drift * dt; s.z += w.vz * H.drift * dt; };
   const shoveK = (tt) => { const g = shoveS; if (!g) return 0; const u = tt - g.t0; if (u <= 0) return 0; if (u >= g.riseS + g.holdS + g.fallS) { shoveS = null; return 0; } return g.K * (u < g.riseS ? u / g.riseS : u < g.riseS + g.holdS ? 1 : 1 - (u - g.riseS - g.holdS) / g.fallS); };
   const sim = { get t() { return simT; }, get acc() { return stepper.acc; }, get alpha() { return stepper.alpha; },
-    step(simDt, inputs) { stepper.advance(simDt, () => { driver?.(simT, DT); if (shoveS) phys.p += shoveK(simT) / phys.P.ixx * DT; phys.step(DT, inputs, env(simT)); if (capS) holdCapsize(DT); simT += DT; if (kd.state.on && !(driver && !driverSea)) kd.tick(simT, phys.state); }); return phys.state; } };   // Cruise never (owner 2026-11-17): its autopilot's boat is not watched
+    step(simDt, inputs) { stepper.advance(simDt, () => { driver?.(simT, DT); if (shoveS) phys.p += shoveK(simT) / phys.P.ixx * DT; if (waveS && !waveRollStep(waveS, simT - waveS.t0, phys, DT)) waveS = null; phys.step(DT, inputs, env(simT)); if (capS) holdCapsize(DT); simT += DT; if (kd.state.on && !(driver && !driverSea)) kd.tick(simT, phys.state); }); return phys.state; } };   // Cruise never (owner 2026-11-17): its autopilot's boat is not watched
   // the camera: v1's follow camera, its length unit the craft's; ?campitch, ?camdist and ?camyaw as v1's hull frame reads them
   const num = (v) => { const x = parseFloat(v); return Number.isFinite(x) ? x : null; };
   const tiltFlag = Number.isFinite(parseFloat(flags.camtilt)) ? parseFloat(flags.camtilt) : null;   // ?camtilt= deg (0 none) over the pose's own tilt
@@ -342,6 +343,8 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
     // an outside roll moment (Tessie's tail sweep): { K (N·m, signed as the heel it adds), riseS = 0.4, holdS = 1.2, fallS = 0.8 } or null
     shove(o) { shoveS = o ? { t0: simT, K: o.K ?? 0, riseS: o.riseS ?? 0.4, holdS: o.holdS ?? 1.2, fallS: o.fallS ?? 0.8 } : null; return shoveS; },
     get shoving() { return !!shoveS; },
+    // play as Tessie's Tail Surge: her ring wave rolls the boat to heel (rad, + starboard down) and lets her go (sim/waveRoll.js); null: none
+    wave(o) { waveS = o ? { heel: o.heel ?? 0, t0: simT, h0: null } : null; return waveS; },
     // held capsized (Tessie's strike): capsize(true, side) lays her on that side (+1 starboard) and keeps her there; capsize(false) lets go
     capsize(on = true, side = Math.sign(phys.state.heel) || 1) { capS = on ? { side: side >= 0 ? 1 : -1 } : null; return !!capS; },
     get capsized() { return !!capS; },
@@ -465,7 +468,7 @@ export function createBoatSim({ water, heightAt = null, wind, start = START, ves
       ground?.reset();
       B.sea?.reset();   // #8, #14: the tackle back aboard, the lever and the furl as new (the engine is fresh inside, above)
       pose = ride.step(null, phys.state, simT, 0);
-      kd.reset(); kdFx.reset(); gustS = null; shoveS = null; capS = null;   // K1, K2: a fresh start is upright and unwatched (a scripted gust ends)
+      kd.reset(); kdFx.reset(); gustS = null; shoveS = null; waveS = null; capS = null;   // K1, K2: a fresh start is upright and unwatched (a scripted gust ends)
       B.onPlaced?.();
       return pose;
     },

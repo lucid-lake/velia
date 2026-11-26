@@ -96,7 +96,7 @@ export const hullOf = (kind) => (kind === 'halcyon' ? 'wood' : kind === 'kayak' 
 // the one-shots (each fires once): feed one frame at a time, get the cues { type, ... } to play this frame.
 //   frame { events (the controller's: dash, ...), knocks ([{ kind, hit, x, z, where, mult }]: the player's contact results),
 //           skill (the dash's { phase }), phase (the strike's: 'swim' | 'windup' | 'strike' | 'follow' | 'recover' | 'rise' | 'breach'),
-//           bite ({ kind }), lunge ({ phase }), lockId, t (s, the real clock), casts ([{ type: 'lure' | 'ping', echoes }]: the RPG's skills) }
+//           bite ({ kind }), lunge ({ phase }), lockId, t (s, the real clock), casts ([{ type: 'lure' | 'ping' | 'surge', echoes }]: the RPG's skills) }
 export function createCueTracker() {
   let skillWas = 'ready', phaseWas = 'swim', lungeWas = null, lockWas = null;
   const last = {};

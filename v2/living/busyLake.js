@@ -30,6 +30,8 @@
 //                                water, drifting slowly downwind (the float bobs her); she rights and sails on only after CAPSIZE.minS and out of the
 //                                eye's view (ctx.fwd: the camera's forward; outside CAPSIZE.viewDeg of it, or CAPSIZE.farM away): never upright on
 //                                screen. A knock that never lays her over is over after holdS (she rights and sails on)
+//   L.wave(id, { heel, t })     play as Tessie's Tail Surge (the RPG): her ring wave rolls the boat to heel (rad, signed: + starboard down)
+//                                and lets her go (sim/waveRoll.js); no crew letting fly, never a capsize hold (her knock does that)
 //   others may carry seeM: a threat she keeps clear of only while it is within seeM (Tessie seen)
 //   L.lure(id, { x, z, s }) | L.lure(id, null)   play as Tessie's Lure (the RPG): the `curious` threat kind, the opposite sign of the
 //                                evade: she turns toward (x, z) for s seconds (never into the no-go cone, never at shoal water), eases her
@@ -45,7 +47,8 @@ import { createChannelHelm, CHANNEL_HELM } from '../sim/channelHelm.js';
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
 import { busyRegionsOf } from '../sim/regions.js';   // the region table (refactor round 3 C5)
 import { clearLook, CLEAR } from '../sim/clearLook.js';
-import { CURIOUS as LURE, curiousHeading } from '../sim/curious.js';   // play as Tessie's Lure: the curious kind (not her code: a phone loads this)   // the clear look (moved to sim/, refactor round 3 C6: Tessie's flee reads it too)
+import { CURIOUS as LURE, curiousHeading } from '../sim/curious.js';
+import { waveRollStep } from '../sim/waveRoll.js';   // play as Tessie's Tail Surge: a passing wave's roll (not her code)   // play as Tessie's Lure: the curious kind (not her code: a phone loads this)   // the clear look (moved to sim/, refactor round 3 C6: Tessie's flee reads it too)
 
 const DEG = Math.PI / 180, TAU = 2 * Math.PI;
 const wrap = (a) => { a %= TAU; return a > Math.PI ? a - TAU : a < -Math.PI ? a + TAU : a; };
@@ -209,7 +212,7 @@ export function createBusyLake({ seed = 1, birthplaces = [], regions = REGIONS, 
   const chHelmWide = createChannelHelm({ chart: { channel: CHANNEL, channelSide: (dest) => nearEnd(dest) }, K: chK });
   let now = 0;
   const boats = [];
-  for (const r of live) for (const row of r.boats) boats.push({ id: row.id, region: r.id, row, prio: row.prio ?? 0, tint: row.tint ?? BUSY_TINTS[0], phys: null, ctl: null, sk: null, env: null, live: false, knock: null, bare: 0, motoring: false, evade: null, evadeUntil: -1, curious: null, avoidT: 0, cache: new Map(), spawn: null, want: false });
+  for (const r of live) for (const row of r.boats) boats.push({ id: row.id, region: r.id, row, prio: row.prio ?? 0, tint: row.tint ?? BUSY_TINTS[0], phys: null, ctl: null, sk: null, env: null, live: false, knock: null, wave: null, bare: 0, motoring: false, evade: null, evadeUntil: -1, curious: null, avoidT: 0, cache: new Map(), spawn: null, want: false });
   boats.sort((a, b) => a.prio - b.prio || (a.id < b.id ? -1 : 1));
   const stats = { live: 0, spawned: 0, despawned: 0, evades: 0, shore: 0, tacks: 0, held: 0, irons: 0, contacts: 0, motoring: 0, stepUs: 0 };
   const shoreTurn = (b, s, windFrom) => { const away = wrap(s.heading - windFrom) > 0 ? 1 : -1; for (let k = 1; k <= 17; k++) for (const sg of [away, -away]) { const h = wrap(s.heading + sg * k * 10 * DEG); if (Math.abs(wrap(h - windFrom)) >= K.avoid.noGoDeg * DEG && b.clear(h, 20, s)) return h; } return null; };   // never into the no-go cone
@@ -385,6 +388,9 @@ export function createBusyLake({ seed = 1, birthplaces = [], regions = REGIONS, 
         if (Math.abs(s.heel ?? 0) > CAPSIZE.overDeg * DEG) { kn.capsized = true; kn.side = Math.sign(s.heel); kn.t1 = t; stats.capsized = (stats.capsized ?? 0) + 1; }   // over: she stays over
         else if (u >= kn.holdS) { b.knock = null; ctl.jibFree = false; ctl.sheet = null; }
       }
+      // Tessie's Tail Surge: her ring wave rolls her as it passes (a knock under way wins)
+      const wv = b.wave;
+      if (wv && (kn || !waveRollStep(wv, t - wv.t0, b.phys, dt))) b.wave = null;
       b.env.t = t; b.phys.step(dt, ctl, b.env);
       b.bare = (b.phys.furlPos ?? 0) > 0.5 ? 1 : 0;
     }
@@ -406,6 +412,12 @@ export function createBusyLake({ seed = 1, birthplaces = [], regions = REGIONS, 
       if (bump) b.bump = { ...BUMP, ...bump, t0: t };   // her jaw on its rail (or her back under its bottom): the jolt at that point
       b.phys.P.knockdown = true;   // the large-angle righting arm: she goes far over and comes back up (src/sim/boat.js rightingArm)
       b.knock = { K, t0: t, holdS, maxHeel: 0 }; b.evade = null; b.holdH = null; b.curious = null; stats.knocks = (stats.knocks ?? 0) + 1;
+      return true;
+    },
+    // play as Tessie's Tail Surge: her ring wave under a live, upright boat (false: none, capsized, or a knock under way)
+    wave(id, { heel = 0, t = now } = {}) {
+      const b = boats.find((o) => o.id === id && o.live); if (!b || b.knock) return false;
+      b.wave = { heel, t0: t, h0: null, maxHeel: 0 };
       return true;
     },
     // cheat on where (the reach): a live boat laid at a pose (play as Tessie's first boat ahead of her)
