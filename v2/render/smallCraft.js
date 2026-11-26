@@ -2,7 +2,7 @@
 // in the boat effects' group; the paddle-wheeler's shade: render/paddleWheeler.js), one instanced draw per kind and LOD in use (at most
 // four a frame: the runabouts near and far, the jet ski near and far). An instance: her pose on the drawn water (the mean under her
 // ends and sides, the sim's bow-up trim over the hump and her bank into turns, a planing hull lifted a little), her hull colour and
-// stripe, the rider's duck (Tessie's splash). Nothing under her waterline is drawn but the outboard's leg (the water covers it).
+// stripe, the rider's duck (Tessie's splash). Nothing under her waterline is drawn (the water covers it).
 //   const SC = createSmallCraftRender({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, tier })
 //   SC.update(boats, { eye, heightAt })   once a frame (boats: the sim's live boats; [] draws nothing)
 //   SC.draw(pass, c)                      before the water (the boats' order)
@@ -39,7 +39,7 @@ fn shadeC(world: vec3f, n: vec3f, alb: vec3f, rough: f32, metal: f32, spK: f32) 
 fn litC(v: CV) -> vec3f {
   let p0 = CI[v.ii * ${REC}u + 3u]; let p1 = CI[v.ii * ${REC}u + 4u];
   let lp = v.lp; let aaY = max(fwidth(lp.y), 1e-4);
-  if (lp.y < -0.04 && v.slot != ${SLOT.dark}u) { discard; }
+  if (lp.y < -0.04) { discard; }
   let V = normalize(F.cam.xyz - v.world);
   var n = normalize(v.n); if (dot(n, V) < 0.0) { n = -n; }
   var alb = vec3f(0.78); var rough = 0.4; var metal = 0.0; var spK = 1.0;

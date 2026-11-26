@@ -46,7 +46,7 @@ export function createPowerPlugin({ device, reg, frameBGL, frameStruct, sky, sha
     draw(pass, c) { if (T && active) R.draw(pass, c); },
     setAudio(audio) { if (!headless && audio) sound = createPowerSound({ audio }); },
     get wakeStats() { return VW?.stats ?? null; },
-    stats() { return T ? { tier, live: T.live.length, boats: T.boats.map((b) => ({ id: b.id, x: Math.round(b.x), z: Math.round(b.z), kn: +(b.v / 0.514444).toFixed(1), plane: +b.plane.toFixed(2), live: b.live })), stepUs: +T.stats.stepUs.toFixed(1), evades: T.stats.evades, slows: T.stats.slows, render: { ...R.stats } } : null; },
+    stats() { return T ? { tier, live: T.live.length, boats: T.boats.map((b) => ({ id: b.id, x: Math.round(b.x), z: Math.round(b.z), headingDeg: Math.round(b.heading * 180 / Math.PI), kn: +(b.v / 0.514444).toFixed(1), plane: +b.plane.toFixed(2), live: b.live })), stepUs: +T.stats.stepUs.toFixed(1), evades: T.stats.evades, slows: T.stats.slows, render: { ...R.stats } } : null; },
     get lastEye() { return lastEye; }, K: POWER,
   };
   return self;
