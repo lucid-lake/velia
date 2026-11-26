@@ -1,0 +1,10 @@
+{
+  "name": "v2-rubicon",
+  "url": "http://127.0.0.1:5174/?hour=15&wind=2&wlook=clear&birth=lake&headless=1&seed=1",
+  "size": [
+    1280,
+    720
+  ],
+  "tolerance": 0.1,
+  "about": "Rubicon Point: the big-lake start on its own 4 m level and photo off the point, the follow camera turned to the cliffs and the light"
+}
