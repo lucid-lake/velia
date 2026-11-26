@@ -62,7 +62,7 @@ export const BUSY = Object.freeze({
   channelEndM: 120, channelInM: 160,   // a waypoint this near a channel end is that end; a channel leg's helm catches her this far off the line
   windS: 0.25, windM: 6,   // a boat's wind sample is kept this long (s of sim time) or this far (m)
   arriveM: 60,          // m: a waypoint's radius
-  avoid: Object.freeze({ everyS: 0.25, aheadS: 25, rangeM: 320, playerM: 60, anchoredM: 30, trafficM: 40, holdS: 5, stepDeg: 10, maxDeg: 70, noGoDeg: 50, standOnS: 4, standOnM: 12, calmS: 6, tackClearM: 150, boatClearM: 90, tourM: 45, kayakM: 25 }),   // tourM, kayakM: the glass boat and her kayaks (ctx.others)
+  avoid: Object.freeze({ everyS: 0.25, aheadS: 25, rangeM: 320, playerM: 60, anchoredM: 30, trafficM: 40, holdS: 5, stepDeg: 10, maxDeg: 70, noGoDeg: 50, standOnS: 4, standOnM: 12, calmS: 6, tackClearM: 150, boatClearM: 90, tourM: 45, kayakM: 25, paddleM: 70 }),   // tourM, kayakM: the glass boat and her kayaks (ctx.others); paddleM: the paddle-wheeler (from her middle: she is 46 m)
   motorThrottle: 0.65, motorNoGoDeg: 50,   // the channel: furl and motor when its line is within this of the wind
 });
 

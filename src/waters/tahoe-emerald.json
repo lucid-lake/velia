@@ -159,6 +159,12 @@
         { "id": "sup-ski-run-marina", "lane": [[12154, 329], [12010, 419], [11983, 390], [12127, 300]], "board": "red", "pfd": "yellow", "cap": "white", "mate": { "board": "white", "pfd": "red", "cap": "navy" }}
       ],
       "level": { "dir": "south", "full": "south.json", "phone": "south-phone.json", "photo": "photo/manifest.json" },
+      "traffic": [
+        { "id": "paddle", "kind": "paddle", "route": [{ "at": [12140, 215], "stop": "pier", "name": "off Ski Run's pier", "slow": true }, [12450, -150], [12520, -520], [12330, -990], [11800, -1135], [10500, -1260], [8000, -1180], [5200, -1250], { "at": [3900, -1700], "slow": true }, { "at": [3250, -2050], "slow": true }, { "at": [3050, -2400], "slow": true }, [3450, -2650], [4300, -2200], [5600, -1500], [7500, -1000], [9500, -800], [10700, -650], [11450, -560], { "at": [11950, -150], "slow": true }] },
+        { "id": "runabout-a", "kind": "power", "prio": 1, "hull": "#f3f1ea", "stripe": "#1d3557", "kn": [16, 23], "route": [{ "at": [8020, 1440], "slow": true }, [7960, 1300], [7850, 1050], [7300, 450], [6600, -300], [7400, -750], [8600, -450], [8100, 350], { "at": [7980, 950], "slow": true }] },
+        { "id": "runabout-b", "kind": "power", "prio": 0, "hull": "#f4f2ec", "stripe": "#8e2a1e", "kn": [15, 22], "route": [{ "at": [8120, 1380], "slow": true }, [8095, 1230], [8050, 950], [8150, 400], [8700, 20], [9800, -350], [11000, -450], [11650, -620], [11300, -1100], [10000, -950], [8900, -550], [8250, 250], [8080, 700], { "at": [8150, 1000], "slow": true }] },
+        { "id": "jetski", "kind": "jetski", "prio": 0, "hull": "#f2c230", "stripe": "#1b2a3a", "kn": [12, 18], "burst": [23, 25, 0.25], "weave": [20, 240], "route": [[11100, -280], [11800, -240], [12250, -460], [12100, -600], [11300, -580]] }
+      ],
       "birthplaces": [
         { "id": "ski-run", "name": "Off Ski Run", "x": 11800, "z": -875, "look": [13600, 2400], "why": "Deep water, 23 m, off the town's marina. Heavenly's runs above, Stateline to the east." }
       ]

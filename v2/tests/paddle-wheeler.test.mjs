@@ -1,7 +1,7 @@
 // The paddle-wheeler (South Lake's birthplace, phase C part 1; v2/sim/paddleWheeler.js, v2/render/paddleWheelerMesh.js,
 // v2/render/paddleWheeler.js, v2/living/paddleWheeler.js, src/core/features.js paddleWheeler): the model builds (its size, the
 // triangles per LOD, one draw), the wheel turns with her speed, she floats at the waterline, the LODs and the lite tier's reach,
-// off in play (placed only by ?paddle=), her wake in the vessels' map (yielding it to the glass boat), unnamed. Behaviour only.
+// on her route in play (?paddle= places her for review), her wake in the vessels' map (yielding it to the glass boat), unnamed. Behaviour only.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPaddleWheeler, parsePaddle, wheelRate, PADDLE, TRAIL_DT } from '../sim/paddleWheeler.js';
@@ -201,19 +201,18 @@ test('her nav lights at night (masthead, sidelights by sector, stern), none by d
 const fakeProfile = (win, gpu) => ({ get: () => profileOf(readFacts(win), forcedOf(win.location?.search ?? ''), { gpu }), on: () => () => {} });
 const tierOf = (dev, gpu, flags = {}, headless = false, search = '') => createFeatures({ profile: fakeProfile({ ...DEVICES[dev], location: { search } }, gpu), doc: null }).configure({ headless, flags }).feature('paddleWheeler').tier;
 
-test('off in play until routed: no ?paddle=, no boat on any device; placed: full on a desktop or a tablet at L0-L1, lite at L2-L3 and on a phone; a capture full', () => {
-  for (const dev of Object.keys(DEVICES)) for (const g of [0, 1, 2, 3]) assert.equal(tierOf(dev, g), 'off', `${dev} L${g}`);
-  const flags = { paddle: '11800,-875,95' };
-  assert.equal(tierOf('desktop', 0, flags), 'full'); assert.equal(tierOf('desktop', 1, flags), 'full');
-  assert.equal(tierOf('desktop', 2, flags), 'lite'); assert.equal(tierOf('ipadPro', 3, flags), 'lite');
-  assert.equal(tierOf('iphoneTurned', 1, flags), 'lite'); assert.equal(tierOf('androidSideways', 2, flags), 'lite');
-  assert.equal(tierOf('iphoneTurned', 1, flags, true), 'full', 'a capture: the same frame on every machine');
-  assert.equal(tierOf('desktop', 0, { paddle: '11800,-875,95' }, true, '?profile=form:phone,gpu:2'), 'lite', 'a forced phone capture: lite');
+test('on in play (her route): full on a desktop or a tablet at L0-L1, lite at L2-L3 and on a phone; a capture full; ?paddle=0 off', () => {
+  for (const [dev, g, want] of [['desktop', 0, 'full'], ['desktop', 1, 'full'], ['desktop', 2, 'lite'], ['ipadPro', 3, 'lite'], ['iphoneTurned', 1, 'lite'], ['androidSideways', 2, 'lite']]) {
+    assert.equal(tierOf(dev, g), want, `${dev} L${g}`);
+    assert.equal(tierOf(dev, g, { paddle: '11800,-875,95' }), want, `${dev} L${g} placed`);
+  }
+  assert.equal(tierOf('iphoneTurned', 1, {}, true), 'full', 'a capture: the same frame on every machine');
+  assert.equal(tierOf('desktop', 0, {}, true, '?profile=form:phone,gpu:2'), 'lite', 'a forced phone capture: lite');
   assert.equal(tierOf('desktop', 0, { paddle: '0' }), 'off');
   assert.ok(POLICIES.paddleWheeler.why.length > 20);
 });
 
-test('the review row: ?paddle=x,z,heading[,kn] parses to a pose (8 kn by default, capped), junk and 0 to none; the plug-in makes nothing without it', async () => {
+test('the review row: ?paddle=x,z,heading[,kn] parses to a pose (8 kn by default, capped), junk and 0 to none; the plug-in makes nothing without it or a route', async () => {
   assert.deepEqual(parsePaddle('11800,-875,95'), { x: 11800, z: -875, headingDeg: 95, kn: 8 });
   assert.deepEqual(parsePaddle('1,2,3,4.5'), { x: 1, z: 2, headingDeg: 3, kn: 4.5 });
   assert.equal(parsePaddle('1,2,3,99').kn, 14);
@@ -221,7 +220,7 @@ test('the review row: ?paddle=x,z,heading[,kn] parses to a pose (8 kn by default
   assert.equal(parseV2Flags('?paddle=11800,-875,95').paddle, '11800,-875,95');
   assert.equal(parseV2Flags('').paddle, null);
   const G = fakeGpu();
-  assert.equal(createPaddlePlugin({ ...G.base, flags: {} }), null);
+  assert.equal(createPaddlePlugin({ ...G.base, flags: {} }), null, 'no pose, no route row: nothing');
   const P = createPaddlePlugin({ ...G.base, flags: { paddle: '0,0,90,8' }, tier: 'lite' });
   await G.reg.buildAll();
   P.attach({});

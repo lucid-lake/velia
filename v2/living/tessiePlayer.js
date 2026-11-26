@@ -24,7 +24,7 @@
 //   P.step(dt) after her plug-in's step; c = P.camera(dt, c, orbit) last in placeCamera; P.threat() for the busy lake's escape;
 //   P.become(entry) / P.back(); P.active; P.stats()
 import { createTessiePlay, LINES as PLAY_LINES, PLAY } from '../sim/tessiePlay.js';
-import { createTessieHits } from '../sim/tessieHits.js';
+import { hitRule, createTessieHits } from '../sim/tessieHits.js';
 import { createSwap } from '../sim/tessieSwap.js';
 import { isRace } from '../engine/modes.js';   // a race: the mode table's race rows
 import { createFlee } from '../sim/tessieFlee.js';
@@ -197,7 +197,7 @@ export function createClickBite({ on = () => true, bite = () => {}, now = () => 
   return api;
 }
 
-export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, sups = () => null, birthplaces = null, veil = null,
+export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, sups = () => null, traffic = () => [], birthplaces = null, veil = null,
   project = null, focal = () => 600, canvas = null, mode = () => 'sail', race = () => false, knocked = () => false, reduced = () => false,
   services = () => null, touch = () => false, headless = false, storage = (() => { try { return globalThis.localStorage ?? null; } catch { return null; } })(),
   waterAt = null, floorAt = null, underOn = true, settings = null, keyHints = () => true } = {}) {
@@ -348,6 +348,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const F = kayaks(); if (F) F.marks().forEach((m, i) => out.push({ id: `k:${m.id ?? i}`, kind: 'kayak', x: m.x, z: m.z, heading: m.heading ?? 0, L: 3.4, B: 0.85, bite: !m.busy && !!F.bite }));
     // the stand-up paddleboards (South Lake): splashed and spooked only, never a target (v2/sim/tessieHits.js 'sup')
     const Sp = sups(); if (Sp) for (const m of Sp.marks()) out.push({ id: `s:${m.id}`, kind: 'sup', x: m.x, z: m.z, heading: m.heading ?? 0, L: 3.35, B: 0.76 });
+    // South Lake's traffic (the paddle-wheeler, the runabouts, the jet ski): each sim's own entries, the sim kept for the hit
+    for (const T2 of traffic() ?? []) if (T2) for (const e of T2.targets()) { e.sim = T2; out.push(e); }
     return out;
   }
   // the hull the sim holds her outside this frame: the nearest of the Halcyon and the lake's sailboats (posed as drawn)
@@ -416,6 +418,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     else if (b.kind === 'glass') ok = !!tour()?.knock(away);
     else if (b.kind === 'halcyon') { const P = B.phys?.P; if (P) { B.shove({ K: H.rollK(P, away) * mult }); ok = true; } }
     else if (b.kind === 'kayak' && b.bite) ok = !!kayaks()?.bite?.(b.id.slice(2), e ? { x: e.x, z: e.z } : {});   // round B: over, a swim, righted, away
+    else if (b.sim) ok = !!b.sim.hit(b.id, hitRule(b.kind), away);   // South Lake: a runabout knocked down; the jet ski's rider and the paddle-wheeler splashed only
     if (ok) { pullUntil = clock + 5; knockTotal++; try { storage?.setItem(COUNT_KEY, String(knockTotal)); } catch { /* */ } log.knocks.push({ id: b.id, kind: b.kind, side: r.side, at: +clock.toFixed(1), d: r.d }); }
     return ok;
   }
