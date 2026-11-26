@@ -35,7 +35,9 @@ test('region table: the busy lake, the launch spots, the cups and the birthplace
 
 test('region table: the chart names are the old ones (the regions\' names first) and cupAt is the old rule everywhere', () => {
   const byId = (a) => [...a].sort((p, q) => p.id.localeCompare(q.id));
-  assert.deepEqual(byId(plain(NAMES).filter((n) => !ADDED.names.includes(n.id))), byId(BEFORE.NAMES));
+  // the island's name gained a last spot (175 m north, when every other spot is taken: live-chart.test.mjs); the rest digit for digit
+  const lastAlt = (n) => (n.id !== 'n-fannette' ? n : { ...n, alt: n.alt.filter(([x, z]) => !(x === 0 && z === -175)) });
+  assert.deepEqual(byId(plain(NAMES).filter((n) => !ADDED.names.includes(n.id)).map(lastAlt)), byId(BEFORE.NAMES));
   const { x0, z0, step, rows, nan } = BEFORE.cupAt;
   rows.forEach((row, j) => { let s = ''; for (let i = 0; i < row.length; i++) { const c = cupAt(x0 + i * step, z0 + j * step); s += c === 'the-mouth' ? 'm' : c === 'emerald-bay' ? 'e' : '?'; } assert.equal(s, row, `z ${z0 + j * step}`); });
   assert.equal(cupAt(NaN, 0), nan);
