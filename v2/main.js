@@ -58,7 +58,7 @@ import { stormSea } from './sim/stormSea.js';   // storm round 2: the storm's se
 import { createAudio } from './engine/audio.js';
 import { createGust } from './sim/gust.js';
 import { createWindTex, windTexLive } from './sim/windTex.js';   // audit W1–W3: v1's wind texture for the water (the gusts, the caps' and the lanes' local wind)
-import { BITS as WIND_BITS, createWindBlend } from './render/windWater.js';   // audit W4: v1's gust payoff (src/gustFx.js): the sail-fill snap, the rush, the camera's lean
+import { BITS as WIND_BITS, createWindBlend, lanesMode } from './render/windWater.js';   // audit W4: v1's gust payoff (src/gustFx.js): the sail-fill snap, the rush, the camera's lean
 import { createBedsLive } from './audio/bedsLive.js';   // step 3: the sound beds (hybrid: the wind in code; hull, water, sails, rain: v1's recordings; v2/audio/)
 import { createReefStore } from './ui/autoReef.js';
 import { pageSettings } from './ui/settingsStore.js';   // step 3: v1's sound and effects switches
@@ -354,7 +354,7 @@ async function boot() {
   // mirror), the stars, the towns' lights and the boat's nav lights; its data streams after the first frame
   const night = createNight({ device, reg, frameBGL, frameBG, U, frameStruct, hdrTarget, msaa: P.msaa, depthFormat, errors, milkyWay: milkyWayOn });   //: no Milky Way on a phone
   let nightOn = flags.night !== false;
-  let spumeOn = true;   // the spume (render/spume.js); hook.setSpume, the in-page A/B
+  let spumeOn = flags.spume !== '0';   // the spume (render/spume.js); hook.setSpume, the in-page A/B
   const laneD = [0, 0, 0];   // the lanes' drift so far (x, z m) and the clock it was integrated to (render/spume.js laneDrift)
   const mistD = [0, 0, 0];   // the spray mist's drift so far (x, z m) and its clock (sim/mist.js mistDrift)
   const sky = createSky({ device, reg, frameBGL, frameBG, U, frameStruct, fullscreen: FULLSCREEN, hdrTarget, msaa: P.msaa, depthFormat, clouds, night });
@@ -773,7 +773,8 @@ async function boot() {
   // audit W1–W3: the water's wind texture (sim/windTex.js): a worker's fills on a live page, in place on the sim's steps in a capture
   // (?headless=1 and a ?filmui=1 film: the worker's results land on the wall clock, a different film frame each run)
   const windTex = createWindTex({ field: windField, live: windTexLive({ headless: P.headless, filmui: flags.filmui }), makeWorker: () => { lmPoint('worker.wind'); return new Worker(new URL('./sim/wind-worker.js', import.meta.url), { type: 'module', name: 'velia-wind' }); }, terrain, seed: P.seed });
-  const windFx = { tex: true, gust: true, lanes: true, caps: true };   // the in-page A/B (hook.setWindFx)
+  const mistFlag = flags.spray != null ? flags.spray : flags.spraymist;   // ?mist= (the A/B) over ?spraymist=
+  const windFx = { tex: true, gust: true, ...lanesMode(flags.lanes), caps: true };   // the in-page A/B (hook.setWindFx); the wind lanes and the aged foam's streaks: off by default (render/windWater.js lanesMode)
   // Tahoe's day follows the light while the clock runs on its own (v1's core: wind.setClock(clock.hourAt), unwrapped hours); a
   // frozen capture keeps the wind's own day, as before
   if (P.clockMode === 'day' || P.clockMode === 'rate') windField.setClock?.((tt) => clock.hourUnwrappedAt(tt));
@@ -1476,13 +1477,13 @@ async function boot() {
     }
     const windT = B ? B.t : clock.t;
     windTex.update(windT, eye[0], eye[2]); windTex.upload(device.queue, windBlend.slots); windBlend.set(windTex.blend(windT));   // audit W1–W3; fix(v2) shadow stepping: the fill into its slot, this frame's cross-fade
-    U.set4('windfx', windTex.centre[0], windTex.centre[1], (windTex.fills > 0 && windFx.tex ? WIND_BITS.tex : 0) | (windFx.gust ? WIND_BITS.gust : 0) | (windFx.lanes ? WIND_BITS.lanes : 0) | (windFx.caps ? WIND_BITS.caps : 0), water.significantHeight);
+    U.set4('windfx', windTex.centre[0], windTex.centre[1], (windTex.fills > 0 && windFx.tex ? WIND_BITS.tex : 0) | (windFx.gust ? WIND_BITS.gust : 0) | (windFx.lanes ? WIND_BITS.lanes : 0) | (windFx.caps ? WIND_BITS.caps : 0) | (windFx.streaks ? WIND_BITS.streaks : 0), water.significantHeight);
     laneDrift(laneD, windNow.speedMs, windNow.travelRad, clock.t - laneD[2]); laneD[2] = clock.t;   // the lanes' and the foam streaks' drift, integrated (render/spume.js laneDrift)
     U.set4('spume', 0, spumeOn ? 1 : 0, laneD[0], laneD[1]);   // v1's fold threshold for the spume (render/spume.js), from the water's readback; on
     // storm round 2: the spray mist (sim/mist.js): its wisps ride half the wind at the eye under the outflow (integrated, so a change
     // of wind never slides them); the level's amount (the quality ladder's rung, none under Reduced Motion on a live page, ?mist)
     { const mdt = clock.t - mistD[2]; mistDrift(mistD, windStorm.speedMs, windStorm.travelRad, mdt > 0 && mdt <= 1 ? mdt : 0); mistD[2] = clock.t; }
-    U.set4('mist', mistLevel({ rung: LEVELS[Q.level]?.mist, reduced: !P.headless && reducedNow(), flag: flags.spraymist }), 0, mistD[0], mistD[1]);
+    U.set4('mist', mistLevel({ rung: LEVELS[Q.level]?.mist, reduced: !P.headless && reducedNow(), flag: mistFlag }), 0, mistD[0], mistD[1]);
     U.set4('under', underNow.depth, underNow.h, underNow.sx, underNow.sz);   // phase 2a: the eye under the water (0 in the air: the frame's bytes as before)
     U.set4('underK', UNDER_STATE.on ? 1 : 0, underSplitOn ? 1 : 0, UNDER_STATE.on ? (underTier === 'full' ? 2 : 1) : 0, underNow.bed);   // w: the water's depth at the eye (the bed's light back up)
     U.upload(device.queue, ubuf);
@@ -1751,7 +1752,7 @@ async function boot() {
   hook.setPost = (o = {}) => { if (o.bloom != null) postState.bloom = !!o.bloom; if (o.dither != null) postState.dither = !!o.dither; if (Number.isFinite(o.k) && o.k >= 0) postState.k = o.k; for (const n of ['threshold', 'knee']) if (Number.isFinite(o[n]) && o[n] >= 0) postState[n] = o[n]; return hook.post(); };
   hook.post = () => ({ bloomBuilt: bloomOn, bloom: bloomOn && postState.bloom, k: postState.k, threshold: postState.threshold, knee: postState.knee, dither: postState.dither, levels: post.levels, sizes: post.sizes, passes: post.passes, ramp: postState.ramp });
   hook.setSpeedFeel = (on, parts = { fx: true, cam: true, sound: true }) => { if ('pin' in parts) feelPin = parts.pin ?? null; if (parts.fx) feelOn = !!on; if (parts.cam && B) B.speedFeel = !!on; if (parts.sound) beds?.setSpeedFeel(on); feelFrame(); return { fx: feelOn, cam: !!B?.speedFeel, lee: { ...leeNow }, cam_k: B?.speedCam ?? 0 }; };   // the speed feel's in-page A/B   // the spume's in-page A/B (tools/v2-ab-m5e.mjs --what spume)
-  hook.setWindFx = (o = {}) => { for (const k of ['tex', 'gust', 'lanes', 'caps']) if (o[k] != null) windFx[k] = !!o[k]; return { ...windFx }; };   // audit W1–W3's in-page A/B
+  hook.setWindFx = (o = {}) => { for (const k of ['tex', 'gust', 'lanes', 'caps', 'streaks']) if (o[k] != null) windFx[k] = !!o[k]; return { ...windFx }; };   // audit W1–W3's in-page A/B
   hook.windTex = windTex; hook.windBlend = windBlend; hook.windField = windField;   // refactor round 3 B6b: the probes read its texture caches
   hook.gust = gust;   // audit W4: the payoff's state (stats.onsets, last) for the films and probes
   hook.setNight = (on) => { nightOn = !!on; };   // the in-page A/B (tools/v2-ab-m5e.mjs): the night's draws and levels off and on without a reload
