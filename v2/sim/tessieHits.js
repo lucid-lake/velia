@@ -26,7 +26,9 @@
 // list: [{ id, kind: 'sail' | 'glass' | 'halcyon' | 'kayak' | 'sup' | 'still' | 'power' | 'jetski' | 'paddle', x, z, heading, L, B, u (m/s ahead), bite (a kayak: a target) }]
 // ('sup': a stand-up paddleboard, South Lake's: splashed and spooked like a kayak, never a target and never knocked: its paddler wobbles and kneels, v2/sim/sup.js;
 // the spooked lists name it by id, so the coming bounty can count each kind)
-// ('still': at anchor or moored: never a target; a kayak without bite: the glass boat's, or one capsized already)
+// ('still': at anchor or moored: never a target; a kayak without bite: the glass boat's, or one capsized already; 'anchored': a boat at
+// anchor as the RPG's target (phase 6: the player lists them only under ?tessierpg=1, v2/sim/anchoredBoats.js knock); 'rival': a
+// Regatta rival, knocked down like a sailboat (listed only by a race's source))
 // What a hit does to each kind (HIT_RULE, hitRule(kind); the caller applies it): 'knock' a knockdown (the sailboats, the glass boat,
 // the Halcyon, the South Lake runabouts: heeled hard, righted), 'splash' a splash only (the jet ski: her rider ducks, never in the
 // water, the owner's rule; the paddle-wheeler: a 46 m, 300 t hull is never knocked down), 'capsize' a kayak's (over, a swim, righted)
@@ -41,7 +43,8 @@ export const HITS = Object.freeze({
   holdS: 12,                 // s the knocked sailboat's crew lets the sheets fly and the helm go (Regatta's holdControls)
   kayakR: Object.freeze([2.4, 1.1]), supR: Object.freeze([2.1, 0.8]), glassR: Object.freeze([6.6, 2.4]),   // m: her clearance ellipses' half-axes (the hull plus her margin)
   powerR: Object.freeze([4.0, 1.9]), jetskiR: Object.freeze([2.2, 1.2]), paddleR: Object.freeze([24.5, 6.0]),   // the South Lake traffic's
-  underY: Object.freeze({ kayak: -1.2, sup: -1.0, glass: -1.6, power: -1.0, jetski: -0.6, paddle: -1.9 }),   // m: frames deeper than this pass under them
+  anchoredR: Object.freeze([4.6, 1.9]),   // a boat at anchor as a target (the RPG, phase 6): she never swims through one
+  underY: Object.freeze({ kayak: -1.2, sup: -1.0, glass: -1.6, power: -1.0, jetski: -0.6, paddle: -1.9, anchored: -1.6 }),   // m: frames deeper than this pass under them
   //, 2026-11-20, the numbers approved): the corners' hysteresis and the lock-on
   keep: Object.freeze({ m: 70, deg: 30, s: 0.5 }),
   lock: Object.freeze({ surfaceM: 10, underM: 13, aboveM: 15, tabletM: 2, touchM: 2.0, hitM: 3.0, footM: 3.5, coneDeg: 35, breakDeg: 50, breakSurfaceM: 16, breakUnderM: 19,
@@ -53,9 +56,9 @@ import { wrap } from '../../src/sim/core/math.js';
 // what a breach, a fall or a surfacing near it only splashes and spooks (never a hit): the kayaks and the stand-up paddleboards
 export const SPOOKABLE = Object.freeze(['kayak', 'sup']);
 const spookable = (b) => b.kind === 'kayak' || b.kind === 'sup';
-export const HIT_RULE = Object.freeze({ sail: 'knock', glass: 'knock', halcyon: 'knock', power: 'knock', jetski: 'splash', paddle: 'splash', kayak: 'capsize' });
+export const HIT_RULE = Object.freeze({ sail: 'knock', glass: 'knock', halcyon: 'knock', power: 'knock', jetski: 'splash', paddle: 'splash', kayak: 'capsize', anchored: 'knock', rival: 'knock' });
 export const hitRule = (kind) => HIT_RULE[kind] ?? null;
-const isTarget = (k) => k === 'sail' || k === 'glass' || k === 'halcyon' || k === 'power' || k === 'jetski' || k === 'paddle';
+const isTarget = (k) => k === 'sail' || k === 'glass' || k === 'halcyon' || k === 'power' || k === 'jetski' || k === 'paddle' || k === 'anchored' || k === 'rival';
 // a boat she may lock on and bite: the sailboats, the glass boat, the Halcyon, and the lake's kayaks (bite: true)
 const targetable = (b) => isTarget(b.kind) || (b.kind === 'kayak' && !!b.bite);
 // the distance from a point to a boat's hull as an oriented box (L × B about its middle)
@@ -181,7 +184,7 @@ export function createTessieHits({ K = HITS } = {}) {
       const N = spine.length / 8, ds = L / (N - 1);
       let most = 0;
       for (const b of list) {
-        const R = b.kind === 'kayak' ? K.kayakR : b.kind === 'sup' ? K.supR : b.kind === 'glass' ? K.glassR : b.kind === 'power' ? K.powerR : b.kind === 'jetski' ? K.jetskiR : b.kind === 'paddle' ? K.paddleR : null; if (!R) continue;
+        const R = b.kind === 'kayak' ? K.kayakR : b.kind === 'sup' ? K.supR : b.kind === 'glass' ? K.glassR : b.kind === 'power' ? K.powerR : b.kind === 'jetski' ? K.jetskiR : b.kind === 'paddle' ? K.paddleR : b.kind === 'anchored' ? K.anchoredR : null; if (!R) continue;
         const under = K.underY[b.kind], fx = Math.sin(b.heading ?? 0), fz = -Math.cos(b.heading ?? 0);
         for (let i = 0; i < N; i++) {
           const o = i * 8, r = reach(i * ds);

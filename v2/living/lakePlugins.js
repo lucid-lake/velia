@@ -235,7 +235,7 @@ function fillLake(c) {
   for (let i = 0; i < near.length; i++) {
     const b = near[i].boat, o = k.anchoredPoses[i], x = b.x + b.ox, z = b.z + b.oz, fx = Math.sin(b.heading), fz = -Math.cos(b.heading);
     const yb = wy(x + fx * 3, z + fz * 3), ys = wy(x - fx * 3, z - fz * 3), yp = wy(x - fz * 1.4, z + fx * 1.4), yst = wy(x + fz * 1.4, z - fx * 1.4);
-    o.x = x; o.z = z; o.heading = b.heading; o.heave = (yb + ys + yp + yst) / 4; o.pitch = Math.atan2(yb - ys, 6) * 0.6; o.heel = Math.atan2(yp - yst, 2.8) * 0.5;
+    o.x = x; o.z = z; o.heading = b.heading; o.heave = (yb + ys + yp + yst) / 4; o.pitch = Math.atan2(yb - ys, 6) * 0.6; o.heel = Math.atan2(yp - yst, 2.8) * 0.5 + (b.kheel || 0);
     o.tint = packTint(b.tint); o.key = b.id;
     cands.push({ d: near[i].d, pose: o, live: null });
   }
@@ -421,6 +421,7 @@ export const TESSIE = {
       side.play = side.mod.createTessiePlayer({ plugin: t, B, depthAt: (x, z) => -terrain.field.height(x, z),
         busy: () => plugins.get('busy'), tour: () => plugins.get('tour')?.sim ?? null, kayaks: () => plugins.get('kayaks')?.fleet ?? null, sups: () => plugins.get('kayaks')?.sup ?? null,
         traffic: () => [plugins.get('paddle')?.sim ?? null, plugins.get('power')?.sim ?? null].filter(Boolean),   // South Lake: the paddle-wheeler, the runabouts, the jet ski
+        anchored: () => plugins.get('anchored') ?? null, chatter: () => c.flags?.chatter !== false,   // the RPG, phase 6: the boats at anchor as targets; the lookout's lines under ?chatter
         birthplaces: { moveTo: (id) => c.birthplaces?.moveTo(id) ?? Promise.resolve({ ok: false, why: 'unknown' }) },
         veil: (op, secs) => c.sea?.hooks?.veil?.(op, secs), canvas, mode: () => c.modeNow(), race: () => !!c.regatta?.on, knocked: () => !!c.kdGame && c.kdGame.state !== 'sailing',
         reduced: () => reducedNow(), keyHints: () => pageSettings()?.get?.('keyHints') !== false,   // Setup › key hints: her legend as Sail's (the UI audit)

@@ -1,4 +1,5 @@
 // The Tessie RPG, phase 1 on the real page (?tessierpg=1; v2/sim/tessieBounty.js, v2/ui/tessieLog.js):
+//   (phase 6: the bounty rows grouped by set, Emerald Bay then South Lake, each with its set row; then the skills)
 //   the Logbook's Tessie page: a fifth tab after corners; her mark and "Level N · x / y XP · k points to spend"; the bounty rows by
 //     boat type (from a seeded save); the five skill rows with their rank pips; a press on a skill row that can take a point spends
 //     it (the save, the pips, the line), a press on a locked one does nothing
@@ -74,12 +75,19 @@ try {
     check(tabs.join() === 'log,sea,words,corners,tessie', `the tab row: Logbook · seamanship · sailor's words · corners · Tessie (${tabs.join()})`);
     await page.click('.lk-log .title [data-tab=tessie]'); await page.waitForTimeout(500);
     const b = await tessieView(page);
-    check(b?.id === 'tessie-bounty' && b.mark && b.lead === 'Level 4 · 52 / 70 XP · 2 points to spend', `the page: her mark and "Level 4 · 52 / 70 XP · 2 points to spend" (${JSON.stringify(b?.lead)})`);
-    check(b && b.rows.map((r) => r.id).join() === 'sail,halcyon,glass,kayak,runabout,jetski' && /9 wrecked · deepest from 9\.4 m · 2 unseen · first 2026-11-24/.test(b.rows[0].g) && b.rows[1].g === 'not yet' && /^3 splashed/.test(b.rows[3].g),
-      `the bounty rows by type (${JSON.stringify(b?.rows.map((r) => `${r.t}: ${r.g}`))})`);
+    check(b?.id === 'tessie-emerald' && b.mark && b.lead === 'Level 4 · 52 / 70 XP · 2 points to spend', `the page: her mark and "Level 4 · 52 / 70 XP · 2 points to spend" (${JSON.stringify(b?.lead)})`);
+    check(b && b.rows.map((r) => r.id).join() === 'halcyon,sail,rival,glass,kayak,set' && /9 wrecked · deepest from 9\.4 m · 2 unseen · first 2026-11-24/.test(b.rows[1].g) && b.rows[0].g === 'not yet' && /^3 splashed/.test(b.rows[4].g)
+      && b.rows[5].t === '◇ The set · 3 of 5' && /^Emerald Bay\s*3 of 5$/.test(b.label ?? ''),
+      `phase 6: the bounty by set, Emerald Bay's rows and its set row (${JSON.stringify([b?.label, b?.rows.map((r) => `${r.t}: ${r.g}`)])})`);
     const fitB = await page.evaluate(() => { const c = document.querySelector('.lk-log .card').getBoundingClientRect(), x = document.querySelector('.lk-log .close').getBoundingClientRect(), t = document.querySelector('.lk-log .title').getBoundingClientRect(), v = document.querySelector('.lk-log .view.tessie.on'), last = v?.querySelector('.w:last-child')?.getBoundingClientRect(); return { title: t.right <= x.left && x.right <= c.right - 4, rows: !!last && last.bottom <= c.bottom + 0.5 }; });
     check(fitB.title && fitB.rows, `the tab row, its close and the rows fit in the card (${JSON.stringify(fitB)})`);
     if (process.env.TESSIE_RPG_SHOT) { await page.waitForTimeout(600); await page.screenshot({ path: process.env.TESSIE_RPG_SHOT }); }   // the bounty view, as drawn
+    await page.click('.lk-log .pv[data-step="1"]'); await page.waitForTimeout(500);
+    const sv = await tessieView(page);
+    check(sv?.id === 'tessie-south' && sv.rows.map((r) => r.id).join() === 'paddle,still,kayak,runabout,jetski,set' && sv.rows[5].t === '◇ The set · 1 of 5',
+      `South Lake's rows and its set row (${JSON.stringify(sv?.rows.map((r) => `${r.t}: ${r.g}`))})`);
+    const fitS = await page.evaluate(() => { const c = document.querySelector('.lk-log .card').getBoundingClientRect(), last = document.querySelector('.lk-log .view.tessie.on .w:last-child')?.getBoundingClientRect(); return !!last && last.bottom <= c.bottom + 0.5; });
+    check(fitS, 'South Lake\'s rows fit in the card');
     await page.click('.lk-log .pv[data-step="1"]'); await page.waitForTimeout(500);
     let k = await tessieView(page);
     check(k?.id === 'tessie-skills' && k.rows.map((r) => `${r.id}:${r.pips}/${r.of}:${r.press}`).join() === 'dash:2/4:true,lure:0/4:true,sonar:0/4:false,surge:0/4:false,breach:0/4:false',

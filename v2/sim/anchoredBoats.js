@@ -14,6 +14,9 @@
 //   AB.near(eye, max) → the boats within ANCHORED.drawM of the eye, nearest first: [{ boat, d }]
 //   AB.lights(out, o, { sunElevDeg, heightAt, mastHead }) → n glow records (GLOW_FLOATS each)
 //   AB.active = false: a race (nothing stepped, drawn or bumped)
+//   AB.targets() → play as Tessie's view of them (the RPG, phase 6: kind 'anchored', a target; not one already knocked down)
+//   AB.knock(id, side) → bool: knocked down at anchor (heeled toward side, +1 starboard down: ANCHORED.knock's heel, then righting on
+//                        her rode); b.kheel is the heel added to her drawn pose (0 unless knocked: the page draws her as before)
 import { createMarkBodies } from './channelMarks.js';
 import { GLOW_FLOATS, NAV_GLOW, navLevel } from './night.js';
 
@@ -33,7 +36,19 @@ export const ANCHORED = Object.freeze({
   rode: Object.freeze({ period: 7, tau: 2.6, maxOff: 1.4 }),   // the circles' pull back to her swing (s, s, m: the most a bump shoves her)
   light: Object.freeze({ size: NAV_GLOW.size * 0.8, radiance: NAV_GLOW.radiance }),
   clear: Object.freeze({ channelM: 120, startM: 150, courseM: 90, mooringM: 30 }),   // m kept (the test's gates, from her swing circle's edge)
+  // play as Tessie's knockdown (the RPG, phase 6): over to heelDeg in inS, held holdS (the rig in the water), then righting with
+  // rightS's time constant until under 1°; L, B: her hull for the hit tests (the fleet's sloop)
+  knock: Object.freeze({ heelDeg: 62, inS: 0.8, holdS: 2.5, rightS: 2.2, L: 8.5, B: 3.0 }),
 });
+// the knockdown's heel (rad, positive) s seconds after the hit; null once she is up (under 1°)
+export function knockHeel(s, K = ANCHORED.knock) {
+  const top = K.heelDeg * DEG;
+  if (s < 0) return 0;
+  if (s < K.inS) { const u = s / K.inS; return top * u * u * (3 - 2 * u); }
+  if (s < K.inS + K.holdS) return top;
+  const h = top * Math.exp(-(s - K.inS - K.holdS) / K.rightS);
+  return h < DEG ? null : h;
+}
 
 // the boats: the head of the bay is the real anchoring zone (the State Parks' order 683-25-005: from
 // 150 yards north of Vikingsholm's pier south to Eagle Creek, out to the 60 ft contour), two boats there; one in the game's
@@ -69,7 +84,7 @@ export function createAnchoredBoats(rows = ANCHORED_BOATS, { depthAt = () => 10,
     if (row.ball) { ball = balls.find((b) => b.id === row.ball) ?? null; if (!ball) continue; ax = ball.x0 ?? ball.x; az = ball.z0 ?? ball.z; ball.boat = true; }   // the ball is taken: the tackle never picks it up
     else [ax, az] = row.at;
     const depth = depthAt(ax, az), r = swingRadius(row, depth);
-    boats.push({ id: row.id, row, anchorage: row.anchorage, ax, az, depth, r, ball, theta: null, heading: 0, x: ax, z: az, ox: 0, oz: 0, tint: row.tint });
+    boats.push({ id: row.id, row, anchorage: row.anchorage, ax, az, depth, r, ball, theta: null, heading: 0, x: ax, z: az, ox: 0, oz: 0, tint: row.tint, kheel: 0, knock: null });
   }
   // the hull circles, three a boat, as light bodies on short rodes
   const circles = [];
@@ -85,7 +100,10 @@ export function createAnchoredBoats(rows = ANCHORED_BOATS, { depthAt = () => 10,
   function post(S, dt, t = 0, windFromDeg = () => 270) {
     if (!active) return;
     ticks++;
-    for (const b of boats) place(b, t, dt, windFromDeg(b.ax, b.az));
+    for (const b of boats) {
+      place(b, t, dt, windFromDeg(b.ax, b.az));
+      if (b.knock) { b.knock.s += dt; const h = knockHeel(b.knock.s, K.knock); if (h == null) { b.knock = null; b.kheel = 0; } else b.kheel = b.knock.side * h; }
+    }
     const bs = bodies.bodies;
     for (let i = 0; i < circles.length; i++) {
       const c = circles[i], b = boats[c.boat], fx = Math.sin(b.heading), fz = -Math.cos(b.heading), body = bs[i];
@@ -124,6 +142,19 @@ export function createAnchoredBoats(rows = ANCHORED_BOATS, { depthAt = () => 10,
     }
     return n;
   }
-  return { boats, bodies, post, near, lights, get stats() { return { boats: boats.length, bumps: bodies.stats.bumps, contacts: bodies.stats.contacts }; },
+  // play as Tessie (the RPG, phase 6): the boats she may knock down, and the knockdown
+  function targets() {
+    const out = [];
+    if (!active) return out;
+    for (const b of boats) if (!b.knock) out.push({ id: b.id, kind: 'anchored', x: b.x + b.ox, z: b.z + b.oz, heading: b.heading, u: 0, L: K.knock.L, B: K.knock.B });
+    return out;
+  }
+  function knock(id, side = 1) {
+    const b = boats.find((q) => q.id === id);
+    if (!active || !b || b.knock) return false;
+    b.knock = { s: 0, side: side >= 0 ? 1 : -1 };
+    return true;
+  }
+  return { boats, bodies, post, near, lights, targets, knock, get stats() { return { boats: boats.length, bumps: bodies.stats.bumps, contacts: bodies.stats.contacts }; },
     get active() { return active; }, set active(v) { active = !!v; } };
 }
