@@ -32,7 +32,15 @@ SATURATION = 1.2   # NAIP's high-sun frame is greyer than the ground seen from t
 # albedo targets (linear luminance). The world is exposed so ground reads about 6.5 x its albedo.
 TARGET = dict(forest=0.0105, brush=0.0185, bare=0.040, sand=0.30)
 PLAN = {'bay': dict(texel=1, tiers=[1, 2, 4]), 'region': dict(texel=16, tiers=[16, 32, 64]),
-        'south': dict(texel=4, tiers=[4, 8]), 'rubicon': dict(texel=4, tiers=[4, 8])}   # the south region (4 m desktop, 8 m phones): de-lit on its own 4 m DEM
+        'south': dict(texel=4, tiers=[4, 8]), 'rubicon': dict(texel=4, tiers=[4, 8], cliffs=(32.0, 42.0))}   # the south region (4 m desktop, 8 m phones): de-lit on its own 4 m DEM
+# cliffs (a region level's option, rubicon's): from the first slope to the second (degrees, on the level's own DEM, a smoothstep) the
+# photo fades to granite: the terrain's granite colour (GRANITE) at the brightness of the level's own bare rock, and the bare class
+# in alpha. Rubicon's ramp is 32-42 deg: its 4 m DEM reads the granite faces at a median 39 deg (10-90 %: 22-55), so
+# 35-45 left them a third granite. Seen from above, a steep granite face shows the canopy of the trees on its ledges and at its foot; the game
+# stands no tree there (src/forest/rules.js: the stand thins past 38 deg, the cover's rock clears it from 40), so that canopy painted
+# the faces a teal green under the rock look
+
+GRANITE = np.array([0.20, 0.19, 0.165], np.float32)   # the terrain's granite (v2/render/terrain.js ALBEDO.rock, linear): the cliffs' colour, scaled
 
 def srgb2lin(v):
     v = v / 255.0
@@ -61,7 +69,7 @@ def cast_shadow(dem, texel, maxd=2500.0):
         d *= 1.25
     return shade
 
-def process(level, texel, raw, work, lv):
+def process(level, texel, raw, work, lv, cliffs=None):
     L = LEVELS[level]
     cache = os.path.join(work, f'rgbn_{level}_{texel:g}m.npy')
     if os.path.exists(cache): d = np.load(cache)
@@ -110,6 +118,19 @@ def process(level, texel, raw, work, lv):
     rgb *= g[None]
     Lg = lum(rgb)
     rgb = np.maximum(Lg[None] + (rgb - Lg[None]) * SATURATION, 0)
+    # --- cliffs: granite past the plan's slopes (a region option) --------------------------------------------------------
+    cliff = None
+    if cliffs:
+        cz, cx = np.gradient(ndimage.gaussian_filter(dem, 0.7), texel)
+        deg = np.degrees(np.arctan(np.hypot(cx, cz)))
+        cliff = (smooth(cliffs[0], cliffs[1], deg) * landw).astype(np.float32)
+        rock = sel & (W['bare'] > 0.6) & (cliff < 0.05)
+        Lrock = float(np.median(lum(rgb)[rock])) if rock.sum() > 50 else TARGET['bare']   # the level's own bare rock's brightness
+        gran = GRANITE * (Lrock / float(lum(GRANITE[:, None, None])[0, 0]))                # in the terrain's granite colour (v2/render/terrain.js ALBEDO.rock)
+        shade = np.clip(lum(rgb) / Lrock, 0.8, 1.2)                                       # a little of the photo's light and dark kept
+        rgb = rgb * (1 - cliff)[None] + (gran[:, None, None] * shade[None]) * cliff[None]
+        for k in ('forest', 'brush', 'sand'): W[k] = W[k] * (1 - cliff)
+        W['bare'] = W['bare'] * (1 - cliff) + cliff
     # --- water: the nearest land colour ---------------------------------------------------------------------------------
     wm = water > 0.5
     if wm.any() and (~wm).any():
@@ -117,7 +138,7 @@ def process(level, texel, raw, work, lv):
         rgb = rgb[:, idx[0], idx[1]]
     info = dict(level=level, texel=texel, w=int(w), h=int(h), median_before=med, targets=TARGET,
                 gain_class={k: (TARGET[k] / med[k] if med[k] else None) for k in W}, p10=float(p10),
-                share={k: float((W[k][sel]).mean()) for k in W})
+                share={k: float((W[k][sel]).mean()) for k in W}, **({'cliffs': dict(slopes=list(cliffs), share=float(cliff[sel].mean()))} if cliffs else {}))
     return rgb, W, dem, info
 
 def save_webp(rgb_lin, path, q=80, alpha=None):
@@ -143,7 +164,7 @@ if __name__ == '__main__':
     for name in a.levels.split(','):
         P = PLAN[name]
         man, lv = lsh.load(os.path.join(REPO, 'terrain'), (name,) if name in REGION_LEVELS else ())
-        rgb, W, dem, info = process(name, P['texel'], a.raw, a.work, lv)
+        rgb, W, dem, info = process(name, P['texel'], a.raw, a.work, lv, P.get('cliffs'))
         info['files'] = {}
         for k in P['tiers']:
             f = k // P['texel']
