@@ -1,7 +1,7 @@
 // the map's crosshair, layers and wake (v2/ui/chart/mapUx.js; ?mapux=0 none): the eased follow, the magnet, the reading, the layers, the wake store.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { easeToward, snapTo, readout, distWords, dmLine, layerOf, LAYERS, RACES_LAYER, MARKS_LAYER, barLayers, nearestOf, createWakeStore, UX } from '../ui/chart/mapUx.js';
+import { easeToward, snapTo, readout, distWords, dmLine, layerOf, LAYERS, RACES_LAYER, barLayers, nearestOf, createWakeStore, UX } from '../ui/chart/mapUx.js';
 import { buildPois, poiShown, hitTest } from '../ui/chart/chartModel.js';
 import { parseV2Flags } from '../engine/flags.js';
 
@@ -34,30 +34,33 @@ test('the reading: bearing true and distance from the boat; the position without
   assert.equal(dmLine(-120.0, 'E', 'W'), '120°00.00′ W');
 });
 
-test('the bar by mode: Sail and Cruise Birthplaces · Anchorages; Regatta Birthplaces · Races · Anchorages · Marks (owner 2026-11-25)', () => {
+test('the bar by mode: exactly Birthplaces · Anchorages in Sail and Cruise; Regatta adds Races; no All, no Marks (owner 2026-11-25)', () => {
   assert.deepEqual(barLayers(false).map((l) => l.word), ['Birthplaces', 'Anchorages']);
-  assert.deepEqual(barLayers(true).map((l) => l.word), ['Birthplaces', 'Races', 'Anchorages', 'Marks']);
+  assert.deepEqual(barLayers(true).map((l) => l.word), ['Birthplaces', 'Anchorages', 'Races']);
   assert.deepEqual(LAYERS.map((l) => l.id), ['birthplaces', 'anchorages']);
-  assert.deepEqual([MARKS_LAYER.id, RACES_LAYER.id], ['marks', 'races']);
+  for (const w of [...barLayers(true)].map((l) => l.word.toLowerCase())) assert.ok(!/^(all|marks|places|wildlife|your wake)$/.test(w), w);
 });
 
-test('Wildlife, Places and Your wake are not chips; only birthplaces and anchorages are a sailor\'s points', () => {
-  const words = [...barLayers(true), ...LAYERS].map((l) => l.word.toLowerCase());
-  assert.ok(!words.some((w) => /wildlife|wake|^places$/.test(w)));
+test('only birthplaces, anchorages and the race pins are in a chip; every other kind keeps drawing by the zoom rules', () => {
   assert.equal(layerOf('birthplace'), 'birthplaces');
   assert.equal(layerOf('anchorage'), 'anchorages');
-  for (const k of ['place', 'corner', 'area', 'wake']) assert.equal(layerOf(k), null, k);
-  for (const k of ['buoy', 'channel', 'raceMark', 'barge']) assert.equal(layerOf(k), MARKS_LAYER.id, k);
   assert.equal(layerOf('racePin'), RACES_LAYER.id);
+  for (const k of ['place', 'corner', 'area', 'buoy', 'channel', 'raceMark', 'barge', 'wake']) assert.equal(layerOf(k), null, k);
+  const rows = buildPois({ birthplaces: [{ id: 'a', name: 'A', x: 0, z: 0 }], places: [{ id: 'p', name: 'P', x: 9, z: 9 }], aids: [{ id: 'b', x: 5, z: 5, number: '1' }],
+    areas: [{ id: 't', name: 'T', x: 50, z: 50, r: 10 }], barges: [{ x: 1, z: 1 }], corners: [{ id: 'c', name: 'C', x: 2, z: 2 }] }, { mode: 'play' });
+  assert.deepEqual(rows.map((r) => r.kind).sort(), ['area', 'barge', 'birthplace', 'buoy', 'corner', 'place'], 'nothing is removed from the chart');
+  const pl = rows.find((r) => r.kind === 'place');
+  assert.ok(!poiShown(pl, 25, 'C') && poiShown(pl, 3, 'C'), 'a place still appears only as you zoom in');
 });
 
-test('an anchorage shows at the whole-lake zoom and a tap there takes it; its name stays a class B name', () => {
+test('birthplaces and anchorages show at every zoom, and a tap at the overview takes them', () => {
   const src = { birthplaces: [{ id: 'a', name: 'A', x: 0, z: 0 }], anchorages: [{ x: 500, z: 100, name: 'Shallows by Fannette', depth: 8 }] };
   for (const mode of ['play', 'entrance']) {
     const rows = buildPois(src, { mode });
-    const an = rows.find((r) => r.kind === 'anchorage');
-    for (const mpp of [3, 6, 12, 25]) assert.ok(poiShown(an, mpp, 'C') && poiShown(an, mpp, 'B'), `the glyph at ${mpp} m/px`);
-    assert.equal(hitTest(rows, (x, z, o) => { o[0] = x / 25; o[1] = z / 25; }, 20, 4, 16, 25, 'B')?.kind, 'anchorage', 'a tap at the overview takes it');
+    for (const r of rows) for (const mpp of [3, 6, 12, 25]) for (const mc of ['B', 'C']) assert.ok(poiShown(r, mpp, mc), `${r.kind} at ${mpp} m/px (max ${mc})`);
+    const toPx = (x, z, o) => { o[0] = x / 25; o[1] = z / 25; };
+    assert.equal(hitTest(rows, toPx, 20, 4, 16, 25, 'B')?.kind, 'anchorage', 'a tap at the overview takes the anchorage');
+    assert.equal(hitTest(rows, toPx, 0, 0, 16, 25, 'B')?.kind, 'birthplace');
   }
 });
 

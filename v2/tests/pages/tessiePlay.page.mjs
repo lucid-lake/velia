@@ -299,7 +299,7 @@ try {
     await ctx.close();
   }
   // ---- Be Tessie from her chart mark ----
-  if (false) {   // TODO: the chart's Tessie ring is gone from Sail's map (2026-11-25); Be Tessie moves to the Off Fannette pin (another branch), then re-enable
+  {
     const { ctx, page, errors } = await open(`${Q}&tessie=1&start=700,-160&heading=265`);
     await page.waitForFunction(() => window.__velia.tessie?.render?.ready && window.__velia.m4?.ui?.services?.get?.('tessiePlay'), null, { timeout: 180000 }).catch(() => {});
     await openMap(page);

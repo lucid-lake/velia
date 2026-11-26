@@ -290,13 +290,8 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   function refreshRows() {
     const bp = services?.get?.('birthplace');
     const list = bp ? bp.list().filter((r) => !r.locked) : [];
-    // a sailor's chart (owner 2026-11-25: "as a sailor I only care about birthplaces and anchorages"): in Sail and Cruise only the birthplaces
-    // and the anchorages are points; the named places, the hunts' corners, the buoys, the channel, the barges and Tessie's ring are not drawn.
-    // Regatta (the page has race pins) keeps its pins, its marks, the buoys, the channel and the barges as before.
-    // TODO: Tessie's water (src 'areas', its "Be Tessie" card) moves to the Off Fannette pin in another branch; the data stays in sail.js.
-    const regatta = src('racePins', []).length > 0;
-    rows = buildPois({ birthplaces: list, current: bp?.current ?? null, anchorages: src('anchorages', []), racePins: src('racePins', []),
-      ...(regatta ? { aids: src('aids', []), channel: src('channel', null), barges: src('barges', []), raceMarks: src('raceMarks', []) } : {}) }, { mode: curMode });   // the hunts' corners in play and the hub, not at the entrance (no lake yet)
+    rows = buildPois({ birthplaces: list, current: bp?.current ?? null, anchorages: src('anchorages', []), aids: src('aids', []), places: src('places', []),
+      areas: src('areas', []), channel: src('channel', null), barges: src('barges', []), raceMarks: src('raceMarks', []), racePins: src('racePins', []), corners: curMode === 'entrance' ? [] : src('corners', []) }, { mode: curMode });   // the hunts' corners in play and the hub, not at the entrance (no lake yet)
     uxApi?.setRaces?.(rows.some((r) => r.kind === 'racePin'));   //: the Races layer is in the bar only while the page has pins (Regatta)
     if (uxApi) rows = rows.filter((r) => r.lit || uxApi.visible(r));   // the layers (?mapux=1); a lit point (the chosen pin, the cue) always shows
   }
@@ -612,7 +607,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   }
   // "where to?" (mapUx.js's Places and Anchorages chips): the nth nearest point of these kinds to the boat (the start screen: the current
   // start; else the map's centre) opens its own card with Sail here first; a point out of view is glided to, as chart.focus does. kinds null: close.
-  function whereTo(kinds, n = 0) {
+  function whereTo(kinds, n = 0, sailFirst = true) {
     if (!kinds) { closeCard(); return false; }
     refreshRows();
     const b = boat(), at = litAt(), ref = b ? { x: b.x, z: b.z } : at ?? { x: view.cx, z: view.cz };
@@ -620,12 +615,13 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     if (!r) { closeCard(); return false; }
     const q = visView().toPx(r.x, r.z, [0, 0]);
     if (q[0] < ins.left + 40 || q[0] > W - ins.right - 40 || q[1] < 60 || q[1] > H - 60) { following = false; glide({ ...centreFor(r.x, r.z, view.mpp, ins), mpp: view.mpp }, CHART_TIMING.focusS); }
-    openCard(r, true);
+    openCard(r, sailFirst);
     return true;
   }
   function closeCard() {
     if (card.hidden) return;
     card.hidden = true; selId = null; waterRow = null; dirty = true;
+    uxApi?.cardClosed?.();   // a chip's view of one kind ends with its card (Esc, a tap on the water, the card's own close)
     if (card.contains(document.activeElement)) el.focus({ preventScroll: true });
     emit('select', null);
   }
