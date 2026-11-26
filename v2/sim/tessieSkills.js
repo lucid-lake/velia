@@ -18,6 +18,15 @@ export const SKILLS = Object.freeze({
 // the slot's number key (Digit1 … Digit4) both press it, and a skill may carry a second key (Shift for the dash, the sprint
 // convention). Slots 2 to 4 are reserved: their number keys do nothing yet.
 export const SLOT_COUNT = 4;
+// the Tessie RPG (?tessierpg=1): five slots, one per skill in v2/sim/tessieBounty.js SKILL_ORDER (Dash, Lure, Sonar, Tail Surge,
+// Breach); Digit1 … Digit5 press them. Flag off the row keeps SLOT_COUNT.
+export const RPG_SLOT_COUNT = 5;
+// the Dash's four ranks (the RPG): the burst and the cooldown 1.8/4.5 → 2.1/4.0 → 2.4/3.5 → 2.6/3.0 s; rank 4 makes the dash bite's
+// knockdown × 1.25 (× 1.15 below it: sim/tessie.js BITE2.dash.knock). Index = rank (0: locked, never for the Dash)
+export const DASH_RANKS = Object.freeze([null,
+  Object.freeze({ activeS: 1.8, cooldownS: 4.5, bite: 1.15 }), Object.freeze({ activeS: 2.1, cooldownS: 4.0, bite: 1.15 }),
+  Object.freeze({ activeS: 2.4, cooldownS: 3.5, bite: 1.15 }), Object.freeze({ activeS: 2.6, cooldownS: 3.0, bite: 1.25 })]);
+export const SKILL_RANKS = Object.freeze({ dash: DASH_RANKS });
 // the skill a key code presses (null: none, including a reserved slot's number)
 export const skillOfCode = (code, table = SKILLS) => Object.values(table).find((r) => r.keys?.includes(code))?.id ?? null;
 // the slot's label: "1 · ⇧" for the dash, "2" for a reserved slot (n: 1 … 4)
@@ -52,9 +61,16 @@ export function createSkills(table = SKILLS) {
     state(id) {
       const r = by.get(id); if (!r) return null;
       const k = r.phase === 'ready' ? 1 : r.phase === 'active' ? Math.max(0, 1 - r.t / r.activeS) : Math.min(1, r.t / r.cooldownS);
-      return { phase: r.phase, k, t: r.t, level: r.level, key: r.key, buffered: r.buffered, count: r.count ?? 0 };
+      return { phase: r.phase, k, t: r.t, level: r.level, key: r.key, buffered: r.buffered, count: r.count ?? 0, bite: r.bite ?? null };   // bite: the rank's knock (null: no rank set, the bite's own)
     },
     active: (id) => by.get(id)?.phase === 'active',
+    // the RPG: a skill's rank (1 … 4) sets its numbers from SKILL_RANKS (the burst, the cooldown, the bite's knock); false: no such rank.
+    // A phase under way keeps its clock: the new numbers apply from now
+    rank(id, n) {
+      const r = by.get(id), row = SKILL_RANKS[id]?.[n]; if (!r || !row) return false;
+      Object.assign(r, row, { level: n });
+      return true;
+    },
     reset() { for (const r of rows) { r.phase = 'ready'; r.t = 0; r.buffered = false; } },
     list: () => rows.map(({ phase, t, buffered, ...r }) => r),
   };

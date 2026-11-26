@@ -30,8 +30,8 @@ test('XP per wreck: the table, × 1.5 from HIDDEN, × 1.5 seen, × 3 the first o
   assert.equal(s.byType.kayak.splashed, 1); assert.equal(s.byType.kayak.wrecked, 0);
   const row = s.byType.sail;
   assert.deepEqual(row, { wrecked: 4, splashed: 0, first: '2026-11-26', deepestM: 9.4, unseen: 2, fastestS: null });
-  assert.equal(scoreInto(s, { kind: 'power' }), null, 'a kind with no row scores nothing');
-  assert.equal(scoreInto(s, { kind: 'jetski' }), null);
+  assert.equal(scoreInto(s, { kind: 'power' }), null, 'a kind with no row scores nothing (the runabouts score as runabout: BOUNTY_KIND)');
+  assert.equal(scoreInto(s, { kind: 'paddleboard' }), null);
   // a set: every type of Emerald Bay (the rival's row filled by hand: no rival is a target yet)
   s.byType.rival.wrecked = 1;
   const xp0 = s.xp;
@@ -100,8 +100,8 @@ test('the save round trip: _v, every field kept, a fresh holder reads the same; 
   T.score({ kind: 'kayak', splash: true }, { day: '2026-11-27' });
   T.spend('dash');
   const raw = JSON.parse(st.map.get(BOUNTY.key));
-  assert.equal(raw._v, 1);
-  assert.deepEqual(Object.keys(raw).sort(), ['_v', 'byType', 'level', 'points', 'ranks', 'sets', 'xp']);
+  assert.equal(raw._v, 2, '_v 2 since the free trials');
+  assert.deepEqual(Object.keys(raw).sort(), ['_v', 'byType', 'level', 'points', 'ranks', 'sets', 'trials', 'xp']);
   assert.deepEqual(raw.byType.glass, { wrecked: 1, splashed: 0, first: '2026-11-26', deepestM: 9.6, unseen: 1, fastestS: 4.2 });
   assert.equal(raw.byType.kayak.first, '2026-11-27');
   const U = createTessieBounty({ storage: st });
@@ -121,7 +121,7 @@ test('the Logbook\'s Tessie page (v2/ui/tessieLog.js): the level line, the bount
   const st = memStore(), T = createTessieBounty({ storage: st }), P = tessiePage({ bounty: T, mark: '<svg></svg>' });
   T.score({ kind: 'sail', depthM: 9.4 }, { day: '2026-11-26' }); T.score({ kind: 'kayak', splash: true }, { day: '2026-11-26' });
   let [b, k] = P.views();
-  assert.deepEqual(b.rows.map((r) => r.id), ['sail', 'halcyon', 'glass', 'kayak'], 'only the boats on the water today');
+  assert.deepEqual(b.rows.map((r) => r.id), ['sail', 'halcyon', 'glass', 'kayak', 'runabout', 'jetski'], 'only the boats on the water today');
   assert.match(b.rows[0].g, /1 wrecked · deepest from 9\.4 m · 1 unseen · first 2026-11-26/); assert.equal(b.rows[0].got, true);
   assert.equal(b.rows[1].g, 'not yet'); assert.match(b.rows[3].g, /^1 splashed/);
   assert.match(b.lead, /Level 2 · 17 \/ 25 XP · 1 point to spend/);
