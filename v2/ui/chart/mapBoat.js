@@ -1,14 +1,14 @@
 // The boat on Plan's map: the Coach's own drawing (src/ui/captainView.js coachBoat, the group the cockpit's Coach dial draws too): the
 // hull, the sails at the live trim with their words when something needs doing, the boom, the rudder, the apparent-wind arrow with
 // "feels N", the no-go wedge, windward and leeward; turned to the heading on the north-up map, every word kept upright; under her a
-// small glass chip with the point of sail, the tack, SPEED and WIND. 70 px at the lake zoom to 130 px in a cove (smaller than the
+// small navy chip (the chart's own ink) with the point of sail, the tack, SPEED and WIND. 70 px at the lake zoom to 130 px in a cove (smaller than the
 // mock's 110–200, 2026-11-25), words at 11 px, the chip folded under 80 px; port and starboard in muted tones, the words kept.
 // One factory, so a later drawing replaces it in one place: setMapBoat(factory).
 //   const b = mountMapBoat({ root, state })   root: the map's layer element; state(): the boat state (B.state)
 //   b.place({ x, y, sizePx, headingDeg }), b.update(dt), b.destroy(), b.el
-import { coachBoat, ensureCaptainCss, CAPTAIN } from '../../src/ui/captainView.js';
-import { luffAwaDeg, BOAT as BOAT_P } from '../../src/sim/boat.js';
-import { trimCue, steerCue, heelCue, tackOf, DIALS_V2 } from '../ui/dialsV2.js';
+import { coachBoat, ensureCaptainCss, CAPTAIN } from '../../../src/ui/captainView.js';
+import { luffAwaDeg, BOAT as BOAT_P } from '../../../src/sim/boat.js';
+import { trimCue, steerCue, heelCue, tackOf, DIALS_V2 } from '../dialsV2.js';
 
 export const MAP_BOAT = Object.freeze({ minPx: 70, maxPx: 130, chipPx: 80, pxPerScale: 340, wordPx: 11 });
 // the boat's size for the map's scale (screen px per metre): the lake zoom's glance to a cove's every word
@@ -16,8 +16,8 @@ export const mapBoatPx = (pxPerM) => Math.max(MAP_BOAT.minPx, Math.min(MAP_BOAT.
 
 const CSS = `
 .lkp-boat{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}
-/* port and starboard muted on the map (2026-11-25); TODO(glass): the glass tokens --lk-port / --lk-stbd when they land */
-.lkp-boat{--lk-port:var(--plan-port,190 122 106);--lk-stbd:var(--plan-stbd,108 158 130)}
+/* port and starboard muted on the map (2026-11-25): the map's own two, the cockpit keeps its own */
+.lkp-boat{--lk-port:var(--lk-map-port,190 122 106);--lk-stbd:var(--lk-map-stbd,108 158 130)}
 .lkp-cb{position:absolute;left:0;top:0;transform-origin:50% 50%;will-change:transform;pointer-events:none}
 /* the inner .lk-cv carries the Coach's own sheet; the page's dial rules (placement, the calm fade, the flat layout) never reach it here */
 #lk-load .lkp-cb > .lk-cv{position:absolute!important;inset:0!important;left:0!important;top:0!important;right:auto!important;bottom:auto!important;width:100%!important;height:100%!important;
@@ -28,7 +28,7 @@ const CSS = `
 .lkp-boat .lk-cv svg text{transform-box:fill-box;transform-origin:center;transform:rotate(calc(-1 * var(--hdg,0deg)))}
 #lk-load .lkp-cb .inr{position:absolute;left:50%;top:50%;bottom:auto;right:auto;width:max-content;display:flex;flex-direction:column;align-items:center;gap:1px;transform-origin:0 0;
   transform:rotate(calc(-1 * var(--hdg,0deg))) translate(-50%,var(--chip-dy,40px));padding:3px 8px 4px;border-radius:9px;font:500 11px/1.15 var(--lk-ui);font-variant-numeric:tabular-nums;
-  background:var(--plan-gl-bg,rgba(18,22,32,.5));border:1px solid var(--plan-gl-edge,rgba(255,255,255,.18));color:rgb(var(--plan-gl-ink,244 240 232));
+  background:rgb(var(--lk-brand-navy) / .78);border:1px solid rgb(var(--lk-cream) / .22);color:rgb(var(--lk-cream));
   -webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3)}
 #lk-load .lkp-cb .rw{display:flex;align-items:baseline;gap:.35em;white-space:nowrap}
 #lk-load .lkp-cb .rw i{font-style:normal;font-size:10px;letter-spacing:.14em;opacity:.7}
@@ -75,3 +75,27 @@ let factory = coachMapBoat;
 export const mountMapBoat = (o) => factory(o);
 // a later drawing replaces the map's boat here; null restores the Coach's
 export function setMapBoat(f) { factory = typeof f === 'function' ? f : coachMapBoat; }
+
+// the layer on the live chart (sail.js): the boat placed each frame while the map shows in play (the chart's own sloop glyph off then),
+// her bow by the map's own direction (toClient of a point ahead), her size by the map's scale; nothing runs while the map is hidden
+export function mountMapBoatLayer({ chart, host, state, shown = () => true }) {
+  const root = chart?.el ?? host; if (!root) return null;
+  let b = null, raf = 0, last = 0, own = true;
+  const doc = globalThis.document, win = globalThis;
+  function frame(now) {
+    raf = win.requestAnimationFrame(frame);
+    const dt = last ? Math.min(0.1, (now - last) / 1000) : 0; last = now;
+    const on = !!shown() && !!state();
+    if (on === own) { own = !on; chart.setOwnBoat?.(own); }
+    if (!on) { if (b) b.el.style.visibility = 'hidden'; return; }
+    b ??= mountMapBoat({ root, state });
+    const s = state(), r = root.getBoundingClientRect(), q = chart.toClient(s.x, s.z), ahead = chart.toClient(s.x + Math.sin(s.heading) * 100, s.z - Math.cos(s.heading) * 100);
+    const pxPerM = Math.hypot(ahead.x - q.x, ahead.y - q.y) / 100, deg = (Math.atan2(ahead.x - q.x, -(ahead.y - q.y)) * 180) / Math.PI;
+    b.el.style.visibility = '';
+    b.place({ x: q.x - r.left, y: q.y - r.top, sizePx: mapBoatPx(pxPerM), headingDeg: deg });
+    b.update(dt);
+  }
+  raf = win.requestAnimationFrame(frame);
+  void doc;
+  return { get boat() { return b; }, destroy() { win.cancelAnimationFrame(raf); b?.destroy(); chart.setOwnBoat?.(true); } };
+}

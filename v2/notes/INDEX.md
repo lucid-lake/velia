@@ -51,7 +51,7 @@ Every `##` section of the old `v2/README.md` and the note file that holds it (re
 | The front door (2026-11-13: ui/loading.js, ui/noReel.js, ui/frontPlan.js, ui/front.js, ui/settingsStore.js) | `ui.md` |
 | The launch gate (2026-11-14: start.js, engine/gpuCheck.js, engine/device.js, sim/steadyCamera.js, ui/seaText.js; tools/build/base-path.mjs, site.mjs) | `ui.md` |
 | Cruise (BACKLOG-v2 #11, 2026-11-14: cruise/*, a chunk of its own) | `cruise.md` |
-| Plan, phase 1 (2026-11-25: plan/*, a chunk of its own) | `plan.md` |
+| Sail here from the chart (2026-11-25: ui/chart/liveChart.js, ui/sail.js, ui/chart/mapBoat.js, ui/chart/panelDock.js) | `plan.md` |
 | Regatta (BACKLOG-v2 #12, R1 + R2 + R3 + R4, 2026-11-14: regatta/*, a chunk of its own; render/raceLines.js, render/raceProps.js) | `regatta.md` |
 | The logbook (fix(v2): LOG, 2026-11-13: ui/logbook.js, ui/logbookWorld.json) | `ui.md` |
 | The first sail's lines and the island goal (#4, 2026-11-14: ui/firstSail.js, src/ui/firstSailGuide.js) | `ui.md` |

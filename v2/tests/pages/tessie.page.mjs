@@ -98,7 +98,7 @@ try {
   await c.page.evaluate(() => { window.__velia.beacon?.mark?.clear?.(); window.__velia.m4.ui.services.get('liveChart').focus('ar-tessieWaters'); });
   await c.page.waitForFunction(() => window.__velia.m4.ui.services.get('liveChart').state.card?.name === "Tessie's water", null, { timeout: 8000 }).catch(() => {});
   const card = await c.page.evaluate(() => ({ st: window.__velia.m4.ui.services.get('liveChart').state.card, text: document.querySelector('.lk-livechart .lkc-card')?.textContent ?? '' }));
-  check(card.st?.name === "Tessie's water" && card.st.action === 'Set as target' && card.text.includes('Give her room.'), `live map: her card names her water, offers Set as target and says her line (${JSON.stringify(card.st)})`);
+  check(card.st?.name === "Tessie's water" && card.st.action === 'Sail here' && card.text.includes('Give her room.'), `live map: her card names her water, offers Set as target and says her line (${JSON.stringify(card.st)})`);
   await c.page.click('.lk-livechart .lkc-card .go');
   const routed = await c.page.waitForFunction(() => !!window.__velia.beacon?.mark?.mark, null, { timeout: 8000 }).then(() => true, () => false);
   await c.page.waitForTimeout(600);

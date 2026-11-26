@@ -136,16 +136,15 @@ const auto = async (page) => { const r = await page.evaluate(() => { const h = w
   const t1 = await spot(page, { dist: 380, lo: 8 });
   await clickAt(page, t1);
   let c = await cardState(page);
-  check(c?.name === 'Open water' && c.action === 'Set as target' && (await lc(page)).water?.actions.includes('waypoint'), `water: a click opens its card (${JSON.stringify(c)})`);
+  check(c?.name === 'Open water' && c.action === 'Sail here' && (await lc(page)).water?.actions.includes('waterTarget') && (await lc(page)).water?.actions.includes('waypoint'), `water: a click opens its card (${JSON.stringify(c)})`);
   check(await menuOpen(page), 'water: a click on the water no longer closes the menu');
   await shot(page, '10-water-card');
   await page.click('.lk-livechart .lkc-card .go'); await wait(page, 400);
   const mk = await page.evaluate(() => window.__velia.beacon?.mark?.mark ?? null);
-  check(mk && Math.hypot(mk.x - t1.x, mk.z - t1.z) < 8, `water: Set as target sets Sail's mark there (${mk ? `${mk.x.toFixed(0)}, ${mk.z.toFixed(0)}` : 'none'} vs ${t1.x.toFixed(0)}, ${t1.z.toFixed(0)})`);
+  check(mk && Math.hypot(mk.x - t1.x, mk.z - t1.z) < 8, `water: Sail here sets Sail's mark there (${mk ? `${mk.x.toFixed(0)}, ${mk.z.toFixed(0)}` : 'none'} vs ${t1.x.toFixed(0)}, ${t1.z.toFixed(0)})`);
   await page.mouse.move(160, 450); await wait(page, 300);
   await shot(page, '11-target-on-chart');
-  await closeMenu(page);
-  await auto(page);
+  await closeMenu(page);   // Sail here engaged NAV already (the chart's routing): no press of NAV
   await page.waitForFunction(() => window.__velia.m4.ui.services.get('pilot').mode === 'to', null, { timeout: 20000 }).catch(() => {});
   const a0 = await page.evaluate(() => { const p = window.__velia.m4.ui.services.get('pilot'), s = p.state, b = window.__velia.boat.state; return { mode: p.mode, d: s.target ? Math.hypot(s.target.x - b.x, s.target.z - b.z) : null }; });
   if (a0.mode === 'to') await page.waitForFunction((d0) => { const s = window.__velia.m4.ui.services.get('pilot').state, b = window.__velia.boat.state; return s.target && Math.hypot(s.target.x - b.x, s.target.z - b.z) < d0 - 10; }, a0.d, { timeout: 30000, polling: 500 }).catch(() => {});

@@ -90,7 +90,7 @@ function fakeRoot(specs) {
 
 test('card wiring: Sail, Cruise and Regatta (BACKLOG-v2 #11, #12) are the picks v2 plays; a mode v2 lacks keeps its cell, disabled with v1\'s quiet "soon"', () => {
   assert.deepEqual(pickStates(MODES).map((x) => [x.id, x.ready]), [['cruise', true], ['sail', true], ['regatta', true]], 'the card\'s three: none soon since Regatta (owner 2026-11-14)');
-  assert.deepEqual(V2_MODES, ['sail', 'cruise', 'regatta', 'plan'], 'Plan plays (?mode=plan) but has no pick on the card yet'); assert.equal(SOON, 'soon');
+  assert.deepEqual(V2_MODES, ['sail', 'cruise', 'regatta']); assert.equal(SOON, 'soon');
   const p = pickStates(MODES, ['sail', 'cruise']);   // the marking itself, on a page that lacked Regatta (the rule for any later mode)
   const root = fakeRoot([['lk-pick', 'mode', 'cruise'], ['lk-pick', 'mode', 'sail'], ['lk-pick', 'mode', 'regatta'], ['lk-sp', 'mode', 'cruise'], ['lk-sp', 'mode', 'sail'], ['choice', 'w', 'start:cruise'], ['choice', 'w', 'start:sail']]);
   const marked = markSoon(root, p, root.doc);

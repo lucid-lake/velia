@@ -32,7 +32,7 @@
 //                              wake (a createWakeStore); null (the default) leaves the chart exactly as it was
 //   });
 //   chart.on('select' | 'action' | 'hover' | 'view' | 'close' | 'mark', fn) → off()
-//       water: a single tap on empty water with no card open and no water card to open ({ x, z }: Plan lays a corner there); select: the row (or null when the card closes); action: { row, action, result }; hover: the row or null; view: { cx, cz, mpp,
+//       water: a single tap on empty water with no card open (the menu closes on it); select: the row (or null when the card closes); action: { row, action, result }; hover: the row or null; view: { cx, cz, mpp,
 //       following }; close: Esc with no card open (the owner closes the chart); mark: { x, z } (a double-tap on the water: Sail's mark)
 //   chart.focus(id)                 glide to a point (a row id, e.g. 'bp-tessie', or a birthplace id) and open its card
 //   chart.select(id | null)         open or close a point's card where it is
@@ -59,7 +59,7 @@ const SHEET_URLS = Object.freeze({
   lake: Object.freeze({ day: new URL('../../assets/chart/lake-day.webp', import.meta.url).href, night: new URL('../../assets/chart/lake-night.webp', import.meta.url).href }),
   south: Object.freeze({ day: new URL('../../assets/chart/south-day.webp', import.meta.url).href, night: new URL('../../assets/chart/south-night.webp', import.meta.url).href }),
 });
-const WATER_WORDS = Object.freeze({ waterTarget: 'Set as target', waypoint: 'Add waypoint', setCourse: 'Set course', clearRoute: 'Clear route', clearTarget: 'Clear target' });
+const WATER_WORDS = Object.freeze({ sailHere: 'Sail here', waterTarget: 'Set as target', waypoint: 'Add waypoint', setCourse: 'Set course', clearRoute: 'Clear route', clearTarget: 'Clear target' });
 export const CHART_TIMING = Object.freeze({ zoomS: 0.25, glideS: 0.4, focusS: 0.5, hz: 10, sliceMs: 4, tapPx: 6, dblMs: 320, trackMin: 20 });
 
 const CSS = `
@@ -134,6 +134,8 @@ export function chartActions(services, mode = () => 'play') {
     async beTessie() { const t = get('tessiePlay'); return t?.fromChart ? ((await t.fromChart()) ?? { ok: true }) : { ok: false, why: 'unknown' }; },   // play as Tessie: the veil, then you are her in her water
     race() { const c = get('chart')?.course; if (!c?.lay) return { ok: false, why: 'unknown' }; c.lay('windward-leeward'); return { ok: true }; },
     // the open water's card (sail.js's chartTarget: the checks and their plain refusals are its own)
+    // Sail here (the chart's routing, 2026-11-25): the target and the pilot on it at once, the chart left open (sail.js chartTarget.sailHere)
+    sailHere(row, aim) { const t = get('chartTarget'); const p = row.kind === 'water' ? { x: row.x, z: row.z } : { ...aim, name: row.name }; return t?.sailHere ? (t.sailHere(p) ?? { ok: true }) : { ok: false, why: 'unknown' }; },
     waterTarget(row) { const t = get('chartTarget'); return t?.setWater ? t.setWater({ x: row.x, z: row.z }) : { ok: false, why: 'unknown' }; },
     waypoint(row) { const t = get('chartTarget'); return t?.addWaypoint ? t.addWaypoint({ x: row.x, z: row.z }) : { ok: false, why: 'unknown' }; },
     setCourse() { const t = get('chartTarget'); return t?.setCourse ? t.setCourse() : { ok: false, why: 'unknown' }; },
@@ -292,6 +294,8 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     uxApi?.setRaces?.(rows.some((r) => r.kind === 'racePin'));   //: the Races layer is in the bar only while the page has pins (Regatta)
     if (uxApi) rows = rows.filter((r) => r.lit || uxApi.visible(r));   // the layers (?mapux=1); a lit point (the chosen pin, the cue) always shows
   }
+  const sailHereOn = () => { const ct = services?.get?.('chartTarget'); return curMode === 'play' && !!ct?.sailHere && ct.mode?.() !== 'cruise'; };   // Sail here: Sail only (Cruise keeps its one mark)
+  let ownBoat = true;   // the sloop glyph; setOwnBoat(false) while the Coach's boat is laid over the map (sail.js, mapBoat.js)
   let waterRow = null;   // the open water's card (a click or a tap on the water in play): Set as target, Add waypoint (owner, 2026-11-18)
   const rowById = (id) => (id === 'water' ? waterRow : rows.find((r) => r.id === id || r.ref === id) ?? null);
   // a point's name: its own label in NAMES when it has one (the area, the places), else set off its mark (a pin's)
@@ -533,11 +537,11 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       v.toPx(b.x, b.z, P);
       const hd = b.heading ?? 0, [hx, hy] = v.dirPx(hd), [cx, cy] = v.dirPx(b.cog ?? hd), vv = ((b.sog ?? 0) * 60) / mpp;
       if (vv > 3) { g.beginPath(); g.moveTo(P[0], P[1]); g.lineTo(P[0] + cx * vv, P[1] + cy * vv); g.strokeStyle = rgba(bg, 0.7); g.lineWidth = 3.4; g.stroke(); g.strokeStyle = A(0.9); g.lineWidth = 1.4; g.stroke(); }
-      g.save(); g.translate(P[0], P[1]); g.rotate(Math.atan2(hx, -hy));
+      if (ownBoat) { g.save(); g.translate(P[0], P[1]); g.rotate(Math.atan2(hx, -hy));
       const k = touch() ? 1.5 : 1.3;
       g.beginPath(); g.moveTo(0, -7.5 * k); g.bezierCurveTo(3.6 * k, -3.5 * k, 3.4 * k, 3 * k, 2.4 * k, 5.5 * k); g.lineTo(-2.4 * k, 5.5 * k); g.bezierCurveTo(-3.4 * k, 3 * k, -3.6 * k, -3.5 * k, 0, -7.5 * k); g.closePath();
       g.strokeStyle = rgba(bg, 0.85); g.lineWidth = 3.6; g.stroke(); g.fillStyle = A(0.3); g.fill(); g.strokeStyle = A(1); g.lineWidth = 1.6; g.stroke();
-      g.restore();
+      g.restore(); }   // ownBoat false: the map's boat layer (mapBoat.js) draws her instead
     }
     // the wind: one quiet arrow in the top-left corner (past the owner's inset), the knots beside it in tabular numerals at 60 %
     const tw = b?.trueWind, wind = src('wind', null) ?? (tw ? { fromRad: (b.heading ?? 0) + tw.angle, kn: tw.speed / 0.514444 } : null);
@@ -577,7 +581,10 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     if (x < ins.left + 8) x = Math.min(W - cw - 8, P[0] + 14);
     card.style.left = `${Math.round(x)}px`; card.style.top = `${Math.round(y)}px`;
   }
-  function openCard(r) {
+  // a place's card in play offers Sail here before Set as target (Sail only: the chart's routing; Cruise and the entrance as before)
+  const actsOf = (r) => { const a = r.actions ?? (r.action ? [r.action] : []); return a[0] === 'target' && r.kind !== 'water' && sailHereOn() ? ['sailHere', ...a] : a; };
+  function openCard(r0) {
+    const a0 = actsOf(r0), r = a0 !== (r0.actions ?? null) && a0[0] === 'sailHere' ? { ...r0, action: null, actions: a0 } : r0;
     selId = r.id; focusId = r.id;
     cardT.textContent = r.name; cardW.textContent = r.line ?? ''; cardSay.textContent = '';
     const first = r.action ?? r.actions?.[0] ?? null;
@@ -624,6 +631,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     const [x, z] = visView().toWorld(px, py), d = ct.depth?.(x, z), rt = src('route', null);
     const land = Number.isFinite(d) && d <= 0, shoal = Number.isFinite(d) && d > 0 && d < 2;
     const acts = ['waterTarget'];   // Cruise: its navigator's one mark (no route)
+    if (sailHereOn()) acts.unshift('sailHere');   // Sail: Sail here first (the target and the pilot on it)
     if (ct.mode?.() !== 'cruise') { acts.push('waypoint'); if (rt?.pts?.length) { if (!rt.active) acts.push('setCourse'); acts.push('clearRoute'); } }
     waterRow = { id: 'water', kind: 'water', x, z, name: land ? 'The shore' : shoal ? 'Shallows' : 'Open water',
       line: !Number.isFinite(d) ? '' : land ? 'Dry land.' : `${d < 10 ? d.toFixed(1) : Math.round(d)} m of water.`, actions: acts };
@@ -692,7 +700,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       return;
     }
     lastTap = { t, px: p.px, py: p.py };
-    setTimeout(() => { if (lastTap && lastTap.t === t && card.hidden && !destroyed) { lastTap = null; if (!openWater(p.px, p.py)) { const w = visView().toWorld(p.px, p.py); emit('water', { x: w[0], z: w[1] }); } } }, CHART_TIMING.dblMs + 30);   // a single tap on empty water: in play its card (Set as target, Add waypoint); else 'water'
+    setTimeout(() => { if (lastTap && lastTap.t === t && card.hidden && !destroyed) { lastTap = null; if (!openWater(p.px, p.py)) emit('water', null); } }, CHART_TIMING.dblMs + 30);   // a single tap on empty water: in play its card (Set as target, Add waypoint); else 'water'
   }
   function onWheel(e) {
     e.preventDefault(); e.stopPropagation(); hideHint();
@@ -779,7 +787,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   function hideHint() { clearTimeout(hintT); hintEl.removeAttribute('data-on'); }
   function showHint() {
     if (!hint || hint.seen?.()) return;
-    hintEl.textContent = touch() ? 'Pinch to zoom \u00b7 drag to move' : 'Scroll to zoom \u00b7 drag to move';
+    hintEl.textContent = touch() ? 'Tap the water to sail there \u00b7 pinch to zoom' : 'Click the water to sail there \u00b7 scroll to zoom';   // the chart's routing, taught in the hint it already had (2026-11-25)
     hint.done?.(); hintEl.setAttribute('data-on', ''); clearTimeout(hintT); hintT = setTimeout(hideHint, 4000);
   }
   const stepZoom = (f) => { hideHint(); const base = anim?.to ?? view, cx = (W + ins.left - ins.right) / 2; glide(zoomAbout({ ...base, w: W, h: H }, cx, H / 2, base.mpp * f)); };
@@ -825,6 +833,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       const to = { cx: center?.x ?? view.cx, cz: center?.z ?? view.cz, mpp: mpp ?? view.mpp };
       if (animate) glide(to, duration ?? CHART_TIMING.zoomS); else setViewNow(to);
     },
+    setOwnBoat(on) { ownBoat = !!on; dirty = true; },
     setGlass(a = 1) { glass = clamp(+a || 0, 0.5, 1); el.toggleAttribute('data-glass', glass < 1); dirty = true; },   // the ground at this opacity (the host's CSS blurs the lake behind it)
     get following() { return following; },
     recentre,

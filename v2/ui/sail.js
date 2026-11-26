@@ -346,6 +346,15 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
         return r;
       },
       depth: depthAt, setWater,
+      // Sail here (the chart's routing, 2026-11-25): the target, then NAV takes her there at once; the chart stays open and the boat
+      // sails under it (the pilot's own routing off land and shoal: sim/autoNav.js); a hand on the helm takes over as with NAV
+      sailHere(p) {
+        if (mode === 'cruise') return setWater(p);
+        const no = waterCheck(p); if (no) return { ok: false, text: no };
+        const r = markAt(p, p.name ? `${p.name}: NAV takes her there.` : 'NAV takes her there.', { name: p.name ?? '' });
+        if (r.ok) navToMark();
+        return r;
+      },
       async addWaypoint(p) {
         const no = waterCheck(p); if (no) return { ok: false, text: no };
         await planLoad();
@@ -365,7 +374,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
     });
     const host = document.createElement('div'); host.className = 'lk-livechart'; host.hidden = true;
     document.body.appendChild(host);   // the map screen moves it into the shell
-    let screen = null;
+    let screen = null, mapBoatLayer = null;
     document.documentElement.classList.add('lk-livechart-on');
     if (!document.getElementById('lk-livechart-host-css')) { const st = document.createElement('style'); st.id = 'lk-livechart-host-css';
       st.textContent = 'html.lk-livechart-on .lk-chart .big{display:none!important}.lk-livechart[hidden]{display:none}'; document.head.appendChild(st); }
@@ -395,7 +404,9 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
         showTessie: () => feature('playTessie').on, deepAt: (x, z) => -terrainShim.heightAt(x, z),   // the Boat plate's Tessie and her deep pins
         factDate: () => (flags.hour == null ? new Date() : null) });   // the chart's lake fact: the day's; ?hour (a deterministic page): the first
       if (!screen) return;
-      screen.chart.on('mark', (p) => { const r = setWater(p); if (!r.ok && r.text) hint.flash?.(r.text, { secs: 5, kind: 'refuse.mark' }); });   // a double-click (a double-tap) on the water: the target at once
+      screen.chart.on('mark', (p) => { const ct = services.get('chartTarget'), r = ct?.sailHere ? ct.sailHere(p) : setWater(p); if (!r.ok && r.text) hint.flash?.(r.text, { secs: 5, kind: 'refuse.mark' }); });   // a double-click (a double-tap) on the map's water: Sail here's shortcut (the target, NAV on it)
+      // the Coach's boat on the map in play (mapBoat.js: the cockpit Coach's own drawing, turned to her heading), in place of the sloop glyph
+      import('./chart/mapBoat.js').then(({ mountMapBoatLayer }) => { mapBoatLayer = mountMapBoatLayer({ chart: screen.chart, host, state: () => phys.state, shown: () => !screen.entrance && !host.hidden }); }).catch((e) => console.error(e));
       services.provide('liveChart', screen.chart);
       services.provide('raceHere', async (id) => { const r = await world.racePlace?.(id); if (!r) return { ok: false, why: 'unknown' }; services.get('menu')?.close?.(); return { ok: true }; });   // a race pin's Race here
       services.provide('mapScreen', screen);

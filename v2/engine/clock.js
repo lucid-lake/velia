@@ -30,7 +30,6 @@
 //                          night in about 1 s, no snap
 //   c.setRate(r, t = c.t)  a constant rate from t on (the hour keeps going; the fireworks evening holds the show's pace)
 //   c.resume(t = c.t)      back to the clock's own pace from t on (the schedule, or the start's constant rate)
-//   c.setMaxSteps(n)       the most steps one advance() runs (Plan's high rates); c.maxSteps reads it
 //   c.setSchedule(s, t)    a rate schedule from t on (Cruise's day clock; a frozen clock ignores it)
 // The wind's day reads hourUnwrappedAt (src/sim/wind.js WindField.setClock), as v1's core does.
 import { RateTable, dayClockSchedule, DAY_CLOCK, DEFAULT_TIMERATE } from '../../src/sim/timeOfDay.js';
@@ -44,8 +43,8 @@ export const sailSchedule = (base = DEFAULT_TIMERATE) => dayClockSchedule({ base
 const wrap24 = (h) => ((h % 24) + 24) % 24;
 const MAX_SEGMENTS = 512;   // older segments are dropped (the wind's advection asks back ≈ a minute; a lapse adds ≈ 1 a frame)
 
-export function createSimClock({ step = 1 / 120, maxSteps: maxSteps0 = 10, t0 = 0, hour0 = 13, timerate = 0, schedule = null } = {}) {
-  let t = t0, acc = 0, steps = 0, cuts = 0, maxSteps = maxSteps0;
+export function createSimClock({ step = 1 / 120, maxSteps = 10, t0 = 0, hour0 = 13, timerate = 0, schedule = null } = {}) {
+  let t = t0, acc = 0, steps = 0, cuts = 0;
   const table = schedule ? (schedule instanceof RateTable ? schedule : new RateTable(schedule)) : null;
   const rate0 = Math.max(0, timerate || 0);
   const mode = table ? 'day' : rate0 > 0 ? 'rate' : 'frozen';
@@ -97,9 +96,6 @@ export function createSimClock({ step = 1 / 120, maxSteps: maxSteps0 = 10, t0 = 
     // Cruise (v2/cruise): another rate schedule from t on (v1's TimeOfDay.setSchedule: Cruise's day clock at its own base, the
     // hour continuous); a frozen clock stays frozen (a capture's time stands still in every mode)
     setSchedule(schedule, at = t) { if (mode === 'frozen' || !schedule) return; push({ t: at, h: hourUnwrappedAt(at), table: schedule instanceof RateTable ? schedule : new RateTable(schedule) }); },
-    // the step cap (Plan's ×16 and ×60 run more steps a frame; v2/plan/plan.js stepCap); never under 1
-    get maxSteps() { return maxSteps; },
-    setMaxSteps(n) { maxSteps = Math.max(1, Math.round(n) || 1); },
     onCut(fn) { cutFns.add(fn); return () => cutFns.delete(fn); },
     advance(dt) {
       if (!(dt > 0)) return 0;
