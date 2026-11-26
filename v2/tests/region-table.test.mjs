@@ -20,7 +20,7 @@ const old = (rows) => plain(rows).filter((r) => !ADDED.regions.includes(r.id)).m
 
 test('region table: the busy lake, the launch spots, the cups and the birthplaces are the old tables', () => {
   assert.deepEqual(old(REGIONS), BEFORE.REGIONS);
-  assert.deepEqual(plain(LAUNCH_SPOTS), BEFORE.LAUNCH_SPOTS);
+  assert.deepEqual(Object.fromEntries(Object.entries(plain(LAUNCH_SPOTS)).filter(([id]) => !ADDED.regions.includes(id))), BEFORE.LAUNCH_SPOTS);   // (South Lake's put-ins: south-paddlers.test.mjs)
   assert.deepEqual(plain(CUPS), BEFORE.CUPS);
   assert.deepEqual(plain(listBirthplaces(CURRENT_WATERS, { all: true })).filter((b) => !ADDED.birthplaces.includes(b.id)), BEFORE.birthplaces);
   assert.deepEqual(REGIONS.map((r) => r.id), ['emerald-bay', 'tahoe-west', 'south-lake']);

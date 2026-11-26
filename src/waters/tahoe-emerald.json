@@ -132,12 +132,26 @@
       "cup": { "id": "the-mouth", "name": "The Mouth", "line": "The passage to the big lake: the bar, the buoys, open water, the show.", "races": ["pass-the-channel", "storm-run", "lights-on-the-lake"], "hunt": "chart-the-mouth", "huntName": "Chart the Mouth" }
     },
     {
-      "id": "south-lake", "name": "South Lake Tahoe", "centre": [10500, 500], "radiusM": 2500, "neighbours": ["tahoe-west"],
+      "id": "south-lake", "name": "South Lake Tahoe", "centre": [10500, 500], "radiusM": 4800, "neighbours": ["tahoe-west"],
       "label": { "id": "n-south-lake", "text": "South Lake Tahoe", "x": 11200, "z": 1900, "cls": "A", "kind": "land", "alt": [[10600, 2300]] },
       "names": [
         { "id": "n-ski-run", "text": "Ski Run", "x": 12211, "z": 520, "cls": "B", "kind": "land" },
         { "id": "n-tahoe-keys", "text": "Tahoe Keys", "x": 8100, "z": 2100, "cls": "B", "kind": "land" },
         { "id": "n-camp-richardson", "text": "Camp Richardson", "x": 5300, "z": 1900, "cls": "B", "kind": "land" }
+      ],
+      "kayaks": [
+        { "id": "kayak-ski-run-timber", "lane": [[12130, 225], [11980, 335], [11840, 445], [11745, 545], [11700, 590], [11650, 560], [11700, 500], [11800, 410], [11930, 300], [12060, 190]], "colour": "yellow", "pfd": "red", "mate": { "colour": "red", "pfd": "blue" }},
+        { "id": "kayak-el-dorado", "lane": [[9900, 850], [10250, 840], [10600, 870], [10600, 910], [10250, 900], [9900, 910]], "colour": "orange", "pfd": "yellow", "mate": { "colour": "yellow", "pfd": "orange" }},
+        { "id": "kayak-pope", "lane": [[5920, 1720], [6280, 1690], [6640, 1710], [6640, 1770], [6280, 1780], [5920, 1790]], "colour": "red", "pfd": "orange", "mate": { "colour": "orange", "pfd": "blue" }}
+      ],
+      "launchSpots": [
+        { "id": "timber-cove", "name": "Timber Cove", "at": [11620, 675] },
+        { "id": "lakeview-commons", "name": "Lakeview Commons", "at": [10669, 965] },
+        { "id": "pope-beach", "name": "Pope Beach", "at": [6291, 1878] }
+      ],
+      "sups": [
+        { "id": "sup-ski-run-beach", "lane": [[12546, -37], [12456, 73], [12342, 183], [12315, 153], [12429, 43], [12519, -67]], "board": "white", "pfd": "orange", "cap": "navy", "mate": { "board": "yellow", "pfd": "blue", "cap": "white" }},
+        { "id": "sup-ski-run-marina", "lane": [[12154, 329], [12010, 419], [11983, 390], [12127, 300]], "board": "red", "pfd": "yellow", "cap": "white", "mate": { "board": "white", "pfd": "red", "cap": "navy" }}
       ],
       "level": { "dir": "south", "full": "south.json", "phone": "south-phone.json", "photo": "photo/manifest.json" },
       "birthplaces": [

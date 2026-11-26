@@ -27,8 +27,10 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const WATERS = JSON.parse(readFileSync(resolve(ROOT, 'src/waters/tahoe-emerald.json'), 'utf8'));
 const BIRTHPLACES = birthplaceRows(WATERS);   // the region table's birthplaces (v2/sim/regions.js)
 // the life rules (boats round each start, the glass boat in sight, a kayak pair within a minute) hold at the birthplaces of the
-// regions that have life; a region before its lanes, put-ins and boats (South Lake, whose life is a later phase) spends nothing
-const LIFE = new Set(WATERS.regions.filter((r) => r.boats?.length || r.kayaks?.length).map((r) => r.id));
+// regions that have life; a region before its lanes, put-ins and boats spends nothing. A region with a level of its own (South Lake) is
+// not part of the bay's rules (the glass boat, the density round the start, the first pair in 60 s): its paddlers are checked in
+// v2/tests/south-paddlers.test.mjs against the south level's bed
+const LIFE = new Set(WATERS.regions.filter((r) => (r.boats?.length || r.kayaks?.length) && !r.level).map((r) => r.id));
 const LIVE_BIRTHS = BIRTHPLACES.filter((b) => LIFE.has(b.region)), LIFE_REGIONS = REGIONS.filter((r) => LIFE.has(r.id));
 let chartC = null;
 const chart = () => (chartC ??= planChart(decodePlanGrid(new Uint8Array(gunzipSync(readFileSync(resolve(ROOT, 'v2/ui/planChart.bin'))))), chartInputs(JSON.parse(readFileSync(resolve(ROOT, 'v2/cruise/chartWorld.json'), 'utf8')))));
@@ -208,14 +210,14 @@ test('regions: only the player\'s region and its neighbours are live; a region w
   assert.deepEqual([...activeRegions(live, 2300, -1400)], ['tahoe-west', 'emerald-bay', 'south-lake']);
   assert.equal(activeRegions(live, 9000, 9000).size, 0, 'far from every region: nothing live');
   // a region in the data with no birthplace: never spawned, wherever the player is
-  const extra = [...REGIONS, { id: 'nowhere', centre: [6000, 0], radiusM: 2000, neighbours: [], boats: [{ id: 'ghost', prio: 0, tint: '#ffffff', route: [[6000, 0], [6500, 0]] }] }];
+  const extra = [...REGIONS, { id: 'nowhere', centre: [1000, 6000], radiusM: 2000, neighbours: [], boats: [{ id: 'ghost', prio: 0, tint: '#ffffff', route: [[1000, 6000], [1500, 6000]] }] }];
   const L = lake({ regions: extra });
-  L.post(still(6000, 0), 1 / 60, 0, { eye: [6000, 2, 0], hour: 13 });
+  L.post(still(1000, 6000), 1 / 60, 0, { eye: [1000, 2, 6000], hour: 13 });
   assert.ok(!L.boats.some((b) => b.id === 'ghost'), 'no birthplace, no boats');
   assert.equal(L.liveBoats.length, 0, 'and none live out there');
   // a new birthplace region is a data step: its row and its birthplace
-  const L2 = createBusyLake({ seed: 1, birthplaces: [...BIRTHPLACES, { id: 'x', x: 6100, z: 0, region: 'nowhere' }], regions: extra, depthAt: () => 30, windAt: steadyWind(5, 225), tier: 'full' });
-  L2.post(still(6100, 400), 1 / 60, 0, { eye: [6100, 2, 400], hour: 13 });
+  const L2 = createBusyLake({ seed: 1, birthplaces: [...BIRTHPLACES, { id: 'x', x: 1100, z: 6000, region: 'nowhere' }], regions: extra, depthAt: () => 30, windAt: steadyWind(5, 225), tier: 'full' });
+  L2.post(still(1100, 6400), 1 / 60, 0, { eye: [1100, 2, 6400], hour: 13 });
   assert.deepEqual(L2.liveBoats.map((b) => b.id), ['ghost']);
 });
 
@@ -279,7 +281,7 @@ test('the regions\' kayakers: every birthplace has a lane wholly in sight (600 m
     assert.ok(whole.length >= 1, `${b.id}: a kayaker always in sight (lanes: ${whole.map((l) => l.k.id).join(', ') || 'none'})`);
   }
   // the clock and the seed place them (a reload: a new place on the same lanes); the same twice
-  const a = residentKayaks(REGIONS, BIRTHPLACES, { seed: 1, hour: 13, polyline }), b = residentKayaks(REGIONS, BIRTHPLACES, { seed: 1, hour: 13, polyline }), c = residentKayaks(REGIONS, BIRTHPLACES, { seed: 1, hour: 13.1, polyline });
+  const a = residentKayaks(REGIONS, BIRTHPLACES, { seed: 1, hour: 13, polyline, loaded: 'south-lake' }), b = residentKayaks(REGIONS, BIRTHPLACES, { seed: 1, hour: 13, polyline, loaded: 'south-lake' }), c = residentKayaks(REGIONS, BIRTHPLACES, { seed: 1, hour: 13.1, polyline, loaded: 'south-lake' });
   assert.deepEqual(a.map((s) => s.s0), b.map((s) => s.s0));
   assert.notDeepEqual(a.map((s) => s.s0), c.map((s) => s.s0), 'six minutes later: further along');
   assert.ok(a.every((s) => s.resident && !s.route.rests.length), 'they paddle (no rests)');

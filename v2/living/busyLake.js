@@ -419,8 +419,12 @@ export function createBusyLake({ seed = 1, birthplaces = [], regions = REGIONS, 
 // KAYAK_BIRTH.nearM from the boat's reach within withinS s, at every speed she may make (ahead of her bow, within aheadDeg, preferred), starting at least minStartM off (out of the frame's close reach, never
 // placed by the camera: by the pose alone). The shift is fixed at that birth: a later hour (the fleet made later) finds them paddled
 // on from there, and a rebirth never calls it.
-//   residentKayaks(regions, birthplaces, { seed, hour, polyline, birth }) → slots   polyline: src/sim/kayaks/routes.js's (passed in:
+//   residentKayaks(regions, birthplaces, { seed, hour, polyline, birth, loaded }) → slots (loaded: the region whose level the page loaded)   polyline: src/sim/kayaks/routes.js's (passed in:
 //   this file stays free of v1's kayak code)
+// A region with a detail level of its own (v2/sim/regions.js `level`: South Lake) owns its kayakers and paddleboarders only while the page
+// was started in it (its level is the one loaded: owner, 2026-11-24: "load south beach when selected"); `loaded` is that region's id
+// (levelKey in main.js: 'bay' or the region's id). A region without a level lives always.
+export const regionLoaded = (r, loaded) => !r.level || r.id === loaded;
 export const KAYAK_LIFE = Object.freeze({ speedMs: 1.25, hours: Object.freeze([8, 20]), apartM: 6, personalities: Object.freeze(['experienced', 'casual', 'experienced']) });
 export const KAYAK_BIRTH = Object.freeze({ withinS: 60, nearM: Object.freeze([40, 120]), aheadDeg: 50, minStartM: 80, stepM: 5, probeS: 5, speeds: Object.freeze([2, 3.25, 4.5]) });   // speeds: m/s, the boat's first minute on her reach (she gathers way: 2.75 at the birth, up to ≈ 4.5)
 // the clock's place on a lane: a seeded offset walked at her pace since the morning
@@ -461,9 +465,9 @@ export function birthLane(rows, birth, { seed = 1, polyline, K = KAYAK_BIRTH, li
   let best = null; for (const r of fall) if (!best || Math.abs(r.dmin - K.nearM[0]) < Math.abs(best.dmin - K.nearM[0])) best = r;
   return best;
 }
-export function residentKayaks(regions, birthplaces, { seed = 1, hour = 12, polyline, birth = null } = {}) {
+export function residentKayaks(regions, birthplaces, { seed = 1, hour = 12, polyline, birth = null, loaded = null } = {}) {
   const out = [];
-  const live = regionsWithBirthplaces(regions, birthplaces);
+  const live = regionsWithBirthplaces(regions, birthplaces).filter((r) => regionLoaded(r, loaded));
   const born = birth ? birthLane(live.find((r) => r.id === birth.region)?.kayaks ?? [], birth, { seed, polyline }) : null;
   live.forEach((r) => (r.kayaks ?? []).forEach((k, i) => {
     const path = polyline(k.lane, true), L = path.length, h = strHash(k.id);
@@ -480,4 +484,27 @@ export function residentKayaks(regions, birthplaces, { seed = 1, hour = 12, poly
     });
   }));
   return out;
+}
+
+// The regions' stand-up paddleboarders (the region rows' `sups`: slow loops near a beach; v2/living/sup.js, v2/sim/sup.js): the same
+// clock as the kayakers' (a seeded place on the lane walked at the board's pace since the morning), a row's `mate` a second board
+// SUP_LIFE.apartM behind. max: the tier's cap on boards (full 4, lite 2: src/core/features.js paddleboards).
+export const SUP_LIFE = Object.freeze({ speedMs: 0.85, apartM: 9, hours: Object.freeze([8.5, 19]) });
+const SKIN = Object.freeze([[0.62, 0.43, 0.33], [0.44, 0.29, 0.21], [0.73, 0.56, 0.46], [0.52, 0.36, 0.27]]);
+export function residentSups(regions, birthplaces, { seed = 1, hour = 12, polyline, loaded = null, max = 4 } = {}) {
+  const out = [];
+  for (const r of regionsWithBirthplaces(regions, birthplaces).filter((q) => regionLoaded(q, loaded))) for (const k of r.sups ?? []) {
+    const path = polyline(k.lane, true), L = path.length;
+    const lead = (((hash01(seed, strHash(k.id)) * L + Math.max(0, hour - SUP_LIFE.hours[0]) * 3600 * SUP_LIFE.speedMs) % L) + L) % L;
+    const crew = k.mate ? [{ ...k, mate: null }, { ...k, ...k.mate, id: `${k.id}-2`, mate: null, back: SUP_LIFE.apartM }] : [k];
+    for (const c of crew) {
+      const hc = strHash(c.id);
+      out.push({ id: c.id, region: r.id, path, s0: (((lead - (c.back ?? 0)) % L) + L) % L, board: c.board ?? 'white', pfd: c.pfd ?? 'orange', cap: c.cap ?? 'navy',
+        skin: SKIN[Math.floor(hash01(seed, hc + 9) * SKIN.length)], seed: 1 + Math.floor(hash01(seed, hc + 5) * 9973), group: k.id });
+    }
+  }
+  // the tier's cap: the first boards of each lane first (a lite tier keeps one board a lane)
+  if (out.length <= max) return out;
+  const first = out.filter((s) => !s.id.endsWith('-2')), second = out.filter((s) => s.id.endsWith('-2'));
+  return [...first, ...second].slice(0, max);
 }
