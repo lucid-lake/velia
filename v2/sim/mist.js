@@ -66,3 +66,7 @@ export function mistLevel({ rung = 1, reduced = false, flag = null } = {}) {
 // the drift of the wisps a pixel sees, by the wind's travel (rad): the unit vector the mist streams along (the tests' check
 // that it follows the wind; the WGSL's bins straddle it)
 export const mistDir = (travelRad) => [Math.cos(travelRad), Math.sin(travelRad)];
+
+// the flag's value: the spray mist is OFF by default (off by default, owner 2026-11-26; ?spray=1 restores it: the wisps read as wind
+// lines detached from the waves in a storm). ?spray= wins over the older ?spraymist=; either one set to a value is used as given.
+export function mistFlagOf(spray, spraymist) { return spray != null ? spray : spraymist != null ? spraymist : '0'; }

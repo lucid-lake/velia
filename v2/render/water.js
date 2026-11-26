@@ -35,7 +35,7 @@ import { N, LENGTHS, CPU_CASCADES, SEA, seaTables, seaWeights, composeSea, baySh
 import { SURF, SURF_WGSL, SURF_FNS_WGSL, SURF_BITS, SURF_ALL, SURF_DEFAULT, FOAM_BAKE_WGSL, FOAM_TEX, whitecapJ0Field, capShare, J0_HIST, j0Glide } from './water-surface.js';   // #56 M1: v1's drawing recipe, Ultra's foam, crest light and glint (MIT)
 import { createSurface, WIN, WINDOW_FLOATS, OFFSETS, COARSE_OFFSETS, COARSE_N, COARSE_C } from '../sim/surface.js';
 import { createSeaField, SEA_FIELD_WGSL, FIELD_BYTES } from '../sim/seaField.js';   // #21, #25: the shallows' calm and the sea across the lake
-import { SPUME_WGSL } from './spume.js';
+import { SPUME_WGSL, SPUME } from './spume.js';
 import { mistWgsl } from './mist.js';   // storm round 2: the spray mist off the crests in a strong wind and the storm
 import { WIND_WATER_WGSL, WIND_BINDING, BITS, LANE, GUST_FX } from './windWater.js';
 import { WIND_TEX } from '../sim/windTex.js';   // audit W1–W3: the gusts, v1's whitecaps, the lanes
@@ -579,11 +579,19 @@ fn glintOf(n: vec3f, v: vec3f, l: vec3f, s2: f32) -> f32 {
   // --- the wind on the water (render/windWater.js, audit W1–W3): the local wind, the lanes, the gust patch ---
   let wl = windLocal(v.world.xz); let wv = wl.xy; let localU = length(wv); let aroundU = wl.z;
   let fpV = v1Footprint(toEye);
+  // off by default, 2026-11-26 (?lanes=on restores): the lane stripes and the aged-foam streaks below stay in the code (render/windWater.js lanesMode)
   var lane = 0.0;   // W3: v1's wind lanes as drawn (signed: rough lanes, smooth slicks), along the local wind
-  if (wfxOn(${BITS.lanes}u) && localU > ${STREAK_ONSET[0]}.0) { let lv = laneVisAt(v.uv0, toEye, fpV); if (lv > 0.0) { lane = spLane(v.uv0, localU, atan2(wv.y, wv.x), F.cam.w, F.spume.zw) * lv; } }
+  var lanePos = 0.0;   // its positive part (the lanes' darkening, the roughening and the spume read it)
+  if (localU > ${STREAK_ONSET[0]}.0) {
+    let lv = laneVisAt(v.uv0, toEye, fpV);
+    if (lv > 0.0) {
+      if (wfxOn(${BITS.lanes}u)) { lane = spLane(v.uv0, localU, atan2(wv.y, wv.x), F.cam.w, F.spume.zw) * lv; lanePos = max(lane, 0.0); }
+      else { lanePos = ${LANE.meanPos} * smoothstep(${SPUME.laneOnset[0]}, ${SPUME.laneOnset[1]}, localU) * lv; }   // ?lanes=0: the stripes go, the mean stays (the signed lane's mean is 0, its positive part's 0.205)
+    }
+  }
   var gustW = 0.0;   // W1: the gust look's weight
   if (wfxOn(${BITS.gust}u)) { gustW = gustWeight(v.world.xz, wv, localU, aroundU); }
-  gustW = clamp(gustW + max(lane, 0.0) * ${LANE.dark}, 0.0, 1.0);   // a lane darkens like a gust
+  gustW = clamp(gustW + lanePos * ${LANE.dark}, 0.0, 1.0);   // a lane darkens like a gust
   let laneRip = 1.0 + lane * ${LANE.rip};
   let rr = select(1.0, ripRel(localU), wfxOn(${BITS.gust}u));   // the short cascades follow the local wind
   var sl = vec2f(0.0); var slC = vec2f(0.0); var vr = vec2f(0.0); var jac = 1.0;
@@ -638,7 +646,7 @@ fn glintOf(n: vec3f, v: vec3f, l: vec3f, s2: f32) -> f32 {
   let n = normalize(vec3f(-sl.x, 1.0, -sl.y));
   // the unresolved slope variance: the footprint's (the mips) + the screen-space spread + a floor under the finest ripple
   // W3: the lanes roughen
-  let sigma2 = 0.5 * (vr.x + vr.y) + screenVariance(dpdx(sl), dpdy(sl)) + AA_FLOOR + st.z + max(lane, 0.0) * ${LANE.slope2} + shV;
+  let sigma2 = 0.5 * (vr.x + vr.y) + screenVariance(dpdx(sl), dpdy(sl)) + AA_FLOOR + st.z + lanePos * ${LANE.slope2} + shV;
   let nv = max(dot(n, V), 1e-3);
   // Schlick, averaged over the facets the pixel cannot resolve (v1's rough Fresnel); #56 M1: × v1's Smith masking (the steeper
   // slopes' facets hide each other at grazing: the light goes to the next wave and the body, so troughs read dark)
@@ -749,7 +757,7 @@ fn glintOf(n: vec3f, v: vec3f, l: vec3f, s2: f32) -> f32 {
             st += (textureSampleGrad(tSlope, sRep, su, FOAM_LAYER, sgx, sgy).r - 0.5) * wj;
           }
         }
-        st = 0.5 + st / sqrt(fw0 * fw0 + fw1 * fw1);
+        st = select(0.5 + st / sqrt(fw0 * fw0 + fw1 * fw1), 0.5, !wfxOn(${BITS.streaks}u));   // ?lanes=streaks0: no streaks (the map's mean)
         let freshK = clamp(fm.y * 2.0, 0.0, 1.0);
         let aged = clamp(fm.x * FM_GAIN, 0.0, 1.0) * mix(smoothstep(0.25, 0.75, st) * 1.2, 1.0, freshK);
         dens = max(dens, aged * v.damp.y);
@@ -801,7 +809,7 @@ fn glintOf(n: vec3f, v: vec3f, l: vec3f, s2: f32) -> f32 {
       capF = foamCover(dens, pat) * mix(0.8, 1.0, solid) * windF * mix(1.0, SU_FFARK, smoothstep(SU_FFAR0, SU_FFAR1, fp));   // the far specks at half
       // v1's spume (render/spume.js): past 12 m/s of local wind the folds' foam streaks along the lanes, added to the caps
       // (v1's clamp(cap + spume, 0, 1)), the fold's depth as v1's breaking measure
-      if (wfxOn(${BITS.caps}u)) { capF = min(capF + spumeOf(foamU, dens, lane), 1.0); }
+      if (wfxOn(${BITS.caps}u)) { capF = min(capF + spumeOf(foamU, dens, lanePos), 1.0); }
       ${detail && !lite ? 'capF = max(capF, fmFilm * (0.55 + 0.45 * pat) * windF * mix(1.0, SU_FFARK, smoothstep(SU_FFAR0, SU_FFAR1, fp)));   // waterDetail: the film under the lace' : ''}
     }
     if (mF > 0.0) { let tot = 1.0 - (1.0 - capF) * (1.0 - mF); capCol = (capCol * capF + mCol * mF * (1.0 - capF)) / max(tot, 1e-4); capF = tot; }

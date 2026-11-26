@@ -4,7 +4,7 @@
 // cadence in a capture (deterministic) and the lanes' gate.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { gustWeight, capGate, GUST_FX, BITS, WIND_WATER_WGSL } from '../render/windWater.js';
+import { gustWeight, capGate, GUST_FX, BITS, WIND_WATER_WGSL, lanesMode } from '../render/windWater.js';
 import { createWindTex, windTexLive, EVERY_STEPS, WIND_TEX } from '../sim/windTex.js';
 import { gustVisual } from '../../src/sim/water-spectrum.js';
 import { WindField } from '../../src/sim/wind.js';
@@ -87,7 +87,17 @@ test('a capture never waits on the worker: ?headless=1 and a ?filmui=1 film fill
 });
 
 test('the WGSL passes the Safari lint; the switches are bits', () => {
-  assert.deepEqual(Object.values(BITS), [1, 2, 4, 8]);
+  assert.deepEqual(Object.values(BITS), [1, 2, 4, 8, 16]);
   const head = 'struct Frame { viewProj: mat4x4f, cam: vec4f, res: vec4f, wind: vec4f, spume: vec4f, windfx: vec4f }\n@group(0) @binding(0) var<uniform> F: Frame;\n';
   assert.deepEqual(lintWgsl(head + WIND_WATER_WGSL(13), 'wind'), []);
+});
+
+test('the wind lanes and the aged foam\'s streaks are off by default; ?lanes=on restores both, =0 only the lanes off', () => {
+  assert.deepEqual(lanesMode(undefined), { lanes: false, streaks: false });
+  assert.deepEqual(lanesMode(null), { lanes: false, streaks: false });
+  assert.deepEqual(lanesMode('off'), { lanes: false, streaks: false });
+  assert.deepEqual(lanesMode('streaks0'), { lanes: false, streaks: false });
+  assert.deepEqual(lanesMode('on'), { lanes: true, streaks: true });
+  assert.deepEqual(lanesMode('1'), { lanes: true, streaks: true });
+  assert.deepEqual(lanesMode('0'), { lanes: false, streaks: true });
 });

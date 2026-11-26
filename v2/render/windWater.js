@@ -12,7 +12,7 @@
 //   W3 the wind lanes (src/wind-cues.js streakAt via the look map): render/spume.js spLane along the LOCAL wind, faded where
 //      a lane would alias and past v1's look square; a lane darkens like a gust (0.12), roughens (slope² 0.006) and scales
 //      the short ripples (× 1 + 0.55 lane: rough lanes, smooth slicks).
-// The switches (F.windfx.z bits): 1 the texture holds a fill, 2 the gust look, 4 the lanes, 8 v1's whitecaps (the in-page A/B:
+// The switches (F.windfx.z bits): 1 the texture holds a fill, 2 the gust look, 4 the lanes, 8 v1's whitecaps, 16 the aged foam's streaks (the in-page A/B:
 // __velia.setWindFx). The JS below are the WGSL's reference for the tests.
 import { GUST_EDGE, GUST_FULL, GUST_ONSET, GUST_LOOK, WHITECAP, gustResponse, RIPPLE_ONSET } from '../../src/sim/water-spectrum.js';
 import { WHITECAP_ONSET } from '../../src/sim/windCues.js';
@@ -22,9 +22,17 @@ export const WIND_BINDING = 14;   // after the shore's mirror (12) and #56 M1's 
 // v1's gust look on the water (src/gustFx-water.js GUST_FX), the numbers the port reads
 export const GUST_FX = Object.freeze({ gain: 1.45, crisp: [1.05, 1.075], crispW: 0.9, rag: 0.012, ragM: 9, edgeM: 28, edge: 0.5, edgeRatio: [0.03, 0.12],
   slope: 1.1, glint: 0.8, lumDown: 0.1, lumUp: 0.09, skyUp: 0.6, dark: 0.6, fres: 0.3 });
-export const LANE = Object.freeze({ dark: 0.12, rip: 0.55, slope2: 0.006 });   // src/wind-cues.js STREAK_DARK, STREAK_RIP, STREAK_SLOPE2
+export const LANE = Object.freeze({ dark: 0.12, rip: 0.55, slope2: 0.006, meanPos: 0.205 });   // src/wind-cues.js STREAK_DARK, STREAK_RIP, STREAK_SLOPE2
 export const WIND_RESP = Object.freeze([0, gustResponse(5), gustResponse(0.9), gustResponse(0.2)]);   // each cascade's answer to the local wind (as render/wake.js WAKE_RESP)
-export const BITS = Object.freeze({ tex: 1, gust: 2, lanes: 4, caps: 8 });
+// ?lanes=: the wind lanes (W3) and the aged foam's streaks. OFF BY DEFAULT (owner, 2026-11-26: "seems detached from the water waves
+// below, more like wind lines"); ?lanes=on (or 1) restores today's look, the code paths below are intact. =off / =streaks0 both off
+// (the default); =0 the lanes off, the streaks on (the A/B's middle value).
+export function lanesMode(v) {
+  if (v === 'on' || v === '1') return { lanes: true, streaks: true };
+  if (v === '0') return { lanes: false, streaks: true };
+  return { lanes: false, streaks: false };
+}
+export const BITS = Object.freeze({ tex: 1, gust: 2, lanes: 4, caps: 8, streaks: 16 });
 
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 // v1's gustVisual × GUST_FX's soft part, the crisp contour and the front (rag: the 9 m noise's value × 0.012 at the point;

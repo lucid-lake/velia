@@ -384,6 +384,13 @@ integral of 0.03 × the wind (`laneDrift`, `F.spume.zw`), shared by the foam str
 After: 0 m/s across, ≤ 0.5 m/s along (the measure's step), at the start and 5 km out. The lanes still lie within 4° of the
 wind and stay 30 : 1 stretched (`v2/tests/spume.test.mjs`); the new test fails on the old lanes.
 
+**Off by default (owner, 2026-11-26):** the wind lanes, the aged foam's streaks and the spray mist are off. The owner: the layer "seems detached
+from the water waves below, more like wind lines", clearest in the storm. A/B first: `?lanes=0` (lanes off, streaks on) and
+`?lanes=streaks0` (both off); the lanes changed the normal-wind frame 2.8 of 255 and the storm's 0.09, the spray mist (`?spray=0`)
+the storm's 1.4, so the mist is the layer that most reads as "wind lines" in the storm, and it went off too (`?spray=1` restores it, at any quality level; `mistFlagOf`, `sim/mist.js`). The spume stripes are unchanged. The code stays intact: `?lanes=on` (or `1`) restores the lanes and streaks (`render/windWater.js lanesMode`, the BITS lanes and
+streaks); the JS twin and its tests (`spume.test.mjs`) still run the lanes as when on. Off, the ripples keep their mean roughness
+(the lane's signed mean is 0; its positive part's mean, `LANE.meanPos` 0.205, stands in for the darkening and the spume).
+
 ## The spray mist (storm round 2, 2026-11-24: sim/mist.js, render/mist.js, render/water.js)
 In a strong local wind (from 11 m/s, full by 16 m/s: Beaufort 6 to 7, "airborne spray", spindrift past 8) and under the storm's
 outflow (0.7 of it from 5–9 m/s of local wind, whatever the day's wind), a fine mist streams off the crests downwind, low over the
