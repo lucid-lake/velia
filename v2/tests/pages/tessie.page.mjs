@@ -43,7 +43,7 @@ try {
   // desktop: the first frame's pipelines with and without her
   const off = await open('?seed=1&tessie=0', { viewport: { width: 1280, height: 720 } });
   const p0 = await pipes(off.page); await off.ctx.close();
-  const d = await open('?seed=1&tessie=24', { viewport: { width: 1280, height: 720 } });
+  const d = await open('?seed=1&tessie=24&birth=fannette&heading=318', { viewport: { width: 1280, height: 720 } });
   const p1 = await pipes(d.page);
   check(p1.first === p0.first, `desktop: the first frame builds the same pipelines with her as without (${p1.first} / ${p0.first})`);
   check(p1.groups?.tessie?.n === 7, `desktop: her group holds 7 pipelines (${JSON.stringify(p1.groups?.tessie)})`);

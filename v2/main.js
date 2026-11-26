@@ -808,7 +808,7 @@ async function boot() {
   // the hold counts from the first frame the lake is on screen (the card gone; a capture has no card), not from the pose: the sim runs
   // behind the card and the shell, and a hold counted from the pose was over before the player saw the lake (Off Fannette, 2026-11-25)
   let birthCamUntil = null, birthCamArm = false;
-  const birthCam = (pose) => { if (!B || !pose?.camYawDeg || flags.camyaw != null) return; B.follow.yaw = (pose.headingDeg + pose.camYawDeg) * DEG; B.follow.chase = false; birthCamUntil = B.t + BIRTH.camHoldS; birthCamArm = true; };
+  const birthCam = (pose) => { if (!B || !pose?.camYawDeg || flags.camyaw != null) return; B.follow.yaw = (pose.headingDeg + pose.camYawDeg) * DEG; B.follow.chase = false; birthCamUntil = B.t + BIRTH.camHoldS; birthCamArm = !P.headless; };   // a capture counts from the pose, as before
   birthCam(birthPose0);
   // audit W4: v1's gust payoff (controllers/sail.js: createGustFx; ?gustfx=0 off, as the gust cells): Sail and Regatta, not Cruise
   const gust = B ? createGust({ on: flags.gustfx == null || (flags.gustfx !== false && flags.gustfx !== '0' && flags.gustfx !== 0), reduced: () => !P.headless && reducedNow() }) : null;
@@ -1559,7 +1559,7 @@ async function boot() {
     if (!P.headless) m4.beforeStep(dt, h);   // M4: the station's hands go in (the wheel, the winches, the Tack assist)
     if (birthCamUntil != null) {
       const st = cardNow();
-      if (birthCamArm) { if (P.headless || st == null || st === 'gone') { birthCamArm = false; birthCamUntil = B.t + BIRTH.camHoldS; } }
+      if (birthCamArm) { if (st == null || st === 'gone') { birthCamArm = false; birthCamUntil = B.t + BIRTH.camHoldS; } }
       else if (B.t >= birthCamUntil) { birthCamUntil = null; B.follow.chase = true; }   // the hero shown: the camera's chase on again
     }
     birthplaces?.step(P.headless ? n * clock.dt : dt);   // a birthplace move's veil and its place, before the boat's step
