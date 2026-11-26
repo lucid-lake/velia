@@ -82,6 +82,12 @@ export function removeRows(root, doc = globalThis.document) {
 // 44 px finger target, so each row is one line there: its label beside its choices (the narrow rule of homePages.js, here for low),
 // and the quality cards one line of three, the "Now:" status under the label. v1's page keeps its own CSS.
 export const SETUP_FIT_CSS = `
+/* Screen's two panel switches (ui/perfHud.js performance stats, ui/proHud.js Pro instruments: unasked extras, so compact): one line
+   between them, side by side, so the tab fits with no scroll; every other row keeps the full width */
+#lk-load .pg[data-page=settings] #tp-set-screen:not([hidden]):has(> .set[data-set=perfhud] + .set[data-set=prohud]){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:1.2em;align-content:start}
+#lk-load .pg[data-page=settings] #tp-set-screen:has(> .set[data-set=perfhud] + .set[data-set=prohud]) > *{grid-column:1 / -1}
+#lk-load .pg[data-page=settings] #tp-set-screen > .set[data-set=perfhud]:has(+ .set[data-set=prohud]){grid-column:1}
+#lk-load .pg[data-page=settings] #tp-set-screen > .set[data-set=perfhud] + .set[data-set=prohud]{grid-column:2}
 :where(:root[data-screen~=low]) #lk-load[data-help] .pg[data-page=settings] .set{grid-template-columns:5.4em minmax(0,1fr);align-items:center;column-gap:.5em;row-gap:0;padding:.1em 0}
 :where(:root[data-screen~=low]) #lk-load[data-help] .pg[data-page=settings] .set .v{flex-wrap:wrap}
 :where(:root[data-screen~=low]) #lk-load[data-help] .pg[data-page=settings] .set .k{letter-spacing:.06em}
