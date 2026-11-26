@@ -133,7 +133,7 @@ export function chartActions(services, mode = () => 'play') {
     target(row, aim) { const t = get('chartTarget'); return t?.set ? (t.set({ ...aim, name: row.name }) ?? { ok: true }) : { ok: false, why: 'unknown' }; },
     anchor(row, aim) { const t = get('chartTarget'); return t?.anchor ? (t.anchor({ ...aim, name: row.name }) ?? { ok: true }) : { ok: false, why: 'unknown' }; },
     async raceHere(row) { const f = get('raceHere'); return f ? ((await f(row.ref)) ?? { ok: true }) : { ok: false, why: 'unknown' }; },   // a place race's pin: the page's raceHere(id) → R.racePlace(id)
-    async beTessie() { const t = get('tessiePlay'); return t?.fromChart ? ((await t.fromChart()) ?? { ok: true }) : { ok: false, why: 'unknown' }; },   // play as Tessie: the veil, then you are her in her water
+    async beTessie(row) { const t = get('tessiePlay'); return t?.fromChart ? ((await t.fromChart(row?.ref)) ?? { ok: true }) : { ok: false, why: 'unknown' }; },   // play as Tessie: the veil, the boat moved to the flagged pin's water, then you are her there
     race() { const c = get('chart')?.course; if (!c?.lay) return { ok: false, why: 'unknown' }; c.lay('windward-leeward'); return { ok: true }; },
     // the open water's card (sail.js's chartTarget: the checks and their plain refusals are its own)
     // Sail here (the chart's routing, 2026-11-25): the target and the pilot on it at once, the chart left open (sail.js chartTarget.sailHere)
