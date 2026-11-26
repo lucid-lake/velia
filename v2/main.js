@@ -1332,14 +1332,14 @@ async function boot() {
   // continuous in the point), traced on the first frame and every 30th after (a fixed cadence, never a distance threshold: the
   // boat's position carries the readback's sub-centimetre jitter, and a threshold crossed a frame early moved the foam's memory
   // in the film goldens)
-  const seaAt = { n: 0, fetchM: 20000, wind: { speedMs: 0, travelRad: 0, fetchM: 20000, x: 0, z: 0 } };
+  const seaAt = { n: 0, fetchM: 20000, wind: { speedMs: 0, gain: 1, travelRad: 0, fetchM: 20000, x: 0, z: 0 } };
   function seaNow(w) {
     const x = B ? B.state.x : eye[0], z = B ? B.state.z : eye[2];
     if (seaAt.n++ % 30 === 0) {
-      seaAt.fetchM = fetchAt((px, pz) => terrain.field.height(px, pz), x, z, [Math.cos(w.travelRad), Math.sin(w.travelRad)]);
+      seaAt.fetchM = fetchAt((px, pz) => terrain.field.height(px, pz), x, z, [Math.cos(windNow.travelRad), Math.sin(windNow.travelRad)]);   // along the day's wind (the storm's veer leaves the fetch alone: sim/stormSea.js; the same as w's with no storm)
     }
-    const o = seaAt.wind; o.speedMs = w.speedMs; o.travelRad = w.travelRad; o.fetchM = seaAt.fetchM; o.x = x; o.z = z;
-    return stormSea(o, storm.weather);   // storm round 2 (owner 2026-11-18): under the outflow a storm's sea (0 with no storm)
+    const o = seaAt.wind; o.speedMs = w.speedMs; o.gain = w.gain ?? 1; o.travelRad = w.travelRad; o.fetchM = seaAt.fetchM; o.x = x; o.z = z;
+    return stormSea(o, storm.weather);   // storm round 2: under the outflow a storm's sea, pinned to about 1.4 x the fair day's (untouched with no storm)
   }
   // phase 2a (§ 3.9): the eye's depth under the drawn surface at the lens, from the CPU twin of the FFT surface (the whole
   // 600 and 85 m tiles: heightAt's coarse read is exact anywhere, so the boat's readback window stays on the boat); the surface's slopes by a

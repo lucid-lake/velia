@@ -66,23 +66,50 @@ test('the Weather menu without a storm: Clear and Fair only, Storm refused, the 
   assert.deepEqual(weatherMenu({ storm: createStorm({ windField: field() }), deck: { value: 0.6 } }).rows.map((r) => r.id), ['clear', 'fair', 'storm']);
 });
 
-// storm round 2 (owner, 2026-11-18: "storm waves must read as a storm"): the sea's wind and fetch under the outflow
+// storm round 2 (2026-11-18): the sea's inputs under the outflow; calmer (2026-11-26): only a little bigger than the fair day's
 import { stormSea, STORM_SEA } from '../sim/stormSea.js';
 import { seaTables, seaWeights, composeSea, significantHeight, LENGTHS, CPU_CASCADES } from '../sim/spectrum.js';
 import { createWeatherState } from '../../src/sim/weather/state.js';
 
-test('the storm\'s sea: the outflow builds it (more wind, a longer fetch); no storm and the phone\'s stand-in leave it alone', () => {
-  const fair = { speedMs: 9.1, fetchM: 2500 };
+const tablesBy = new Map();
+const hsAt = (U, fetchM, x, z) => {   // the drawn sea's significant height (m) at a spot, as render/water.js composes it (the default sea state)
+  if (!tablesBy.has(U)) tablesBy.set(U, seaTables({ speedMs: U, sea: 'big' }));
+  return significantHeight(composeSea(tablesBy.get(U), seaWeights({ U, fetchM, x, z })), LENGTHS, CPU_CASCADES);
+};
+
+test('the storm\'s sea: no storm and the phone\'s stand-in leave it alone; the outflow eases it in; the spot\'s fetch kept', () => {
+  const fair = { speedMs: 9.1, gain: 1.45, fetchM: 2500 };
   assert.deepEqual(stormSea({ ...fair }, createWeatherState()), { ...fair, capK: 1 }, 'no storm');
   assert.deepEqual(stormSea({ ...fair }, createStormOff().weather), { ...fair, capK: 1 }, 'a phone');
   const W = createWeatherState(); W.on = 1; W.front[3] = 1;
   const o = stormSea({ ...fair }, W);
-  assert.ok(Math.abs(o.speedMs - 9.1 * (1 + STORM_SEA.wind)) < 1e-9 && o.fetchM === STORM_SEA.fetchM && o.capK === 1 + STORM_SEA.caps, 'the sea and its whitecaps\' share');
+  assert.ok(Math.abs(o.speedMs - 9.1 / 1.45 * (1 + STORM_SEA.wind)) < 1e-9, 'the day\'s wind (the outflow\'s gain out) x (1 + wind)');
+  assert.equal(o.fetchM, fair.fetchM, 'the spot\'s own fetch');
+  assert.ok(o.capK > 1.5, `the whitecaps' share raised: x ${o.capK}`);
   W.front[3] = 0.5; const h = stormSea({ ...fair }, W);
-  assert.ok(h.speedMs > fair.speedMs && h.speedMs < o.speedMs && h.fetchM > fair.fetchM && h.fetchM < o.fetchM, 'half the outflow, half the cheat');
-  assert.equal(stormSea({ speedMs: 9, fetchM: 15000 }, { on: 1, front: [0, 0, 0, 1] }).fetchM, 15000, 'never a shorter fetch than the spot\'s');
-  const hs = (w) => significantHeight(composeSea(seaTables({ speedMs: w.speedMs }), seaWeights({ U: w.speedMs, fetchM: w.fetchM, x: 2300, z: -1400 })), LENGTHS, CPU_CASCADES);
-  assert.ok(hs(o) > 1.6 * hs(fair), `the storm's sea well over the fair one's: ${hs(o).toFixed(2)} vs ${hs(fair).toFixed(2)} (table units)`);
+  assert.ok(Math.abs(h.speedMs - (fair.speedMs + o.speedMs) / 2) < 1e-9 && h.capK > 1 && h.capK < o.capK, 'half the outflow, half the way');
+  assert.equal(stormSea({ speedMs: 9 }, { on: 1, front: [0, 0, 0, 1] }).speedMs, 9 * (1 + STORM_SEA.wind), 'no gain given: the speed is the day\'s');
+});
+
+test('the storm\'s sea is only a little bigger than the fair day\'s at the storm\'s spots (Hs x 1.3 to 1.5), never the first cheat\'s 2-4 x', () => {
+  // the spots and the winds a storm brings (measured on the page at 18:25, wind level 2, the storm over each spot 150 s in):
+  // the day's wind 6.28 m/s, the outflow's gain 1.41 at the eye; the fair fetch along the day's wind (main.js seaNow)
+  const U = 6.28, gain = 1.41;
+  const spots = [
+    { name: 'Emerald Bay\'s mouth', x: 2300, z: -1400, fetchM: 1005 },
+    { name: 'the open lake', x: 3000, z: -3500, fetchM: 3050 },
+    { name: 'the bay\'s entrance (cam E)', x: 1050, z: -820, fetchM: 1219 },
+  ];
+  const W = createWeatherState(); W.on = 1; W.front[3] = 1;
+  for (const s of spots) {
+    const fair = hsAt(U, s.fetchM, s.x, s.z);
+    const o = stormSea({ speedMs: U * gain, gain, fetchM: s.fetchM }, W);
+    const r = hsAt(o.speedMs, o.fetchM, s.x, s.z) / fair;
+    assert.ok(r >= 1.3 && r <= 1.5, `${s.name}: storm ${hsAt(o.speedMs, o.fetchM, s.x, s.z).toFixed(2)} m vs fair ${fair.toFixed(2)} m (x ${r.toFixed(2)})`);
+    // the first cheat (the sea's wind x 1.6 on the outflow's, the fetch toward 10 km) for contrast: far outside the band
+    const old = hsAt(U * gain * 1.6, 10000, s.x, s.z) / fair;
+    assert.ok(old > 2, `${s.name}: the first cheat drew x ${old.toFixed(2)}`);
+  }
 });
 
 test('a phone (no clouds, no storm) has no Weather rows; clouds or a storm bring them back (owner, 2026-11-21)', () => {

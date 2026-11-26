@@ -291,8 +291,10 @@ export const LITE_TAPS = Object.freeze({ land: Object.freeze({ offsets: [-1.2, 0
 // bright blue (1, 10, 34 at the follow camera), so the body's storm light is re-fitted for it (bodyV1); ?look=v2 keeps 45
 export const STORM_WATER = Object.freeze({ body: 45, bodyV1: 15, foam: 0.6, capLit: 0.75,
   // round 4: the persistent marbled field (jacL's age band, the lace's two scales per m, the web's threshold fresh → old and its
-  // softness, the core's age band, opacities and light, the far footprint band m/px and the sheen's share), the caps kept
-  capKeep: 0.3, ageJ: [0.5, 0.85], marble: [0.028, 0.011], warp: 1.4, cellM: [4.5, 1.6], lineW: [0.03, 0.24], core: [0.8, 0.97],
+  // softness, the core's age band, opacities and light, the far footprint band m/px and the sheen's share), the caps kept;
+  // ageJ [0.5, 0.85] → [0.65, 0.9] with the calmer storm sea (sim/stormSea.js, 2026-11-26): its smaller waves fold less deep, so
+  // the band moved up to keep about the same share of foam on the water (0.84 % of the follow frame's water against 0.80 %)
+  capKeep: 0.3, ageJ: [0.65, 0.9], marble: [0.028, 0.011], warp: 1.4, cellM: [4.5, 1.6], lineW: [0.03, 0.24], core: [0.8, 0.97],
   webA: 0.5, coreA: 0.65, webLit: 0.55, marbleFar: [0.12, 0.45], sheen: 0.35 });
 // waterDetail (features.js waterDetail: a desktop or a tablet at L0-L1): two fragment-only answers to "too much pattern". The CPU surface,
 // the vertex displacement and the foam read the tiles as before, so the boat rides the same water.
