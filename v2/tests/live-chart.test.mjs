@@ -170,16 +170,18 @@ test('the actions call the right services: Sail from here (pick at the entrance,
 });
 
 test('the whole bay keeps "Fannette Island": the island\'s name before the pins\' labels, clear of the pins and the boat round it', async () => {
-  const { NAMES: N } = await import('../ui/chart/chartModel.js');
-  // the chart at its widest at 1280 × 720 (5 m a pixel), the boat on her first-visit spot, the pins' marks and the anchorage kept clear
-  for (const [cx, cz] of [[800, -400], [620, -560], [500, -300]]) {
-    const mpp = zoomRange(1280, 720, 'play').max, v = chartView({ cx, cz, mpp, w: 1280, h: 720 }), q = [0, 0];
+  const { NAMES: N, BOOKMARKS: BM } = await import('../ui/chart/chartModel.js');
+  // the chart at its widest at 1280 × 720 (5 m a pixel) and at the 1 bookmark (6.5 m a pixel, the menu's whole bay), the pins' marks and the
+  // anchorage kept clear, the boat at the old start (460, -50) and at the Off Fannette start (she spawns about (187, 23), by the pin)
+  const wide = zoomRange(1280, 720, 'play').max;
+  for (const [cx, cz, mpp, bx, bz] of [[800, -400, wide, 460, -50], [620, -560, wide, 460, -50], [500, -300, wide, 460, -50], [800, -400, wide, 187, 23], [240, -110, BM[0], 187, 23], [500, -300, BM[0], 187, 23]]) {
+    const v = chartView({ cx, cz, mpp, w: 1280, h: 720 }), q = [0, 0];
     const box = (x, z, r) => { v.toPx(x, z, q); return [q[0] - r, q[1] - r, q[0] + r, q[1] + r]; };
-    const keep = [...pins.map((p) => box(p.x, p.z, 8)), box(-400, 0, 6), box(460, -50, 13)];
-    const labels = [...N, ...pins.map((p) => ({ id: `n-bp-${p.id}`, text: p.name, x: p.x, z: p.z, cls: p.id === 'tessie' ? 'A' : 'B', kind: 'water', dx: 13, align: 'left' }))];
+    const keep = [...pins.map((p) => box(p.x, p.z, 8)), box(-400, 0, 6), box(bx, bz, 13)];
+    const labels = [...N, ...pins.map((p) => ({ id: `n-bp-${p.id}`, text: p.name, x: p.x, z: p.z, cls: p.id === 'fannette' ? 'A' : 'B', pri: p.id === 'fannette' ? -2 : 0, kind: 'water', dx: 13, align: 'left' }))];
     const measure = (n) => ({ w: n.text.length * 9.2, h: n.cls === 'A' ? 21 : 19 });
     const L = layoutLabels(labels, (x, z, o) => v.toPx(x, z, o), measure, { w: 1280, h: 720, mpp, keep, cx, cz });
-    assert.ok(L.find((l) => l.id === 'n-fannette').shown, `Fannette Island named at ${mpp.toFixed(2)} m/px centred ${cx}, ${cz}`);
+    assert.ok(L.find((l) => l.id === 'n-fannette').shown, `Fannette Island named at ${mpp.toFixed(2)} m/px centred ${cx}, ${cz}, the boat at ${bx}, ${bz}`);
   }
 });
 

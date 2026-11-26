@@ -125,7 +125,7 @@ export function fadeTo(a, target, dt, T = FADE_S) {
 export const NAMES = Object.freeze([
   ...regionLabelsOf(CURRENT_WATERS),
   ...regionNamesOf(CURRENT_WATERS),   // the regions' towns and marinas (South Lake's: Ski Run, Tahoe Keys, Camp Richardson)
-  { id: 'n-fannette', text: 'Fannette Island', x: 0, z: 110, cls: 'A', kind: 'land', pri: -1, alt: [[0, -85], [-250, -110], [-40, 135], [40, -105], [-260, 120]] },
+  { id: 'n-fannette', text: 'Fannette Island', x: 0, z: 110, cls: 'A', kind: 'land', pri: -1, alt: [[0, -85], [-250, -110], [-40, 135], [40, -105], [-260, 120], [0, -175]] },   // the last, well north: the whole bay (6.5 m/px) with the boat at the Off Fannette start, where her box and the two pins cover the nearer spots
   { id: 'n-vikingsholm', text: 'Vikingsholm', x: -640, z: 330, cls: 'B', kind: 'land' },
   { id: 'n-falls', text: 'Eagle Falls', x: -960, z: 250, cls: 'B', kind: 'land' },
   { id: 'n-emerald-pt', text: 'Emerald Point', x: 1180, z: -1520, cls: 'B', kind: 'land' },

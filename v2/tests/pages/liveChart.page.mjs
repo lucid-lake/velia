@@ -6,7 +6,7 @@
 //   hover     the pointer over a pin rings it and lifts its name
 //   select    a click opens the small card with one action, "Sail from here"; Esc closes the card first, the chart stays
 //   sail      "Sail from here" moves her to Vikingsholm under the veil and the chart closes
-//   cost      the dynamic layer's p95 under 1.5 ms a frame
+//   cost      the dynamic layer's p95 under 1.5 ms a frame; one touch read a draw (a work count)
 // Run by `npm run test:pages:v2 -- liveChart` (LAKESHORE_BASE set), or node v2/tests/pages/liveChart.page.mjs --base http://127.0.0.1:<port>
 import { chromium } from 'playwright-core';
 import { pickMode } from './pick.mjs';
@@ -93,6 +93,7 @@ await page.waitForTimeout(1500);
 const b1 = await lc(() => { const b = window.__velia.boat.state; return { x: b.x, z: b.z }; });
 check(Math.hypot(b1.x + 220, b1.z - 220) < 120, `sail: Sail from here moves her to Vikingsholm (${b1.x.toFixed(0)}, ${b1.z.toFixed(0)})`);
 check(await lc(() => !window.__velia.m4.ui.services.get('liveChart').shown && !window.__velia.m4.ui.services.get('chart').chart.toggle.pinned), 'sail: the chart closes so the move is seen');
+check(stats.touchReadsMax <= 1 && stats.touchReads < stats.draws, `cost: one touch read a draw at most, fewer reads than draws (${stats.touchReads} reads in ${stats.draws} draws; most ${stats.touchReadsMax})`);   // a work count: gated always
 check(stats.draws > 10 && stats.drawMsP95 < 1.5, `cost: ${stats.draws} draws, p95 ${stats.drawMsP95} ms, max ${stats.drawMsMax} ms (budget 1.5 ms)`);
 check(!errors.length, `no page errors${errors.length ? `: ${errors.slice(0, 3).join(' | ')}` : ''}`);
 await browser.close();

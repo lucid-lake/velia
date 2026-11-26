@@ -180,8 +180,10 @@ function nameSprite(text, { fs, italic, ink, dpr, halo = null, mark = '' }) {
 }
 
 export function createChart({ hint = null, el, size = 'play', mode = 'play', services = null, sources = {}, actions = null, ground = {}, insets = {},
-  touch = () => false, reduced = () => false, view: view0 = null, ux = null } = {}) {
+  touch: touchRead = () => false, reduced = () => false, view: view0 = null, ux = null } = {}) {
   if (!el) throw new Error('createChart: an el is needed');
+  let touchReads = 0;
+  const touch = () => { touchReads++; return touchRead(); };   // counted: a draw reads it once at most (stats().touchReadsMax, a work count)
   ensureTokens();
   if (!document.getElementById('lk-livechart-css')) { const st = document.createElement('style'); st.id = 'lk-livechart-css'; st.textContent = CSS; document.head.appendChild(st); }
   el.classList.add('lkc');
@@ -207,7 +209,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   const WORDS = { ...ACTION_WORDS, ...WATER_WORDS };
   const src = (k, d) => { try { return sources[k]?.() ?? d; } catch { return d; } };
   const boat = () => src('boat', null);
-  const maxClass = () => (touch() && S.maxClass === 'C' ? 'B' : S.maxClass);
+  const maxClass = (t = touch()) => (t && S.maxClass === 'C' ? 'B' : S.maxClass);
 
   // ---- the size and the view ----
   let W = 0, H = 0, dpr = 1;
@@ -216,7 +218,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   function layout() {
     const w = el.clientWidth || 1, h = el.clientHeight || 1, d = Math.min(2, globalThis.devicePixelRatio || 1);
     if (w === W && h === H && d === dpr) return false;
-    W = w; H = h; dpr = d; cv.width = Math.round(w * d); cv.height = Math.round(h * d); sprites.clear(); dirty = true;
+    W = w; H = h; dpr = d; touchAt = -Infinity; cv.width = Math.round(w * d); cv.height = Math.round(h * d); sprites.clear(); dirty = true;
     view = clampView(view, { w: W, h: H, size });
     return true;
   }
@@ -306,6 +308,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   const rowById = (id) => (id === 'water' ? waterRow : rows.find((r) => r.id === id || r.ref === id) ?? null);
   // a point's name: its own label in NAMES when it has one (the area, the places), else set off its mark (a pin's)
   const LABEL_OF = { 'pl-vikingsholm': 'n-vikingsholm', 'pl-falls': 'n-falls', 'pl-fannette': 'n-fannette' };
+  const POI_OF = Object.fromEntries(Object.entries(LABEL_OF).map(([k, n]) => [n, k]));   // a label id → its point (the inverse)
   function names() {
     const out = namesFor(rows.filter((r) => r.kind === 'birthplace')).map((n) => ({ ...n }));
     for (const r of rows) {
@@ -324,16 +327,20 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   const hot = (id) => id && (id === hover || id === focusId || id === selId);
 
   // ---- drawing ----
-  const stats = { draws: 0, ms: [], max: 0 };
+  const stats = { draws: 0, ms: [], max: 0, touchMax: 0, touchSum: 0 };
   const drawn = { pois: [], labels: [], ground: 'none', sheets: [], navLine: [] };
   const P = [0, 0];
+  // touch() is a live feature read (features.js publishes every policy on each call: 0.1 ms or more under load; about 80 reads a draw
+  // pushed the draw past 1.5 ms). The draw reads it at most twice a second (and at once after show or a resize: touchAt = -Infinity);
+  // the names' sizes, sprite keys, classes and the boat use that one answer
+  let touchNow = false, touchAt = -Infinity;
   function fontSize(n) {
-    const t = touch();
+    const t = touchNow;
     if (n.id === 'n-bay') return t ? 19 : 17;
     return n.cls === 'A' ? (t ? 17 : 15) : n.cls === 'B' ? (t ? 15 : 13) : (t ? 15 : 12);
   }
   function spriteOf(n, ink) {
-    const key = `${n.id}|${n.text}|${n.mark ?? ''}|${dpr}|${ink.join(',')}|${touch() ? 1 : 0}|${nightNow > 0.5 ? 1 : 0}`;
+    const key = `${n.id}|${n.text}|${n.mark ?? ''}|${dpr}|${ink.join(',')}|${touchNow ? 1 : 0}|${nightNow > 0.5 ? 1 : 0}`;
     let s = sprites.get(key);
     if (!s) { s = nameSprite(n.text, { fs: fontSize(n), mark: n.mark ?? '', italic: n.kind === 'water', ink, dpr, halo: nightNow > 0.5 ? NIGHT_INK.halo : null }); sprites.set(key, s); if (sprites.size > 200) sprites.delete(sprites.keys().next().value); }
     return s;
@@ -425,16 +432,24 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     const bar = (nm * nmM) / mpp, x1 = W - ins.right - 18, x0 = x1 - bar, y = H - ins.bottom - 20;
     return { nm, x0, x1, y, nx: x0 - 70 };
   }
+  // the soundings to set: the bay's, then each loaded detail sheet's (the numerals as strings), rebuilt only when a sheet comes in
+  let sndKey = null, sndList = [];
+  function soundingList() {
+    const lazy = Object.values(SHEETS).filter((S) => S.lazy && sheetOf(S.id, 'day')), key = lazy.map((S) => S.id).join(',');
+    if (key !== sndKey) { sndKey = key; sndList = [...GROUND_BAKE.soundings, ...lazy.flatMap((S) => SHEET_BAKE[S.id]?.soundings ?? [])].map(([x, z, d]) => [x, z, String(d)]); }
+    return sndList;
+  }
   let lastT = now();
   function draw(dt, t0 = now()) {
-    const v = visView(), g = cv.getContext('2d');
+    const v = visView(), g = cv.getContext('2d'), reads0 = touchReads;
+    if (t0 - touchAt >= 500) { touchNow = !!touch(); touchAt = t0; }
     const night = clamp(+src('night', 0) || 0, 0, 1);
     nightNow = night;
     const ink = mix3(TOKENS.cream, NIGHT_INK.ink, night), amber = mix3(TOKENS.amber, TOKENS.night.amber, night), bg = mix3(TOKENS.brandNavy, NIGHT_INK.halo, night);
     const I = (a) => rgba(ink, Math.min(1, a * (1 + 0.25 * night))), A = (a) => rgba(amber, a);
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawGround(g, v, night);
-    const mpp = v.mpp, mc = maxClass(), inView = (x, z, pad = 40) => { v.toPx(x, z, P); return P[0] > -pad && P[0] < W + pad && P[1] > -pad && P[1] < H + pad; };
+    const mpp = v.mpp, mc = maxClass(touchNow), inView = (x, z, pad = 40) => { v.toPx(x, z, P); return P[0] > -pad && P[0] < W + pad && P[1] > -pad && P[1] < H + pad; };
 
     // your wake (?mapux=1): every water sailed on this device, a faint broad band under today's track
     if (uxApi?.wakeOn()) drawWake(g, v, uxApi.wake.voyages, { rgba, ink, deep: bg, mpp });
@@ -500,39 +515,38 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     const sc = scaleGeo(mpp);
     keep.push([sc.nx - 12, sc.y - 32, sc.x1 + 4, sc.y + 6]);
     // the names: laid out by class, then nearest the centre; each fades to its target over 0.2 s; a lifted name at 94 %
-    const nl = names(), meas = (n) => { const s = spriteOf(n, ink); return { w: s.w, h: s.h }; };
+    const nl = names(), nById = new Map(nl.map((n) => [n.id, n])), rowOf = new Map(rows.map((r) => [r.id, r])), meas = (n) => { const s = spriteOf(n, ink); return { w: s.w, h: s.h }; };
     const lay = layoutLabels(nl, (x, z, o) => v.toPx(x, z, o), meas, { w: W, h: H, mpp, maxClass: mc, keep, cx: v.cx, cz: v.cz });
     // the soundings, the closest zoom only: italic numerals in the ink at half alpha, never under a name or a point (a sounding inside
     // "Fannette Island" or "Emerald Bay" garbled both, most of all in the night's brighter ink: the panel helper's night menu, 2026-11-18)
-    if (classVisible('C', mpp, mc) && !touch()) {
+    if (classVisible('C', mpp, mc) && !touchNow) {
       const boxes = keep.slice();
       for (const L of lay) {
         if (!L.shown || !Number.isFinite(L.x)) continue;
-        const n = nl.find((q) => q.id === L.id), al = L.align ?? n?.align, x0 = al === 'left' ? 0 : al === 'right' ? -L.w : -L.w / 2, a = ((n?.angle ?? 0) * Math.PI) / 180;
+        const n = nById.get(L.id), al = L.align ?? n?.align, x0 = al === 'left' ? 0 : al === 'right' ? -L.w : -L.w / 2, a = ((n?.angle ?? 0) * Math.PI) / 180;
         const cs = Math.cos(a), sn = Math.sin(a), pts = [[x0, -L.h / 2], [x0 + L.w, -L.h / 2], [x0, L.h / 2], [x0 + L.w, L.h / 2]].map(([px, py]) => [L.x + px * cs - py * sn, L.y + px * sn + py * cs]);
         boxes.push([Math.min(...pts.map((q) => q[0])) - 6, Math.min(...pts.map((q) => q[1])) - 4, Math.max(...pts.map((q) => q[0])) + 6, Math.max(...pts.map((q) => q[1])) + 4]);
       }
       g.font = `italic 400 11px ${UI}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = rgba(ink, INK.sounding + (NIGHT_INK.sounding - INK.sounding) * night);
-      const lazy = Object.values(SHEETS).filter((S) => S.lazy && sheetOf(S.id, 'day')).flatMap((S) => SHEET_BAKE[S.id]?.soundings ?? []);   // a detail sheet's numerals once it is in
-      for (const [x, z, d] of [...GROUND_BAKE.soundings, ...lazy]) {
+      for (const [x, z, d] of soundingList()) {
         if (!inView(x, z, 10)) continue;
         const sx = P[0], sy = P[1];
         if (boxes.some((bx) => sx + 8 > bx[0] && sx - 8 < bx[2] && sy + 6 > bx[1] && sy - 6 < bx[3])) continue;
-        g.fillText(String(d), sx, sy);
+        g.fillText(d, sx, sy);
       }
     }
     let fading = false;
     const out = [];
     for (const L of lay) {
-      const n = nl.find((q) => q.id === L.id), poiId = n.poi ?? Object.keys(LABEL_OF).find((k) => LABEL_OF[k] === n.id);
+      const n = nById.get(L.id), poiId = n.poi ?? POI_OF[n.id], lit = !!(n.poi && rowOf.get(n.poi)?.lit);
       const lifted = poiId && hot(poiId);
       const target = L.shown || lifted ? 1 : 0, a0 = alphas.get(L.id) ?? 0, a = reduced() ? target : fadeTo(a0, target, dt);
       if (a !== target) fading = true;
       alphas.set(L.id, a);
       out.push({ id: L.id, shown: L.shown, alpha: +a.toFixed(3), x: Math.round(L.x), y: Math.round(L.y), w: Math.round(L.w), h: Math.round(L.h) });
       if (a <= 0.003 || !Number.isFinite(L.x)) continue;
-      const s = spriteOf(n, n.poi && rows.find((r) => r.id === n.poi)?.lit ? amber : ink), base = lifted ? INK.lifted : (n.kind === 'land' ? INK.land + (NIGHT_INK.land - INK.land) * night : INK.water + (NIGHT_INK.water - INK.water) * night);
-      g.save(); g.globalAlpha = a * base * (n.poi && rows.find((r) => r.id === n.poi)?.lit ? 1.15 : 1);
+      const s = spriteOf(n, lit ? amber : ink), base = lifted ? INK.lifted : (n.kind === 'land' ? INK.land + (NIGHT_INK.land - INK.land) * night : INK.water + (NIGHT_INK.water - INK.water) * night);
+      g.save(); g.globalAlpha = a * base * (lit ? 1.15 : 1);
       g.translate(L.x, L.y); if (n.angle) g.rotate((n.angle * Math.PI) / 180);
       const al = L.align ?? n.align; g.drawImage(s.cv, al === 'left' ? 0 : al === 'right' ? -s.w : -s.w / 2, -s.h / 2, s.w, s.h);
       g.restore();
@@ -552,7 +566,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       const hd = b.heading ?? 0, [hx, hy] = v.dirPx(hd), [cx, cy] = v.dirPx(b.cog ?? hd), vv = ((b.sog ?? 0) * 60) / mpp;
       if (vv > 3) { g.beginPath(); g.moveTo(P[0], P[1]); g.lineTo(P[0] + cx * vv, P[1] + cy * vv); g.strokeStyle = rgba(bg, 0.7); g.lineWidth = 3.4; g.stroke(); g.strokeStyle = A(0.9); g.lineWidth = 1.4; g.stroke(); }
       if (ownBoat) { g.save(); g.translate(P[0], P[1]); g.rotate(Math.atan2(hx, -hy));
-      const k = touch() ? 1.5 : 1.3;
+      const k = touchNow ? 1.5 : 1.3;
       g.beginPath(); g.moveTo(0, -7.5 * k); g.bezierCurveTo(3.6 * k, -3.5 * k, 3.4 * k, 3 * k, 2.4 * k, 5.5 * k); g.lineTo(-2.4 * k, 5.5 * k); g.bezierCurveTo(-3.4 * k, 3 * k, -3.6 * k, -3.5 * k, 0, -7.5 * k); g.closePath();
       g.strokeStyle = rgba(bg, 0.85); g.lineWidth = 3.6; g.stroke(); g.fillStyle = A(0.3); g.fill(); g.strokeStyle = A(1); g.lineWidth = 1.6; g.stroke();
       g.restore(); }   // ownBoat false: the map's boat layer (mapBoat.js) draws her instead
@@ -577,6 +591,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       g.textAlign = 'center'; g.fillText('N', nx, ny - 18);
     }
     const ms = now() - t0;
+    stats.touchMax = Math.max(stats.touchMax, touchReads - reads0); stats.touchSum += touchReads - reads0;
     stats.draws++; stats.ms.push(ms); if (stats.ms.length > 300) stats.ms.shift(); stats.max = Math.max(stats.max, ms);
     return fading;
   }
@@ -808,7 +823,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     shown = on;
     uxApi?.show(on);
     if (on) {
-      lastT = now(); layout(); refreshRows();
+      lastT = now(); touchAt = -Infinity; layout(); refreshRows();
       if (S.follow && following) { const f = followTarget(); if (f) view = clampView(f, { w: W, h: H, size }); }
       dirty = true; raf = requestAnimationFrame(frame); showHint();
     } else { hideHint(); if (raf) cancelAnimationFrame(raf); raf = 0; closeCard(); setHover(null); focusId = null; press = null; pinch = null; fingers.clear(); }
@@ -889,7 +904,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     },
     stats() {
       const a = [...stats.ms].sort((x, y) => x - y), pct = (p) => (a.length ? a[Math.min(a.length - 1, Math.floor(p * a.length))] : 0);
-      return { navLine: drawn.navLine, draws: stats.draws, drawMsMean: +(a.reduce((s, x) => s + x, 0) / Math.max(1, a.length)).toFixed(3), drawMsP95: +pct(0.95).toFixed(3), drawMsMax: +stats.max.toFixed(3),
+      return { navLine: drawn.navLine, draws: stats.draws, drawMsMean: +(a.reduce((s, x) => s + x, 0) / Math.max(1, a.length)).toFixed(3), drawMsP95: +pct(0.95).toFixed(3), drawMsMax: +stats.max.toFixed(3), touchReadsMax: stats.touchMax, touchReads: stats.touchSum,
         bake: { day: +bakeMs.day.toFixed(1), night: +bakeMs.night.toFixed(1), slices: bakeMs.slices, maxSliceMs: +bakeMs.maxSliceMs.toFixed(2) } };
     },
     destroy() {
