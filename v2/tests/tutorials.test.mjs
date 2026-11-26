@@ -63,7 +63,7 @@ test('the finger\'s and the phone\'s words name no key; the keyboard\'s say clic
 test('the facts the owner asked for are there, true to the code', () => {
   const all = text(tutorialsHtml());
   for (const s of ['NAV', 'Set as target', 'beating', 'layline', 'no-go zone', 'in irons', 'Overpowered — ease the sails or reef', 'past 55°', 'Start again',
-    'Cruise never knocks down', 'A · 0 · 1 · 2', '3 to 20 m', 'Boat Camp', '22 white balls', 'Surprise me', 'Sail from here', 'Tessie’s water',
+    'Cruise never knocks down', 'A · 0 · 1 · 2', '3 to 20 m', 'Boat Camp', '22 white balls', 'Sail from here', 'Tessie’s water',
     'Never charge her', 'Tessie said no.', '21:44', 'Dawn 05:36', 'Osprey 17', 'to port', 'starboard tack', 'Settings that help', 'your sailing', 'Set sail', 'Resume', 'Cruise ⇄', 'Add waypoint', 'Set course', 'Clear route', 'double-click']) assert.ok(all.includes(s), s);
   // what is not on main stays out: no glass boat, no white rival hulls, no meteors; the top bar has no Chart button since the Sail ⇄ Cruise one
   assert.doesNotMatch(all, /glass[- ]bottom|glass boat|white hull|meteor|shooting star|Chart on the top bar|Tap Chart/i);

@@ -3,7 +3,7 @@
 //   waters   Waters: Emerald Bay (lit) and a greyed "More lakes later" cell (not mounted since 2026-11-20: the waters row is a plain label
 //            while there is one lake; panelPlan.js WATERS_OPENS brings it back)
 //   (boat    gone,: the vessel row is two buttons, Halcyon | Tessie, panelPlan.js; BOATS and boatsShown stay as the boats' words)
-//   start    Start: the birthplaces (names as on the map) and Surprise me; a pick lights its pin and selects it, it never starts the sail
+//   start    Start: the birthplaces (names as on the map); a pick lights its pin and selects it, it never starts the sail
 //   cond     Time of day · Weather · Wind: the top bar's quick picks (the one conditions row opens it; owner, 2026-11-20)
 // Every group wears a short caption (the segment's own aria-label made visible: no new words).
 // THE TESSIE CELL (on): a boat row with `gate: 'playTessie'` is shown only when plateHtml gets { tessie: true };
@@ -20,7 +20,6 @@ export const BOATS = Object.freeze([
   Object.freeze({ id: 'halcyon', name: 'Halcyon 28 ft', line: 'A cruising sloop. Sail her, or hand the helm to the skipper.' }),
   Object.freeze({ id: 'tessie', name: 'Tessie', line: 'The lake’s legend, 19 m of granite. Swim, dive and knock boats over.', gate: 'playTessie' }),
 ]);
-export const SURPRISE_ID = 'random';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const group = (cap, label, cls, inner) => `<div class="grp"><div class="cap" aria-hidden="true">${esc(cap)}</div><div class="${cls}" role="radiogroup" aria-label="${esc(label)}">${inner}</div></div>`;
@@ -34,8 +33,7 @@ export const boatsShown = ({ tessie = false } = {}) => BOATS.filter((b) => !b.ga
 export function plateHtml(kind, d = {}) {
   if (kind === 'waters') return group(CAPTIONS.waters, 'Waters', 'cells', WATERS_CELLS.map((w) => cell(`waters:${w.id}`, w.name, { disabled: w.disabled })).join(''));
   if (kind === 'start') {
-    const rows = (d.births ?? []).concat([{ id: SURPRISE_ID, name: 'Surprise me' }]);
-    return group(CAPTIONS.start, 'Where she starts', 'grid', rows.map((r) => cell(`start:${r.id}`, r.name, { disabled: !!r.disabled })).join(''));   // disabled: a shallow pin while Tessie is picked
+    return group(CAPTIONS.start, 'Where she starts', 'grid', (d.births ?? []).map((r) => cell(`start:${r.id}`, r.name, { disabled: !!r.disabled })).join(''));   // disabled: a shallow pin while Tessie is picked
   }
   if (kind === 'cond') {
     return (d.times?.length ? seg('time', 'Time of day', d.times) : '') + (d.weather?.length ? seg('weather', 'Weather', d.weather) : '') + (d.levels?.length ? seg('wind', 'Wind', d.levels) : '');

@@ -171,7 +171,7 @@ export function installFront({ settings, B, windField = null, clock, views = nul
     home, soon, setup, phoneCard, tutorials,
     // the birthplaces' service is up (main.js): the card's pins and the voyage line's place
     mountBirthplaces(service) {
-      const name = () => { const r = service.list().find((x) => x.id === (service.current ?? (service.chosen === 'random' ? null : service.chosen))); return r?.name ?? ''; };
+      const name = () => { const r = service.list().find((x) => x.id === (service.current ?? service.chosen)); return r?.name ?? ''; };
       bp = { name };
       this.birthplaceCard = mountBirthplaceCard(root, { service, home, touch: () => !!phoneCard });
       home.paint();

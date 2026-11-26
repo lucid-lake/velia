@@ -25,7 +25,7 @@
 // services: 'conditions' (v2/ui/sail.js: { hour(), date(), wind(), level(), setLevel(n), levels, weather: { current(), pick(id), rows },
 // time: { rows, current(), pick(id) } }), 'birthplace'. Without 'conditions' the two rows stay hidden.
 import { shipClock } from '../../../src/ui/shipClock.js';
-import { plateHtml, KIND_OF, PLATES_CSS, SURPRISE_ID } from './panelPlates.js';
+import { plateHtml, KIND_OF, PLATES_CSS } from './panelPlates.js';
 
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const compass8 = (deg) => COMPASS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
@@ -205,7 +205,7 @@ export function mountPanelPlan({ root, services, chart = null, showTessie = () =
   function paintPlate() {
     if (pl.hidden) return;
     const c = cond(), s = bp();
-    const now = { time: c?.time?.current?.() ?? null, weather: c?.weather?.current?.() ?? null, wind: String(c?.level?.() ?? ''), waters: 'emerald', boat, start: s ? (s.current ?? (s.chosen === SURPRISE_ID ? null : s.chosen)) : null };
+    const now = { time: c?.time?.current?.() ?? null, weather: c?.weather?.current?.() ?? null, wind: String(c?.level?.() ?? ''), waters: 'emerald', boat, start: s ? (s.current ?? (s.chosen)) : null };
     for (const b of pl.querySelectorAll('[data-pc]')) { const [k, id] = b.dataset.pc.split(':'); b.setAttribute('aria-checked', String(now[k] === id)); }
   }
   function placePlate() {
@@ -233,15 +233,10 @@ export function mountPanelPlan({ root, services, chart = null, showTessie = () =
     opener = null; return true;
   }
   // a pick on the Start plate: the pin is selected like a click on it (at the entrance that picks it and lights it; in play it opens its
-  // card), never a start; Surprise me picks one of the other places
+  // card), never a start
   function pickStart(id) {
     const s = bp(); if (!s) return;
-    let pid = id;
-    if (id === SURPRISE_ID) {
-      const ids = s.list().filter((r) => !r.locked && (boat !== 'tessie' || deepOk(r))).map((r) => r.id), lit = s.current ?? s.chosen, pool = ids.filter((i) => i !== lit);   // Tessie: her deep pins only
-      const from = pool.length ? pool : ids; pid = from[Math.floor(Date.now() / 1000) % from.length];
-    }
-    if (!chart?.focus?.(pid)) s.pick(pid);
+    if (!chart?.focus?.(id)) s.pick(id);
   }
   pl.addEventListener('click', (e) => {
     const b = e.target.closest?.('[data-pc]'); if (!b || b.disabled) return;

@@ -1,5 +1,5 @@
 // The panel's side plates' words and markup (v2/ui/chart/panelPlates.js): Waters has Emerald Bay and a greyed
-// "More lakes later"; Boat has Halcyon and keeps Tessie out until the phase-1 flag is on; Start has the birthplaces and Surprise me;
+// "More lakes later"; Boat has Halcyon and keeps Tessie out until the phase-1 flag is on; Start has the birthplaces;
 // the conditions wear their captions.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -28,10 +28,10 @@ test('Boat: no plate any more (the row is two buttons); the boats’ words stay,
   assert.deepEqual(boatsShown({ tessie: true }).map((b) => b.id), ['halcyon', 'tessie']);
 });
 
-test('Start: the birthplaces in the map’s names, then Surprise me', () => {
+test('Start: the birthplaces in the map’s names, no Surprise me', () => {
   const h = plateHtml('start', { births: [{ id: 'tessie', name: 'Tessie’s water' }, { id: 'fannette', name: 'Off Fannette' }] });
-  assert.deepEqual(keys(h), ['start:tessie', 'start:fannette', 'start:random']);
-  assert.match(h, /Surprise me/);
+  assert.deepEqual(keys(h), ['start:tessie', 'start:fannette']);
+  assert.doesNotMatch(h, /Surprise/);
 });
 
 test('conditions: a caption over each segmented row, matching its aria-label', () => {

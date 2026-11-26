@@ -1,7 +1,7 @@
 // The birthplaces (v2/sim/birthplace.js, 73 § 2; owner, 2026-11-18): the waters file's rows pass the depth and
 // shore check; the reach rule is never in irons in any wind at any row; the land probe flips the tack; a tie is starboard; the
 // fireworks evening faces the show out of irons; the first visit is Tessie's water within 600 m of Fannette; the saved pick,
-// ?birth= and the URL pin; Surprise me by seed; the move under the veil, refused in a race or a knockdown; the fan-out's
+// ?birth= and the URL pin; the move under the veil, refused in a race or a knockdown; the fan-out's
 // pieces (the first gust relaid, the stage quiet, the passage's leg).
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -90,12 +90,15 @@ test('the first visit: Tessie\'s water, within 600 m of Fannette; the saved pick
   assert.equal(resolveStart({ waters: W, settings: s, flags: parseV2Flags('?birth=narrows&heading=200') }).id, 'narrows', '?birth= with a heading: the row (the page pins the heading)');
 });
 
-test('Surprise me: the same seed, the same row; seeds spread over the rows; sticky once saved', () => {
-  const a = resolveStart({ waters: W, flags: parseV2Flags('?birth=random'), seed: 7 }), b = resolveStart({ waters: W, flags: parseV2Flags('?birth=random'), seed: 7 });
-  assert.equal(a.id, b.id); assert.equal(a.pick, 'random');
-  const seen = new Set(); for (let k = 1; k <= 60; k++) seen.add(chooseBirthplace(ROWS, 'random', { seed: k }).id);
-  assert.equal(seen.size, ROWS.length, `60 seeds reach every row (${[...seen]})`);
-  assert.equal(resolveStart({ waters: W, settings: store({ birthplace: 'random' }), seed: 3 }).pick, 'random');
+test('an old saved or flagged \'random\' (the removed Surprise me) falls back to the default row', async () => {
+  const first = resolveStart({ waters: W }).id;
+  const a = resolveStart({ waters: W, settings: store({ birthplace: 'random' }) });
+  assert.equal(a.id, first); assert.equal(chooseBirthplace(ROWS, 'random').id, first);
+  assert.equal(resolveStart({ waters: W, flags: parseV2Flags('?birth=random') }).id, first);
+  const s = service({ veil: null });
+  s.settings.set('birthplace', 'random');
+  assert.equal(s.bp.chosen, first, 'the service reads a stored random as the default');
+  assert.equal((await s.bp.moveTo('random')).why, 'unknown'); assert.equal(s.bp.pick('random'), null);
 });
 
 test('the dayClock veil and the move\'s are the same (0.35 s out, 0.05 s held, 0.45 s in)', () => {
@@ -141,10 +144,6 @@ test('moveTo: at once with no veil or reduced motion; refused in a race and in a
   assert.equal(s.bp.pick('nowhere'), null);
   assert.equal(s.bp.pick('narrows').id, 'narrows'); assert.equal(s.settings.v.birthplace, 'narrows'); assert.equal(s.placed.length, 0);
   assert.equal(s.bp.chosen, 'narrows');
-  // Surprise me as a move: never the row she is at, the same rows for the same seed
-  const a = service({ veil: null }), b = service({ veil: null });
-  const ra = await a.bp.moveTo('random'), rb = await b.bp.moveTo('random');
-  assert.equal(ra.id, rb.id); assert.notEqual(ra.id, 'tessie'); assert.equal(a.settings.v.birthplace, 'random');
 });
 
 test('the fan-out: the first gust relaid ahead of the new pose and spreading in; the stage quiet 15 s; the passage\'s leg from here', () => {
@@ -180,8 +179,6 @@ test('the settings row: none picked by default (a first visit, Cruise keeps its 
   assert.equal(resolveStart({ waters: W, settings: s }).source, 'first');
   s.set('birthplace', 'narrows');
   assert.equal(resolveStart({ waters: W, settings: createSettings({ storage }) }).id, 'narrows', 'remembered across loads');
-  s.set('birthplace', 'random');
-  assert.equal(resolveStart({ waters: W, settings: createSettings({ storage }), seed: 4 }).pick, 'random');
 });
 
 test('moveTo { instant }: no veil even with one (the first card: she is placed behind the loading shell); the moved event still fires', async () => {
@@ -189,18 +186,4 @@ test('moveTo { instant }: no veil even with one (the first card: she is placed b
   const seen = []; s.bp.on('moved', (e) => seen.push(e.id));
   const r = await s.bp.moveTo('fannette', { instant: true });
   assert.equal(r.ok, true); assert.equal(s.veils.length, 0); assert.equal(s.placed.length, 1); assert.deepEqual(seen, ['fannette']); assert.equal(s.bp.current, 'fannette');
-});
-
-test('Surprise me picks among the places on the page\'s detail level (main.js pool): a bay page never draws Off Ski Run', async () => {
-  const { levelKeyOfBirth } = await import('../terrain/region.js');
-  const bay = (rows) => rows.filter((r) => levelKeyOfBirth(W, r.id) === 'bay');
-  const seen = new Set();
-  for (let seed = 1; seed <= 40; seed++) {
-    const placed = [];
-    const bp = createBirthplaces({ waters: W, settings: store(), seed, current: 'tessie', windAt: () => 200, depthAt, place: (p) => placed.push(p), pool: bay });
-    const r = await bp.moveTo('random', { instant: true });
-    assert.ok(r.ok); seen.add(r.id);
-  }
-  assert.ok(!seen.has('ski-run') && seen.size >= 3, [...seen].join(', '));
-  assert.equal(levelKeyOfBirth(W, 'ski-run'), 'south-lake');
 });
