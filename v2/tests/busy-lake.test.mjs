@@ -21,7 +21,7 @@ import { ANCHORED_BOATS } from '../sim/anchoredBoats.js';
 import { CHANNEL, channelAt } from '../terrain/channel.js';
 import { decodePlanGrid, planChart } from '../ui/planChart.js';
 import { chartInputs } from '../cruise/chartRows.js';
-import { birthplaceRows } from '../sim/regions.js';
+import { birthplaceRows, trafficOf } from '../sim/regions.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const WATERS = JSON.parse(readFileSync(resolve(ROOT, 'src/waters/tahoe-emerald.json'), 'utf8'));
@@ -233,6 +233,25 @@ test('every route on the chart: each leg in 4 m of water or more and 80 m off th
         if (channelAt(x, z, CHANNEL).d < 60) continue;
         assert.ok(C.depthAt(x, z) >= 4 && C.shoreAt(x, z) >= 80, `${b.id} leg ${i}: (${x.toFixed(0)}, ${z.toFixed(0)}) ${C.depthAt(x, z).toFixed(1)} m deep, ${C.shoreAt(x, z).toFixed(0)} m off`);
         for (const [cx, cz, kr] of r.keepOut ?? []) assert.ok(Math.hypot(x - cx, z - cz) >= kr, `${b.id} leg ${i}: inside the keep-out at (${cx}, ${cz})`);
+      }
+    }
+  }
+});
+
+// the regions' power traffic (South Lake: the paddle-wheeler, the runabouts, the jet ski; v2/sim/regions.js trafficOf): the same rule,
+// the jet ski's S-curves included (its weave either side of the loop), every keep-out disc, and 250 m off every start
+test('every traffic route on the chart: each leg (the jet ski\'s weave both sides) in 4 m of water or more and 80 m off the shore, outside every keep-out disc and 250 m off every start', () => {
+  const C = chart(), rows = trafficOf(WATERS), discs = WATERS.regions.flatMap((r) => r.keepOut ?? []);
+  assert.ok(rows.length >= 4 && ['paddle', 'power', 'jetski'].every((k) => rows.some((r) => r.kind === k)), rows.map((r) => r.id).join());
+  for (const b of rows) {
+    const R = b.route.map((e) => (Array.isArray(e) ? e : e.at)), off = b.weave ? [-b.weave[0], 0, b.weave[0]] : [0];
+    for (let i = 0; i < R.length; i++) {
+      const a = R[i], c = R[(i + 1) % R.length], L = Math.hypot(c[0] - a[0], c[1] - a[1]), nx = -(c[1] - a[1]) / L, nz = (c[0] - a[0]) / L;
+      for (let d = 0; d <= L; d += 20) for (const w of off) {
+        const x = a[0] + (c[0] - a[0]) * d / L + nx * w, z = a[1] + (c[1] - a[1]) * d / L + nz * w;
+        assert.ok(C.depthAt(x, z) >= 4 && C.shoreAt(x, z) >= 80, `${b.id} leg ${i}: (${x.toFixed(0)}, ${z.toFixed(0)}) ${C.depthAt(x, z).toFixed(1)} m deep, ${C.shoreAt(x, z).toFixed(0)} m off`);
+        for (const [cx, cz, kr] of discs) assert.ok(Math.hypot(x - cx, z - cz) >= kr, `${b.id} leg ${i}: inside the keep-out at (${cx}, ${cz})`);
+        for (const [sx, sz] of STARTS) assert.ok(Math.hypot(x - sx, z - sz) >= 250, `${b.id} leg ${i}: (${x.toFixed(0)}, ${z.toFixed(0)}) within 250 m of the start (${sx}, ${sz})`);
       }
     }
   }

@@ -16,6 +16,8 @@
 import { createKayaksPlugin } from './kayaks.js';
 import { createTourBoatPlugin } from './tourBoat.js';
 import { createPaddlePlugin } from './paddleWheeler.js';
+import { createPowerPlugin } from './powerBoats.js';
+import { trafficOf } from '../sim/regions.js';
 import { pageSettings } from '../ui/settingsStore.js';   // Tessie's row: her sound's switches, her key hints
 import { reducedNow } from '../sim/steadyCamera.js';
 import { createBusyLake, BUSY, bumpAt } from './busyLake.js';
@@ -91,28 +93,69 @@ const TOUR = {
   hook: (t) => ({ tour: t }),
 };
 
-// the paddle-wheeler (South Lake's birthplace, phase C part 1): a generic 46 m stern-wheeler, one model for every paddle-wheeler on the
-// lake; one pipeline and one draw in the boat effects' group, her wake in the vessels' map (yielding it to the glass boat when hers is
-// live), her nav lights. Off in play until her routes come: ?paddle=x,z,heading[,kn] places her under way for review
-// (src/core/features.js paddleWheeler: full on a desktop or a tablet at L0-L1; lite, the mid and far LODs only, at L2-L3 and on a phone)
+// the paddle-wheeler (South Lake's birthplace, phase C): a generic 46 m stern-wheeler, one model for every paddle-wheeler on the lake;
+// one pipeline and one draw in the boat effects' group, the vessels' wake map (hers or the nearest runabout's; yielding it to the glass
+// boat when hers is live), her nav lights. In play she runs her route (the south-lake region's traffic row of kind 'paddle': Ski Run ↔
+// off Emerald Bay) on every start, drawn wherever her route lies within the draw distance; a first birth in her region meets her
+// within 2 minutes; ?paddle=x,z,heading[,kn] places her straight for review (src/core/features.js paddleWheeler: full on a desktop or
+// a tablet at L0-L1; lite, the mid and far LODs only, at L2-L3 and on a phone)
+const paddleRow = () => trafficOf(CURRENT_WATERS, 'paddle')[0] ?? null;
+const birthIn = (c, region) => (c.sailBirth && c.birthRow?.region === region ? { x: c.startPose.x, z: c.startPose.z, headingDeg: c.startPose.headingDeg ?? 0, look: c.birthRow.look ?? null } : null);
 const PADDLE = {
   id: 'paddle', group: 'boatfx', createAt: 'living', statsAt: 'lake',
   on: (c) => c.boatOn && c.feature('paddleWheeler').tier !== 'off',
-  create: (c) => createPaddlePlugin({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: c.P.msaa, depthFormat: c.depthFormat, flags: c.flags, tier: c.feature('paddleWheeler').tier, wake: c.wake }),
+  create: (c) => createPaddlePlugin({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: c.P.msaa, depthFormat: c.depthFormat, flags: c.flags, tier: c.feature('paddleWheeler').tier, wake: c.wake, row: paddleRow() }),
   at: {
     boat: (p, c) => {
       const { B } = c;
       if (!B) return;
-      p.attach({ depthAt: (x, z) => -c.terrain.field.height(x, z) });
-      B.sea?.addPost?.((st, dt) => p.post(dt));
+      p.attach({ depthAt: (x, z) => -c.terrain.field.height(x, z), hour: c.clock.hour, seed: c.P.seed, birth: birthIn(c, paddleRow()?.region), onBump: (e) => c.beds?.cue('thud', { v: e.speed, mat: 'wood' }) });
+      B.sea?.addPost?.((st, dt) => p.post(dt, st));
     },
-    'compute.water': (p, c, pass, cc) => { if (c.PG.boatfx) p.runWater(pass, cc); },   // her wake map (after the glass boat's)
-    'fill.boats': (p, c, f) => p.fill(f.eye, f.sun.elevDeg, { heightAt: (x, z) => c.water.heightAt(x, z), race: f.race, wakeBusy: !!c.plugins.get('tour')?.wakeStats?.on }),
+    'compute.water': (p, c, pass, cc) => { if (c.PG.boatfx) p.runWater(pass, cc); },   // the vessels' map (after the glass boat's)
+    'fill.boats': (p, c, f) => p.fill(f.eye, f.sun.elevDeg, { heightAt: (x, z) => c.water.heightAt(x, z), race: f.race, wakeBusy: !!c.plugins.get('tour')?.wakeStats?.on, extra: (eye) => c.plugins.get('power')?.wakeEmitters(eye) ?? null }),
     'night.lights': (p, c, n, out, o) => (o.on && !c.regatta?.on ? n + p.lights(out, n * 8, { sunElevDeg: o.sunElevDeg, heightAt: o.heightAt }) : n),   // her nav lights (0 by day)
     'scene.solid3': (p, c, pass, cc, s) => { if (!s.race && c.PG.boatfx) p.draw(pass, cc); },   // her hull, decks and wheel (opaque, one draw)
   },
   stats: (p) => ({ paddle: p?.stats() ?? null }),
   hook: (p) => ({ paddle: p }),
+};
+
+// South Lake's power traffic (phase C; living/powerBoats.js, living/powerTraffic.js): two runabouts out of the Tahoe Keys and a jet ski
+// off Ski Run on the busy lake's rules, made only for a start in their region (the region's level loaded: a bay start makes nothing);
+// one pipeline, an instanced draw per kind and LOD; their wakes in the paddle-wheeler's vessels' map (their own when she has none);
+// the nearest one's engine heard (src/core/features.js powerBoats: 3 boats on a desktop or a tablet at L0-L1, 2 at L2-L3, 1 on a phone)
+const powerRows = (c) => trafficOf(CURRENT_WATERS).filter((r) => r.region === c.levelKey && (r.kind === 'power' || r.kind === 'jetski'));
+const POWER_SIDE = new WeakMap();
+const POWER_BOATS = {
+  id: 'power', group: 'boatfx', createAt: 'living', statsAt: 'lake',
+  on: (c) => c.boatOn && c.feature('powerBoats').tier !== 'off' && powerRows(c).length > 0,
+  create: (c) => createPowerPlugin({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: c.P.msaa, depthFormat: c.depthFormat, tier: c.feature('powerBoats').tier, rows: powerRows(c), wake: c.wake, ownWake: !c.plugins.get('paddle')?.hasWake, headless: !!c.P.headless }),
+  at: {
+    boat: (p, c) => {
+      const { B } = c;
+      if (!B) return;
+      p.attach({ seed: c.P.seed, hour: c.clock.hour, birth: birthIn(c, c.levelKey), depthAt: (x, z) => -c.terrain.field.height(x, z), onBump: (e) => c.beds?.cue('thud', { v: e.speed, mat: 'wood' }) });
+      // what they give way to: the paddle-wheeler (her right of way), the lake's sailboats (power gives way to sail), the kayakers, Tessie seen
+      const side = { others: [], pool: [], kay: null, kayT: -1e9 }; POWER_SIDE.set(p, side);
+      const A = p.K.avoid;
+      B.sea?.addPost?.((st, dt, t) => {
+        const { others, pool } = side; others.length = 0; let n = 0;
+        const put = (x, z, heading, u, m, seeM = null) => { const o = (pool[n++] ??= {}); o.x = x; o.z = z; o.heading = heading; o.u = u; o.m = m; o.seeM = seeM; others.push(o); };
+        const PW = c.plugins.get('paddle')?.sim; if (PW?.routed) put(PW.boat.x, PW.boat.z, PW.boat.heading, PW.boat.v, A.paddleM);
+        const L = c.plugins.get('busy'); if (L?.active) for (const b of L.liveBoats) { const q = b.phys.state; put(q.x, q.z, q.heading, Math.max(0, q.u ?? 0), A.boatM); }
+        const K = c.plugins.get('kayaks'); if (K?.fleet && (t - side.kayT > 0.5 || !side.kay)) { side.kayT = t; side.kay = K.fleet.marks(); }
+        if (side.kay) for (const k of side.kay) put(k.x, k.z, k.heading ?? 0, 1.2, A.kayakM);
+        p.post(st, dt, t, { hour: c.clock.hour, race: !!c.regatta?.on, others });
+      });
+    },
+    'audio.late': (p, c, audio) => p.setAudio(audio),
+    'compute.water': (p, c, pass, cc) => { if (c.PG.boatfx) p.runWater(pass, cc); },   // their own map (only when the paddle-wheeler has none)
+    'fill.boats': (p, c, f) => p.fill(f.eye, { heightAt: (x, z) => c.water.heightAt(x, z), race: f.race, wakeBusy: !!c.plugins.get('tour')?.wakeStats?.on || !!c.plugins.get('paddle')?.hasWake }),
+    'scene.solid3': (p, c, pass, cc, s) => { if (!s.race && c.PG.boatfx) p.draw(pass, cc); },
+  },
+  stats: (p) => ({ power: p?.stats() ?? null }),
+  hook: (p) => ({ power: p }),
 };
 
 // birds: v1's ospreys, eagles (one on the snag), gulls and geese (render/birds.js, sim/birds.js). ?birds=0 off; captures and automated
@@ -288,12 +331,13 @@ const BUSY_LAKE = {
         const T = c.plugins.get('tour')?.sim;
         let nO = 0;
         if (T?.active) { const g = T.boat; otherAt(nO++, g.x, g.z, g.heading, g.v ?? 0, BUSY.avoid.tourM); for (const k of T.kayaks) otherAt(nO++, k.x, k.z, k.heading ?? 0, k.a?.v ?? 0, BUSY.avoid.kayakM); }
+        const PW = c.plugins.get('paddle')?.sim; if (PW?.routed) otherAt(nO++, PW.boat.x, PW.boat.z, PW.boat.heading, PW.boat.v, BUSY.avoid.paddleM);   // the paddle-wheeler: right of way (the sailboats keep clear)
         const K = c.plugins.get('kayaks'); if (K?.fleet && (t - s.kayT > 0.5 || !s.kay)) { s.kayT = t; s.kay = K.fleet.marks(); }   // the kayakers (the regions' and v1's), read twice a second
         if (s.kay) for (const k of s.kay) otherAt(nO++, k.x, k.z, k.heading ?? 0, 1.2, BUSY.avoid.kayakM);
         if (K?.sup) for (const m of K.sup.marks()) otherAt(nO++, m.x, m.z, m.heading, 0.85, BUSY.avoid.kayakM);   // the paddleboarders: kept clear as the kayakers are
         { const th = c.player.threat(); if (th) otherAt(nO++, th.x, th.z, th.heading, th.u, th.m, th.seeM); }   // the played thing (Tessie): the boats bear away from it once they see it
         busy.post(st, dt, t, bc);
-        if (T?.setOthers) { states.length = 0; if (busy.active) for (const b of busy.boats) if (b.live) states.push(b.phys.state); T.setOthers(states); }
+        if (T?.setOthers) { states.length = 0; if (busy.active) for (const b of busy.boats) if (b.live) states.push(b.phys.state); if (PW?.routed) states.push(PW.boat); T.setOthers(states); }   // the glass boat yields to the paddle-wheeler too
       });
     },
     'fill.boats': (busy, c) => { if (!c.plugins.has('anchored')) fillLake(c); },   // the anchored boats' row fills both when it is on
@@ -375,7 +419,9 @@ export const TESSIE = {
       if (!c.feature('playTessie').on) return;
       const side = TESSIE_SIDE.get(t), { canvas, terrain, water, plugins } = c;
       side.play = side.mod.createTessiePlayer({ plugin: t, B, depthAt: (x, z) => -terrain.field.height(x, z),
-        busy: () => plugins.get('busy'), tour: () => plugins.get('tour')?.sim ?? null, kayaks: () => plugins.get('kayaks')?.fleet ?? null, sups: () => plugins.get('kayaks')?.sup ?? null, birthplaces: { moveTo: (id) => c.birthplaces?.moveTo(id) ?? Promise.resolve({ ok: false, why: 'unknown' }) },
+        busy: () => plugins.get('busy'), tour: () => plugins.get('tour')?.sim ?? null, kayaks: () => plugins.get('kayaks')?.fleet ?? null, sups: () => plugins.get('kayaks')?.sup ?? null,
+        traffic: () => [plugins.get('paddle')?.sim ?? null, plugins.get('power')?.sim ?? null].filter(Boolean),   // South Lake: the paddle-wheeler, the runabouts, the jet ski
+        birthplaces: { moveTo: (id) => c.birthplaces?.moveTo(id) ?? Promise.resolve({ ok: false, why: 'unknown' }) },
         veil: (op, secs) => c.sea?.hooks?.veil?.(op, secs), canvas, mode: () => c.modeNow(), race: () => !!c.regatta?.on, knocked: () => !!c.kdGame && c.kdGame.state !== 'sailing',
         reduced: () => reducedNow(), keyHints: () => pageSettings()?.get?.('keyHints') !== false,   // Setup › key hints: her legend as Sail's (the UI audit)
         services: () => c.m4.ui?.services ?? null, touch: () => c.feature('tessieTouch').on, headless: !!c.P.headless,
@@ -454,15 +500,15 @@ export const FIREWORKS = {
   hook: (fw) => ({ fireworks: fw }),   // the show (stats, the state, the GPU side)
 };
 
-export const LAKE_PLUGINS = [KAYAKS, TOUR, PADDLE, TESSIE, FIREWORKS, BIRDS, ANCHORED, BUSY_LAKE];
+export const LAKE_PLUGINS = [KAYAKS, TOUR, PADDLE, POWER_BOATS, TESSIE, FIREWORKS, BIRDS, ANCHORED, BUSY_LAKE];
 
 export const ORDER = {
-  'create.living': ['kayaks', 'tour', 'paddle'],
+  'create.living': ['kayaks', 'tour', 'paddle', 'power'],
   'create.birds': ['birds'],
   'create.tessie': ['tessie'],
   'create.fireworks': ['fireworks'],
   'create.anchorage': ['anchored', 'busy'],
-  boat: ['anchored', 'tour', 'busy', 'paddle'],
+  boat: ['anchored', 'tour', 'busy', 'paddle', 'power'],
   'boot.night': ['fireworks'],
   'boot.pipes': ['fireworks'],
   'graph.post': ['fireworks'],
@@ -471,17 +517,17 @@ export const ORDER = {
   'start.pose': ['fireworks'],
   attach: ['fireworks', 'kayaks', 'tessie'],
   audio: ['kayaks', 'tessie'],
-  'audio.late': ['tour'],
+  'audio.late': ['tour', 'power'],
   'audio.prepare': ['birds'],
   music: ['birds'],
-  'compute.water': ['tessie', 'tour', 'paddle', 'birds'],
-  'fill.boats': ['anchored', 'busy', 'tour', 'paddle'],
+  'compute.water': ['tessie', 'tour', 'paddle', 'power', 'birds'],
+  'fill.boats': ['anchored', 'busy', 'tour', 'paddle', 'power'],
   'fill.living': ['kayaks', 'tessie'],
   'fill.birds': ['birds'],
   'night.lights': ['anchored', 'tour', 'paddle'],
   'scene.solid': ['kayaks', 'tessie'],
   'scene.solid2': ['birds', 'fireworks'],
-  'scene.solid3': ['tour', 'paddle'],
+  'scene.solid3': ['tour', 'paddle', 'power'],
   'scene.water': ['birds', 'tour'],
   'scene.mirror': ['kayaks', 'tessie'],
   'scene.light': ['fireworks'],
@@ -502,5 +548,5 @@ export const ORDER = {
   'stats.tessie': ['tessie'],
   'stats.birds': ['birds'],
   'stats.show': ['fireworks'],
-  'stats.lake': ['anchored', 'busy', 'tour', 'paddle'],
+  'stats.lake': ['anchored', 'busy', 'tour', 'paddle', 'power'],
 };

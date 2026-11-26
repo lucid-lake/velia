@@ -214,15 +214,27 @@ export const POLICIES = Object.freeze({
       if (f === 'lite') return 'lite';
       if (phoneOnly(p, c)) return 'off';
       return !c.headless && lite(p) ? 'lite' : 'full'; } },
-  // --- the paddle-wheeler (South Lake's birthplace, phase C): a generic 46 m stern-wheeler (v2/sim/paddleWheeler.js). Off in play
-  // until her routes come; ?paddle=x,z,heading[,kn] places her for review. full: every LOD and her wake map (a desktop or a tablet at
-  // L0-L1: the tablet rule); lite: the mid and far LODs only, drawn half as far, no wake map (L2-L3 and a phone) ---
-  paddleWheeler: { fixed: true, axes: 'form, gpu', aliases: '?paddle=x,z,heading[,kn] (placed; off without it), ?paddle=0, ?profile=form:phone',
-    why: 'the paddle-wheeler (one pipeline, one draw): off until routed; placed by ?paddle=, full at L0-L1 on a desktop or a tablet, lite (mid and far LODs, no wake map) at L2-L3 and on a phone',
+  // --- the paddle-wheeler (South Lake's birthplace, phase C): a generic 46 m stern-wheeler (v2/sim/paddleWheeler.js) on her route,
+  // Ski Run ↔ off Emerald Bay, on every start (drawn wherever her route lies within the draw distance); ?paddle=x,z,heading[,kn] places
+  // her straight for review. full: every LOD and the vessels' wake map (a desktop or a tablet at L0-L1: the tablet rule); lite: the
+  // mid and far LODs only, drawn half as far, no wake map (L2-L3 and a phone) ---
+  paddleWheeler: { fixed: true, axes: 'form, gpu', aliases: '?paddle=0 (off), ?paddle=x,z,heading[,kn] (placed for review), ?profile=form:phone',
+    why: 'the paddle-wheeler on her route (one pipeline, one draw): full at L0-L1 on a desktop or a tablet, lite (mid and far LODs, no wake map) at L2-L3 and on a phone',
     tier: (p, c) => { const f = c.flags.paddle == null ? '' : String(c.flags.paddle);
-      if (f === '' || f === '0' || f === 'false' || f === 'off') return 'off';
+      if (f === '0' || f === 'false' || f === 'off') return 'off';
       const live = !c.headless || !!p.forced;   // a capture: full (the same frame on every machine)
       return live && lite(p) ? 'lite' : 'full'; } },
+  // --- South Lake's power traffic (phase C, v2/living/powerTraffic.js): two runabouts out of the Tahoe Keys and a jet ski, made only
+  // for a start in South Lake. full: all three and their wakes (a desktop or a tablet at L0-L1); lite: two (the jet ski and the
+  // runabout that passes Ski Run; L2-L3); phone: one (the jet ski), no wake map; ?power= overrides ---
+  powerBoats: { fixed: true, axes: 'form, gpu', aliases: '?power=0 (off), ?power=full|lite|phone, ?power=1 (full), ?profile=form:phone',
+    why: 'South Lake\'s runabouts and jet ski (one pipeline, an instanced draw per kind and LOD): 3 boats on a desktop or a tablet at L0-L1, 2 at L2-L3, 1 on a phone',
+    tier: (p, c) => { const f = c.flags.power == null ? '' : String(c.flags.power);
+      if (f === '0' || f === 'false' || f === 'off') return 'off';
+      if (f === '1' || f === 'true') return 'full';
+      if (['full', 'lite', 'phone'].includes(f)) return f;
+      const live = !c.headless || !!p.forced;
+      return live && !desktopLike(p) ? 'phone' : live && lite(p) ? 'lite' : 'full'; } },
   // --- the phone is for the sail sim (owner, 2026-11-17: "No fireworks, Milky Way, rainbow [on phones]"): desktop
   // only on a phone (a tablet and a desktop keep them); their code, assets and pipelines are never fetched or built there. A
   // capture keeps them unless ?profile= forces the form (v2-perf's phone A/B) ---

@@ -18,12 +18,16 @@
 //   sups               [{ id, lane, board, pfd, cap, mate? }] its stand-up paddleboarders' lanes (v2/living/sup.js; slow loops near a beach)
 //   launchSpots        [{ id, name, at }] its put-ins (kayakLaunch.js)
 //   boats              [{ id, prio, tint, sail, route }] its cruising sailboats (busyLake.js); the region's traffic count is its length
+//   traffic            [{ id, kind: 'paddle' | 'power' | 'jetski', route, prio?, hull?, stripe?, kn?, weave? }] its power-driven boats
+//                      (optional): the paddle-wheeler (v2/sim/paddleWheeler.js paddleRoute: [x, z] or { at, stop, slow }), the
+//                      runabouts and the jet ski (v2/living/powerTraffic.js); each loops its route
 //   cup                { id, name, line, races: [place race ids], hunt, huntName } or null (v2/sim/racePlaces.js)
 //
 //   regionsOf(waters)      → the rows, frozen (a profile without `regions`: [])
 //   birthplaceRows(waters) → the birthplaces, each with its region, in table order (a profile with the old top-level list: that list)
 //   busyRegionsOf(waters)  → [{ id, centre, radiusM, neighbours, keepOut?, kayaks, boats, sups, level? }] (busyLake.js REGIONS)
 //   launchSpotsOf(waters)  → { [regionId]: [{ id, name, at }] } (kayakLaunch.js LAUNCH_SPOTS)
+//   trafficOf(waters, kind?) → the regions' traffic rows, each with its region, in table order (of one kind when given)
 //   cupsOf(waters)         → [{ id, name, line, races, hunt }] in table order (places.js CUPS);  huntNamesOf(waters) → { [hunt]: name }
 //   cupAtOf(waters)        → (x, z) → cup id (places.js cupAt)
 //   regionLabelsOf(waters) → the chart's region names (chartModel.js NAMES)
@@ -49,6 +53,8 @@ export const busyRegionsOf = (waters) => Object.freeze(regionsOf(waters).map((r)
   id: r.id, centre: r.centre, radiusM: r.radiusM, neighbours: r.neighbours ?? Object.freeze([]), ...(r.keepOut ? { keepOut: r.keepOut } : {}),
   kayaks: r.kayaks ?? Object.freeze([]), boats: r.boats ?? Object.freeze([]), ...(r.sups?.length ? { sups: r.sups } : {}), ...(r.level ? { level: r.level } : {}),
 })));
+
+export const trafficOf = (waters, kind = null) => Object.freeze(regionsOf(waters).flatMap((r) => (r.traffic ?? []).filter((t) => !kind || t.kind === kind).map((t) => Object.freeze({ ...t, region: r.id }))));
 
 export const launchSpotsOf = (waters) => Object.freeze(Object.fromEntries(regionsOf(waters).filter((r) => r.launchSpots?.length).map((r) => [r.id, r.launchSpots])));
 
