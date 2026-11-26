@@ -3,10 +3,12 @@
 //   cursor   a thin full-width crosshair that eases after the pointer (an exponential follow, tau 0.1 s, frame-rate independent;
 //            none under reduced motion), snaps to a shown point within 22 px (the ring tightens, the point lifts), and reads the
 //            spot under it: bearing (true) and distance from the boat, else latitude and longitude. A mouse only: a finger has no hover.
-//   layers   quiet toggles at the map's top edge: All · Places · Races · Anchorages · Marks · Wildlife · Your wake. A toggle hides its points
-//            and their names; the bay's own names (the chart's geography) always stay. All turns every layer on. A phone's box: one
-//            round Layers button (44 px) opens the same toggles as a 2 x 3 grid.
-//   wake     the last 3 voyages sailed (newest full, then 60 %, 30 %), kept per device (localStorage, try/catch: a private window simply forgets), drawn
+//   where to?  the bar at the map's top edge, All · Places · Anchorages (owner 2026-11-25; Regatta adds Races and Marks). A chip shows its
+//            kind alone (the bay's own names, the chart's geography, always stay). A tap on Places or Anchorages also opens the card of
+//            the one nearest the boat (the start screen: the current start; else the map's centre), Sail here first: one more tap
+//            sails there. A second tap on the same chip goes to the next nearest. All shows everything and closes the card. A phone's
+//            box: one round Layers button (44 px) opens the same chips as a grid.
+//   wake     (no chip: always drawn) the last 3 voyages sailed (newest full, then 60 %, 30 %), kept per device (localStorage, try/catch: a private window simply forgets), drawn
 //            as a soft wash with a fine core under today's track, on the start screen too: an exploring feeling, no fog of war.
 //            Setup › Sail › your wake › forget clears it (ui/wakeRow.js).
 // Plain JS; the DOM and canvas parts take their host. The model parts (easeToward, snapTo, readout, layerOf, createWakeStore) have no
@@ -14,18 +16,31 @@
 import { worldToLonLat } from '../../../src/sim/geo.js';
 
 export const UX = Object.freeze({ tauS: 0.1, snapPx: 22, settlePx: 0.3, wakeStepM: 12, wakeJumpM: 90, wakeMaxPts: 8000, wakeSaveEvery: 20, wakeVoyages: 3, wakeFade: [1, 0.6, 0.3] });
+// the bar's own chips (owner 2026-11-25): Places and Anchorages. 'area' (Tessie's water, the one such point: a dashed ring and a card with
+// Be Tessie) is a place now that Wildlife is gone; the hunts' corners are places too. Your wake has no chip: it is always drawn.
 export const LAYERS = Object.freeze([
-  { id: 'places', word: 'Places', kinds: ['birthplace', 'place', 'corner'] },   // the hunts' corners with the places (no new toggle)
+  { id: 'places', word: 'Places', kinds: ['birthplace', 'place', 'corner', 'area'] },
   { id: 'anchorages', word: 'Anchorages', kinds: ['anchorage'] },
-  { id: 'marks', word: 'Marks', kinds: ['buoy', 'channel', 'raceMark', 'barge'] },
-  { id: 'wildlife', word: 'Wildlife', kinds: ['area'] },
-  { id: 'wake', word: 'Your wake', kinds: [] },
 ]);
-// the Races layer (owner 2026-11-19: only in Regatta): each place race's pin; it joins the bar, on, while Regatta is the mode
-// (setRaces(true)) and leaves it in Sail and Cruise, so their bar and their points are as before
+// the Races and Marks chips (owner 2026-11-19, 2026-11-25: only in Regatta): each place race's pin, and the buoys, the channel, the show
+// barges and the race marks. They join the bar while Regatta is the mode (setRaces(true)) and leave it in Sail and Cruise, where the
+// marks are still drawn with everything (All) and hidden only when a chip shows its own kind alone.
 export const RACES_LAYER = Object.freeze({ id: 'races', word: 'Races', kinds: ['racePin'] });
-const KIND_LAYER = Object.fromEntries([...LAYERS, RACES_LAYER].flatMap((l) => l.kinds.map((k) => [k, l.id])));
+export const MARKS_LAYER = Object.freeze({ id: 'marks', word: 'Marks', kinds: ['buoy', 'channel', 'raceMark', 'barge'] });
+const KIND_LAYER = Object.fromEntries([...LAYERS, RACES_LAYER, MARKS_LAYER].flatMap((l) => l.kinds.map((k) => [k, l.id])));
 export const layerOf = (kind) => KIND_LAYER[kind] ?? null;
+// the chips in the bar, by mode: Sail and Cruise Places · Anchorages; Regatta Places · Races · Anchorages · Marks
+export const barLayers = (regatta = false) => (regatta ? [LAYERS[0], RACES_LAYER, LAYERS[1], MARKS_LAYER] : [...LAYERS]);
+// "where to?": a tap on these chips also opens the nearest point's card
+export const WHERE_TO = Object.freeze(['places', 'anchorages']);
+// the nth nearest point of these kinds to ref (the boat, else the current start, else the map's centre): rows are the chart's, n wraps
+// round (the second tap on a chip is the next one). Left out: the one she is at (lit), a place past the paper (far), the hunts' corners
+// (a card only, nowhere to sail) and Tessie's water (a Place on the bar, never the first suggestion), and any row without a position.
+export function nearestOf(rows, kinds, ref, n = 0) {
+  const c = rows.filter((r) => kinds.includes(r.kind) && r.kind !== 'corner' && r.kind !== 'area' && !r.lit && !r.far && Number.isFinite(r.x) && Number.isFinite(r.z))
+    .map((r) => ({ r, d: Math.hypot(r.x - ref.x, r.z - ref.z) })).sort((a, b) => a.d - b.d || (a.r.id < b.r.id ? -1 : 1));
+  return c.length ? c[((n % c.length) + c.length) % c.length].r : null;
+}
 
 // one step of the eased follow: the cursor moves 1 − e^(−dt/tau) of the way to the target (the same feel at 30 and 120 fps)
 export function easeToward(cur, target, dt, tau = UX.tauS) {
@@ -136,30 +151,37 @@ const CSS = `
 const LYR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" style="fill:none;width:22px;height:22px"><path d="M12 4l9 4.5-9 4.5-9-4.5z"/><path d="M3 12.5l9 4.5 9-4.5"/><path d="M3 16.5l9 4.5 9-4.5"/></svg>';
 
 // the DOM half: mounted by createChart when ux is on. ctx gives it the chart's own reads.
-//   ctx: { el, rgba, ink(), touch(), reduced(), insets(), boat(), toWorld(px, py), points() → [{ id, px, py }], hover(id|null), redraw() }
-export function mountMapUx(ctx, { wake = null, layers = true, cursor = true, compact = false } = {}) {   // compact: a phone's box (one Layers button opens a 2 × 3 grid)
+//   ctx: { el, rgba, ink(), touch(), reduced(), insets(), boat(), toWorld(px, py), points() → [{ id, px, py }], hover(id|null), redraw(), whereTo(kinds|null, n) }
+export function mountMapUx(ctx, { wake = null, layers = true, cursor = true, compact = false } = {}) {   // compact: a phone's box (one Layers button opens the chips as a grid)
   const { el } = ctx;
   if (!document.getElementById('lk-mapux-css')) { const s = document.createElement('style'); s.id = 'lk-mapux-css'; s.textContent = CSS; document.head.appendChild(s); }
-  let active = [...LAYERS];   // the layers in the bar now: the base five, and Races while Regatta is the mode
-  const on = new Set(active.map((l) => l.id));
+  let active = barLayers(false);   // the chips in the bar now: Places, Anchorages; Regatta adds Races and Marks
+  let only = null;   // null: All; else the one chip's id (a layer alone); n: how many times that chip was tapped in a row (the nearest, the next nearest)
+  let n = 0;
   // ---- the layers ----
   let bar = null, lyb = null;
   const btns = new Map();
   function setOpen(o) { if (!lyb || !bar) return; bar.hidden = !o; lyb.setAttribute('aria-expanded', String(!!o)); }
-  function syncBar() { const all = on.size === active.length; btns.get('all')?.setAttribute('aria-pressed', String(all)); for (const l of active) btns.get(l.id)?.setAttribute('aria-pressed', String(!all && on.has(l.id))); }
-  if (layers) {
-    bar = document.createElement('div'); bar.className = 'lkc-layers'; bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', 'Chart layers');
-    const mk = (id, word) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = word; b.dataset.layer = id; btns.set(id, b); bar.appendChild(b); return b; };
+  function syncBar() { btns.get('all')?.setAttribute('aria-pressed', String(!only)); for (const l of active) btns.get(l.id)?.setAttribute('aria-pressed', String(only === l.id)); }
+  function fillBar() {   // All, a divider, then the chips
+    if (!bar) return;
+    bar.replaceChildren(); btns.clear();
+    const mk = (id, word) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = word; b.dataset.layer = id; btns.set(id, b); bar.appendChild(b); };
     mk('all', 'All');
     const sep = document.createElement('i'); sep.className = 'sep'; bar.appendChild(sep);
-    for (const l of LAYERS) mk(l.id, l.word);
+    for (const l of active) mk(l.id, l.word);
+    syncBar();
+  }
+  if (layers) {
+    bar = document.createElement('div'); bar.className = 'lkc-layers'; bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', 'Chart layers');
+    fillBar();
     bar.addEventListener('click', (e) => {
       const id = e.target?.dataset?.layer; if (!id) return;
       e.stopPropagation();
-      if (id === 'all') active.forEach((l) => on.add(l.id));
-      else if (on.size === active.length) { on.clear(); on.add(id); }   // from All, a layer pressed shows that layer alone
-      else { if (on.has(id)) on.delete(id); else on.add(id); if (!on.size) active.forEach((l) => on.add(l.id)); }
+      if (id === 'all') { only = null; n = 0; syncBar(); ctx.redraw(); ctx.whereTo?.(null); return; }   // everything back, the card closed
+      n = only === id ? n + 1 : 0; only = id;   // a chip shows its kind alone; the same chip again is the next nearest
       syncBar(); ctx.redraw();
+      if (WHERE_TO.includes(id)) ctx.whereTo?.(active.find((l) => l.id === id).kinds, n);
     });
     for (const ty of ['pointerdown', 'pointerup', 'wheel', 'dblclick']) bar.addEventListener(ty, (e) => e.stopPropagation(), { passive: ty !== 'wheel' });
     el.appendChild(bar); syncBar();
@@ -229,24 +251,18 @@ export function mountMapUx(ctx, { wake = null, layers = true, cursor = true, com
   cv.addEventListener('pointermove', onMove); cv.addEventListener('pointerleave', onLeave);
   return {
     // the chart's filter: false hides a point (and its name)
-    visible: (row) => { const l = layerOf(row.kind); return !l || on.has(l); },
-    wakeOn: () => !!wake && on.has('wake'),
+    visible: (row) => !only || layerOf(row.kind) === only,
+    wakeOn: () => !!wake,   // no chip: the wake is always drawn
     wake,
-    get layers() { return active.filter((l) => on.has(l.id)).map((l) => l.id); },
-    setLayers(ids) { on.clear(); (ids?.length ? ids : active.map((l) => l.id)).forEach((i) => on.add(i)); syncBar(); ctx.redraw(); },
-    // Regatta only: the Races layer joins the bar (right after Places), on; out of Regatta it leaves, and its pins with it
+    get layers() { return only ? [only] : active.map((l) => l.id); },   // the kinds shown now: one chip's, or all of them
+    get bar() { return active.map((l) => l.id); },
+    setLayers(ids) { only = ids?.length === 1 ? ids[0] : null; n = 0; syncBar(); ctx.redraw(); },
+    // Regatta only: Races and Marks join the bar (Places · Races · Anchorages · Marks); out of Regatta they leave, and a view of one of them ends
     setRaces(yes) {
       yes = !!yes; if (yes === active.includes(RACES_LAYER)) return;
-      const wasAll = on.size === active.length;
-      if (yes) {
-        active = [LAYERS[0], RACES_LAYER, ...LAYERS.slice(1)]; on.add('races');
-        if (bar) { const b = document.createElement('button'); b.type = 'button'; b.textContent = RACES_LAYER.word; b.dataset.layer = 'races'; btns.set('races', b); btns.get('places')?.after(b); }
-      } else {
-        active = [...LAYERS]; on.delete('races'); btns.get('races')?.remove(); btns.delete('races');
-        if (!on.size) active.forEach((l) => on.add(l.id));
-      }
-      if (wasAll) active.forEach((l) => on.add(l.id));
-      syncBar();
+      active = barLayers(yes);
+      if (only && !active.some((l) => l.id === only)) { only = null; n = 0; }
+      fillBar();
     },
     get snapped() { return snap?.id ?? null; },
     get cursor() { return cur ? { x: +cur.x.toFixed(1), y: +cur.y.toFixed(1), pointer: ptr ? { ...ptr } : null } : null; },

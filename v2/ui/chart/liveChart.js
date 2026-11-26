@@ -48,7 +48,7 @@ import { SHEET_BAKE } from './sheetData.js';
 import { REFUSALS } from '../birthplaceCard.js';
 import { SIZES, BOOKMARKS, INK, NIGHT_INK, HIT_PX, ACTION_WORDS, namesFor, chartView, zoomAbout, panBy, clampView, zoomRange, centreFor, classVisible,
   fadeTo, buildPois, aimOf, poiShown, hitTest, walkOrder, layoutLabels, ease, sheetWanted } from './chartModel.js';
-import { mountMapUx, drawWake, UX } from './mapUx.js';   // ?mapux=1 only ('s mock): the eased crosshair, the layers, your wake
+import { mountMapUx, drawWake, nearestOf, UX } from './mapUx.js';   // ?mapux=1 only ('s mock): the eased crosshair, the layers, your wake
 
 const GROUND_URLS = Object.freeze({
   day: new URL('../../assets/chart/emerald-bay-day.webp', import.meta.url).href,
@@ -591,9 +591,10 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     card.style.left = `${Math.round(x)}px`; card.style.top = `${Math.round(y)}px`;
   }
   // a place's card in play offers Sail here before Set as target (Sail only: the chart's routing; Cruise and the entrance as before)
-  const actsOf = (r) => { const a = r.actions ?? (r.action ? [r.action] : []); return a[0] === 'target' && r.kind !== 'water' && sailHereOn() ? ['sailHere', ...a] : a; };
-  function openCard(r0) {
-    const a0 = actsOf(r0), r = a0 !== (r0.actions ?? null) && a0[0] === 'sailHere' ? { ...r0, action: null, actions: a0 } : r0;
+  // sailFirst ("where to?", a chip's nearest point): Sail here leads whatever the card's first action was (Anchor here, Sail from here)
+  const actsOf = (r, sailFirst = false) => { const a = r.actions ?? (r.action ? [r.action] : []); if (sailFirst && r.kind !== 'water' && sailHereOn()) return ['sailHere', ...a.filter((x) => x !== 'sailHere')]; return a[0] === 'target' && r.kind !== 'water' && sailHereOn() ? ['sailHere', ...a] : a; };
+  function openCard(r0, sailFirst = false) {
+    const a0 = actsOf(r0, sailFirst), r = a0 !== (r0.actions ?? null) && a0[0] === 'sailHere' ? { ...r0, action: null, actions: a0 } : r0;
     selId = r.id; focusId = r.id;
     cardT.textContent = r.name; cardW.textContent = r.line ?? ''; cardSay.textContent = '';
     const first = r.action ?? r.actions?.[0] ?? null;
@@ -603,6 +604,19 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     placeCard();
     if (first) cardGo.focus({ preventScroll: true });
     emit('select', r);
+  }
+  // "where to?" (mapUx.js's Places and Anchorages chips): the nth nearest point of these kinds to the boat (the start screen: the current
+  // start; else the map's centre) opens its own card with Sail here first; a point out of view is glided to, as chart.focus does. kinds null: close.
+  function whereTo(kinds, n = 0) {
+    if (!kinds) { closeCard(); return false; }
+    refreshRows();
+    const b = boat(), at = litAt(), ref = b ? { x: b.x, z: b.z } : at ?? { x: view.cx, z: view.cz };
+    const r = nearestOf(rows, kinds, ref, n);
+    if (!r) { closeCard(); return false; }
+    const q = visView().toPx(r.x, r.z, [0, 0]);
+    if (q[0] < ins.left + 40 || q[0] > W - ins.right - 40 || q[1] < 60 || q[1] > H - 60) { following = false; glide({ ...centreFor(r.x, r.z, view.mpp, ins), mpp: view.mpp }, CHART_TIMING.focusS); }
+    openCard(r, true);
+    return true;
   }
   function closeCard() {
     if (card.hidden) return;
@@ -824,7 +838,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   let uxApi = null, uxTimer = 0;
   if (ux) {
     uxApi = mountMapUx({ el, rgba, uiFont: UI, touch, reduced, insets: () => ins, boat, toWorld: (px, py) => visView().toWorld(px, py), points: () => drawn.pois,
-      ink: () => mix3(TOKENS.cream, NIGHT_INK.ink, nightNow), halo: () => mix3(TOKENS.brandNavy, NIGHT_INK.halo, nightNow), hover: () => {}, redraw: () => { refreshRows(); dirty = true; } }, ux);
+      ink: () => mix3(TOKENS.cream, NIGHT_INK.ink, nightNow), halo: () => mix3(TOKENS.brandNavy, NIGHT_INK.halo, nightNow), hover: () => {}, redraw: () => { refreshRows(); dirty = true; }, whereTo }, ux);
     uxApi.setInset(ins.left);
     if (ux.wake) { let ver = -1; uxTimer = setInterval(() => { if (shown && ux.wake.version !== ver) { ver = ux.wake.version; dirty = true; } }, 1000); }
   }

@@ -444,7 +444,7 @@ for (const [w, h] of [[844, 390], [667, 375]]) {
     bar: [...document.querySelectorAll('.lkc-layers button')].map((b) => b.dataset.layer).join() }));
   await page.keyboard.press('Escape'); await page.waitForTimeout(1200);
   let s = await pinsNow();
-  check(s.pins.length === 0 && s.bar === 'all,places,anchorages,marks,wildlife,wake', `pins: in Sail there are no race pins and no Races layer (${s.pins.length} pins; bar ${s.bar})`);
+  check(s.pins.length === 0 && s.bar === 'all,places,anchorages', `pins: in Sail there are no race pins and no Races layer (${s.pins.length} pins; bar ${s.bar})`);
   await page.keyboard.press('Escape'); await page.waitForTimeout(800);
   // into Regatta (no hub), then the menu: the pins and the layer
   await page.evaluate(() => window.__velia.mode.go('regatta', { hub: false, deal: false }));
@@ -452,7 +452,7 @@ for (const [w, h] of [[844, 390], [667, 375]]) {
   await page.waitForTimeout(1500);
   await menu(); await page.waitForTimeout(1500);
   s = await pinsNow();
-  check(['rp-pass-the-channel', 'rp-tea-house-run', 'rp-tessies-deep'].every((id) => s.pins.includes(id)) && s.pins.every((id) => id.startsWith('rp-')) && s.bar === 'all,places,races,anchorages,marks,wildlife,wake', `pins: in Regatta each place race has its pin and the bar a Races layer (${s.pins}; ${s.bar})`);
+  check(['rp-pass-the-channel', 'rp-tea-house-run', 'rp-tessies-deep'].every((id) => s.pins.includes(id)) && s.pins.every((id) => id.startsWith('rp-')) && s.bar === 'all,places,races,anchorages,marks', `pins: in Regatta each place race has its pin and the bar a Races layer (${s.pins}; ${s.bar})`);
   await page.click('.lkc-layers button[data-layer=places]'); await page.waitForTimeout(400);
   check((await pinsNow()).pins.length === 0, 'pins: a layer shown alone hides the race pins');
   await page.click('.lkc-layers button[data-layer=all]'); await page.waitForTimeout(400);

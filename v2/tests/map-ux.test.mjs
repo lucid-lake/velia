@@ -1,7 +1,7 @@
 // the map's crosshair, layers and wake (v2/ui/chart/mapUx.js; ?mapux=0 none): the eased follow, the magnet, the reading, the layers, the wake store.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { easeToward, snapTo, readout, distWords, dmLine, layerOf, LAYERS, RACES_LAYER, createWakeStore, UX } from '../ui/chart/mapUx.js';
+import { easeToward, snapTo, readout, distWords, dmLine, layerOf, LAYERS, RACES_LAYER, MARKS_LAYER, barLayers, nearestOf, createWakeStore, UX } from '../ui/chart/mapUx.js';
 import { parseV2Flags } from '../engine/flags.js';
 
 test('the flag: on by default (owner, 2026-11-18), ?mapux=0 turns it off for one release', () => {
@@ -33,11 +33,39 @@ test('the reading: bearing true and distance from the boat; the position without
   assert.equal(dmLine(-120.0, 'E', 'W'), '120°00.00′ W');
 });
 
-test('the layers: every point kind belongs to one; the bay\'s geography to none', () => {
-  for (const k of ['birthplace', 'place', 'anchorage', 'buoy', 'channel', 'raceMark', 'barge', 'area']) assert.ok(LAYERS.some((l) => l.id === layerOf(k)), k);
-  // the Races layer is not one of the base five (Sail's and Cruise's bar): it joins the bar in Regatta only (owner 2026-11-19)
-  assert.equal(layerOf('racePin'), RACES_LAYER.id); assert.ok(!LAYERS.some((l) => l.id === RACES_LAYER.id));
-  assert.equal(layerOf('n-bay'), null);
+test('the bar by mode: Sail and Cruise Places · Anchorages; Regatta Places · Races · Anchorages · Marks (owner 2026-11-25)', () => {
+  assert.deepEqual(barLayers(false).map((l) => l.word), ['Places', 'Anchorages']);
+  assert.deepEqual(barLayers(true).map((l) => l.word), ['Places', 'Races', 'Anchorages', 'Marks']);
+  assert.deepEqual(LAYERS.map((l) => l.id), ['places', 'anchorages']);
+  assert.deepEqual([MARKS_LAYER.id, RACES_LAYER.id], ['marks', 'races']);
+});
+
+test('Wildlife and Your wake are not chips: Tessie\'s water is a place, the wake has no layer', () => {
+  const words = [...barLayers(true), ...LAYERS].map((l) => l.word.toLowerCase());
+  assert.ok(!words.some((w) => /wildlife|wake/.test(w)));
+  assert.equal(layerOf('area'), 'places');
+  assert.equal(layerOf('wake'), null);
+  for (const k of ['birthplace', 'place', 'corner', 'area']) assert.equal(layerOf(k), 'places', k);
+  assert.equal(layerOf('anchorage'), 'anchorages');
+  for (const k of ['buoy', 'channel', 'raceMark', 'barge']) assert.equal(layerOf(k), MARKS_LAYER.id, k);
+  assert.equal(layerOf('racePin'), RACES_LAYER.id);
+  assert.equal(layerOf('n-bay'), null, "the bay's geography is in no layer");
+});
+
+test('where to: the nearest place or anchorage to the boat, the next on a second tap, the one she is at left out', () => {
+  const rows = [
+    { id: 'an-far', kind: 'anchorage', x: 900, z: 0 }, { id: 'an-near', kind: 'anchorage', x: 200, z: 0 }, { id: 'an-here', kind: 'anchorage', x: 5, z: 0, lit: true },
+    { id: 'pl-a', kind: 'place', x: 0, z: -400 }, { id: 'pl-b', kind: 'place', x: 0, z: 100 }, { id: 'bp-far', kind: 'birthplace', x: 0, z: 50, far: true },
+    { id: 'cn-1', kind: 'corner', x: 0, z: 10 }, { id: 'ar-t', kind: 'area', x: 0, z: 3 }, { id: 'bu-1', kind: 'buoy', x: 0, z: 1 },
+  ];
+  const boat = { x: 0, z: 0 }, A = LAYERS[1].kinds, P = LAYERS[0].kinds;
+  assert.equal(nearestOf(rows, A, boat, 0).id, 'an-near');
+  assert.equal(nearestOf(rows, A, boat, 1).id, 'an-far', 'the second tap: the next nearest');
+  assert.equal(nearestOf(rows, A, boat, 2).id, 'an-near', 'and round again');
+  assert.equal(nearestOf(rows, P, boat, 0).id, 'pl-b', 'a far pin, a hunts corner and Tessie\'s water are not where to');
+  assert.equal(nearestOf(rows, P, boat, 1).id, 'pl-a');
+  assert.equal(nearestOf(rows, P, { x: 0, z: -390 }, 0).id, 'pl-a', 'from the start or the map centre when there is no boat');
+  assert.equal(nearestOf([], A, boat), null);
 });
 
 const memStore = (init = {}) => { const mem = new Map(Object.entries(init)); return { mem, getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, v), removeItem: (k) => mem.delete(k) }; };
