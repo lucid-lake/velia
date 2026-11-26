@@ -451,8 +451,15 @@ v1 0 and 1 capsizes (an Eskimo roll), the big sea 0 and 0, no contacts. The came
 of the heave (tau 2.5 s, the bob capped at 0.18 m) and never the pitch or roll; since 2026-11-25 it also reads the speed, the surf cue,
 the heading and the lean's heel slow (v2/sim/boat.js CAM_SLOW: 3, 3, 2 and 2 s critically damped low-passes): the raw speed surged
 ±0.7 m/s with each wave and pumped the speed camera's lens 0.4–0.8° at the waves' period, so the sky far from the frame's centre
-shook 4–6 px at 720p while the horizon held (the owner's "shaking sky"; v2/tests/follow-steady.test.mjs, v2/tests/pages/skySteady.page.mjs); the Helm view's auto-steady takes the rougher
-sea (the heel and pitch rate) toward its steadier end; Reduce Motion as before. The phone draws the same sea (the lite water
+shook 4–6 px at 720p while the horizon held (the owner's "shaking sky"; v2/tests/follow-steady.test.mjs, v2/tests/pages/skySteady.page.mjs); since 2026-11-25 the Helm view holds the
+horizon as a sailor's eye does (v2/sim/steadyCamera.js HelmHorizonCamera, replacing the auto-steady that kept 30–60 % of the
+hull's heel and pitch): the view keeps 20 % of the hull's pitch and 15 % of its heel, each low-passed over 2.5 s, and the eye's
+wave bob is taken out to ± 0.15 m; the cockpit, rigid with the hull, heels and pitches in the frame against the still horizon,
+and a gust's heel leans the cockpit, not the world. On the live page at 16 kn of wind (16 s, 1280 × 720, the trend out) the
+horizon's height went from sd 3.05 px (pp 12.8) to 0.38 px (pp 1.8) on the open lake and 2.62 → 0.20 px in Emerald Bay, the
+view's roll from sd 0.76° (pp 2.7°) to 0.15° (pp 0.65°) and 0.65° → 0.18°, while the bow still moves 46–58 px on screen
+(v2/tests/helm-horizon.test.mjs); Reduce Motion holds it steadier
+still (8 % and 6 % over 3.5 s, the bob out to ± 0.22 m). The phone draws the same sea (the lite water
 skips only the 2.1 m ripples).
 
 **The settle (fix, same day):** a capture's 20 s settle runs the boat's clock ahead of the waves', so she sailed over one held

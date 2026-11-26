@@ -102,15 +102,15 @@ try {
     await page.close();
   }
 
-  // 4. Reduce Motion (the OS's): the full calm values in the views, no Calm row on Setup, nothing stored; no reduce: the auto-steady's calm end
+  // 4. Reduce Motion (the OS's): the Helm view's steadier horizon (sim/steadyCamera.js HORIZON_REDUCED), no Calm row on Setup, nothing stored; no reduce: HORIZON
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, reducedMotion: 'reduce' });
     const page = await ctx.newPage();
     await page.addInitScript(PERSON); await page.addInitScript(RETURNING);
     await page.goto(`${BASE}/?hour=15&seed=1&attract=0`, { waitUntil: 'load' });
     await toHome(page); await page.waitForTimeout(1500);
-    const a = await page.evaluate(() => ({ steady: window.__velia.m4.views.helmCam.steady, tau: window.__velia.m4.views.helmCam.cfg.tau, stored: localStorage.getItem('velia.calmcam.v1') }));
-    check(a.steady === 0.85 && a.tau === 0.5 && a.stored === null, `reduce motion: the calm values, nothing stored (${JSON.stringify(a)})`);
+    const a = await page.evaluate(() => ({ pitch: window.__velia.m4.views.helmCam.horizon.pitch, roll: window.__velia.m4.views.helmCam.horizon.roll, stored: localStorage.getItem('velia.calmcam.v1') }));
+    check(a.pitch === 0.08 && a.roll === 0.06 && a.stored === null, `reduce motion: the steadier horizon, nothing stored (${JSON.stringify(a)})`);
     await page.click('#lk-load .lk-link[data-go="settings"]'); await page.waitForTimeout(400);
     await page.click('#lk-load #tab-set-sail'); await page.waitForTimeout(300);
     const row = await page.evaluate(() => ({ rows: document.querySelectorAll('#lk-load [data-set=calmCamera], #lk-load [data-calm]').length, text: /calm camera/i.test(document.getElementById('lk-load').textContent) }));
@@ -120,8 +120,8 @@ try {
     await p2.emulateMedia({ reducedMotion: 'no-preference' });
     await p2.addInitScript(() => { try { localStorage.setItem('velia.calmcam.v1', 'on'); } catch { /* none */ } });   // an old stored choice is ignored
     await p2.goto(`${BASE}/?hour=15&seed=1&attract=0&calm=1`, { waitUntil: 'load' }); await toHome(p2); await p2.waitForTimeout(1000);
-    const c = await p2.evaluate(() => ({ steady: window.__velia.m4.views.helmCam.steady, tau: window.__velia.m4.views.helmCam.cfg.tau }));
-    check(c.steady >= 0.4 && c.steady < 0.85 && c.tau < 0.5, `no reduce motion: the auto-steady's own range, not the calm values; an old stored value and ?calm=1 ignored (${JSON.stringify(c)})`);
+    const c = await p2.evaluate(() => ({ pitch: window.__velia.m4.views.helmCam.horizon.pitch, roll: window.__velia.m4.views.helmCam.horizon.roll }));
+    check(c.pitch === 0.2 && c.roll === 0.15, `no reduce motion: the steady horizon's own numbers, not Reduce Motion's; an old stored value and ?calm=1 ignored (${JSON.stringify(c)})`);
     // About has no classic link and no loading report link (owner 2026-11-19)
     await p2.click('#lk-load .lk-foot .lk-news[data-go="about"]'); await p2.waitForTimeout(400);
     const ab = await p2.evaluate(() => ({ classic: document.querySelectorAll('#lk-load .pg[data-page=about] a[data-classic], #lk-load .pg[data-page=about] .lk-classic').length, report: document.querySelectorAll('#lk-load .pg[data-page=about] [data-lr-link]').length, ver: !!document.querySelector('#lk-load .pg[data-page=about] .stamp-b') }));
