@@ -1,10 +1,12 @@
 // The Logbook's Tessie page (the Tessie RPG, phase 1; behind ?tessierpg=1): her mark and "Level N · x / y XP · k points to spend" as
 // the lead line, then two views in the logbook's own hand (src/ui/logbook.js, the corners' rows): the bounty, one row per boat type
-// on the water today (wrecked or splashed, the first day, the records), and her five skills with four rank pips each. A press on a
+// on the water today (wrecked or splashed, the first day, the records), and her five skills with four rank pips each. Phase 6: the
+// bounty is grouped by set (Emerald Bay, South Lake: a view each, its types as rows, then the set's own row: "3 of 5 · +25 XP when
+// every one is in", or once complete "Set complete · +25 XP" with its legend line). A press on a
 // skill row that can take a point spends it there; a locked skill's row says its free tries left ("4 free tries left") (v2/sim/tessieBounty.js: an unlock costs a point, Lure → Sonar → Surge → Breach, rank 4
 // the cap). The text is built here, pure (no DOM): the logbook draws it.
 //   const src = tessiePage({ bounty: createTessieBounty({ storage }) });   createLogbook({ …, tessie: src })
-import { TYPES, SKILL_ORDER, SKILL_NAMES, BOUNTY, legendOf, canSpend, trialsLeft } from '../sim/tessieBounty.js';
+import { TYPES, SETS, SKILL_ORDER, SKILL_NAMES, BOUNTY, legendOf, canSpend, trialsLeft, setProgress } from '../sim/tessieBounty.js';
 import { tessieMarkSvg } from './tessieMark.js';
 export { createTessieBounty } from '../sim/tessieBounty.js';   // m4.js makes the page's store from this chunk
 
@@ -27,6 +29,13 @@ export function bountyRow(type, r) {
   return { id: type.id, t: `◆ ${type.name}`, g: parts.join(' · '), got: true };
 }
 const pips = (rank) => `<span class="pips" aria-label="rank ${rank} of ${BOUNTY.rankCap}">${Array.from({ length: BOUNTY.rankCap }, (_, i) => `<i class="pip${i < rank ? ' on' : ''}"></i>`).join('')}</span>`;
+// a set's own row (phase 6): { id: 'set', t, g, got }
+export function setRow(s, set) {
+  const p = setProgress(s, set);
+  if (p.done) return { id: 'set', t: `◆ Set complete · +${BOUNTY.set} XP`, g: set.legend, got: true };
+  return { id: 'set', t: `◇ The set · ${p.got} of ${p.of}`, g: `+${BOUNTY.set} XP when every one is in`, got: false };
+}
+const typeOf = (id) => TYPES.find((t) => t.id === id);
 // one skill row: { id, t, g, got, press }
 export function skillRow(s, id) {
   const rank = s.ranks[id], why = canSpend(s, id), i = SKILL_ORDER.indexOf(id);
@@ -47,8 +56,9 @@ export function tessiePage({ bounty, name = 'Tessie', mark = tessieMarkSvg() } =
     views() {
       const s = bounty.state();
       return [
-        { id: 'bounty', label: `bounty<i>${plural(TYPES.filter((t) => t.live).reduce((n, t) => n + s.byType[t.id].wrecked + s.byType[t.id].splashed, 0), 'boat')}</i>`, lead: lead(s),
-          rows: TYPES.filter((t) => t.live).map((t) => bountyRow(t, s.byType[t.id])) },
+        ...SETS.map((set) => { const p = setProgress(s, set);
+          return { id: set.id, label: `${set.name}<i>${p.done ? 'set complete' : `${p.got} of ${p.of}`}</i>`, lead: lead(s),
+            rows: [...set.types.map((id) => bountyRow(typeOf(id), s.byType[id])), setRow(s, set)] }; }),
         { id: 'skills', label: `skills<i>${plural(s.points, 'point')} to spend</i>`, lead: lead(s), rows: SKILL_ORDER.map((id) => skillRow(s, id)) },
       ];
     },

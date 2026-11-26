@@ -18,6 +18,8 @@
 //   T.score({ kind, depthM, seen, hidden, skill, sinceS, splash }, { day }) → { xp, base, mult, first, set, levels, state } or null
 //   T.spend(id) → { ok, why, state };  T.trial(id) → { ok, why, left, first, last, state };  T.can(id) → null | why;  T.state() → the save with its derived level, points, toNext
 //   T.legend() → { level, k (share inside this level, 0…1), xp, at, next }
+// Phase 6a: the boats at anchor ('still', from a hit's 'anchored'), the paddle-wheeler (splashed) and a Regatta rival score; their rows were in
+// the save since phase 1, so its shape (and _v) is unchanged; setProgress(s, set) for the Logbook's set rows
 export const BOUNTY = Object.freeze({
   key: 'lakeshore.tessie.bounty.v1', knocksKey: 'lakeshore.tessie.knocks.v1', v: 2,   // _v 2: the free trials (a _v 1 save migrates)
   trials: 5,                   // free uses of each locked skill (not the Dash)
@@ -36,18 +38,28 @@ export const TYPES = Object.freeze([
   Object.freeze({ id: 'halcyon', name: 'Your Halcyon', live: true }),
   Object.freeze({ id: 'glass', name: 'The glass boat', live: true }),
   Object.freeze({ id: 'kayak', name: 'Kayak pairs', live: true, splash: true }),
-  Object.freeze({ id: 'rival', name: 'Regatta rivals', live: false }),
-  Object.freeze({ id: 'still', name: 'Boats at anchor', live: false }),
-  Object.freeze({ id: 'paddle', name: 'The paddle-wheeler', live: false }),
+  Object.freeze({ id: 'rival', name: 'Regatta rivals', live: false }),   // scored when a race lets her near them (the rivals' source: phase 6's Deep tie-in)
+  Object.freeze({ id: 'still', name: 'Boats at anchor', live: true }),     // phase 6: knocked down at anchor (v2/sim/anchoredBoats.js knock)
+  Object.freeze({ id: 'paddle', name: 'The paddle-wheeler', live: true, splash: true }),   // phase 6: her decks splashed (a 300 t hull is never knocked down)
   Object.freeze({ id: 'runabout', name: 'South Lake runabouts', live: true }),
   Object.freeze({ id: 'jetski', name: 'Jet skis', live: true, splash: true }),
 ]);
-// a hit's kind (v2/sim/tessieHits.js) → its bounty type: each live type under its own name, but the runabouts are 'power' on the water
-export const BOUNTY_KIND = Object.freeze({ ...Object.fromEntries(TYPES.filter((t) => t.live && t.id !== 'runabout').map((t) => [t.id, t.id])), power: 'runabout' });
+// a hit's kind (v2/sim/tessieHits.js) → its bounty type: each type under its own name (a Regatta rival too, whenever a hit names one),
+// but the runabouts are 'power' on the water and the boats at anchor 'anchored' (a 'still' hull is a moored decoration, never hit)
+export const BOUNTY_KIND = Object.freeze({ ...Object.fromEntries(TYPES.filter((t) => t.id !== 'runabout' && t.id !== 'still').map((t) => [t.id, t.id])), power: 'runabout', anchored: 'still' });
+// is a type's hit a splash (counted as splashed: a kayak pair, the jet ski's rider, the paddle-wheeler's decks)
+export const splashType = (id) => !!TYPES.find((t) => t.id === id)?.splash;
+// the sets (phase 6): a row group each in her Logbook tab; a complete set earns BOUNTY.set once and its legend line once on the
+// skipper's line (its lean kind: v2/ui/leanSkipper.js)
 export const SETS = Object.freeze([
-  Object.freeze({ id: 'emerald', name: 'Emerald Bay', types: Object.freeze(['halcyon', 'sail', 'rival', 'glass', 'kayak']) }),
-  Object.freeze({ id: 'south', name: 'South Lake', types: Object.freeze(['paddle', 'still', 'kayak', 'runabout', 'jetski']) }),
+  Object.freeze({ id: 'emerald', name: 'Emerald Bay', types: Object.freeze(['halcyon', 'sail', 'rival', 'glass', 'kayak']), kind: 'tip.tessie.legend.emerald', legend: "They're talking about you at the tea house." }),
+  Object.freeze({ id: 'south', name: 'South Lake', types: Object.freeze(['paddle', 'still', 'kayak', 'runabout', 'jetski']), kind: 'tip.tessie.legend.south', legend: 'The paddle-wheeler changed its route.' }),
 ]);
+// a set's progress in a save: { got (types with a wreck or a splash), of, done (earned) }
+export function setProgress(s, set) {
+  const got = set.types.filter((t) => (s.byType[t]?.wrecked ?? 0) + (s.byType[t]?.splashed ?? 0) > 0).length;
+  return { got, of: set.types.length, done: s.sets.includes(set.id) };
+}
 // the five skills in their slots' order: the unlock order too
 export const SKILL_ORDER = Object.freeze(['dash', 'lure', 'sonar', 'surge', 'breach']);
 export const SKILL_NAMES = Object.freeze({ dash: 'Dash', lure: 'Lure', sonar: 'Sonar', surge: 'Tail Surge', breach: 'Breach' });

@@ -55,6 +55,9 @@ export const LEAN_CLASS = Object.freeze({
   // the Tessie RPG's level-up (v2/sim/tessieLevelUp.js, ?tessierpg=1): "Level N: pick one skill to grow.", a TIP that comes back while a
   // point waits (its own cadence: still 2 s, at most every 60 s); the gap and busy rules hold
   'tip.tessie.level': TIP,
+  // the Tessie RPG, phase 6 (v2/sim/tessieBounty.js SETS, v2/sim/tessieWary.js CHATTER): a set's legend line and the lookout's two
+  // chatter lines, once ever each
+  'tip.tessie.legend.emerald': TIP, 'tip.tessie.legend.south': TIP, 'tip.tessie.chatter.fannette': TIP, 'tip.tessie.chatter.lake': TIP,
   // the free trials (v2/sim/tessieTrials.js): "Free try: 5 Sonars. …" on a skill's first trial, "That was your last free Sonar." after its
   // last; once ever each
   'tip.tessie.try.lure': TIP, 'tip.tessie.try.sonar': TIP, 'tip.tessie.try.surge': TIP, 'tip.tessie.try.breach': TIP,

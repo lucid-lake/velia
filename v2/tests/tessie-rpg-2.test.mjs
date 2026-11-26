@@ -131,7 +131,7 @@ test('the Dash by rank: burst/cooldown 1.8/4.5 → 2.1/4.0 → 2.4/3.5 → 2.6/3
 
 test('South Lake: a runabout knocked down 3 XP, the jet ski rider splashed 2 XP, both in the South Lake set', () => {
   assert.equal(BOUNTY_KIND.power, 'runabout'); assert.equal(BOUNTY_KIND.jetski, 'jetski');
-  assert.deepEqual(TYPES.filter((t) => t.live).map((t) => t.id), ['sail', 'halcyon', 'glass', 'kayak', 'runabout', 'jetski']);
+  assert.deepEqual(TYPES.filter((t) => t.live).map((t) => t.id), ['sail', 'halcyon', 'glass', 'kayak', 'still', 'paddle', 'runabout', 'jetski'], 'phase 6: the boats at anchor and the paddle-wheeler too');
   assert.deepEqual(SETS.find((x) => x.id === 'south').types, ['paddle', 'still', 'kayak', 'runabout', 'jetski']);
   const s = blankSave();
   let r = scoreInto(s, { kind: 'runabout', depthM: 1 }); assert.equal(r.xp, 9, 'the first runabout: 3 × 3');

@@ -39,6 +39,12 @@
 // forgets it. Sonar: one ping marks every boat within range for the mark time: a faint cream ring on the water under each hull
 // (rank 3: a heading tail), ticks on the SONAR dial's rim, its word the range (v2/sim/tessieSonar.js); the boats within SONAR.hearM
 // hear it unless she is HIDDEN. A free trial is spent only when the skill really fires (ready, not cooling)
+// Phase 6a (the RPG): the lake grows wary by her level (v2/sim/tessieWary.js): the boats' sight at the surface 60 m (levels 1–5) → 90 m
+// (6+: the threat's seeM, read by the busy lake's evade and her HUD's seen marks); the kayak pairs keep 100 m off her water (6+: the
+// fleet's berth); two chatter lines once each on the skipper's line when a boat first sees her (6+, not under ?chatter=0: chatter());
+// 13+: the Halcyon's skipper is never lured (he flees at the first ring). The boats at anchor are targets (anchored(): knocked down
+// at anchor, 'anchored' → the bounty's 'still'), a Regatta rival is one whenever a race's source lists it (rivals(): entries with knock(side); none yet),
+// the paddle-wheeler's splash scores; a set completed says its legend line once on the skipper's line
 import { createTessiePlay, LINES as PLAY_LINES, PLAY } from '../sim/tessiePlay.js';
 import { hitRule, createTessieHits } from '../sim/tessieHits.js';
 import { createSwap } from '../sim/tessieSwap.js';
@@ -52,7 +58,8 @@ import { skillOfCode, RPG_SLOT_COUNT, createSkills, RPG_SKILLS_TABLE, LURE_RANKS
 import { LURE, lureTargets, lureSplashes } from '../sim/tessieLure.js';
 import { SONAR, sonarPing, rimMarks, markRing } from '../sim/tessieSonar.js';   // the dash's keys: the slot's 1 and Shift
 import { Press } from '../../src/ui/pointer.js';
-import { createTessieBounty, BOUNTY_KIND, SKILL_ORDER } from '../sim/tessieBounty.js';
+import { createTessieBounty, BOUNTY_KIND, SKILL_ORDER, SETS, splashType } from '../sim/tessieBounty.js';
+import { waryOf, WARY, chatterLine } from '../sim/tessieWary.js';   // phase 6: the lake grows wary by her level
 import { createLevelUp, LEVEL_UP } from '../sim/tessieLevelUp.js';
 import { useSkill } from '../sim/tessieTrials.js';   // the RPG: a slot's own press, the free trials of a locked skill   // the RPG, phase 2: the level-up line, the halo, the pick   // the Tessie RPG (rpg, ?tessierpg=1): each wreck scored into her bounty and level   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
 
@@ -227,7 +234,7 @@ export function createClickBite({ on = () => true, bite = () => {}, now = () => 
   return api;
 }
 
-export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, sups = () => null, traffic = () => [], birthplaces = null, veil = null,
+export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, sups = () => null, traffic = () => [], anchored = () => null, rivals = () => null, chatter = () => true, birthplaces = null, veil = null,
   project = null, focal = () => 600, canvas = null, mode = () => 'sail', race = () => false, knocked = () => false, reduced = () => false,
   services = () => null, touch = () => false, headless = false, storage = (() => { try { return globalThis.localStorage ?? null; } catch { return null; } })(),
   waterAt = null, floorAt = null, underOn = true, settings = null, keyHints = () => true, rpg = false, day = () => { try { return new Date().toLocaleDateString('en-CA'); } catch { return null; } } } = {}) {
@@ -244,6 +251,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const bounty = rpg ? createTessieBounty({ storage }) : null;
   const levelUp = bounty ? createLevelUp({ bounty }) : null;   // phase 2: the level-up moment on the skipper's line and the slots
   let rpgReadT = 0, rpgRanks = null, rpgHalo = '';
+  let rpgLevel = bounty ? bounty.state().level : 1;   // phase 6: her level as last read (the wary band)
+  const wary = () => (bounty ? waryOf(rpgLevel) : WARY[0]);   // flag off: today's rules
   // each skill's behaviour, (rank) → true when it really ran (a press that did something: a locked skill's trial is spent only then).
   // Lure, Sonar, Tail Surge and Breach have none yet: phases 3–5 add theirs here; until then their presses are quiet no-ops
   const SKILL_RUN = {};
@@ -337,6 +346,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const hintSvc = () => svc()?.get?.('hint') ?? svc()?.get?.('controls')?.hint ?? null;
   const tips = createTipQueue({ hint: hintSvc, active: () => W.as === 'tessie', onShown: (kind) => log.tips.push(kind) });
   const tip = (kind, text) => tips.want(kind, text), stepTips = (dt) => tips.step(dt);
+  const tipSeen = (kind) => tips.waiting.includes(kind) || !!hintSvc()?.phoneQuiet?.state?.seen?.includes?.(kind);   // phase 6: asked already, or shown (the lean store)
   // she shows herself: the skipper's line says so, with the way in (a tablet: the line is the tap target)
   const beLine = createBeLine({ hint: hintSvc, touch, onTap: () => self.become('swap') });
 
@@ -382,7 +392,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     if (pinned.chase) {   // the evidence's chase: W toward the nearest of the lake's sailboats (the corners' boat once aimed), Space in reach
       const n = nose(), L = busy();
       if (pinned.chaseId == null && n && L?.active) { let bd = Infinity; for (const b of L.liveBoats) { if (b.knock?.capsized) continue; const q2 = b.phys.state, dd = Math.hypot(q2.x - n.x, q2.z - n.z); if (dd < bd) { bd = dd; pinned.chaseId = b.id; } } }   // the nearest one, kept
-      const boat = L?.liveBoats.find((b) => b.id === pinned.chaseId), tg = boat ? boat.phys.state : null;
+      const boat = L?.liveBoats.find((b) => b.id === pinned.chaseId), tg = boat ? boat.phys.state : pinned.chaseId != null ? targets().find((e) => e.id === pinned.chaseId) ?? null : null;   // chase: '<id>' any target by its id (a boat at anchor, the paddle-wheeler)
       if (tg && n) { camYaw = Math.atan2(tg.x - n.x, -(tg.z - n.z)); drag = C.state.way == null ? 0 : Math.atan2(Math.sin(camYaw - C.state.way), Math.cos(camYaw - C.state.way)); }
       bite = !pinned.nobite && !!pinTg?.locked && pinTg.id === pinned.chaseId;   // nobite: the evidence's approach under a hull (Space once locked)
     }
@@ -420,6 +430,11 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const Sp = sups(); if (Sp) for (const m of Sp.marks()) out.push({ id: `s:${m.id}`, kind: 'sup', x: m.x, z: m.z, heading: m.heading ?? 0, L: 3.35, B: 0.76 });
     // South Lake's traffic (the paddle-wheeler, the runabouts, the jet ski): each sim's own entries, the sim kept for the hit
     for (const T2 of traffic() ?? []) if (T2) for (const e of T2.targets()) { e.sim = T2; out.push(e); }
+    // the RPG, phase 6: the boats at anchor (knocked down at anchor) and a race's Regatta rivals (whenever a source lists them)
+    if (bounty) {
+      const A = anchored(); if (A?.active !== false && A?.targets) for (const e of A.targets()) out.push(e);
+      for (const e of rivals?.() ?? []) if (e) out.push({ ...e, kind: 'rival', L: e.L ?? BUSY_HULL.L, B: e.B ?? BUSY_HULL.B });
+    }
     return out;
   }
   // the hull the sim holds her outside this frame: the nearest of the Halcyon and the lake's sailboats (posed as drawn)
@@ -488,6 +503,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     else if (b.kind === 'glass') ok = !!tour()?.knock(away);
     else if (b.kind === 'halcyon') { const P = B.phys?.P; if (P) { B.shove({ K: H.rollK(P, away) * mult }); ok = true; } }
     else if (b.kind === 'kayak' && b.bite) ok = !!kayaks()?.bite?.(b.id.slice(2), e ? { x: e.x, z: e.z } : {});   // round B: over, a swim, righted, away
+    else if (b.kind === 'anchored') ok = !!anchored()?.knock?.(b.id, away);   // the RPG, phase 6: knocked down at anchor
+    else if (b.kind === 'rival') ok = !!b.knock?.(away);   // a Regatta rival (its race's own knockdown)
     else if (b.sim) ok = !!b.sim.hit(b.id, hitRule(b.kind), away);   // South Lake: a runabout knocked down; the jet ski's rider and the paddle-wheeler splashed only
     if (ok) scoreWreck(b);
     if (ok) { pullUntil = clock + 5; knockTotal++; try { storage?.setItem(COUNT_KEY, String(knockTotal)); } catch { /* */ } log.knocks.push({ id: b.id, kind: b.kind, side: r.side, at: +clock.toFixed(1), d: r.d }); }
@@ -498,19 +515,24 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   function scoreWreck(b) {
     const kind = bounty ? RPG.kinds[b.kind] ?? null : null; if (!kind) return null;
     const st = strike ?? { depthM: C.state.nose, hidden: !!C.state.hidden, seen: null, skill: null };
-    const splash = kind === 'jetski';   // the jet ski's rider is splashed (he ducks), never wrecked
+    const splash = splashType(kind);   // the jet ski's rider and the paddle-wheeler's decks are splashed, never wrecked
     const r = bounty.score({ kind, depthM: st.depthM, hidden: st.hidden, seen: !!st.seen?.has(b.id), skill: st.skill, splash }, { day: day() });
     if (r) { log.bounty.push({ kind, ...(splash ? { splash } : {}), xp: r.xp, first: r.first, levels: r.levels, at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); leveled(r); }
     return r;
   }
   // ---- the RPG, phase 2: the level-up moment, the five slots, the Dash's rank ----
   // a score that reached a level: the line asks at once; the halo and the ranks follow
-  function leveled(r) { if (r?.levels?.length) levelUp?.levelUp(); rpgSync(true); }
+  function leveled(r) {
+    if (r?.levels?.length) levelUp?.levelUp();
+    if (r?.set) { const S = SETS.find((x) => x.id === r.set); if (S) { tip(S.kind, S.legend); log.sets = [...(log.sets ?? []), { id: S.id, at: +clock.toFixed(1) }]; } }   // phase 6: its legend line, once
+    rpgSync(true);
+  }
   // the save read at most every RPG.readS (now: force): the Dash's numbers by its rank, the pips, the legend's lines, the halo
   function rpgSync(force = false) {
     if (!bounty || (!force && clock - rpgReadT < RPG.readS)) return;
     rpgReadT = clock;
-    const s = bounty.state(), key = SKILL_ORDER.map((id) => `${s.ranks[id]}.${s.trials?.[id] ?? ''}`).join();
+    const s = bounty.state(); rpgLevel = s.level;
+    const key = SKILL_ORDER.map((id) => `${s.ranks[id]}.${s.trials?.[id] ?? ''}`).join();
     if (key !== rpgRanks) { rpgRanks = key; C.skills.rank('dash', s.ranks.dash); hud?.ranks(s.ranks, s.trials); }
     const halo = levelUp.halo().join();
     if (halo !== rpgHalo) { rpgHalo = halo; hud?.halo(levelUp.halo()); }
@@ -575,7 +597,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   function watchSeen(list, n) {
     const th = self.threat(); if (!th || !n) return;
     for (const b of list) if (b.kind !== 'kayak' && b.kind !== 'sup' && Math.hypot(b.x - n.x, b.z - n.z) <= th.seeM) {
+      const fresh = !(clock - (sawAt.get(b.id) ?? -Infinity) <= RPG.seenS);
       sawAt.set(b.id, clock);
+      if (fresh && b.kind !== 'anchored' && wary().chatter && chatter()) { const c = chatterLine(n, tipSeen); if (c) { tip(c.kind, c.text); log.chatter = { kind: c.kind, at: +clock.toFixed(1), by: b.id }; } }   // phase 6: the lookout's radio
       if (b.ref?.curious) busy()?.lure?.(b.id, null);   // a curious boat that sees her forgets the lure (her evade wins)
       if (b.kind === 'halcyon') halcyonLure = null;
     }
@@ -585,7 +609,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const row = LURE_RANKS[rank], n = nose(); if (!R || !row || !n || W.as !== 'tessie') return false;
     R.rank('lure', rank); if (!R.press('lure')) return false;
     const her = { x: n.x, z: n.z }, s = row.curiousS, ids = [];
-    for (const t of lureTargets(her, targets(), { rangeM: row.rangeM, seen: seenRecently, halcyon: row.halcyon })) {
+    for (const t of lureTargets(her, targets(), { rangeM: row.rangeM, seen: seenRecently, halcyon: row.halcyon && !wary().halcyonFlees })) {   // 13+: he flees at the first ring
       if (t.kind === 'kayak') continue;   // (the fleet below)
       if (t.kind === 'glass') { if (tour()?.lure?.(her.x, her.z, s, row.rangeM)) ids.push(t.id); }
       else if (t.kind === 'halcyon') { halcyonLure = { x: her.x, z: her.z, until: clock + s }; ids.push(t.id); }
@@ -659,9 +683,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     girthAt: (i, N) => reachAt(i * sim.L / Math.max(1, N - 1), sim.L),   // phase 2b: her body's reach at spine frame i of N (m: her bubbles leave her skin)
     // a fixed pose (tools/v2-perf.mjs, the evidence): her nose held at `nose` m (E / Q as the keys would), the look held at `look` rad (+ down),
     // swim: W held (her body follows her nose's path; at a drift it lags it by tens of seconds); sprint: Shift held; chase: W toward the
-    // nearest of the lake's sailboats and Space once it is in reach; breach: the run kept while she climbs (a running climb breaches); yaw: the camera held that many rad round her (+ to her left);
+    // nearest of the lake's sailboats (chase: '<id>': that target) and Space once it is in reach; breach: the run kept while she climbs (a running climb breaches); yaw: the camera held that many rad round her (+ to her left);
     // null hands her back to the player
-    pin(p = null) { pinned = p && Number.isFinite(p.nose) ? { nose: Math.max(0, p.nose), look: Number.isFinite(p.look) ? p.look : null, swim: !!p.swim, sprint: !!p.sprint, chase: !!p.chase, nobite: !!p.nobite, breach: !!p.breach, yaw: Number.isFinite(p.yaw) ? p.yaw : null } : null; return pinned; },
+    pin(p = null) { pinned = p && Number.isFinite(p.nose) ? { nose: Math.max(0, p.nose), look: Number.isFinite(p.look) ? p.look : null, swim: !!p.swim, sprint: !!p.sprint, chase: !!p.chase, chaseId: typeof p.chase === 'string' ? p.chase : null, nobite: !!p.nobite, breach: !!p.breach, yaw: Number.isFinite(p.yaw) ? p.yaw : null } : null; return pinned; },
     get pinned() { return pinned; },
     get view() { return view; }, setView(v) { view = v === 'first' ? 'first' : 'third'; return view; },   //'s own state; tests and captures)
     ctx() { return { on: true, mode: mode(), race: !!race(), knocked: !!knocked(), card: cardUp(), revenge: !!plugin.revenge?.active }; },
@@ -719,7 +743,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       if (W.as !== 'tessie' || !sim.state.visible) return null;
       const n = nose(); if (!n) return null;
       const nz = C.state.nose, L = C.state.lunge, warned = !!L?.deep && L.phase === 'rise';   // 2c: the warning rings: the boats near them see her coming, at any depth
-      const seeM = warned ? PLAY.warn.seeM : nz < 2.5 ? 60 : nz <= PLAY.hiddenM ? 15 : 0;   //: 1–8 m 15 m, deeper never (HIDDEN on the dial)
+      const seeM = warned ? PLAY.warn.seeM : nz < 2.5 ? wary().seeM : nz <= PLAY.hiddenM ? 15 : 0;   // phase 6: 60 m, 90 m from level 6   //: 1–8 m 15 m, deeper never (HIDDEN on the dial)
       return seeM ? { x: n.x, z: n.z, heading: n.psi, u: n.speed, m: 120, seeM, warn: warned } : null;
     },
     step(dt) {
@@ -751,6 +775,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
         if (surfaceT > PLAYER.fastS) tip('tip.tessie.dive', touch() ? PLAY_LINES.fastTouch : PLAY_LINES.fast);
         if (nz > PLAYER.lookUpM) tip('tip.tessie.look', PLAY_LINES.look);
       }
+      if (bounty) { const F = kayaks(), m = W.as === 'tessie' ? wary().kayakBerthM : 0; if (F?.berth && F.berthM !== m) F.berth(m); }   // phase 6: the kayaks' berth, only while she is played
       if (W.as !== 'tessie' || !sim.state.visible) return;
       const list = targets(), n = nose();
       // the corners (kept with hysteresis) and the lock-on: amber means locked, at the surface and under the water
@@ -827,7 +852,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     stats() {
       return { as: W.as, entry: W.entry, pill: W.pill, view, viewK: cam.state.viewK, fleeOn, knocks: knockTotal, under: lastUnder ? { ...lastUnder } : null, look: +cam.look.toFixed(4), eye: lastPose?.pos ? lastPose.pos.map((v) => +v.toFixed(2)) : null, ctl: { ...C.state, lunge: C.state.lunge ? { phase: C.state.lunge.phase, kind: C.state.lunge.kind, t: +C.state.lunge.t.toFixed(2), target: C.state.lunge.target?.id ?? null } : null, bite: C.state.bite ? { kind: C.state.bite.kind, t: +C.state.bite.t.toFixed(2), target: C.state.bite.target?.id ?? null, locked: C.state.bite.locked, hit: C.state.bite.hit } : null, strike: C.state.strike }, lock: lastLock ? { ...lastLock, k: +lastLock.k.toFixed(2) } : null, bite: sim.biteState ? { kind: sim.biteState.kind, phase: sim.biteState.phase, t: +sim.biteState.t.toFixed(2), gape: +(sim.state.gape ?? 0).toFixed(3) } : null,
         log: { ...log, knocks: log.knocks.slice(-8), swaps: log.swaps.slice(-8) }, tipsWant: tips.waiting, beLine: { waiting: beLine.waiting, shown: beLine.shown }, glide: glide.active, aim: lastAim,
-        rpg: levelUp ? { ...levelUp.state, halo: levelUp.halo(), dash: C.skills.state('dash'), lure: R.state('lure'), sonar: R.state('sonar'),
+        rpg: levelUp ? { ...levelUp.state, halo: levelUp.halo(), level: rpgLevel, wary: { ...wary() }, waiting: tips.waiting, dash: C.skills.state('dash'), lure: R.state('lure'), sonar: R.state('sonar'),
           marks: [...marks.keys()], ping: ping ? { rangeM: ping.rangeM, left: +(ping.until - clock).toFixed(2), tail: ping.tail } : null, lureRing: !!lureFx, halcyonLure: !!halcyonLure } : null };
     },
   };

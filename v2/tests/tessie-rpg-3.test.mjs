@@ -26,7 +26,8 @@ const WATERS = JSON.parse(readFileSync(resolve(ROOT, 'src/waters/tahoe-emerald.j
 const BIRTHPLACES = birthplaceRows(WATERS);
 const DEG = Math.PI / 180, DT = 1 / 30, deep = () => 40, WIND_FROM = 225;
 const memStore = (init = {}) => { const m = new Map(Object.entries(init)); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
-const save = (ranks, trials = null, xp = 600) => memStore({ [BOUNTY.key]: JSON.stringify({ _v: BOUNTY.v, xp, ranks: { dash: 1, ...ranks }, ...(trials ? { trials } : {}) }) });
+// level 5 by default (4 points): today's sight rules (phase 6: the lake grows wary from level 6)
+const save = (ranks, trials = null, xp = 70) => memStore({ [BOUNTY.key]: JSON.stringify({ _v: BOUNTY.v, xp, ranks: { dash: 1, ...ranks }, ...(trials ? { trials } : {}) }) });
 const offTo = (b, p) => Math.abs(wrap(Math.atan2(p.x - b.x, -(p.z - b.z)) - b.heading));
 
 // the busy lake with its boats out (the first tick spawns them), the Halcyon's state far away
@@ -234,7 +235,7 @@ test('as her, a Sonar ping marks every boat within range and none beyond; the ra
   step(8.2);
   assert.equal(P.stats().rpg.ping, null, 'the marks last 8 s'); assert.deepEqual(P.stats().rpg.marks, []);
   // rank 4: 480 m, 14 s, every 15 s
-  const r4 = rig({ storage: save({ lure: 1, sonar: 4 }), at: her, traffic, world: lake() }); r4.step(0.1);
+  const r4 = rig({ storage: save({ lure: 1, sonar: 4 }, null, 100), at: her, traffic, world: lake() }); r4.step(0.1);
   r4.P.pressSlot('sonar');
   const s4 = r4.P.stats();
   assert.deepEqual(s4.log.sonar.ids.filter((id) => id.startsWith('p')).sort(), ['p0', 'p1', 'p2', 'p3', 'p4', 'p5'], 'rank 4: within 480 m');
