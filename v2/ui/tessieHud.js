@@ -16,6 +16,10 @@
 //          SPC); each line dims after 3 uses and never hides; Setup › key hints off hides it, as Sail's; a desktop 1100 px wide or more only;
 //          the Tessie RPG (rpg, ?tessierpg=1): a first line "Tessie · Lv N" with a 2 px cream fill under it, the share of XP toward the
 //          next level (hud.level({ level, k }))
+//   THE RPG, phase 2 (rpg): five slots (Dash, Lure, Sonar, Tail Surge, Breach: v2/sim/tessieBounty.js SKILL_ORDER), each with four 4 px
+//          rank pips at its foot (filled cream 90 % to its rank, empty outlined 28 %) in place of the "Lv 1" tag; a locked skill keeps the
+//          empty slot's look (its glyph at 25 %, no pips, its number key); the slots a point can go to carry a soft steady amber halo
+//          (hud.halo(ids)); her legend gains a line per unlocked skill (hud.ranks(ranks))
 import { SLOT_COUNT, slotLabel } from '../sim/tessieSkills.js';
 import { CAP_RULE, capFace, ensureLegendStyle } from '../../src/ui/keyLegend.js';
 export { CAP_RULE };
@@ -36,6 +40,17 @@ export const LEGEND = Object.freeze([
   Object.freeze({ id: 'view', word: 'View', caps: Object.freeze(['C']), codes: Object.freeze(['KeyC']) }),
   Object.freeze({ id: 'boat', word: 'Halcyon', caps: Object.freeze(['T']), codes: Object.freeze(['KeyT']) }),   // back to your boat: its name, as the top bar's switch
 ]);
+// the RPG's skills after the dash, in their slots' order: one legend line each, shown once the skill is unlocked
+export const RPG_SKILLS = Object.freeze([
+  Object.freeze({ id: 'lure', name: 'Lure', short: 'LURE', word: 'Lure', caps: Object.freeze(['2']), codes: Object.freeze(['Digit2']), slot: 2 }),
+  Object.freeze({ id: 'sonar', name: 'Sonar', short: 'SONAR', word: 'Sonar', caps: Object.freeze(['3']), codes: Object.freeze(['Digit3']), slot: 3 }),
+  Object.freeze({ id: 'surge', name: 'Tail Surge', short: 'SURGE', word: 'Tail Surge', caps: Object.freeze(['4']), codes: Object.freeze(['Digit4']), slot: 4 }),
+  Object.freeze({ id: 'breach', name: 'Breach', short: 'BREACH', word: 'Breach', caps: Object.freeze(['5']), codes: Object.freeze(['Digit5']), slot: 5 }),
+]);
+// the RPG's legend: Swim, Dash, then the four skills, then the rest
+export const RPG_LEGEND = Object.freeze([...LEGEND.slice(0, 2), ...RPG_SKILLS.map(({ id, word, caps, codes }) => Object.freeze({ id, word, caps, codes, skill: true })), ...LEGEND.slice(2)]);
+// a slot pip row's state (pure): rank → four pips, true = filled; a locked skill (rank 0) shows none
+export const pipsOf = (rank) => (rank > 0 ? [0, 1, 2, 3].map((i) => i < rank) : []);
 const DEG = Math.PI / 180;
 import { wrap } from '../../src/sim/core/math.js';
 
@@ -43,15 +58,15 @@ import { wrap } from '../../src/sim/core/math.js';
 export const capLine = (text) => String(text ?? '').replace(/\[([^\]]{1,5})\]/g, (_, k) => { const f = capFace(k); return `<span class="cap${f.length > 2 ? ' wide' : ''}" data-k="${f}">${f}</span>`; });
 
 // where each instrument stands (px, CSS from the frame's edges): w, h the viewport; tablet: a touch layout; barB: the top bar's foot
-export function hudLayout({ w = 1280, h = 720, tablet = false, barB = 58 } = {}) {
+export function hudLayout({ w = 1280, h = 720, tablet = false, barB = 58, slots = HUD.slots } = {}) {
   const H = HUD;
   if (tablet) {
-    const T = H.tablet, n = H.slots, row = n * T.slot + (n - 1) * H.gap;
+    const T = H.tablet, n = slots, row = n * T.slot + (n - 1) * H.gap;
     const free0 = w * T.stickShare, free1 = w - T.buttonsW, cx = (free0 + free1) / 2;   // the free band between the stick's zone and the buttons
     return { tablet: true, depth: { left: T.inset, top: barB + T.inset, size: T.dial }, sonar: { right: T.inset, top: barB + T.inset, size: T.dial },
       skills: { left: Math.round(cx - row / 2), bottom: H.margin, slot: T.slot, gap: H.gap, width: row }, legend: { show: false } };
   }
-  const narrow = w < H.narrow.width, dial = narrow ? H.narrow.dial : H.dial, slot = narrow ? H.narrow.slot : H.slot, row = H.slots * slot + (H.slots - 1) * H.gap;
+  const narrow = w < H.narrow.width, dial = narrow ? H.narrow.dial : H.dial, slot = narrow ? H.narrow.slot : H.slot, row = slots * slot + (slots - 1) * H.gap;
   return { tablet: false, depth: { left: H.margin, bottom: H.margin, size: dial }, sonar: { right: H.margin, bottom: H.margin, size: dial },
     skills: { left: Math.round((w - row) / 2), bottom: H.margin, slot, gap: H.gap, width: row }, legend: { show: !narrow, minBottom: H.margin + dial + H.legendGap } };   // the edge foot (--lk-edge-foot), raised clear of the sonar
 }
@@ -74,12 +89,12 @@ export function sonarBlips(her, list = [], { rangeM = HUD.sonar.rangeM, max = HU
 }
 
 // the legend's levels (pure): counts { id: uses } → [{ id, word, caps, level ('full' | 'learned') }]; a learned line stays (never hidden)
-export function legendLevels(counts = {}) {
-  return LEGEND.map((l) => ({ ...l, level: (counts[l.id] ?? 0) >= HUD.learnAt ? 'learned' : 'full' }));
+export function legendLevels(counts = {}, lines = LEGEND) {
+  return lines.map((l) => ({ ...l, level: (counts[l.id] ?? 0) >= HUD.learnAt ? 'learned' : 'full' }));
 }
 // is her legend on screen (pure): she is played, the layout has room (a desktop 1100 px or wider), Setup › key hints is on (Sail's rule)
 export const legendVisible = ({ shown = false, layout = null, keyHints = true } = {}) => !!shown && !!layout?.legend?.show && keyHints !== false;
-export const legendLineOf = (code) => LEGEND.find((l) => l.codes.includes(code))?.id ?? null;
+export const legendLineOf = (code, lines = LEGEND) => lines.find((l) => l.codes.includes(code))?.id ?? null;
 
 // a skill slot's look (pure) for its state ({ phase, k }): the ring's share and its ink
 export function slotLook(state) {
@@ -89,6 +104,7 @@ export function slotLook(state) {
   return { ring: 1, ink: 'ready', glyph: 1 };
 }
 
+const LOCKED_LOOK = Object.freeze({ ring: 0, ink: 'empty', glyph: 0.25 }), READY = Object.freeze({ phase: 'ready' });
 const HUD_CSS = `#lk-tplay .tp-sonar{position:absolute;right:22px;bottom:22px;width:132px;height:132px}
 #lk-tplay .tp-sonar svg{width:100%;height:100%;overflow:visible}
 #lk-tplay .tp-sonar .sw{position:absolute;left:0;right:0;top:84px;text-align:center;font:600 11px/1 var(--lk-ui,system-ui);letter-spacing:.16em;opacity:.8}
@@ -120,9 +136,26 @@ const HUD_CSS = `#lk-tplay .tp-sonar{position:absolute;right:22px;bottom:22px;wi
 #lk-tplay .tp-keys .kl.tp-lv .w{grid-column:1 / -1}
 #lk-tplay .tp-keys .kl.tp-lv .xp{position:absolute;left:0;right:0;bottom:5px;height:2px;background:rgb(var(--lk-cream) / .22);box-shadow:0 0 3px rgb(var(--lk-brand-navy) / .6)}
 #lk-tplay .tp-keys .kl.tp-lv .xp b{display:block;height:100%;width:0;background:rgb(var(--lk-cream) / .92)}
+#lk-tplay .tp-slot .pp{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);display:flex;gap:3px;pointer-events:none}
+#lk-tplay .tp-slot .pp b{width:4px;height:4px;box-sizing:border-box;border-radius:50%;border:1px solid rgb(var(--lk-cream) / .28)}
+#lk-tplay .tp-slot .pp b.on{background:rgb(var(--lk-cream) / .9);border-color:transparent}
+#lk-tplay .tp-slot.locked{border:1.5px solid rgb(var(--lk-cream) / .28);background:rgb(var(--lk-brand-navy) / .35)}
+#lk-tplay .tp-slot.locked .base,#lk-tplay .tp-slot.locked .rg,#lk-tplay .tp-slot.locked .nm,#lk-tplay .tp-slot.locked .pp{display:none}
+#lk-tplay .tp-slot.locked .kn{background:none;border-color:transparent;opacity:.4}
+#lk-tplay .tp-slot[data-halo]{box-shadow:0 0 0 2px rgb(var(--lk-brand-navy) / .55),0 0 0 4px rgb(var(--lk-amber,240 172 64) / .55),0 0 14px 5px rgb(var(--lk-amber,240 172 64) / .28)}   /* a navy hairline keeps the amber apart from the cream ring */
+#lk-tplay .tp-slot{transition:box-shadow .4s ease}
 @media (prefers-reduced-motion:reduce){#lk-tplay .tp-slot .rg{transition:none}}`;
 
 const GLYPH = '<path class="gl" d="M18 26h10M15 32h13M18 38h10M34 24l8 8-8 8"/>';   // the dash: three speed lines and a chevron
+// the RPG's glyphs (the same 2 px cream line): the dash's, a tail flicking up three drops (Lure), a ping and two arcs (Sonar), two
+// waves running out (Tail Surge), an arc with an up chevron (Breach)
+const GLYPHS = Object.freeze({
+  dash: GLYPH,
+  lure: '<path class="gl" d="M20 40c6-1 10-6 12-13 2 7 6 12 12 13M25 23v-3M32 19v-4M39 23v-3"/>',
+  sonar: '<path class="gl" d="M32 37.5h.01M26 32a8.5 8.5 0 0 1 12 0M21 27a15.5 15.5 0 0 1 22 0"/>',
+  surge: '<path class="gl" d="M17 37q7.5-8 15 0t15 0M21 29q5.5-6 11 0t11 0"/>',
+  breach: '<path class="gl" d="M18 42q14-24 28 0M28 25l4-4 4 4"/>',
+});
 const SONAR_SVG = (cone) => `<svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="58" stroke-width="2" style="fill:rgb(var(--lk-brand-navy) / .72);stroke:rgb(var(--lk-cream) / .7)"/>
 <circle cx="66" cy="66" r="${(54 * 50 / 160).toFixed(1)}" fill="none" stroke-width="1" style="stroke:rgb(var(--lk-cream) / .14)"/><circle cx="66" cy="66" r="${(54 * 100 / 160).toFixed(1)}" fill="none" stroke-width="1" style="stroke:rgb(var(--lk-cream) / .14)"/>
 <path d="M66 66L${(66 + 54 * Math.sin(cone)).toFixed(1)} ${(66 - 54 * Math.cos(cone)).toFixed(1)}A54 54 0 0 0 ${(66 - 54 * Math.sin(cone)).toFixed(1)} ${(66 - 54 * Math.cos(cone)).toFixed(1)}Z" style="fill:rgb(var(--lk-cream) / .06)"/>
@@ -135,16 +168,22 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
   const sonar = doc.createElement('div'); sonar.className = 'tp-sonar tp-hud'; sonar.setAttribute('aria-hidden', 'true'); sonar.innerHTML = SONAR_SVG(HUD.sonar.coneDeg * DEG);
   const row = doc.createElement('div'); row.className = 'tp-skills tp-hud';
   const circ = 2 * Math.PI * 29;
+  const ring = (glyph) => `<svg viewBox="0 0 64 64"><circle class="base" cx="32" cy="32" r="29" stroke-width="3" style="fill:rgb(var(--lk-brand-navy) / .72);stroke:rgb(var(--lk-cream) / .25)"/><circle class="rg" cx="32" cy="32" r="29" transform="rotate(-90 32 32)" stroke-dasharray="${circ.toFixed(1)} ${circ.toFixed(1)}"/>${glyph}</svg>`;
   const slot = (sk, n) => sk
-    ? `<button type="button" class="tp-slot sk" data-skill="${sk.id}" aria-label="${sk.name}, key ${slotLabel(sk.slot ?? 1)}" tabindex="-1"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" stroke-width="3" style="fill:rgb(var(--lk-brand-navy) / .72);stroke:rgb(var(--lk-cream) / .25)"/><circle class="rg" cx="32" cy="32" r="29" transform="rotate(-90 32 32)" stroke-dasharray="${circ.toFixed(1)} ${circ.toFixed(1)}"/>${GLYPH}</svg><i class="lv">Lv ${sk.level}</i><i class="kn">${slotLabel(sk.slot ?? 1)}</i><b class="nm">${sk.name.toUpperCase()}</b></button>`
+    ? `<button type="button" class="tp-slot sk" data-skill="${sk.id}" aria-label="${sk.name}, key ${slotLabel(sk.slot ?? 1)}" tabindex="-1">${ring(GLYPH)}<i class="lv">Lv ${sk.level}</i><i class="kn">${slotLabel(sk.slot ?? 1)}</i><b class="nm">${sk.name.toUpperCase()}</b></button>`
     : `<i class="tp-slot empty" data-slot="${n}" aria-hidden="true"><i class="kn">${n}</i></i>`;
+  // the RPG: every slot is a skill, locked until a point opens it (hud.ranks); the pips in place of the level tag
+  const rpgSlot = (sk) => `<button type="button" class="tp-slot sk${sk.id === 'dash' ? '' : ' locked'}" data-skill="${sk.id}" data-rank="${sk.id === 'dash' ? 1 : 0}" aria-label="${sk.name}, key ${slotLabel(sk.slot)}" tabindex="-1">${ring(GLYPHS[sk.id])}<i class="pp">${pipsOf(4).map(() => '<b></b>').join('')}</i><i class="kn">${slotLabel(sk.slot)}</i><b class="nm">${sk.short}</b></button>`;
   // a skill sits in its own slot (its `slot`, else the next free one); the rest are reserved
   const bySlot = {}; skills.forEach((sk, i) => { bySlot[sk.slot ?? i + 1] = sk; });
-  row.innerHTML = Array.from({ length: SLOT_COUNT }, (_, i) => slot(bySlot[i + 1], i + 1)).join('');
+  const dashRow = bySlot[1] ?? { id: 'dash', name: 'Dash', slot: 1 };
+  row.innerHTML = rpg ? [{ ...dashRow, short: 'DASH' }, ...RPG_SKILLS].map(rpgSlot).join('')
+    : Array.from({ length: SLOT_COUNT }, (_, i) => slot(bySlot[i + 1], i + 1)).join('');
+  const lines = rpg ? RPG_LEGEND : LEGEND;
   ensureLegendStyle(doc);   // Sail's legend: the edge pair, the rows, the cap
   const legend = doc.createElement('div'); legend.className = 'lk-keys lk-edgepair right six tp-keys tp-hud'; legend.setAttribute('aria-hidden', 'true');
   const cap = (k) => { const f = capFace(k); return `<span class="cap${f.length > 2 ? ' wide' : ''}">${f}</span>`; };
-  legend.innerHTML = (rpg ? '<div class="kl tp-lv" data-id="level"><span class="w">Tessie · Lv 1</span><i class="xp"><b></b></i></div>' : '') + LEGEND.map((l) => `<div class="kl" data-id="${l.id}"><span class="caps">${l.caps.map(cap).join(l.sep ? `<span class="sep">${l.sep}</span>` : '')}</span><span class="w">${l.word}</span></div>`).join('');
+  legend.innerHTML = (rpg ? '<div class="kl tp-lv" data-id="level"><span class="w">Tessie · Lv 1</span><i class="xp"><b></b></i></div>' : '') + lines.map((l) => `<div class="kl${l.skill ? ' off' : ''}" data-id="${l.id}"><span class="caps">${l.caps.map(cap).join(l.sep ? `<span class="sep">${l.sep}</span>` : '')}</span><span class="w">${l.word}</span></div>`).join('');
   root.append(sonar, row, legend);
   for (const b of row.querySelectorAll('.tp-slot.sk')) b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); onSlot?.(b.dataset.skill); });
   let counts = {}; try { counts = JSON.parse(storage?.getItem(HUD.storeKey) ?? '{}') ?? {}; } catch { counts = {}; }
@@ -154,7 +193,7 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
     el: { sonar, row, legend },
     get counts() { return { ...counts }; },
     // a key used while she is played (one count per press): its line learns
-    count(code) { const id = legendLineOf(code); if (!id) return; counts[id] = Math.min(99, (counts[id] ?? 0) + 1); try { storage?.setItem(HUD.storeKey, JSON.stringify(counts)); } catch { /* memory only */ } },
+    count(code) { const id = legendLineOf(code, lines); if (!id) return; counts[id] = Math.min(99, (counts[id] ?? 0) + 1); try { storage?.setItem(HUD.storeKey, JSON.stringify(counts)); } catch { /* memory only */ } },
     place(L, depthEl = null) {
       lay = L;
       const put = (el, p) => { el.style.left = px(p.left); el.style.right = px(p.right); el.style.top = px(p.top); el.style.bottom = px(p.bottom); if (p.size) { el.style.width = px(p.size); el.style.height = px(p.size); } };
@@ -169,12 +208,13 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
     // each frame: t (s), skill states by id, the sonar's input (her, the boats, the corners' and the locked ids, seen(b, d)), hidden
     paint({ t = 0, states = {}, her = null, boats = [], targetId = null, lockId = null, seen = () => false, hidden = false } = {}) {
       for (const s of row.querySelectorAll('.tp-slot.sk')) {
-        const look = slotLook(states[s.dataset.skill]);
+        // the RPG: a locked slot keeps the empty slot's look (its glyph at 25 %); an unlocked skill with no state yet reads ready
+        const look = s.classList.contains('locked') ? LOCKED_LOOK : slotLook(states[s.dataset.skill] ?? (rpg ? READY : null));
         if (s.dataset.ink !== look.ink) s.dataset.ink = look.ink;
         s.querySelector('.rg').setAttribute('stroke-dasharray', `${(circ * look.ring).toFixed(1)} ${circ.toFixed(1)}`);
         s.querySelector('.gl').style.opacity = String(look.glyph);
       }
-      const lv = legendLevels(counts);
+      const lv = legendLevels(counts, lines);
       for (const k of legend.querySelectorAll('.kl')) k.classList.toggle('learned', lv.find((l) => l.id === k.dataset.id)?.level === 'learned');
       api.legendOn();
       sonar.toggleAttribute('data-hidden', !!hidden); const sw = sonar.querySelector('.sw'); const word = hidden ? 'HIDDEN' : 'SONAR'; if (sw.textContent !== word) sw.textContent = word;
@@ -202,6 +242,25 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
       const w = row.querySelector('.w'), txt = `Tessie · Lv ${level}`; if (w.textContent !== txt) w.textContent = txt;
       row.querySelector('.xp b').style.width = `${(Math.min(1, Math.max(0, k)) * 100).toFixed(1)}%`;
       row.dataset.level = String(level);
+      return true;
+    },
+    // the RPG: each skill's rank ({ dash: 1, lure: 0 … }): the pips filled to it, a locked slot's look at 0, a legend line per unlocked skill
+    ranks(ranks = {}) {
+      if (!rpg) return false;
+      for (const s of row.querySelectorAll('.tp-slot.sk')) {
+        const r = Math.max(0, Math.min(4, ranks[s.dataset.skill] ?? (s.dataset.skill === 'dash' ? 1 : 0)));
+        if (s.dataset.rank === String(r) && s.dataset.painted) continue;
+        s.dataset.rank = String(r); s.dataset.painted = '1';
+        s.classList.toggle('locked', r === 0);
+        const on = pipsOf(r); s.querySelectorAll('.pp b').forEach((b, i) => b.classList.toggle('on', !!on[i]));
+      }
+      for (const k of legend.querySelectorAll('.kl')) { const l = RPG_SKILLS.find((x) => x.id === k.dataset.id); if (l) k.classList.toggle('off', !((ranks[l.id] ?? 0) > 0)); }
+      return true;
+    },
+    // the RPG: the slots a point can go to now carry the soft amber halo (steady: no pulse)
+    halo(ids = []) {
+      if (!rpg) return false;
+      for (const s of row.querySelectorAll('.tp-slot.sk')) s.toggleAttribute('data-halo', ids.includes(s.dataset.skill));
       return true;
     },
   };

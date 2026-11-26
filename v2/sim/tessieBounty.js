@@ -19,8 +19,9 @@
 export const BOUNTY = Object.freeze({
   key: 'lakeshore.tessie.bounty.v1', knocksKey: 'lakeshore.tessie.knocks.v1', v: 1,
   // XP per wreck by type (the bounty's kinds: sail the busy lake's sailboats, halcyon your boat, rival a Regatta boat, glass the glass
-  // boat, kayak a pair splashed or tipped, paddle the paddle-wheeler, still a boat at anchor)
-  xp: Object.freeze({ kayak: 1, still: 2, sail: 3, halcyon: 4, rival: 5, glass: 6, paddle: 10 }),
+  // boat, kayak a pair splashed or tipped, paddle the paddle-wheeler, still a boat at anchor; South Lake's traffic: runabout a runabout
+  // knocked down, jetski the jet ski's rider splashed: he ducks, never in the water)
+  xp: Object.freeze({ kayak: 1, still: 2, sail: 3, halcyon: 4, rival: 5, glass: 6, paddle: 10, runabout: 3, jetski: 2 }),
   hidden: 1.5, seen: 1.5, first: 3, set: 25,
   hiddenM: 8,                  // m: deeper than this at the strike's start is HIDDEN (v2/sim/tessiePlay.js PLAY.hiddenM)
   maxLevel: 20, rankCap: 4,
@@ -35,10 +36,14 @@ export const TYPES = Object.freeze([
   Object.freeze({ id: 'rival', name: 'Regatta rivals', live: false }),
   Object.freeze({ id: 'still', name: 'Boats at anchor', live: false }),
   Object.freeze({ id: 'paddle', name: 'The paddle-wheeler', live: false }),
+  Object.freeze({ id: 'runabout', name: 'South Lake runabouts', live: true }),
+  Object.freeze({ id: 'jetski', name: 'Jet skis', live: true, splash: true }),
 ]);
+// a hit's kind (v2/sim/tessieHits.js) → its bounty type: each live type under its own name, but the runabouts are 'power' on the water
+export const BOUNTY_KIND = Object.freeze({ ...Object.fromEntries(TYPES.filter((t) => t.live && t.id !== 'runabout').map((t) => [t.id, t.id])), power: 'runabout' });
 export const SETS = Object.freeze([
   Object.freeze({ id: 'emerald', name: 'Emerald Bay', types: Object.freeze(['halcyon', 'sail', 'rival', 'glass', 'kayak']) }),
-  Object.freeze({ id: 'south', name: 'South Lake', types: Object.freeze(['paddle', 'still', 'kayak']) }),
+  Object.freeze({ id: 'south', name: 'South Lake', types: Object.freeze(['paddle', 'still', 'kayak', 'runabout', 'jetski']) }),
 ]);
 // the five skills in their slots' order: the unlock order too
 export const SKILL_ORDER = Object.freeze(['dash', 'lure', 'sonar', 'surge', 'breach']);

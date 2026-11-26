@@ -52,6 +52,9 @@ export const LEAN_CLASS = Object.freeze({
   'tip.tessie.swim': TIP, 'tip.tessie.dive': TIP, 'tip.tessie.dash': TIP, 'tip.tessie.look': TIP,
   // "Tessie's up. [T] to be her." (tessiePlayer.js createBeLine): a TIP that may come back (LEAN_REPEAT), retired for good by the first swap
   'tip.tessie.be': TIP,
+  // the Tessie RPG's level-up (v2/sim/tessieLevelUp.js, ?tessierpg=1): "Level N: pick one skill to grow.", a TIP that comes back while a
+  // point waits (its own cadence: still 2 s, at most every 60 s); the gap and busy rules hold
+  'tip.tessie.level': TIP,
   // a press or a tap refused, with the way out (the planner, the double-tap mark, the pilot)
   'mark.set': MUST,   // "Mark set. Click NAV to sail there.": the answer to a double-click; said at once
   'refuse.plan': MUST, 'refuse.mark': MUST, 'refuse.pilot': MUST, 'refuse.dest': MUST, 'refuse.course': MUST,
@@ -79,7 +82,7 @@ export const classOf = (kind) => LEAN_CLASS[kind] ?? CHAT;
 export const COACH_HINTS = Object.freeze(['pull', 'ease', 'irons', 'heavy']);   // the Coach's own words: pull in, ease out, bear away (in irons), ease or reef
 // A TIP that may show again (a nudge, not a lesson): at most max times a session, never within everyS of its own last showing, and
 // never once retired (lean.retire(kind): the player did it; kept in the same store as the once-ever marks). The gap and busy rules hold.
-export const LEAN_REPEAT = Object.freeze({ 'tip.tessie.be': Object.freeze({ everyS: 240, max: 3 }) });
+export const LEAN_REPEAT = Object.freeze({ 'tip.tessie.be': Object.freeze({ everyS: 240, max: 3 }), 'tip.tessie.level': Object.freeze({ everyS: 0, max: Infinity }) });   // the level line keeps its own clock (tessieLevelUp.js)
 // A line that arrives with no kind (the shared modules that never pass one: the bar's say, the Calm HUD's line, the logbook's find,
 // the practice marks, the kayaks' and Tessie's call-outs): its kind by its text. The few that teach or must be acted on are named;
 // every other is chatter. sail.js fills the kind in before the hint row sees the line.

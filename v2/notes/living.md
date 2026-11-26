@@ -186,7 +186,8 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
 - Tiers (`src/core/features.js` powerBoats, `?power=`): full 3 (desktop, tablet L0-L1), lite 2 (the jet ski and the runabout past Ski
   Run; L2-L3), phone 1 (the jet ski), no wake map off the full tier.
 - Tessie: kinds `power` (a knockdown: heeled to 38°, the engine cut, righted in 3.5 s, idling 6 s) and `jetski` (splashed only: the
-  rider ducks, she slows; nobody goes in the water).
+  rider ducks, she slows; nobody goes in the water). With `?tessierpg=1` each counts in her bounty (`sim/tessieBounty.js`): a runabout
+  knocked down 3 XP (type `runabout`), the jet ski's rider splashed 2 XP (type `jetski`), both in the South Lake set.
 
 ## South Lake's paddlers (the region rows' `kayaks` and `sups`; living/sup.js, sim/sup.js, sim/supPose.js, render/sup.js, render/supMesh.js)
 
