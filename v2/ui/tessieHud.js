@@ -21,6 +21,9 @@
 //          empty slot's look (its glyph at 25 %, no pips, its number key); the slots a point can go to carry a soft steady amber halo
 //          (hud.halo(ids)); her legend gains a line per unlocked skill (hud.ranks(ranks, trials)). The free trials: a locked skill
 //          with uses left shows its glyph at 60 % and the uses left in the pips' place (its legend line shows too); at 0 the locked look
+//   THE RPG, phase 3 (rpg): a Sonar ping marks the boats within its range: while the marks last, a short cream tick on the SONAR
+//          dial's rim at each marked boat's bearing and the dial's word reads the ping's range ("480 M"; HIDDEN still wins); a free trial's
+//          slot shows its ring while the skill runs and cools (the trial count stays in the pips' place)
 import { SLOT_COUNT, slotLabel } from '../sim/tessieSkills.js';
 import { CAP_RULE, capFace, ensureLegendStyle } from '../../src/ui/keyLegend.js';
 export { CAP_RULE };
@@ -118,6 +121,7 @@ const HUD_CSS = `#lk-tplay .tp-sonar{position:absolute;right:22px;bottom:22px;wi
 #lk-tplay .tp-sonar .bl[data-t]{fill:rgb(var(--lk-cream) / .95)}
 #lk-tplay .tp-sonar .bl.o[data-t]{fill:none;stroke:rgb(var(--lk-cream) / .95)}
 #lk-tplay .tp-sonar .lk{fill:none;stroke:rgb(var(--lk-amber,240 172 64));stroke-width:1.5}
+#lk-tplay .tp-sonar .rm{stroke:rgb(var(--lk-cream) / .9);stroke-width:2.2;stroke-linecap:round}
 #lk-tplay .tp-skills{position:absolute;bottom:22px;display:flex;gap:12px;align-items:flex-start}
 #lk-tplay .tp-slot{all:unset;box-sizing:border-box;position:relative;width:64px;height:64px;flex:none;border-radius:50%;color:var(--lk-ink,#f3ecdc)}
 #lk-tplay .tp-slot svg{width:100%;height:100%;overflow:visible}
@@ -147,6 +151,7 @@ const HUD_CSS = `#lk-tplay .tp-sonar{position:absolute;right:22px;bottom:22px;wi
 #lk-tplay .tp-slot.locked .base,#lk-tplay .tp-slot.locked .rg,#lk-tplay .tp-slot.locked .nm,#lk-tplay .tp-slot.locked .pp{display:none}
 #lk-tplay .tp-slot .tr{display:none;position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font:600 10px/1 var(--lk-ui,system-ui);letter-spacing:.04em;color:rgb(var(--lk-cream) / .9);pointer-events:none}
 #lk-tplay .tp-slot.locked.trial .tr{display:block}
+#lk-tplay .tp-slot.locked.trial[data-busy] .rg{display:inline}
 #lk-tplay .tp-slot.locked .kn{background:none;border-color:transparent;opacity:.4}
 #lk-tplay .tp-slot[data-halo]{box-shadow:0 0 0 2px rgb(var(--lk-brand-navy) / .55),0 0 0 4px rgb(var(--lk-amber,240 172 64) / .55),0 0 14px 5px rgb(var(--lk-amber,240 172 64) / .28)}   /* a navy hairline keeps the amber apart from the cream ring */
 #lk-tplay .tp-slot{transition:box-shadow .4s ease}
@@ -165,7 +170,7 @@ const GLYPHS = Object.freeze({
 const SONAR_SVG = (cone) => `<svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="58" stroke-width="2" style="fill:rgb(var(--lk-brand-navy) / .72);stroke:rgb(var(--lk-cream) / .7)"/>
 <circle cx="66" cy="66" r="${(54 * 50 / 160).toFixed(1)}" fill="none" stroke-width="1" style="stroke:rgb(var(--lk-cream) / .14)"/><circle cx="66" cy="66" r="${(54 * 100 / 160).toFixed(1)}" fill="none" stroke-width="1" style="stroke:rgb(var(--lk-cream) / .14)"/>
 <path d="M66 66L${(66 + 54 * Math.sin(cone)).toFixed(1)} ${(66 - 54 * Math.cos(cone)).toFixed(1)}A54 54 0 0 0 ${(66 - 54 * Math.sin(cone)).toFixed(1)} ${(66 - 54 * Math.cos(cone)).toFixed(1)}Z" style="fill:rgb(var(--lk-cream) / .06)"/>
-<g class="bls"></g><path class="me" d="M66 59l4 10h-8z" style="fill:rgb(var(--lk-cream) / .95)"/></svg><b class="sw">SONAR</b>`;
+<g class="rim"></g><g class="bls"></g><path class="me" d="M66 59l4 10h-8z" style="fill:rgb(var(--lk-cream) / .95)"/></svg><b class="sw">SONAR</b>`;
 
 // the DOM: the sonar, the skills row, the legend, made in the play's layer; returns { paint(frame), place(layout), count(code), el }
 export function mountHud({ root, doc = globalThis.document, skills = [], storage = null, onSlot = null, keyHints = () => true, rpg = false } = {}) {
@@ -212,10 +217,14 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
       api.legendOn();
     },
     // each frame: t (s), skill states by id, the sonar's input (her, the boats, the corners' and the locked ids, seen(b, d)), hidden
-    paint({ t = 0, states = {}, her = null, boats = [], targetId = null, lockId = null, seen = () => false, hidden = false } = {}) {
+    // ping (the RPG's Sonar, while its marks last): { rangeM, marks: [{ a }] } (a: rad clockwise from her heading)
+    paint({ t = 0, states = {}, her = null, boats = [], targetId = null, lockId = null, seen = () => false, hidden = false, ping = null } = {}) {
       for (const s of row.querySelectorAll('.tp-slot.sk')) {
-        // the RPG: a locked slot keeps the empty slot's look (its glyph at 25 %); an unlocked skill with no state yet reads ready
-        const look = s.classList.contains('locked') ? (s.classList.contains('trial') ? TRIAL_LOOK : LOCKED_LOOK) : slotLook(states[s.dataset.skill] ?? (rpg ? READY : null));
+        // the RPG: a locked slot keeps the empty slot's look (its glyph at 25 %); an unlocked skill with no state yet reads ready;
+        // a free trial running or cooling shows its ring as an unlocked one would
+        const st = states[s.dataset.skill], trial = s.classList.contains('trial'), busy = trial && !!st && st.phase !== 'ready';
+        if (s.hasAttribute('data-busy') !== busy) s.toggleAttribute('data-busy', busy);
+        const look = s.classList.contains('locked') ? (busy ? slotLook(st) : trial ? TRIAL_LOOK : LOCKED_LOOK) : slotLook(st ?? (rpg ? READY : null));
         if (s.dataset.ink !== look.ink) s.dataset.ink = look.ink;
         s.querySelector('.rg').setAttribute('stroke-dasharray', `${(circ * look.ring).toFixed(1)} ${circ.toFixed(1)}`);
         s.querySelector('.gl').style.opacity = String(look.glyph);
@@ -223,7 +232,7 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
       const lv = legendLevels(counts, lines);
       for (const k of legend.querySelectorAll('.kl')) k.classList.toggle('learned', lv.find((l) => l.id === k.dataset.id)?.level === 'learned');
       api.legendOn();
-      sonar.toggleAttribute('data-hidden', !!hidden); const sw = sonar.querySelector('.sw'); const word = hidden ? 'HIDDEN' : 'SONAR'; if (sw.textContent !== word) sw.textContent = word;
+      sonar.toggleAttribute('data-hidden', !!hidden); const sw = sonar.querySelector('.sw'); const word = hidden ? 'HIDDEN' : ping ? `${Math.round(ping.rangeM)} M` : 'SONAR'; if (sw.textContent !== word) sw.textContent = word;
       if (t - lastBlips < 1 / HUD.sonar.hz && t >= lastBlips) return;
       lastBlips = t;
       const R = 54, g = sonar.querySelector('.bls');
@@ -237,6 +246,10 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
         return `<g data-id="${b.id}">${shape}${tick}${ring}</g>`;
       }).join('');
       sonar.dataset.blips = String(g.childElementCount);
+      // the ping's rim: a tick at each marked boat's bearing (in range or beyond the dial's 160 m)
+      const rim = sonar.querySelector('.rim'), marks = ping?.marks ?? [];
+      rim.innerHTML = marks.map((m) => { const sx = Math.sin(m.a), cy = Math.cos(m.a); return `<line class="rm" x1="${(66 + 55 * sx).toFixed(1)}" y1="${(66 - 55 * cy).toFixed(1)}" x2="${(66 + 62 * sx).toFixed(1)}" y2="${(66 - 62 * cy).toFixed(1)}"/>`; }).join('');
+      sonar.dataset.rim = String(marks.length);
     },
     show(on) { shown = !!on; for (const e of [sonar, row, legend]) e.toggleAttribute('data-off', !on); for (const e of [sonar, row]) e.hidden = !on; api.legendOn(); },
     // the legend shows while she is played, on a wide desktop, with Setup › key hints on (Sail's legend's own setting)

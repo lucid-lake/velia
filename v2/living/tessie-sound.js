@@ -148,6 +148,19 @@ export function voice(ctx, out, e, when, { gain = 1, pan = 0, seed = 1 } = {}) {
       noiseVoice(ctx, bus, when, [{ type: 'lowpass', f: 140, to: 320, over: 1.2 }], [[0.5, 0.2], [1.2, 0.1], [1.6, 0]], r() * 2);
       break;
     }
+    case 'lure': {
+      // the Lure (the RPG): a school slapping at the surface (small bright splashes, scattered over 1.6 s) and a shimmer over them
+      for (let i = 0; i < 7; i++) { const at = 0.05 + 1.6 * (i / 7) + 0.12 * r(); noiseVoice(ctx, bus, when + at, [{ type: 'bandpass', f: 1800 + 1400 * r(), q: 1.4 }], [[0.004, 0.16 + 0.08 * r()], [0.06, 0.05], [0.14, 0]], r() * 2); tone(ctx, bus, when + at, 520 + 260 * r(), 300, 0.05, 0.05); }
+      noiseVoice(ctx, bus, when, [{ type: 'highpass', f: 3500 }, { type: 'bandpass', f: 6000, q: 0.7 }], [[0.3, 0.05], [1.4, 0.04], [2.0, 0]], r() * 2);
+      break;
+    }
+    case 'ping': {
+      // the Sonar (the RPG): one low ping (the lock note's family, longer), then a faint echo per boat, later and softer by distance
+      tone(ctx, bus, when, 196, 188, 0.9, 0.22);
+      tone(ctx, bus, when, 392, 380, 0.5, 0.05);
+      for (const d of e.echoes ?? []) { const at = 0.35 + d / 700; tone(ctx, bus, when + at, 190, 184, 0.35, 0.07 * Math.min(1, 120 / Math.max(60, d))); }
+      break;
+    }
     case 'flick': splash(0.35); break;
     case 'slap': splash(1.3); break;
     case 'breach': splash(1.0); running(3.5, 0.3); break;

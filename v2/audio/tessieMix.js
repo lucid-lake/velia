@@ -96,7 +96,7 @@ export const hullOf = (kind) => (kind === 'halcyon' ? 'wood' : kind === 'kayak' 
 // the one-shots (each fires once): feed one frame at a time, get the cues { type, ... } to play this frame.
 //   frame { events (the controller's: dash, ...), knocks ([{ kind, hit, x, z, where, mult }]: the player's contact results),
 //           skill (the dash's { phase }), phase (the strike's: 'swim' | 'windup' | 'strike' | 'follow' | 'recover' | 'rise' | 'breach'),
-//           bite ({ kind }), lunge ({ phase }), lockId, t (s, the real clock) }
+//           bite ({ kind }), lunge ({ phase }), lockId, t (s, the real clock), casts ([{ type: 'lure' | 'ping', echoes }]: the RPG's skills) }
 export function createCueTracker() {
   let skillWas = 'ready', phaseWas = 'swim', lungeWas = null, lockWas = null;
   const last = {};
@@ -115,6 +115,7 @@ export function createCueTracker() {
       if (lp === 'rise' && lungeWas !== 'rise') cues.push({ type: 'riseStart' });
       lungeWas = lp;
       for (const k of f.knocks ?? []) if (gap('knock', t, G.knock)) cues.push({ ...k, type: k.hit ? 'knock' : 'miss' });
+      for (const c of f.casts ?? []) cues.push(c);   // the RPG's skills fired this frame: Lure's fish splashes, Sonar's ping and its echoes
       const id = f.lockId ?? null;
       if (id && id !== lockWas && gap('lock', t, G.lock)) cues.push({ type: 'lock' });   // a new lock only; never repeated while it holds
       lockWas = id;

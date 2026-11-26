@@ -3,9 +3,11 @@
 // FLEE.everyS; a heading that runs into shoal water within FLEE.lookS of sailing is not taken (the busy lake's clear look). The helm is
 // v1's pilot (Helm.toHeading); the crew trims (ctl.sheet null). Nobody fights back: he never steers at her.
 //   fleeHeading({ x, z, heading }, windFrom, her { x, z } | null, clear(h) → bool) → rad
-//   const F = createFlee({ B, depthAt, her })   her() → { x, z } | null;  B.drive(F.drive) ... B.drive(null);  F.state { heading, n }
+//   const F = createFlee({ B, depthAt, her, lure })   her() → { x, z } | null; lure() → { x, z } | null: Tessie's Lure at rank 4 (the RPG):
+//                                        the skipper turns curious toward it while it lasts (out of the no-go cone, clear water), then flees again;  B.drive(F.drive) ... B.drive(null);  F.state { heading, n }
 import { Helm } from '../../src/sim/boat.js';
 import { clearLook } from './clearLook.js';
+import { curiousHeading } from './curious.js';
 
 export const FLEE = Object.freeze({ twaDeg: 130, everyS: 10, lookS: 30, tries: 14, stepDeg: 12 });
 const DEG = Math.PI / 180;
@@ -24,7 +26,7 @@ export function fleeHeading(s, windFrom, her, clear = () => true, K = FLEE) {
   return s.heading;
 }
 
-export function createFlee({ B, depthAt = () => 30, her = () => null, K = FLEE } = {}) {
+export function createFlee({ B, depthAt = () => 30, her = () => null, lure = () => null, K = FLEE } = {}) {
   const helm = new Helm({ rudderMaxDeg: B.phys.P.rudder.maxDeg });
   const look = clearLook(depthAt);
   const st = { heading: null, n: 0, nextT: -Infinity };
@@ -32,6 +34,12 @@ export function createFlee({ B, depthAt = () => 30, her = () => null, K = FLEE }
     state: st,
     drive(t, dt) {
       const s = B.phys.state, ctl = B.ctl;
+      const lu = lure();
+      if (lu) {
+        const w = s.trueWind, h = curiousHeading(s, lu, wrap(s.heading + (w?.angle ?? 0)));
+        if (look(h, K.lookS, s)) { st.curious = true; ctl.rudder = helm.toHeading(s, h, dt); ctl.sheet = null; ctl.throttle = null; return; }
+      }
+      if (st.curious) { st.curious = false; st.nextT = -Infinity; }   // the lure over: a fresh flee heading at once
       if (t >= st.nextT || st.heading == null) {
         const w = s.trueWind, windFrom = wrap(s.heading + (w?.angle ?? 0));
         st.heading = fleeHeading(s, windFrom, her(), (h) => look(h, K.lookS, s), K); st.nextT = t + (st.n === 0 ? 1 : K.everyS); st.n++;   // the first pick again after 1 s (the true wind is read after the first tick)

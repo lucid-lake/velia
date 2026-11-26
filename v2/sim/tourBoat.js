@@ -25,6 +25,9 @@
 //   T.trail: her wake's record (render/vesselWake.js emitters): newest first every TRAIL.dt s, { age, x, z, fx, fz, v, churn }; churn: the
 //   props' wash (by her speed; a swirl of reverse thrust as she slows into a stop; 0 at rest). T.emitters(): her and her kayaks as emitters
 //   T.lights(out, o, { sunElevDeg, eye, heightAt }) → n glow records (her nav lights: all-round white, red, green; 0 by day)
+//   T.lure(x, z, s)                      play as Tessie's Lure (the RPG): underway she turns off her route toward (x, z) at the bay's speed
+//                                         for s seconds and stops closing LURE.arriveM from it (a stop holds her; her free paddlers within
+//                                         `r` paddle over instead) → true when she or a paddler turned
 //   T.active = false: a race (Glass Boat Chase keeps her on);  T.chase({ stop, holdS }) her start in that race: at the stop, held, then away
 import { createMarkBodies } from './channelMarks.js';
 import { CHANNEL } from '../terrain/channel.js';
@@ -32,6 +35,7 @@ import { GLOW_FLOATS, NAV_GLOW, navLevel, navSector } from './night.js';
 import { steerTo, stepHull, HULL, GAIT } from '../../src/sim/kayaks/agent.js';
 import { createStroke, strokeStep, meanForce } from './kayak-stroke.js';
 import { pickLook } from '../../src/sim/props/paddler/look.js';
+import { CURIOUS as LURE } from './curious.js';   // play as Tessie's Lure (not her code: a phone loads this)
 
 const DEG = Math.PI / 180, KN = 0.514444;
 import { wrap as wrapPi } from '../../src/sim/core/math.js';
@@ -341,6 +345,7 @@ export function createTourBoat({ route = TOUR_ROUTE, depthAt = () => 10, onBump 
   const stats = { yields: 0, stops: 0, castOff: 0, tiedOn: 0 };
 
   let holdLeft = 0;   // Glass Boat Chase (chase()): held at her stop until the gun, then away on her route
+  let curious = null;   // Tessie's Lure: { x, z, left } (s)
   function steer(dt, S) {
     if (holdLeft > 0) { holdLeft -= dt; boat.v = 0; return; }
     if (boat.mode === 'stop') {
@@ -379,6 +384,18 @@ export function createTourBoat({ route = TOUR_ROUTE, depthAt = () => 10, onBump 
     let tx = tp.x - tp.dz * boat.lat, tz = tp.z + tp.dx * boat.lat;   // starboard of the route: (−dz, dx)
     if (toStop < K.look * 1.2 && Math.abs(boat.lat) < 0.5) { tx = nx.at[0]; tz = nx.at[1]; }   // into the stop: aim at its spot
     if (depthAt(tx, tz) < K.clear.depthM + 0.5) { boat.lat *= 0.9; tx = tp.x; tz = tp.z; }
+    // curious (Tessie's Lure): off her route toward the ring at the bay's speed, slowing to a stop LURE.arriveM from it; the yield still slows her
+    if (curious) {
+      curious.left -= dt;
+      const dc = Math.hypot(curious.x - boat.x, curious.z - boat.z), ahead = boat.x + (curious.x - boat.x) * Math.min(1, 30 / Math.max(1, dc)), aheadZ = boat.z + (curious.z - boat.z) * Math.min(1, 30 / Math.max(1, dc));
+      if (curious.left <= 0 || depthAt(ahead, aheadZ) < K.clear.depthM + 0.5) curious = null;
+      else {
+        tx = curious.x; tz = curious.z;
+        const vWant = dc > LURE.arriveM ? Math.min(K.speedKn * KN, Math.sqrt(2 * K.decel * Math.max(0, dc - LURE.arriveM))) * slow : 0;
+        if (boat.v > vWant) boat.v = Math.max(vWant, boat.v - K.decel * dt * 2);
+        if (dc <= LURE.arriveM) { tx = boat.x + Math.sin(boat.heading); tz = boat.z - Math.cos(boat.heading); }   // there: she holds her heading, drifting to a stop
+      }
+    }
     const wantH = Math.atan2(tx - boat.x, -(tz - boat.z)), rate = K.yawRate * DEG * Math.max(0.25, Math.min(1, boat.v / vc));
     boat.heading = wrapPi(boat.heading + Math.max(-rate * dt, Math.min(rate * dt, wrapPi(wantH - boat.heading))));
     boat.x += Math.sin(boat.heading) * boat.v * dt; boat.z -= Math.cos(boat.heading) * boat.v * dt;
@@ -531,6 +548,14 @@ export function createTourBoat({ route = TOUR_ROUTE, depthAt = () => 10, onBump 
     get held() { return holdLeft > 0; },
     // Tessie's weight on her rail: she heels to `side` (+1 starboard) and rights in K.knock.rightS (a scripted hull)
     knock(side = 1) { knockS = { side: side >= 0 ? 1 : -1, t: 0 }; return true; },
+    // Tessie's Lure: underway she turns curious toward (x, z) for s seconds; her free paddlers within r paddle over
+    lure(x, z, s = 12, r = 120) {
+      let n = 0;
+      if (active && boat.mode === 'run' && holdLeft <= 0 && !knockS) { curious = { x, z, left: s }; n++; }
+      for (const k of kayaks) if (k.free && k.crew && Math.hypot(k.x - x, k.z - z) <= r && boat.stopLeft >= P.backS) { k.goal = [x + (k.x - x) * 0.25, z + (k.z - z) * 0.25]; k.restLeft = 0; n++; }   // a paddle's length short of the ring
+      return n > 0;
+    },
+    get curious() { return curious ? { ...curious } : null; },
     get knocked() { return !!knockS; },
     // the other boats she yields to besides the player (the busy lake's cruising boats, v2/living/busyLake.js: rule 18, a power-driven vessel
     // keeps clear of one under sail): [{ x, z }] read each tick, the nearest in her yield box wins (null: the player alone)

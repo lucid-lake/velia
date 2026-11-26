@@ -26,7 +26,21 @@ export const RPG_SLOT_COUNT = 5;
 export const DASH_RANKS = Object.freeze([null,
   Object.freeze({ activeS: 1.8, cooldownS: 4.5, bite: 1.15 }), Object.freeze({ activeS: 2.1, cooldownS: 4.0, bite: 1.15 }),
   Object.freeze({ activeS: 2.4, cooldownS: 3.5, bite: 1.15 }), Object.freeze({ activeS: 2.6, cooldownS: 3.0, bite: 1.25 })]);
-export const SKILL_RANKS = Object.freeze({ dash: DASH_RANKS });
+// Lure's and Sonar's four ranks (the RPG, phase 3; v2/sim/tessieLure.js, tessieSonar.js): everyS is the cooldown from the press (the
+// slot's ring: activeS amber, then cooldownS dim, the two summing to everyS). Lure: range 120 → 150 → 180 → 210 m, the boats curious
+// 12 → 15 → 18 → 21 s, every 20 s; rank 4 also lures the Halcyon's skipper. Sonar: range 300 → 360 → 420 → 480 m, marks 8 → 10 → 12 → 14 s
+// (amber while they last), every 25 s (rank 4: 15 s); rank 3 adds a heading tail to each mark
+export const LURE_CAST_S = 2;   // s: the tail's flicks (the slot amber while she casts)
+const lureRank = (rangeM, curiousS, halcyon = false) => Object.freeze({ rangeM, curiousS, everyS: 20, halcyon, activeS: LURE_CAST_S, cooldownS: 20 - LURE_CAST_S });
+const sonarRank = (rangeM, markS, everyS, tail = false) => Object.freeze({ rangeM, markS, everyS, tail, activeS: markS, cooldownS: everyS - markS });
+export const LURE_RANKS = Object.freeze([null, lureRank(120, 12), lureRank(150, 15), lureRank(180, 18), lureRank(210, 21, true)]);
+export const SONAR_RANKS = Object.freeze([null, sonarRank(300, 8, 25), sonarRank(360, 10, 25), sonarRank(420, 12, 25, true), sonarRank(480, 14, 15, true)]);
+export const SKILL_RANKS = Object.freeze({ dash: DASH_RANKS, lure: LURE_RANKS, sonar: SONAR_RANKS });
+// the RPG's own skills table for the slots after the Dash (their rings; flag off nothing reads it): rank 1's numbers until rank() sets theirs
+export const RPG_SKILLS_TABLE = Object.freeze({
+  lure: Object.freeze({ id: 'lure', name: 'Lure', slot: 2, keys: Object.freeze(['Digit2']), bufferS: 0, level: 1, ...LURE_RANKS[1] }),
+  sonar: Object.freeze({ id: 'sonar', name: 'Sonar', slot: 3, keys: Object.freeze(['Digit3']), bufferS: 0, level: 1, ...SONAR_RANKS[1] }),
+});
 // the skill a key code presses (null: none, including a reserved slot's number)
 export const skillOfCode = (code, table = SKILLS) => Object.values(table).find((r) => r.keys?.includes(code))?.id ?? null;
 // the slot's label: "1 · ⇧" for the dash, "2" for a reserved slot (n: 1 … 4)
