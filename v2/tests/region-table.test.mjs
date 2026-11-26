@@ -17,8 +17,8 @@ const plain = (v) => JSON.parse(JSON.stringify(v));
 // old rows still read digit for digit; the added rows have their own test (region-level.test.mjs)
 const ADDED = { regions: ['south-lake'], birthplaces: ['ski-run'], names: ['n-south-lake', 'n-ski-run', 'n-tahoe-keys', 'n-camp-richardson', 'n-rubicon'] };
 // the rows moved since (the open lake's start moved to Rubicon Point: its pin, its region's circle and level, one kayak lane, the lake boats near it;
-// v2/tests/rubicon.test.mjs holds the new values): compared without the moved parts, the rest digit for digit
-const MOVED = { birthplaces: ['lake'], kayaks: ['kayak-lake-round'], boats: ['lake-north', 'lake-point', 'lake-rubicon'] };
+// v2/tests/rubicon.test.mjs holds the new values; tessie and fannette became one pin: birthplace.test.mjs): compared without the moved parts, the rest digit for digit
+const MOVED = { birthplaces: ['lake', 'tessie', 'fannette'], kayaks: ['kayak-lake-round'], boats: ['lake-north', 'lake-point', 'lake-rubicon'] };
 const unmoved = (rows) => rows.map(({ level, ...r }) => (r.id !== 'tahoe-west' ? r : { ...r, centre: null, radiusM: null,
   kayaks: r.kayaks.filter((k) => !MOVED.kayaks.includes(k.id)), boats: r.boats.filter((b) => !MOVED.boats.includes(b.id)).map(({ prio, ...b }) => b) }));
 const old = (rows) => plain(rows).filter((r) => !ADDED.regions.includes(r.id)).map((r) => (r.neighbours ? { ...r, neighbours: r.neighbours.filter((n) => !ADDED.regions.includes(n)) } : r));
