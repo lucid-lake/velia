@@ -1,5 +1,5 @@
 // The Tessie RPG, phase 4 (?tessierpg=1): Tail Surge by rank. Behaviour on the real sims: as her, a press winds up 1.2 s, then the slap's
-// ring wave heels the busy lake's sailboats away from her by distance and rank; one boat within the knock radius already heeled past 20°
+// ring wave heels the busy lake's sailboats away from her by distance and rank; one boat within the knock radius already heeled past 12°
 // goes over (scored as wrecked), never in Light wind; the kayakers within 20 m are splashed and scored; every 30 s at every rank; the
 // free trials are spent only by a real use.
 import test from 'node:test';
@@ -85,18 +85,18 @@ test('the pure rules: heel by distance, the one-boat knock rule, Light wind, the
   assert.equal(surgeHeel(41, r1), 0, 'none outside the ring');
   assert.equal(surgeHeel(60, r4), 45 * (1 - (1 - SURGE.edgeK) * (60 - 18) / (64 - 18)), 'rank 4 reaches 64 m');
   const her = { x: 0, z: 0 }, strong = 11, light = 2.8;
-  // two boats heeled past 20° inside the knock radius: the nearer goes over, the other heels; one at 19° heels; one at 25° outside it heels
+  // two boats heeled past 12° inside the knock radius: the nearer goes over, the other heels; one at 10° heels; one at 25° outside it heels
   const list = [
     { id: 'a', kind: 'sail', x: 10, z: 0, heading: 0, heelDeg: -24, twsMs: strong },
     { id: 'b', kind: 'sail', x: 0, z: 8, heading: 0, heelDeg: 22, twsMs: strong },
-    { id: 'c', kind: 'sail', x: -6, z: 0, heading: 0, heelDeg: 19, twsMs: strong },
+    { id: 'c', kind: 'sail', x: -6, z: 0, heading: 0, heelDeg: 10, twsMs: strong },
     { id: 'd', kind: 'sail', x: 0, z: -20, heading: 0, heelDeg: 25, twsMs: strong },
     { id: 'g', kind: 'glass', x: 0, z: 30, heading: 0 },
     { id: 'p', kind: 'power', x: 15, z: 15, heading: 0 },
     { id: 'k1', kind: 'kayak', x: 15, z: 5 }, { id: 'k2', kind: 'kayak', x: 21, z: 0 }, { id: 's', kind: 'sup', x: 3, z: 3 },
   ];
   const p = surgeResolve(her, list, r1);
-  assert.equal(p.knock?.id, 'b', 'one boat goes over: the nearest heeled past 20° within 12 m');
+  assert.equal(p.knock?.id, 'b', 'one boat goes over: the nearest heeled past 12° within 12 m');
   assert.equal(p.knock.side, 1, 'over the way she already leans (starboard down)');
   assert.deepEqual(p.heels.map((h) => h.id), ['c', 'a', 'd', 'g'], 'the rest inside the ring heel, nearest first (the powerboat is no ring-wave hull)');
   assert.deepEqual(p.kayaks, ['k1'], 'the kayak 15.8 m off is splashed; 21 m is out; a paddleboard is no kayak');
@@ -154,23 +154,25 @@ test('Light wind (5.5 kn): the boats heel by distance, nothing goes over', () =>
   assert.equal(r.P.bounty.state().byType.sail.wrecked, 0);
 });
 
-test('Medium wind (10 kn): the boats heel by distance; a boat leaning under 20° does not go over', () => {
+test('Medium wind (10 kn): the boats heel by distance; a boat inside the knock radius leaning past 12° goes over, one under it only heels', () => {
   const r = surgeRun('medium');
-  const leans = r.slap.heels.map((h) => Math.abs(h.lean));
-  assert.ok(leans.every((l) => l < SURGE.overDeg), `no boat leans 20° in 10 kn (${leans.join(', ')})`);
-  assert.equal(r.slap.knock, null); assert.deepEqual(r.slap.over, []);
+  const over = r.slap.heels.filter((h) => h.d <= SURGE_RANKS[1].knockM && Math.abs(h.lean) > SURGE.overDeg);
+  const k = r.slap.knock, cands = [...over, ...(k ? [k] : [])];
+  if (k) { assert.ok(k.d <= 12 && Math.abs(k.lean) > SURGE.overDeg, `the knocked boat leaned past 12° inside 12 m (${JSON.stringify(k)})`); assert.deepEqual(r.slap.over, [k.id]); }
+  else assert.equal(cands.length, 0, `no boat inside 12 m leaned past 12°, none went over (${JSON.stringify(r.slap.heels)})`);
+  assert.equal(r.P.bounty.state().byType.sail.wrecked, k ? 1 : 0);
   checkHeels(r, 'Medium');
 });
 
-test('Strong wind (24 kn): the boat within the knock radius heeled past 20° goes over and is scored; the others only heel', () => {
+test('Strong wind (24 kn): the boat within the knock radius heeled past 12° goes over and is scored; the others only heel', () => {
   const r = surgeRun('strong', { ds: [9, 11, 30] });
   const k = r.slap.knock;
-  assert.ok(k && Math.abs(k.lean) > 20 && k.d <= 12, `one boat inside 12 m leaning past 20° (${JSON.stringify(r.slap)})`);
+  assert.ok(k && Math.abs(k.lean) > SURGE.overDeg && k.d <= 12, `one boat inside 12 m leaning past 12° (${JSON.stringify(r.slap)})`);
   assert.deepEqual(r.slap.over, [k.id], 'it went over');
   const kb = r.L.liveBoats.find((b) => b.id === k.id);
   assert.ok(kb.knock?.capsized, 'capsized (heel past 60°)');
-  const twin = r.slap.heels.find((h) => h.d <= 12 && Math.abs(h.lean) > 20);
-  assert.ok(twin, `a second boat inside 12 m also leaning past 20° (${JSON.stringify(r.slap.heels)})`);
+  const twin = r.slap.heels.find((h) => h.d <= 12 && Math.abs(h.lean) > SURGE.overDeg);
+  assert.ok(twin, `a second boat inside 12 m also leaning past 12° (${JSON.stringify(r.slap.heels)})`);
   assert.equal(r.boats.filter((b) => b.knock?.capsized).length, 1, 'exactly one boat over (the one-boat rule): the second only heels');
   assert.equal(r.P.bounty.state().byType.sail.wrecked, 1, 'scored as wrecked');
   const got = r.P.bounty.state().xp - r.xp0;

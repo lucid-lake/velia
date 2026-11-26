@@ -18,11 +18,12 @@ export const SURGE = Object.freeze({
   waveS: 2.0,          // s: the ring runs out to the ring radius (any rank: a bigger ring runs faster)
   fadeS: 1.0,          // s: the in-world ring fades after it reaches the ring radius
   edgeK: 0.3,          // the heel at the ring's edge, a share of the rank's heel angle (the full angle inside the knock radius)
-  overDeg: 20,         // a boat already heeled past this (the wind helps) inside the knock radius goes over
+  overDeg: 12,         // a boat already heeled past this (the wind helps) inside the knock radius goes over: 12° so a boat on the
+                       // wind at the default 15 kn (about 20°) and in Medium (10–12 kn: 14–18°) can go over; Light never (lightKn)
   lightKn: 7.5,        // kn: under this at the boat (the Light band, 4–7 kn) nothing goes over, only heels
   kayakM: 20,          // m: the kayaks within this are splashed (scored)
   heelKinds: Object.freeze(['sail', 'halcyon', 'glass']),   // what the wave heels (the powerboats and the paddle-wheeler: not by a ring wave)
-  knockKinds: Object.freeze(['sail', 'halcyon']),           // what may go over (they heel under sail; the glass boat never leans 20°)
+  knockKinds: Object.freeze(['sail', 'halcyon']),           // what may go over (they heel under sail; the glass boat never goes over)
 });
 // her ranks: ring 40 → 48 → 56 → 64 m, knock radius 12 → 14 → 16 → 18 m, heel 35 → 38 → 41 → 45°; every 30 s from the press (the slot's
 // ring: amber over the wind-up and the wave, then dim)
