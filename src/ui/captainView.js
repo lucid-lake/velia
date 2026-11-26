@@ -120,8 +120,7 @@ const BOW = [50, 18], STERN = [50, 82], MAST = [50, 42], BOOM = 34, JIB = 27, RU
 const HULL_D = `M50 18 C61 30 64 48 63.4 63 C63 72 60 80 56 82 L44 82 C40 80 37 72 36.6 63 C36 48 39 30 50 18 Z`;   // a clean teaching hull: a plain pointed oval with a square transom
 // The boat's plan is drawn at PLAN_K of its own size, its centre PLAN_AT units down (of 100), so the readings sit under it inside
 // the round glass. A small dial (a phone's) draws the boat smaller and higher: its readings are taller against it.
-let PLAN_K = 0.62, PLAN_AT = 44, FS = 7;
-const BOAT_B = () => [50, PLAN_AT];   // the boat's centre in the dial's units: the wind arrow and the no-go wedge are drawn about it
+// (per drawing since the map's boat: coachBoat's scale())
 import { clampT as clamp } from '../sim/core/math.js';
 const f1 = (v) => (+v).toFixed(1);
 const R0 = 25 * DEG, GAIN = 0.6;                     // the rudder's stop (BOAT.rudder.maxDeg) and its drawn gain
@@ -168,29 +167,23 @@ function sailShape(from, L, a, { fill = 1, stall = 0, t = 0 }) {
   return { d, clew: [from[0] + dx * L, from[1] + dy * L] };
 }
 
-// always: the wind circle is always visible, like the chart (owner, 2026-10-30): pinned from the start, V never hides it
-// wedge: 'true' (v1: the no-go wedge about the true wind, CAPTAIN.wedgeDeg) | 'apparent' (centred on the apparent wind arrow, its
-// half-angle luffDeg(state): the closest apparent wind the sails draw at); pos: the point of sail's word under the readings (from
-// the true wind, pointOfSail.js); sectors(): the faint ring of the points of sail round the dial (a New player's)
-export function createCaptainView({ root = document.body, state = () => null, once = true, storage = globalThis.localStorage, always = false,
-  wedge: wedgeMode = 'true', luffDeg = () => CAPTAIN.wedgeDeg, pos: posOn = false, sectors = () => false, coach = null } = {}) {
+// the dial's and the boat's sheet (the map's boat mounts it without a dial)
+export function ensureCaptainCss() {
   ensureTokens();
-  if (!document.getElementById('lk-cv-css')) {
-    const st = document.createElement('style'); st.id = 'lk-cv-css'; st.textContent = CSS; document.head.appendChild(st);
-  }
-  const el = document.createElement('div'); el.className = `lk-cv lk-rd${posOn && !coach ? ' pos' : ''}${coach ? ' coach' : ''}`;
-  const pt = (deg, R) => `${f1(50 + Math.sin(deg * DEG) * R)} ${f1(50 - Math.cos(deg * DEG) * R)}`;
-  const ticks = Array.from({ length: 36 }, (_, i) => i).filter((i) => i).map((i) => { const d = i * 10, r1 = i % 3 ? 45.6 : 43.4; return `M${pt(d, 48.4)} L${pt(d, r1)}`; }).join(' ');
-  const PLAN = '<g class="plan">';
-  el.innerHTML = `<div class="dial glass"><svg viewBox="0 0 100 100" aria-hidden="true">
-    <circle class="ring" cx="50" cy="50" r="48.4"/>
-    <path class="tick" d="${ticks}"/>
-    <g class="sect"></g>
-    <path class="bow" d="M50 5 L46.8 11.5 L53.2 11.5 Z"/>
-    <path class="wedge" d=""/>
+  if (!document.getElementById('lk-cv-css')) { const st = document.createElement('style'); st.id = 'lk-cv-css'; st.textContent = CSS; document.head.appendChild(st); }
+}
+
+// The Coach's boat (2026-11-25): the one drawing shared by the cockpit's dial and Plan's map. coachBoat appends to an <svg viewBox="0 0
+// 100 100"> the no-go wedge and its edges, the plan (hull, port and starboard edges, sheets, boom, sails, mast, rudder), the apparent
+// wind's arrow, the trend chevron and, with coach, the words; draw(s) moves them all. scale() → { k, at, fs }: the plan's size (of 100),
+// its centre's height and the words' size, all in the viewBox's units. rows: the readings' three elements (coach) to fill, or null.
+//   const b = coachBoat({ svg, scale, coach, wedge, luffDeg, rows })   b.layout(), b.draw(s, { t, trend, nogo, cue }), b.posId, b.saying, b.planG
+export function coachBoat({ svg, scale = () => ({ k: 0.62, at: 44, fs: 7 }), coach = null, wedge: wedgeMode = 'true', luffDeg = () => CAPTAIN.wedgeDeg, rows = null }) {
+  let K = 0.62, AT = 44, FS = 7;
+  svg.insertAdjacentHTML('beforeend', `<path class="wedge" d=""/>
     <path class="nedge p" d=""/>
     <path class="nedge s" d=""/>
-    ${PLAN}
+    <g class="plan">
     <path class="hf" d="${HULL_D}"/>
     <path class="ln hull" d="${HULL_D}"/>
     <path class="edge p" d="M50 18 C39 30 36 48 36.6 63 C37 72 40 80 44 82"/>
@@ -205,65 +198,20 @@ export function createCaptainView({ root = document.body, state = () => null, on
     </g>
     <g class="windg"><path class="ln wind" d="M0 0 L0 0"/><path class="ln wind head" d=""/></g>
     <path class="ln trend" d="" style="opacity:0"/>
-    ${coach ? '<g class="cg"><text class="ng" text-anchor="middle"></text><text class="ww soft"></text><text class="lw soft"></text><text class="tg main warn" text-anchor="middle"></text><text class="tg jib warn" text-anchor="middle"></text><text class="sc warn" text-anchor="middle"></text><text class="fw soft" text-anchor="middle"></text><text class="aw soft" text-anchor="middle"></text></g>' : ''}
-    ${PLAN}
-    <path class="ln target" d=""/>
-    <path class="hit hsail" data-k="main" d=""/>
-    <path class="hit hsail" data-k="jib" d=""/>
-    <path class="hit hrud" d=""/>
-    </g>
-  </svg>${coach ? '<div class="inr"><div class="rw c1"></div><div class="rw c2"></div><div class="rw c3"></div></div>' : `<div class="inr"><div class="rw"><i>AWA</i><b><span class="awa">0</span>°<em class="side"></em></b></div><div class="rw s"><i>AWS</i><b><span class="aws">0.0</span><small>kn</small></b></div>${posOn ? '<div class="rw pos"></div>' : ''}</div>`}</div>`;
-  root.appendChild(el);
-  const planGs = [...el.querySelectorAll('.plan')];
-  const applyPlan = () => {
-    const w = document.documentElement.classList.contains('lk-dials-in') ? el.offsetWidth * 0.8 : (el.getBoundingClientRect().width || 200);   // in the cockpit's instruments: its raised size (the hidden one is shrunk onto the face)
-    PLAN_K = w < 130 ? 0.36 : w < 190 ? 0.5 : 0.62; PLAN_AT = w < 130 ? 36 : w < 190 ? 41 : 44;
-    if (posOn || coach) PLAN_AT -= w < 190 ? 5 : 3;
-    FS = 1500 / Math.max(80, w);   // 15 px in the dial's units   // a third row (the point of sail) under the readings: the boat a little higher
-    for (const g of planGs) g.setAttribute('transform', `translate(50 ${PLAN_AT}) scale(${PLAN_K}) translate(-50 -50)`);
-  };
-  applyPlan(); addEventListener('resize', applyPlan);
-  const planRo = typeof ResizeObserver === 'function' ? new ResizeObserver(applyPlan) : null; planRo?.observe(el);   // the touch class arrives after the dial is built
-  const q = (c) => el.querySelector(c);
-  const wedge = q('.wedge'), nedgeP = q('.nedge.p'), nedgeS = q('.nedge.s'), boom = q('.boom'), sheetM = q('.sheet.main'), sheetJ = q('.sheet.jib'), main = q('.sail.main'), jib = q('.sail.jib'), rud = q('.rud'), wind = q('.wind'), head = q('.wind.head'), trendEl = q('.trend');
+    ${coach ? '<g class="cg"><text class="ng" text-anchor="middle"></text><text class="ww soft"></text><text class="lw soft"></text><text class="tg main warn" text-anchor="middle"></text><text class="tg jib warn" text-anchor="middle"></text><text class="sc warn" text-anchor="middle"></text><text class="fw soft" text-anchor="middle"></text><text class="aw soft" text-anchor="middle"></text></g>' : ''}`);
+  const q = (c) => svg.querySelector(c);
+  const planG = q('g.plan'), wedge = q('.wedge'), nedgeP = q('.nedge.p'), nedgeS = q('.nedge.s'), boom = q('.boom'), sheetM = q('.sheet.main'), sheetJ = q('.sheet.jib'), main = q('.sail.main'), jib = q('.sail.jib'), rud = q('.rud'), wind = q('.wind'), head = q('.wind.head'), trendEl = q('.trend');
   // every moving line has a dark under-stroke, a hair wider (the chart-plotter way of keeping a line on any ground)
   for (const ln of [rud, wind, head, boom]) { const u = document.createElementNS('http://www.w3.org/2000/svg', 'path'); u.setAttribute('class', 'ul'); ln.parentNode.insertBefore(u, ln); ln._u = u; }
   const D = (ln, d) => { ln.setAttribute('d', d); ln._u?.setAttribute('d', d); };
-  const awaEl = q('.awa'), awsEl = q('.aws'), sideEl = q('.side'), posEl = q('.rw.pos'), sectG = q('.sect');
-  let posId = null, sectKey = '';
-  let trend = null;   // pro: the pod's lift / header trend ({ kind, level }), drawn as a small chevron by the arrow's tail
-  const svg = q('svg'), targetEl = q('.target'), hitMain = q('.hit[data-k=main]'), hitJib = q('.hit[data-k=jib]'), hitRud = q('.hit.hrud');
-  // ---- the pointer: drag the sail line, drag the rudder (touch too: pointer events, touch-action none) ----
-  let drag = null, hover = false, nogoAsk = false, hitT = 1;
-  const toBox = (e) => { const r = svg.getBoundingClientRect(); return [50 + ((e.clientX - r.left) / r.width * 100 - 50) / PLAN_K, 50 + ((e.clientY - r.top) / r.height * 100 - PLAN_AT) / PLAN_K]; };   // into the plan's own units
-  const onDown = (e) => {
-    if (mode === 'off' || e.button > 0) return;
-    const [x, y] = toBox(e), path = e.currentTarget;
-    drag = path === hitRud ? { kind: 'rudder', steer: glyphRudder(x, y) } : { kind: 'sheet', sail: path.dataset.k, sheet: glyphSheet(x, y, path.dataset.k) };
-    drag.id = e.pointerId; el.classList.add('drag');
-    try { path.setPointerCapture(e.pointerId); } catch { /* synthetic */ }
-    e.preventDefault(); e.stopPropagation();
-  };
-  const onMove = (e) => {
-    if (!drag || e.pointerId !== drag.id) return;
-    const [x, y] = toBox(e);
-    if (drag.kind === 'rudder') drag.steer = glyphRudder(x, y); else drag.sheet = glyphSheet(x, y, drag.sail);
-    e.preventDefault();
-  };
-  const onUp = (e) => { if (drag && e.pointerId === drag.id) { drag = null; el.classList.remove('drag'); targetEl.setAttribute('d', ''); } };
-  for (const h of [hitMain, hitJib, hitRud]) {
-    h.addEventListener('pointerdown', onDown); h.addEventListener('pointermove', onMove);
-    h.addEventListener('pointerup', onUp); h.addEventListener('pointercancel', onUp); h.addEventListener('lostpointercapture', onUp);
-    const gl = h === hitRud ? 'helm' : h === hitJib ? 'jib' : 'mainsheet';   // the sailor's words: a hover glosses the part (ui/gloss.js)
-    h.addEventListener('pointerenter', (e) => { hover = true; if (e.pointerType !== 'touch') dispatchEvent(new CustomEvent('lk-gloss', { detail: { term: gl, x: e.clientX, y: e.clientY } })); });
-    h.addEventListener('pointerleave', () => { hover = false; dispatchEvent(new Event('lk-gloss-off')); });
-  }
-
-  let seen = false;
-  try { seen = once && storage?.getItem('lakeshore.hints.v2') === '1'; } catch { /* run it */ }
-  let mode = always ? 'pinned' : 'auto', a = 0, t = 0, visible = false, disposed = false, cue = null;
-
-  function draw(s) {
+  const layout = () => { const o = scale(); K = o.k; AT = o.at; FS = o.fs; planG.setAttribute('transform', `translate(50 ${AT}) scale(${K}) translate(-50 -50)`); };
+  layout();
+  let posId = null, saying = false;
+  const C = coach ? { ng: q('.cg .ng'), ww: q('.cg .ww'), lw: q('.cg .lw'), tm: q('.cg .tg.main'), tj: q('.cg .tg.jib'), sc: q('.cg .sc'), fw: q('.cg .fw'), aw: q('.cg .aw'), r1: rows?.[0] ?? null, r2: rows?.[1] ?? null, r3: rows?.[2] ?? null } : null;
+  const setT = (n, text, x, y, anchor) => { if (n.textContent !== text) n.textContent = text; if (!text) return; n.setAttribute('x', f1(x)); n.setAttribute('y', f1(y)); n.setAttribute('font-size', f1(FS)); if (anchor) n.setAttribute('text-anchor', anchor); };
+  const setH = (n, html) => { if (!n) return; if (n._h !== html) { n._h = html; n.innerHTML = html; } };
+  const toDial = (p) => [50 + (p[0] - 50) * K, AT + (p[1] - 50) * K];
+  function draw(s, { t = 0, trend = null, nogo: nogoAsk = false, cue = null } = {}) {
     const awa = s.apparentWind?.angle ?? 0, aws = s.apparentWind?.speed ?? 0, twa = s.trueWind?.angle ?? 0;
     // the sails: the boom and the clew as the physics reports them
     const sm = sailShape(MAST, BOOM, s.boomAngle ?? 0, { fill: s.mainFill ?? 1, stall: s.mainStall ?? 0, t });
@@ -274,7 +222,6 @@ export function createCaptainView({ root = document.body, state = () => null, on
     D(sheetM, `M${f1(sm.clew[0])} ${f1(sm.clew[1])} L${CLEAT[0]} ${CLEAT[1]}`);
     const jc = Math.sign(s.jibAngle || 1) * 7;   // the jib's sheet leads to the winch on its own side
     D(sheetJ, `M${f1(sj.clew[0])} ${f1(sj.clew[1])} L${50 + jc} 66`);
-    drawHits(s);
     const hardM = (s.mainStall ?? 0) > 0.6 && Math.abs(awa) < 80 * DEG, hardJ = (s.jibStall ?? 0) > 0.6 && Math.abs(awa) < 80 * DEG;
     main.classList.toggle('hard', hardM); jib.classList.toggle('hard', hardJ);
     main.classList.toggle('luff', (s.mainFill ?? 1) < 0.5); jib.classList.toggle('luff', (s.jibFill ?? 1) < 0.5);
@@ -286,10 +233,10 @@ export function createCaptainView({ root = document.body, state = () => null, on
     // the apparent wind: a big arrow from the side it comes from, pointing at the boat, stopping a hair short of the sails; coloured by
     // the side the wind comes from (port red, starboard green), cream within 5° of the bow or the stern. Its width grows with the strength.
     const ux = Math.sin(awa), uy = -Math.cos(awa);     // the direction the wind comes FROM, bow up
-    const [bx, by] = BOAT_B();
+    const bx = 50, by = AT;
     // where a ray from the boat's centre leaves the glass (the circle of radius 48 about the dial's centre): the tail and the wedge stop there
     const leave = (dx, dy) => { const ox = bx - 50, oy = by - 50, b2 = ox * dx + oy * dy, c = ox * ox + oy * oy - 48 * 48; const t = -b2 + Math.sqrt(b2 * b2 - c); return [bx + dx * t, by + dy * t]; };
-    const rs = 1 / Math.sqrt((ux / (BOOM * PLAN_K * 0.95)) ** 2 + (uy / (36 * PLAN_K * 0.92)) ** 2) + 1;   // how far from the boat's centre the sails and hull reach, in this direction
+    const rs = 1 / Math.sqrt((ux / (BOOM * K * 0.95)) ** 2 + (uy / (36 * K * 0.92)) ** 2) + 1;   // how far from the boat's centre the sails and hull reach, in this direction
     const frac = clamp(aws / CAPTAIN.awsFull, 0, 1);
     const [tx, ty] = leave(ux, uy), hx = bx + ux * rs, hy = by + uy * rs;   // the tail starts at the rim
     D(wind, `M${f1(tx)} ${f1(ty)} L${f1(hx + ux * 7)} ${f1(hy + uy * 7)}`);
@@ -299,10 +246,6 @@ export function createCaptainView({ root = document.body, state = () => null, on
     D(head, `M${f1(hx)} ${f1(hy)} L${f1(hx + ux * 12 + px * hw)} ${f1(hy + uy * 12 + py * hw)} L${f1(hx + ux * 12 - px * hw)} ${f1(hy + uy * 12 - py * hw)} Z`);
     const aw = Math.abs(awa) / DEG, side = aw < 5 || aw > 175 ? '' : awa < 0 ? 'p' : 's';
     wind.classList.toggle('p', side === 'p'); wind.classList.toggle('s', side === 's'); head.classList.toggle('p', side === 'p'); head.classList.toggle('s', side === 's');
-    const aT = String(Math.round(aw)), sT = (aws * KN).toFixed(1);
-    if (awaEl && awaEl.textContent !== aT) awaEl.textContent = aT;
-    if (awsEl && awsEl.textContent !== sT) awsEl.textContent = sT;
-    if (sideEl && sideEl.textContent !== side.toUpperCase()) { sideEl.textContent = side.toUpperCase(); sideEl.className = `side ${side}`; }
     // pro: the trend chevron beside the arrow, up (toward the bow) for a lift, down for a header
     if (trend?.kind) {
       const c = 2.6 + 1.6 * (trend.level ?? 0), d = trend.kind === 'lift' ? -1 : 1, tcx = bx + ux * 44 + px * 9, tcy = by + uy * 44 + py * 9;
@@ -319,22 +262,14 @@ export function createCaptainView({ root = document.body, state = () => null, on
     wedge.style.opacity = hot ? 0.3 : 0.12;
     nedgeP.style.opacity = nedgeS.style.opacity = hot ? 1 : 0.95;
     // the point of sail (from the true wind, with its hysteresis) and the sector ring about the true wind
-    if (posEl || coach) posId = pointOfSail(twa / DEG, posId);
-    if (posEl) { const L = pointLabel(posId); if (posEl.textContent !== L) posEl.textContent = L; }
-    drawSectors(sectors() ? twa : null);
+    posId = pointOfSail(twa / DEG, posId);
     if (coach) drawCoach(s, { awa, aws, twa, bx, by, sm, sj, tx, ty });
+    return { awa, aws, twa, side };
   }
-  // ---- the coach: each sail's word on the sail, the helm's word at the bow, windward and leeward, the no-go zone, the readings ----
-  const cq = (c) => el.querySelector(c);
-  const C = coach ? { ng: cq('.cg .ng'), ww: cq('.cg .ww'), lw: cq('.cg .lw'), tm: cq('.cg .tg.main'), tj: cq('.cg .tg.jib'), sc: cq('.cg .sc'), fw: cq('.cg .fw'), aw: cq('.cg .aw'), r1: cq('.rw.c1'), r2: cq('.rw.c2'), r3: cq('.rw.c3') } : null;
-  const setT = (n, text, x, y, anchor) => { if (n.textContent !== text) n.textContent = text; if (!text) return; n.setAttribute('x', f1(x)); n.setAttribute('y', f1(y)); n.setAttribute('font-size', f1(FS)); if (anchor) n.setAttribute('text-anchor', anchor); };
-  const setH = (n, html) => { if (n._h !== html) { n._h = html; n.innerHTML = html; } };
-  const toDial = (p) => [50 + (p[0] - 50) * PLAN_K, PLAN_AT + (p[1] - 50) * PLAN_K];
   // One design for every player (owner, 2026-11-25): a word shows only when something needs doing (a sail luffing or stalled, an
   // overpowered boat, a sheet at its stop, in irons); the colours, the point of sail, the tack, windward and leeward, SPEED, WIND and
   // "feels" always. coach.pro(): the PRO switch adds AWA by the arrow, TWA by the point of sail and VMG beside SPEED; coach.race():
   // VMG beside SPEED in Regatta.
-  let saying = false;
   function drawCoach(s, { awa, aws, twa, bx, by, sm, sj, tx, ty }) {
     const pro = !!coach.pro?.(), race = !!coach.race?.();
     const cues = coach.cues?.(s, posId) ?? {};
@@ -348,7 +283,7 @@ export function createCaptainView({ root = document.body, state = () => null, on
       path.classList.toggle('warn', c.state !== 'draw' || !!heel);
       const word = heel || (c.atStop ? '' : c.word);
       const [cx, cy] = toDial(sh.clew), side = Math.sign(cx - 50) || 1;
-      const yMax = PLAN_AT + 30 * PLAN_K - FS * 0.2;   // above the readings at any size (a phone's enlarged dial too)
+      const yMax = AT + 30 * K - FS * 0.2;   // above the readings at any size (a phone's enlarged dial too)
       let ty2 = clamp(cy + FS * (sail === 'jib' ? -0.2 : 1.1), Math.min(24, yMax), yMax);
       if (tagY.some((t) => Math.abs(t - ty2) < FS * 1.1)) ty2 = Math.max(FS, Math.min(...tagY) - FS * 1.15);   // never on the other sail's word
       setT(tag, word, clamp(cx + side * FS * 0.6, 14 + FS * 1.6, 86 - FS * 1.6), ty2);
@@ -385,10 +320,96 @@ export function createCaptainView({ root = document.body, state = () => null, on
     setH(C.r2, vmg != null ? `<i>SPEED</i><b>${sog}</b><i class="vm">VMG</i><b>${vmg}</b><small>kn</small>` : `<i>SPEED</i><b>${sog}</b><small>kn</small>`);
     setH(C.r3, `<i>WIND</i><b>${tws}</b><small>kn</small>`);
   }
+  return { layout, draw, planG, get posId() { return posId; }, get saying() { return saying; } };
+}
+
+// always: the wind circle is always visible, like the chart (owner, 2026-10-30): pinned from the start, V never hides it
+// wedge: 'true' (v1: the no-go wedge about the true wind, CAPTAIN.wedgeDeg) | 'apparent' (centred on the apparent wind arrow, its
+// half-angle luffDeg(state): the closest apparent wind the sails draw at); pos: the point of sail's word under the readings (from
+// the true wind, pointOfSail.js); sectors(): the faint ring of the points of sail round the dial (a New player's)
+export function createCaptainView({ root = document.body, state = () => null, once = true, storage = globalThis.localStorage, always = false,
+  wedge: wedgeMode = 'true', luffDeg = () => CAPTAIN.wedgeDeg, pos: posOn = false, sectors = () => false, coach = null } = {}) {
+  ensureCaptainCss();
+  const el = document.createElement('div'); el.className = `lk-cv lk-rd${posOn && !coach ? ' pos' : ''}${coach ? ' coach' : ''}`;
+  const pt = (deg, R) => `${f1(50 + Math.sin(deg * DEG) * R)} ${f1(50 - Math.cos(deg * DEG) * R)}`;
+  const ticks = Array.from({ length: 36 }, (_, i) => i).filter((i) => i).map((i) => { const d = i * 10, r1 = i % 3 ? 45.6 : 43.4; return `M${pt(d, 48.4)} L${pt(d, r1)}`; }).join(' ');
+  el.innerHTML = `<div class="dial glass"><svg viewBox="0 0 100 100" aria-hidden="true">
+    <circle class="ring" cx="50" cy="50" r="48.4"/>
+    <path class="tick" d="${ticks}"/>
+    <g class="sect"></g>
+    <path class="bow" d="M50 5 L46.8 11.5 L53.2 11.5 Z"/>
+  </svg>${coach ? '<div class="inr"><div class="rw c1"></div><div class="rw c2"></div><div class="rw c3"></div></div>' : `<div class="inr"><div class="rw"><i>AWA</i><b><span class="awa">0</span>°<em class="side"></em></b></div><div class="rw s"><i>AWS</i><b><span class="aws">0.0</span><small>kn</small></b></div>${posOn ? '<div class="rw pos"></div>' : ''}</div>`}</div>`;
+  // the boat (coachBoat, shared with the map), then the control layer over it: the target line and the hit strokes
+  let PLAN_K = 0.62, PLAN_AT = 44, FS = 7;
+  const svg = el.querySelector('svg');
+  const boat = coachBoat({ svg, scale: () => ({ k: PLAN_K, at: PLAN_AT, fs: FS }), coach, wedge: wedgeMode, luffDeg, rows: coach ? [el.querySelector('.rw.c1'), el.querySelector('.rw.c2'), el.querySelector('.rw.c3')] : null });
+  svg.insertAdjacentHTML('beforeend', `<g class="plan">
+    <path class="ln target" d=""/>
+    <path class="hit hsail" data-k="main" d=""/>
+    <path class="hit hsail" data-k="jib" d=""/>
+    <path class="hit hrud" d=""/>
+    </g>`);
+  root.appendChild(el);
+  const planGs = [...el.querySelectorAll('.plan')];
+  const applyPlan = () => {
+    const w = document.documentElement.classList.contains('lk-dials-in') ? el.offsetWidth * 0.8 : (el.getBoundingClientRect().width || 200);   // in the cockpit's instruments: its raised size (the hidden one is shrunk onto the face)
+    PLAN_K = w < 130 ? 0.36 : w < 190 ? 0.5 : 0.62; PLAN_AT = w < 130 ? 36 : w < 190 ? 41 : 44;
+    if (posOn || coach) PLAN_AT -= w < 190 ? 5 : 3;
+    FS = 1500 / Math.max(80, w);   // 15 px in the dial's units   // a third row (the point of sail) under the readings: the boat a little higher
+    for (const g of planGs) g.setAttribute('transform', `translate(50 ${PLAN_AT}) scale(${PLAN_K}) translate(-50 -50)`);
+    boat.layout();
+  };
+  applyPlan(); addEventListener('resize', applyPlan);
+  const planRo = typeof ResizeObserver === 'function' ? new ResizeObserver(applyPlan) : null; planRo?.observe(el);   // the touch class arrives after the dial is built
+  const q = (c) => el.querySelector(c);
+  const awaEl = q('.awa'), awsEl = q('.aws'), sideEl = q('.side'), posEl = q('.rw.pos'), sectG = q('.sect');
+  let sectKey = '';
+  let trend = null;   // pro: the pod's lift / header trend ({ kind, level }), drawn as a small chevron by the arrow's tail
+  const targetEl = q('.target'), hitMain = q('.hit[data-k=main]'), hitJib = q('.hit[data-k=jib]'), hitRud = q('.hit.hrud');
+  // ---- the pointer: drag the sail line, drag the rudder (touch too: pointer events, touch-action none) ----
+  let drag = null, hover = false, nogoAsk = false, hitT = 1;
+  const toBox = (e) => { const r = svg.getBoundingClientRect(); return [50 + ((e.clientX - r.left) / r.width * 100 - 50) / PLAN_K, 50 + ((e.clientY - r.top) / r.height * 100 - PLAN_AT) / PLAN_K]; };   // into the plan's own units
+  const onDown = (e) => {
+    if (mode === 'off' || e.button > 0) return;
+    const [x, y] = toBox(e), path = e.currentTarget;
+    drag = path === hitRud ? { kind: 'rudder', steer: glyphRudder(x, y) } : { kind: 'sheet', sail: path.dataset.k, sheet: glyphSheet(x, y, path.dataset.k) };
+    drag.id = e.pointerId; el.classList.add('drag');
+    try { path.setPointerCapture(e.pointerId); } catch { /* synthetic */ }
+    e.preventDefault(); e.stopPropagation();
+  };
+  const onMove = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const [x, y] = toBox(e);
+    if (drag.kind === 'rudder') drag.steer = glyphRudder(x, y); else drag.sheet = glyphSheet(x, y, drag.sail);
+    e.preventDefault();
+  };
+  const onUp = (e) => { if (drag && e.pointerId === drag.id) { drag = null; el.classList.remove('drag'); targetEl.setAttribute('d', ''); } };
+  for (const h of [hitMain, hitJib, hitRud]) {
+    h.addEventListener('pointerdown', onDown); h.addEventListener('pointermove', onMove);
+    h.addEventListener('pointerup', onUp); h.addEventListener('pointercancel', onUp); h.addEventListener('lostpointercapture', onUp);
+    const gl = h === hitRud ? 'helm' : h === hitJib ? 'jib' : 'mainsheet';   // the sailor's words: a hover glosses the part (ui/gloss.js)
+    h.addEventListener('pointerenter', (e) => { hover = true; if (e.pointerType !== 'touch') dispatchEvent(new CustomEvent('lk-gloss', { detail: { term: gl, x: e.clientX, y: e.clientY } })); });
+    h.addEventListener('pointerleave', () => { hover = false; dispatchEvent(new Event('lk-gloss-off')); });
+  }
+
+  let seen = false;
+  try { seen = once && storage?.getItem('lakeshore.hints.v2') === '1'; } catch { /* run it */ }
+  let mode = always ? 'pinned' : 'auto', a = 0, t = 0, visible = false, disposed = false, cue = null;
+
+  function draw(s) {
+    const r = boat.draw(s, { t, trend, nogo: nogoAsk, cue });
+    drawHits(s);
+    const aT = String(Math.round(Math.abs(r.awa) / DEG)), sT = (r.aws * KN).toFixed(1), side = r.side;
+    if (awaEl && awaEl.textContent !== aT) awaEl.textContent = aT;
+    if (awsEl && awsEl.textContent !== sT) awsEl.textContent = sT;
+    if (sideEl && sideEl.textContent !== side.toUpperCase()) { sideEl.textContent = side.toUpperCase(); sideEl.className = `side ${side}`; }
+    if (posEl) { const L = pointLabel(boat.posId); if (posEl.textContent !== L) posEl.textContent = L; }
+    drawSectors(sectors() ? r.twa : null);
+  }
   // the ring: each point of sail an arc on both sides of the true wind (bow up), alternately faint and fainter, the boat's own brighter;
   // the bow's mark at the top falls in the sector she sails
   function drawSectors(twa) {
-    const key = twa == null ? '' : `${Math.round(twa / DEG)},${posId}`;
+    const posId = boat.posId, key = twa == null ? '' : `${Math.round(twa / DEG)},${posId}`;
     if (key === sectKey) return;
     sectKey = key;
     if (twa == null) { sectG.innerHTML = ''; return; }
@@ -440,5 +461,5 @@ export function createCaptainView({ root = document.body, state = () => null, on
   }
   function toggle() { if (always) return mode; mode = { auto: 'pinned', pinned: 'off', off: 'auto' }[mode]; return mode; }
   function dispose() { disposed = true; removeEventListener('resize', applyPlan); planRo?.disconnect(); el.remove(); }
-  return { update, toggle, dispose, el, draw, get drag() { return drag; }, get hover() { return hover; }, get mode() { return mode; }, get pinned() { return mode === 'pinned'; }, get visible() { return visible; }, get alpha() { return a; }, get coachSays() { return saying; } };
+  return { update, toggle, dispose, el, draw, get drag() { return drag; }, get hover() { return hover; }, get mode() { return mode; }, get pinned() { return mode === 'pinned'; }, get visible() { return visible; }, get alpha() { return a; }, get coachSays() { return boat.saying; } };
 }

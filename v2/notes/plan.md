@@ -11,7 +11,7 @@ in-game menu's live chart) with the boat under way. Not on the home card yet; no
 | `plan/index.js` | the controller: the pilot (Cruise's navigator and AI skipper on the whole-lake chart, `ui/planChart.js`), the corners (each checked by the navigator's `checkDestination`; the legs re-routed 120 ms after the last), the clock, the handover both ways |
 | `plan/ui.js` | the card as Plan's bar: the 64 px rail and the passage panel (glass tokens defined locally under `#lk-load[data-plan]`, to unify with the glass rollout's), the plate |
 | `plan/mapLayer.js` | on the live chart: the passage (solid legs on the planner's path, numbered corners with times), the boat, the small wind dial; a click on open water lays a corner |
-| `plan/mapBoat.js` | the map's boat: the boat dial's drawing (`src/ui/captainView.js`) turned to the heading, 70–130 px by zoom, muted port and starboard; one replaceable factory (`setMapBoat`) for the Coach's shared boat |
+| `plan/mapBoat.js` | the map's boat: the Coach's own drawing (`src/ui/captainView.js coachBoat`, the group the cockpit's Coach draws too, with `ui/dialsV2.js`'s cues) turned to the heading, words upright, a glass chip under her (point of sail, tack, SPEED, WIND; only the first row under 80 px), 70–130 px by zoom, words at 11 px, muted port and starboard; one replaceable factory (`setMapBoat`) |
 
 - **One clock.** In Plan the day clock runs 1 game s per sim s (`lockClock`), and the rate is the sim seconds a real second runs
   (`modes.speed()`): ×1 is real time, ×60 is a game hour a real minute. The sim clock's step cap rises with the rate
