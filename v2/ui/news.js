@@ -5,7 +5,7 @@
 import { NEWS as NEWS_V1, newsMeta } from '../../src/ui/news.js';
 
 export const NEWS_V2 = [
-  { date: '2026-11-19', text: 'The map is the menu now: a live map of the lake, with a pin for each place to start.', see: 'Open Velia, tap a pin, then Sail from here. Or tap Surprise me.' },
+  { date: '2026-11-19', text: 'The map is the menu now: a live map of the lake, with a pin for each place to start.', see: 'Open Velia, tap a pin, then Sail from here.' },
   { date: '2026-11-19', text: 'Tap the water on the map to set a target, or add waypoints and sail the route.', see: 'Open the chart while you sail and click the water.', touchText: 'Tap the water on the map to set a target, or add waypoints and sail the route.', touchSee: 'Open the chart while you sail and tap the water.' },
   { date: '2026-11-19', text: 'The map has layers and shows your wake, every water you have sailed. A crosshair follows the mouse and reads bearing and distance.', see: 'Open the chart and look along its top edge.', touchText: 'The map has layers and shows your wake, every water you have sailed.', touchSee: 'Open the chart and tap Layers.' },
   { date: '2026-11-19', text: 'A Sail and Cruise switch sits on the top bar: same boat, same course, same clock.', see: 'Tap the switch on the top bar while you sail.' },

@@ -1111,7 +1111,6 @@ async function boot() {
     veil: (op, secs) => sea?.hooks?.veil?.(op, secs), hasVeil: () => !!sea?.hooks?.veil,
     reduced: () => !P.headless && reducedNow(),
     canMove: () => (regatta?.on ? 'race' : kdGame && kdGame.state !== 'sailing' ? 'knockdown' : null),
-    pool: (rows) => rows.filter((r) => levelKeyOfBirth(CURRENT_WATERS, r.id) === levelKey),   // Surprise me: among the places on the level this page holds
     place: (pose) => {
       const p = { x: pose.x, z: pose.z, headingDeg: pose.headingDeg, speed: pose.speed };
       if (cruise?.on && cruise.voyage) cruise.voyage.place({ ...p, speed: 2.5 }); else B.place(p);
@@ -1137,7 +1136,7 @@ async function boot() {
     // Regatta keeps the bay's level the pick moves her as before
     birthplaces.on('pick', (e) => {
       const st = m4.front?.home?.state; if (st !== 'home' && st !== 'company') return;
-      if (e.pick !== 'random' && !showTakes && !raceBoot && levelKeyOfBirth(CURRENT_WATERS, e.pick) !== levelKey) { hook.levelReload = e.pick; location.reload(); return; }
+      if (!showTakes && !raceBoot && levelKeyOfBirth(CURRENT_WATERS, e.pick) !== levelKey) { hook.levelReload = e.pick; location.reload(); return; }
       birthplaces.moveTo(e.pick, { instant: true });
     });
     birthplaces.on('moved', (e) => { const st = m4.front?.home?.state; if (st !== 'home' && st !== 'company') m4.ui?.services?.get?.('logbook')?.logbook?.note?.(`Moved to ${e.name}`); });

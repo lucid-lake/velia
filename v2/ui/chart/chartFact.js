@@ -1,10 +1,10 @@
 // The chart's lake fact (owner, 2026-11-24): the loading screen's rotating fact line left the loading screen, where nobody had the time to
-// read it, for the chart, where it reads at leisure. One quiet line in the chart's own type (Jost italic, the face of the map hint and
-// Surprise me), one fact a visit:
+// read it, for the chart, where it reads at leisure. One quiet line in the chart's own type (Jost italic, the face of the map hint),
+// one fact a visit:
 //   the day's     the local date picks it (factIndex), so a visit reads one fact and the next day another; no date (a deterministic
 //                 page, ?hour set) reads the first
 //   a tap         shows the next one (a button: Enter too); the press never reaches the map under it
-//   where         desktop and tablet (the panel): the free map's lower left, over Surprise me, clear of the + and − column; a phone (the
+//   where         desktop and tablet (the panel): the free map's lower left, clear of the + and − column; a phone (the
 //                 box): under the map, the chart's caption (ui/phoneCard.js leaves the band)
 //   when          at the entrance only (mapScreen.js: show(true) on home, show(false) in the in-game menu); never while a phone's build
 //                 card runs its own lines (data-build=wait)
@@ -30,8 +30,7 @@ const CSS = `#lk-load .lkc-fact{all:unset;box-sizing:border-box;position:absolut
 #lk-load .lkc-fact:hover{opacity:1}
 #lk-load .lkc-fact:focus-visible{opacity:1;outline:2px solid rgb(var(--lk-cream) / .7);outline-offset:3px;border-radius:4px}
 #lk-load .lkc-fact::after{content:'';position:absolute;inset:-10px -6px}
-#lk-load .lk-livechart .lkc-fact{left:calc(var(--lk-panel-in,0px) + 18px);bottom:54px;max-width:min(440px,calc(100% - var(--lk-panel-in,0px) - 120px))}
-#lk-load .lk-livechart[data-touch] .lkc-fact{bottom:68px}
+#lk-load .lk-livechart .lkc-fact{left:calc(var(--lk-panel-in,0px) + 18px);bottom:14px;max-width:min(440px,calc(100% - var(--lk-panel-in,0px) - 120px))}
 #lk-load .lk-card > .lkc-fact{left:16px;bottom:10px;width:calc(100% - var(--lk-rc,34%) - 48px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #lk-load .lk-card > .lkc-fact::after{inset:-10px 0}`;
 

@@ -32,12 +32,8 @@ const PANEL_CSS = `#lk-load .lk-livechart{display:none;position:absolute;inset:0
 #lk-load[data-state=menu][data-on] .lk-livechart{opacity:1}
 #lk-load[data-state=menu][data-off] .lk-livechart{opacity:0;transition-duration:.45s}
 #lk-load .lk-livechart[data-glass]{backdrop-filter:blur(14px) saturate(.8);-webkit-backdrop-filter:blur(14px) saturate(.8)}
-#lk-load .lk-livechart .lkc-surprise{position:absolute;z-index:1;left:calc(var(--lk-panel-in,0px) + 16px);bottom:14px;min-height:30px;padding:0 .9em;display:inline-flex;align-items:center;cursor:pointer;
-  font:italic 400 15px/1 var(--lk-font);letter-spacing:.03em;color:var(--lk-ink);background:var(--lk-glass-dense);border:1px solid var(--lk-glass-edge);border-radius:999px}
-#lk-load .lk-livechart .lkc-surprise:hover,#lk-load .lk-livechart .lkc-surprise:focus-visible{border-color:rgb(var(--lk-cream) / .6);outline:none}
-#lk-load .lk-livechart[data-touch] .lkc-surprise{min-height:44px}
 html[data-map-card=panel] #lk-load .lk-card{z-index:3}   /* the pages (Keys, Setup, About) open on the big card: it stays above the map */
-html[data-map-card=panel] #lk-load[data-pg] .lk-livechart :is(.lkc-ctl,.lkc-surprise,.lkc-hint){visibility:hidden}
+html[data-map-card=panel] #lk-load[data-pg] .lk-livechart :is(.lkc-ctl,.lkc-hint){visibility:hidden}
 ${P}{--lk-panel:${PANEL_W}}
 html[data-map-card=panel] #lk-load{--lk-panel:${PANEL_W}}
 ${P} .lk-card{--cw:var(--lk-panel);--F:calc(var(--lk-panel) / 23.5);left:0;top:0;bottom:0;width:var(--lk-panel);height:auto;min-height:0;display:flex;flex-direction:column;border-radius:0;transform:none;z-index:3;
@@ -77,8 +73,6 @@ const PHONE = ':root[data-f-phone-card=on] #lk-load';
 const BOX_CSS = `html[data-map-card=box] #lk-load .lk-livechart{display:none;position:absolute;z-index:3;left:12px;right:auto;top:100px;bottom:12px;width:calc(100% - var(--lk-rc,34%) - 40px);border-radius:12px;overflow:hidden;
   border:1px solid rgb(var(--lk-cream) / .28);pointer-events:auto}
 html[data-map-card=box] #lk-load .lk-livechart:not([hidden]){display:block}
-html[data-map-card=box] #lk-load .lk-livechart .lkc-surprise{position:absolute;z-index:1;left:8px;bottom:8px;min-height:44px;padding:0 1em;display:inline-flex;align-items:center;cursor:pointer;
-  font:italic 400 15px/1 var(--lk-font);color:var(--lk-ink);background:var(--lk-glass-dense);border:1px solid var(--lk-glass-edge);border-radius:999px}
 ${PHONE} .lk-card .lk-bp{display:none!important}
 /* the map fades in over 0.3 s when it appears on the phone's card (the card's engraving is off there: ui/phoneCard.js, one chart on the card) */
 html[data-map-card=box] #lk-load[data-state=home] .lk-livechart:not([hidden]){animation:lk-boxin .3s var(--lk-ease) both}
@@ -122,18 +116,6 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
   const plan = box ? null : mountPanelPlan({ root, services, chart, showTessie, deepAt });   // showTessie: feature('playTessie').on; deepAt: her deep pins
   const dock = box ? null : mountPanelDock({ root, chart, touch, active: () => !entrance });   // the panel hides like a dock in the menu (2026-11-25); a phone's card keeps its box
 
-  // Surprise me: a small italic link on the water (a seeded pick among the five); the entrance picks, the menu moves her
-  const surprise = doc.createElement('button'); surprise.type = 'button'; surprise.className = 'lkc-surprise'; surprise.textContent = 'Surprise me';
-  surprise.setAttribute('aria-label', 'Surprise me: a place picked for you');
-  surprise.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const s = bp(); if (!s) return;
-    if (entrance) { s.pick('random'); return; }
-    const r = await s.moveTo('random');
-    if (r?.ok) home()?.close?.();
-  });
-  for (const ty of ['pointerdown', 'pointerup', 'wheel', 'dblclick']) surprise.addEventListener(ty, (e) => e.stopPropagation(), { passive: ty !== 'wheel' });
-  host.appendChild(surprise);
   // the day's lake fact: the chart's quiet caption at the entrance (chartFact.js); a phone's goes under its box, on the card
   const fact = mountChartFact(box ? (card() ?? host) : host, { doc, date: factDate });
 

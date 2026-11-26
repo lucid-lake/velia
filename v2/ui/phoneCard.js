@@ -1,7 +1,7 @@
 // The phone's card, built for a thumb (owner, 2026-11-18: "think from a mobile-friendly perspective"; feature phoneCard in
 // src/core/features.js: a phone, landscape-only). Not the desktop card shrunk: the same parts, laid out from the hands in.
 //   left, the chart   the mini chart fills the left 58 %: five big pins (44 px or more), the lit one with the sloop on it, a plain line
-//                     under them says the place and why (tap, no hover); "Surprise me" at its foot; the voyage line over it
+//                     under them says the place and why (tap, no hover); the voyage line over it
 //   right, the thumb  the modes stacked in the right thumb's reach: Cruise and Regatta, and Sail, the filled one, in the bottom corner;
 //                     pills sized to their words (46 px, Sail 52 px; owner, 2026-11-19: "the 3 big buttons on the right side are too big")
 //   the ⋯ menu        Chart, Log, Controls, Setup, Support Velia, GitHub, About in one list (top right), nothing else on the card
@@ -79,7 +79,6 @@ ${P} .lk-card .lk-row.lk-sum .ch{font-size:20px;opacity:.8}
 :root[data-f-phone-card=on][data-map-card=box] #lk-load .lk-card .lk-livechart{left:16px;top:108px;bottom:36px;width:calc(100% - var(--lk-rc) - 48px)}   /* 36: the chart's caption, the day's lake fact, sits under it (ui/chart/chartFact.js) */
 ${P} .lk-card .lk-livechart .lkc-lyb{top:12px;right:12px}
 ${P} .lk-card .lk-livechart .lkc-ctl{right:12px}
-${P} .lk-card .lk-livechart .lkc-surprise{left:12px;bottom:12px}
 ${P} .lk-card .lk-livechart .lkc-hint{display:none}   /* "Pinch to zoom" crossed the north arrow and the scale; the controls say it */
 ${P} .lk-card .lk-row.plan{right:16px;bottom:16px;width:var(--lk-rc);padding:0}
 ${P} .lk-card .lk-row .v.picks{gap:8px}

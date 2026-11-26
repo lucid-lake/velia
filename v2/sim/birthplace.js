@@ -6,7 +6,7 @@
 // evening faces the show instead, turned out to BIRTH.showIronsDeg (50°) off the wind when the show lies closer to it.
 // Pure: no DOM, no GPU, no Math.random, no wall clock.
 //   listBirthplaces(waters, { unlocked, all })  → [{ id, name, x, z, look: [x, z], region, unlock, why, locked }]
-//   chooseBirthplace(rows, pick, { seed })      → a row: the id's, 'random' a seeded pick among the unlocked, else the first
+//   chooseBirthplace(rows, pick)              → a row: the id's, else the first
 //   birthPose(row, { windDeg, depthAt, showDeg, speed }) → { id, x, z, headingDeg, speed, tack, offWindDeg, blocked, camYawDeg, rule }
 //   resolveStart({ flags, settings, waters, seed }) → { id, pick, source: 'url' | 'flag' | 'saved' | 'first' } | null (null: the
 //                                                  URL's ?start= / ?heading= pin today's pose, as before)
@@ -37,13 +37,6 @@ const wrap180 = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
 const norm360 = (d) => ((d % 360) + 360) % 360;
 const bearing = (x0, z0, x1, z1) => norm360(Math.atan2(x1 - x0, -(z1 - z0)) * 180 / Math.PI);   // compass, x east, z south
 
-// a seeded hash in [0, 1)
-function hash01(seed, k) {
-  let h = (Math.imul(seed | 0, 0x9e3779b1) ^ Math.imul((k | 0) + 0x5bd1e995, 0x85ebca6b)) >>> 0;
-  h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12; h = Math.imul(h, 0x297a2d39); h ^= h >>> 15;
-  return (h >>> 0) / 4294967296;
-}
-
 export function listBirthplaces(waters, { unlocked = ['always'], all = false } = {}) {
   const rows = birthplaceRows(waters);
   return rows.map((r) => {
@@ -52,10 +45,9 @@ export function listBirthplaces(waters, { unlocked = ['always'], all = false } =
   }).filter((r) => all || !r.locked);
 }
 
-// pick: an id, 'random' (Surprise me: seeded among the rows given), or anything else (the first row)
-export function chooseBirthplace(rows, pick, { seed = 1 } = {}) {
+// pick: an id, or anything else (an old saved 'random' too: the first row)
+export function chooseBirthplace(rows, pick) {
   if (!rows.length) return null;
-  if (pick === 'random') return rows[Math.min(rows.length - 1, Math.floor(hash01(seed, 71) * rows.length))];
   return rows.find((r) => r.id === pick) ?? rows.find((r) => r.id === BIRTH.first) ?? rows[0];
 }
 
@@ -100,7 +92,7 @@ export function birthPose(bp, { windDeg, depthAt = null, showDeg = null, speed =
   return { id: bp.id, x: bp.x, z: bp.z, headingDeg, speed, tack, offWindDeg: Math.abs(wrap180(headingDeg - W)), blocked, camYawDeg, rule };
 }
 
-// which row this page starts at. flags: ?birth=<id|random> wins for one load (never saved); ?start= or ?heading= alone pin today's
+// which row this page starts at. flags: ?birth=<id> wins for one load (never saved); ?start= or ?heading= alone pin today's
 // fixed pose (null here: the captures, the goldens and the page tests that assume it); else the saved pick (settings 'birthplace');
 // else the first visit's row
 export function resolveStart({ flags = {}, settings = null, waters, seed = 1 } = {}) {
@@ -111,7 +103,7 @@ export function resolveStart({ flags = {}, settings = null, waters, seed = 1 } =
   let pick = birth, source = 'flag';
   if (!pick) { const saved = settings?.get?.('birthplace'); if (typeof saved === 'string' && saved) { pick = saved; source = 'saved'; } }
   if (!pick) { pick = BIRTH.first; source = 'first'; }
-  const row = chooseBirthplace(rows, pick, { seed });
+  const row = chooseBirthplace(rows, pick);
   return { id: row.id, pick, source };
 }
 
@@ -119,26 +111,25 @@ export function resolveStart({ flags = {}, settings = null, waters, seed = 1 } =
 //   const bp = createBirthplaces({ waters, settings, seed, current, windAt, depthAt, showAt, place, veil, reduced, canMove });
 //   bp.list()              the unlocked rows: { id, name, x, z, look, region, why, locked }
 //   bp.current             the row id she started at or last moved to (null: a URL pose)
-//   bp.chosen              the saved pick: an id or 'random' (Surprise me)
-//   bp.pick(id | 'random') remember it (settings 'birthplace'; the next load starts there): → the row, or null for an unknown id
+//   bp.chosen              the saved pick: an id (an old 'random' reads as the first row)
+//   bp.pick(id)            remember it (settings 'birthplace'; the next load starts there): → the row, or null for an unknown id
 //   bp.pose(id)            the pose from that row now (the live wind)
-//   bp.moveTo(id | 'random', { instant }) the move under the time pick's veil (0.35 s out, 0.05 s held, 0.45 s in; reduced motion or no veil:
+//   bp.moveTo(id, { instant }) the move under the time pick's veil (0.35 s out, 0.05 s held, 0.45 s in; reduced motion or no veil:
 //                          at once): → a promise of { ok, id, pose } or { ok: false, why } ('race', 'knockdown', 'moving', 'unknown')
 //   bp.on('moved' | 'pick', fn) → off()   moved: { id, name, pose, from }; pick: { id, pick }
 //   bp.step(dt)            each real frame (the veil's timing), before the frame draws
 //   bp.moving              a move's veil is under way
 // windAt(x, z) → the true wind's FROM degrees there now; depthAt(x, z) → m; showAt(x, z) → the show's facing or null (outside its
 // window); place(pose) does the move (main.js: B.place and the fan-out); veil(opacity, s) the page's veil (null, or hasVeil() false: no fade);
-// canMove() → null or the reason a move is refused now; pool(rows) → the rows Surprise me picks among (main.js: those on the page's
-// detail level, v2/terrain/region.js).
+// canMove() → null or the reason a move is refused now;
 export function createBirthplaces({ waters, settings = null, seed = 1, current = null, windAt, depthAt = null, showAt = () => null,
-  place, veil = null, hasVeil = () => !!veil, reduced = () => false, canMove = () => null, pool = (rows) => rows } = {}) {
+  place, veil = null, hasVeil = () => !!veil, reduced = () => false, canMove = () => null } = {}) {
   const rows = () => listBirthplaces(waters);
   const listeners = { moved: new Set(), pick: new Set() };
   const emit = (type, e) => { for (const fn of [...listeners[type]]) { try { fn(e); } catch { /* a listener's fault stays its own */ } } };
-  let cur = current, move = null, picks = 0;
+  let cur = current, move = null;
   const poseOf = (row) => birthPose(row, { windDeg: windAt(row.x, row.z), depthAt, showDeg: showAt(row.x, row.z) });
-  const rowFor = (id) => (id === 'random' ? chooseBirthplace(pool(rows()).filter((r) => r.id !== cur), 'random', { seed: (seed + 7919 * ++picks) | 0 }) ?? chooseBirthplace(pool(rows()), 'random', { seed }) ?? chooseBirthplace(rows(), 'random', { seed }) : rows().find((r) => r.id === id) ?? null);
+  const rowFor = (id) => rows().find((r) => r.id === id) ?? null;
   function land(m) {
     const pose = poseOf(m.row), from = cur;
     place(pose);
@@ -149,13 +140,13 @@ export function createBirthplaces({ waters, settings = null, seed = 1, current =
   const self = {
     list: () => rows().map((r) => ({ ...r, look: r.look ? [...r.look] : null })),
     get current() { return cur; },
-    get chosen() { const s = settings?.get?.('birthplace'); return typeof s === 'string' && s ? s : BIRTH.first; },
+    get chosen() { const s = settings?.get?.('birthplace'); return typeof s === 'string' && rows().some((r) => r.id === s) ? s : BIRTH.first; },   // an unknown or old value ('random') reads as the first row
     get moving() { return !!move; },
     pick(id) {
-      if (id !== 'random' && !rows().some((r) => r.id === id)) return null;
+      if (!rows().some((r) => r.id === id)) return null;
       settings?.set?.('birthplace', id);
       emit('pick', { id, pick: id });
-      return id === 'random' ? { id: 'random' } : rows().find((r) => r.id === id);
+      return rows().find((r) => r.id === id);
     },
     pose(id) { const r = rows().find((x) => x.id === id); return r ? poseOf(r) : null; },
     moveTo(id, { instant = false } = {}) {   // instant: no veil (the first card: the world is under the loading shell, nobody sees the move)
@@ -164,7 +155,7 @@ export function createBirthplaces({ waters, settings = null, seed = 1, current =
       if (why) return Promise.resolve({ ok: false, why });
       const row = rowFor(id);
       if (!row) return Promise.resolve({ ok: false, why: 'unknown' });
-      settings?.set?.('birthplace', id);   // the last pick is remembered (Surprise me stays sticky)
+      settings?.set?.('birthplace', id);   // the last pick is remembered
       return new Promise((resolve) => {
         const m = { row, resolve, phase: 'out', s: 0 };
         if (instant || !veil || !hasVeil() || reduced()) { land(m); return; }

@@ -1,5 +1,5 @@
 // The card's mini chart: where a sail starts (Phase 1b; v2/sim/birthplace.js is the service). The five birthplaces are pins on
-// the card's engraved chart (cream ink, no chips, no boxes for the names), "Surprise me" a small italic link beside them; the chosen
+// the card's engraved chart (cream ink, no chips, no boxes for the names). The chosen
 // one is lit (brass, the sloop on it, bobbing). The voyage line under the title reads "Emerald Bay · Halcyon 28 ft · <the place> ›".
 //   the first card (data-state home)   a pin picks (service.pick): she is moved there behind the loading shell (main.js); Sail enters
 //   the Menu card in play (data-state menu)   a pin is service.moveTo, the veil; the card closes so the move is seen. A phone card
@@ -24,7 +24,6 @@ export const REFUSALS = Object.freeze({
   moving: 'One move at a time.',
   unknown: 'That place is not on the chart.',
 });
-const SURPRISE = 'Surprise me';
 // the desktop chart's window in the world's metres (x0, z0, width, height; x east, z south, Fannette's summit 0, 0), framed on every
 // birthplace of the region table (owner, 2026-11-24: the default view includes the new birthplace): 900 m round them east and west for the
 // names, at least 700 m north and south, no flatter than 2.4 : 1, on a 100 m grid. The bake (tools/v2-minichart-bake.mjs) reads it
@@ -72,9 +71,6 @@ const CSS = `#lk-load .lk-bp{position:absolute;z-index:3;left:1.6em;right:1.6em;
 #lk-load .lk-bp-pin:hover .n,#lk-load .lk-bp-pin:focus-visible .n{opacity:.94}
 #lk-load .lk-bp-pin[aria-pressed=true] .n{opacity:1;color:var(--brass)}
 #lk-load .lk-bp-pin[data-side=r][aria-pressed=true] .n{left:calc(50% + 20px)}
-#lk-load .lk-bp-pin.r{width:auto;min-width:44px;margin:0;left:auto;right:0;top:auto;bottom:calc(2.9em - 22px);padding:0 .3em}
-#lk-load .lk-bp-pin.r .n{position:static;transform:none;opacity:.72;margin-left:.3em}
-#lk-load .lk-bp-pin.r .rr{font-size:1.15em;line-height:1;opacity:.8}
 #lk-load .lk-bp-say{position:absolute;left:.2em;right:.2em;bottom:0;margin:0;min-height:2.5em;font:italic var(--lk-book) max(.86em,12.5px)/1.25 var(--lk-font);letter-spacing:.02em;color:var(--navy);opacity:.9;pointer-events:none}
 #lk-load .lk-bp-say b{font-weight:var(--lk-medium);font-style:normal;letter-spacing:.06em}
 #lk-load .lk-bp-say[data-warn]{color:var(--brass)}
@@ -85,8 +81,6 @@ const CSS = `#lk-load .lk-bp{position:absolute;z-index:3;left:1.6em;right:1.6em;
 #lk-load[data-state=home]:not([data-pg]) .lk-bp.row,#lk-load[data-state=menu]:not([data-pg]) .lk-bp.row{display:flex;align-items:flex-start;gap:0}
 #lk-load .lk-bp.row .lk-bp-pin .g{top:8px;margin-top:-4px}
 #lk-load .lk-bp.row .lk-bp-pin .n{position:static;transform:none;margin-top:3px;font-size:max(.78em,11px)}
-#lk-load .lk-bp.row .lk-bp-pin.r{right:auto;bottom:auto;padding:22px 0 0}
-#lk-load .lk-bp.row .lk-bp-pin.r .n{margin:3px 0 0}
 #lk-load .lk-bp.row .lk-bp-say{display:none}
 #lk-load .lk-bp.row[data-say] .lk-bp-pin .n{opacity:0}
 #lk-load .lk-bp.row[data-say] .lk-bp-say{display:block;top:calc(100% - 2.4em);bottom:auto;text-align:center}
@@ -105,9 +99,6 @@ const CSS = `#lk-load .lk-bp{position:absolute;z-index:3;left:1.6em;right:1.6em;
 #lk-load .lk-bp.chart .lk-bp-lbl{display:block;position:absolute;z-index:1;left:calc(var(--ox) + var(--ux) * var(--fw));top:calc(var(--oy) + var(--uy) * var(--fh));pointer-events:none;white-space:nowrap;color:var(--navy);
   font:italic var(--lk-book) max(.82em,12px)/1 var(--lk-font);letter-spacing:.04em;opacity:.58;transform:translate(-50%,-100%);text-shadow:0 0 .5em var(--paper),0 0 .2em var(--paper)}
 #lk-load .lk-bp.chart .lk-bp-pin[data-side=br] .n,#lk-load .lk-bp.chart .lk-bp-pin[data-side=br][aria-pressed=true] .n{left:calc(50% + 5px);top:calc(50% + 12px);transform:none}
-#lk-load .lk-bp.chart .lk-bp-pin.r{right:calc(var(--ox) + 6px);bottom:calc(var(--oy) + 6px);left:auto;top:auto;min-width:0;height:30px;min-height:30px;padding:0 .8em 0 .6em;border:1px solid rgb(var(--ink3) / .45);border-radius:999px;background:rgb(var(--pan) / .94)}
-#lk-load .lk-bp.chart .lk-bp-pin.r:hover,#lk-load .lk-bp.chart .lk-bp-pin.r:focus-visible{border-color:rgb(var(--ink3) / .9);background:linear-gradient(rgb(var(--ink3) / .14),rgb(var(--ink3) / .14)),rgb(var(--pan))}
-#lk-load .lk-bp.chart .lk-bp-pin.r .n{opacity:.86}
 #lk-load .lk-bp.chart .lk-bp-say{left:var(--ox);right:auto;width:var(--fw);bottom:var(--oy);box-sizing:border-box;min-height:0;padding:1.5em .9em .55em;background:linear-gradient(transparent,rgb(var(--pan) / .97) 46%);border-radius:0 0 4px 4px;opacity:0;transition:opacity .2s}
 #lk-load .lk-bp.chart[data-say] .lk-bp-say{opacity:1}
 @media (prefers-reduced-motion:reduce){#lk-load .lk-bp-pin .bob{animation:none}#lk-load .lk-bp-pin .ring,#lk-load .lk-bp-pin .sl,#lk-load .lk-bp-pin .n{transition:none}}`;
@@ -138,7 +129,6 @@ export function mountBirthplaceCard(root, { service, home = null, touch = () => 
   const lbl = (cls, text, x, z) => `<span class="lk-bp-lbl ${cls}" aria-hidden="true" style="--ux:${(x - bx) / bw};--uy:${(z - bz) / bh}">${text}</span>`;
   box.innerHTML = (desk ? '<div class="lk-bp-plate" aria-hidden="true"></div>' + lbl('isl', 'Fannette Island', 0, -70) : '')
     + rows.map((r, i) => { const u = unit(r, i); return `<button class="lk-bp-pin" type="button" data-id="${esc(r.id)}" data-side="${desk ? DESK_SIDE[r.id] ?? spots[i][2] : spots[i][2]}" style="--x:${spots[i][0]}%;--y:${spots[i][1]}%;--ux:${u[0].toFixed(4)};--uy:${u[1].toFixed(4)}" aria-pressed="false" aria-label="${esc(r.name)}. ${esc(r.why)}">${GLYPH}<span class="n">${esc(nameOf(r))}</span></button>`; }).join('')
-    + `<button class="lk-bp-pin r" type="button" data-id="random" aria-label="${SURPRISE}: a place picked for you"><span class="rr" aria-hidden="true">↻</span><span class="n">${SURPRISE}</span></button>`
     + '<p class="lk-bp-say" role="status" aria-live="polite"></p>';
   if (desk) { box.classList.add('flow'); const sheet = card.querySelector('.lk-sheet'); sheet.insertBefore(box, sheet.querySelector('.lk-plan')); } else card.appendChild(box);
   const plate = box.querySelector('.lk-bp-plate');
@@ -154,20 +144,19 @@ export function mountBirthplaceCard(root, { service, home = null, touch = () => 
   const say = box.querySelector('.lk-bp-say'), pins = [...box.querySelectorAll('.lk-bp-pin')];
   const byId = (id) => rows.find((r) => r.id === id);
   const inPlay = () => root.dataset.state === 'menu';
-  const lit = () => service.current ?? (service.chosen === 'random' ? null : service.chosen);
+  const lit = () => service.current ?? service.chosen;
   let lastHtml = null, hover = null, selected = null, warn = null, warnT = 0;   // shown: the id whose line is up; selected: a phone's first tap in play
 
   function sayText() {
     if (warn) return { html: esc(warn), warn: true };
     const id = hover ?? selected ?? (touch() ? lit() : null);
-    if (id === 'random') return { html: `<b>${SURPRISE}</b> A place picked for you, not the one you are at.` };
     const r = byId(id); if (!r) return { html: '' };
     const go = inPlay() && touch() && selected === r.id ? `<button class="go" type="button">Sail from here</button>` : '';
     return { html: `<b>${esc(r.name)}</b> ${esc(r.why)}${go}` };
   }
   function paint() {
     const cur = lit();
-    for (const p of pins) p.setAttribute('aria-pressed', String(p.dataset.id === cur && p.dataset.id !== 'random'));
+    for (const p of pins) p.setAttribute('aria-pressed', String(p.dataset.id === cur));
     const t = sayText();
     if (t.html !== lastHtml) { say.innerHTML = t.html; lastHtml = t.html; }   // never rebuild an unchanged line: a tap on its button must find it where it was
     if (t.warn) say.setAttribute('data-warn', ''); else say.removeAttribute('data-warn');

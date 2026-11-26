@@ -81,17 +81,17 @@ const ledger = (page) => page.evaluate(() => [...document.querySelectorAll('#lk-
   check(pins.length === 6 && pins.every((p) => p.px >= panel.w && p.px <= 1280 && p.py >= 0 && p.py <= 720), `desk: all six pins (the bay's five and Off Ski Run) are on the map in what the panel leaves (${pins.map((p) => `${p.id}@${p.px | 0},${p.py | 0}`).join(' ')})`);
   check(s.sheets.includes('lake') && s.labels.some((l) => l.id === 'n-bp-ski-run' && l.shown), `desk: the first view is on the drawn paper (the lake's sheet under the bay's), Off Ski Run named on it (${s.sheets.join(', ')})`);
 
-  // the day's lake fact (2026-11-24, moved from the loading screen): one quiet line on the free map, clear of Surprise me, the + and −
+  // the day's lake fact (2026-11-24, moved from the loading screen): one quiet line on the free map, clear of the + and −
   // column and the map credit; ?hour: the first fact; a tap the next
   const fx = await page.evaluate(() => {
     const q = (s) => { const e = document.querySelector(s); const b = e?.getBoundingClientRect(); return b && b.width ? { l: b.left, t: b.top, r: b.right, b: b.bottom } : null; };
     const f = document.querySelector('.lk-livechart .lkc-fact');
     return { text: f?.textContent ?? null, shown: !!f && !f.hidden && f.getClientRects().length > 0, font: f ? getComputedStyle(f).fontFamily.split(',')[0].replace(/"/g, '') + ' ' + getComputedStyle(f).fontStyle : null,
-      f: q('.lk-livechart .lkc-fact'), sur: q('.lk-livechart .lkc-surprise'), ctl: q('.lkc-ctl'), osm: q('#lk-load .lk-osm'), panel: q('#lk-load .lk-card') };
+      f: q('.lk-livechart .lkc-fact'), ctl: q('.lkc-ctl'), osm: q('#lk-load .lk-osm'), panel: q('#lk-load .lk-card') };
   });
   const hit = (a, b) => !!a && !!b && a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
   check(fx.shown && fx.text === 'Lake Tahoe is 501 m deep at its deepest point.' && fx.font === 'Jost italic', `desk: the chart's lake fact, the first on a deterministic page, in the chart's italic (${JSON.stringify({ text: fx.text, font: fx.font })})`);
-  check(fx.f && fx.f.l >= fx.panel.r && fx.f.r <= 1280 && fx.f.b <= 720 && !hit(fx.f, fx.sur) && !hit(fx.f, fx.ctl) && !hit(fx.f, fx.osm) && fx.f.b <= fx.sur.t, `desk: the fact sits over Surprise me on the free map, touching nothing (${JSON.stringify(fx.f)})`);
+  check(fx.f && fx.f.l >= fx.panel.r && fx.f.r <= 1280 && fx.f.b <= 720 && !hit(fx.f, fx.ctl) && !hit(fx.f, fx.osm) && fx.f.b <= 720 - 8, `desk: the fact sits in the free map's lower left, touching nothing (${JSON.stringify(fx.f)})`);
   await page.click('.lk-livechart .lkc-fact'); await page.waitForTimeout(200);
   const fx2 = await page.evaluate(() => ({ text: document.querySelector('.lk-livechart .lkc-fact').textContent, sel: window.__velia.m4.ui.services.get('liveChart').state.selected ?? null }));
   check(fx2.text === 'Fannette Island is the only island in Lake Tahoe.' && !fx2.sel, `desk: a tap shows the next fact and selects nothing on the map (${JSON.stringify(fx2)})`);
@@ -226,7 +226,7 @@ const ledger = (page) => page.evaluate(() => [...document.querySelectorAll('#lk-
   // the start row: a pick selects its pin like a click (the entrance picks it); no start
   await page.click('#lk-load .lk-ledger [data-lr=place]'); await page.waitForTimeout(300);
   const ps = await plate();
-  check(ps.kind === 'start' && ps.cells.length === 7 && ps.cells.includes('Off Ski Run') && ps.cells.includes("Tessie's water*") && ps.cells.includes('Surprise me'), `plates: the Start plate lists the birthplaces and Surprise me (${ps.cells.join('|')})`);
+  check(ps.kind === 'start' && ps.cells.length === 6 && ps.cells.includes('Off Ski Run') && ps.cells.includes("Tessie's water*") && !ps.cells.includes('Surprise me'), `plates: the Start plate lists the birthplaces, no Surprise me (${ps.cells.join('|')})`);
   await page.click('#lk-load .lk-cond [data-pc="start:fannette"]'); await page.waitForTimeout(900);
   const afterPick = await page.evaluate(() => ({ sel: window.__velia.m4.ui.services.get('liveChart').state.selected, chosen: window.__velia.m4.ui.services.get('birthplace').chosen, st: document.getElementById('lk-load').dataset.state }));
   check(afterPick.sel === 'bp-fannette' && afterPick.chosen === 'fannette' && afterPick.st === 'home' && !(await plate()).shown, `plates: a Start pick selects and lights its pin, closes the plate and does not start (${JSON.stringify(afterPick)})`);
@@ -397,8 +397,7 @@ for (const [w, h] of [[844, 390], [667, 375]]) {
   const zr = await rect(page, '.lkc-zb[aria-label="Zoom in"]');
   check(zr && zr.w >= 44 && zr.h >= 44, `${w}×${h}: the + and − buttons are thumb size (${zr?.w | 0}×${zr?.h | 0})`);
   check(await page.evaluate(() => document.querySelector('.lkc-hint').textContent === 'Pinch to zoom · drag to move'), `${w}×${h}: the hint says "Pinch to zoom · drag to move"`);
-  const sp = await rect(page, '.lk-livechart .lkc-surprise');
-  check(sp && sp.h >= 44 && sp.l >= box.l && sp.r <= box.r, `${w}×${h}: Surprise me is a 44 px target inside the map (${sp?.h})`);
+  check(!(await rect(page, '.lk-livechart .lkc-surprise')), `${w}×${h}: no Surprise me button on the map`);
   // the day's lake fact: the chart's caption under the box, one line, on the card, clear of the thumb column
   const pf = await page.evaluate(() => { const f = document.querySelector('#lk-load .lk-card > .lkc-fact'), c = document.querySelector('#lk-load .lk-card').getBoundingClientRect(), b = f?.getBoundingClientRect();
     return f && { l: b.left, t: b.top, r: b.right, b: b.bottom, shown: !f.hidden && f.getClientRects().length > 0, one: f.scrollWidth <= f.clientWidth + 1, text: f.textContent, cb: c.bottom }; });
