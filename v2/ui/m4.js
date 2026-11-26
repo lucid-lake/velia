@@ -13,6 +13,7 @@
 //                                                        the render's own task: the WebGPU canvas is readable only there)
 import { createViews } from './views.js';
 import { parseV2Flags } from '../engine/flags.js';
+import { feature } from '../../src/core/features.js';   // the Tessie RPG's page: only where she is playable
 import { exposureFactor } from '../sim/exposure.js';
 
 
@@ -62,7 +63,7 @@ export function createM4({ flags, P, errors = [], cockpit = null }) {
       // rule that captures never build it): its chunk landing mid-film moved the boat's readback timing (v2-hud-calm 0.29 %)
       logReady = uiReady.then((u) => (u && flags.filmui !== true ? import('./logbook.js') : null)).then((m) => {
         if (!m) return null;
-        log = m.createV2Logbook({ ui, B, terrain, clock, windField, view: () => (lastPose ? { pos: lastPose.pos, target: lastPose.target, fov: lastPose.fov, aspect } : null), sun: () => lastSun });
+        log = m.createV2Logbook({ ui, B, terrain, clock, windField, tessieRpg: flags.tessierpg === true && feature('playTessie').on, view: () => (lastPose ? { pos: lastPose.pos, target: lastPose.target, fov: lastPose.fov, aspect } : null), sun: () => lastSun });
         front?.home?.paint?.();   // LOG lit on the card
         return log;
       }).catch((e) => { errors.push(`logbook: ${e?.stack ?? e}`); console.error(e); return null; });

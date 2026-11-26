@@ -59,6 +59,7 @@ export function attachLogbook(core, { phys, sfx }, controls, { track: track0 = n
     key: lKey,
     words: controls?.words ?? null,   // the third page: the sailor's words met (ui/words.js)
     corners: controls?.corners ?? null,   // v2's fourth page: the cups' hunts (v2/regatta/hunts.js), absent on v1
+    tessie: controls?.tessie ?? null,   // v2's Tessie page (the RPG's bounty, level and skills; behind ?tessierpg=1), absent on v1
     entries: [...ENTRIES, ...(fireworksEvening ? [FIREWORKS_ENTRY] : []), ...(kayaksOn(flags.kayaks) ? [KAYAK_ENTRY] : [])], chart, storage,
     position: () => ({ x: phys.state.x, z: phys.state.z, heading: phys.state.heading }),
     onPlay: (id) => core.audio?.postcard?.(id),   // the sounds come later (§ 8)

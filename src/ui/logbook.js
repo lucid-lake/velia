@@ -25,6 +25,11 @@
 //   a fourth page, "corners": one view per hunt, its corners as rows (found: the name and the day; unfound: the name and a one-line clue),
 //   read afresh each time the page is shown. Absent (v1): no page, nothing changes.
 //
+// tessie (v2's Tessie RPG, optional): { name, views: () => [{ id, label, lead, rows: [{ id, t, g, got, press }] }], press: (id) → bool }:
+//   a fifth page after corners: each view a lead line (her mark, her level) and rows as the corners' (t and g are the caller's HTML);
+//   a row with press is a button (a click, Enter or Space): press(id) runs and the page is drawn again. Absent: no page.
+//   log.show('tessie') opens the logbook on it.
+//
 // chart: buildChart(terrain) from logbookChart.js ({ shore, island, bounds, places }). storage: null for none.
 // The save is localStorage 'lakeshore.logbook.v1'; a full or absent store keeps the entries in memory and drops the
 // images first, never the finds.
@@ -108,6 +113,8 @@ const CSS = `
 .lk-log .close{all:unset;font-size:calc(13*var(--s));color:var(--lk-ink-soft);display:inline-flex;align-items:center;gap:.45em;cursor:pointer;white-space:nowrap}
 .lk-log .close:hover{color:var(--lk-ink)}
 .lk-log .close .xx{display:none}
+.lk-log[data-tabs="5"] .title{letter-spacing:0}.lk-log[data-tabs="5"] .title .dot{margin:0 .3em}
+.lk-log[data-tabs="5"] .close > span:not(.xx){display:none}.lk-log[data-tabs="5"] .close .xx{display:inline;font-size:calc(19*var(--s));line-height:1}   /* five tabs (v2's Tessie page): the close is its × alone, so the row fits */
 /* a finger (data-hand, src/ui/hand.js; owner 2026-11-15): a round × as the Menu card's, no L cap, no Tab cap */
 :root[data-hand=touch] .lk-log .close > span:not(.xx),:root[data-hand=touch] .lk-log .pnav .cap{display:none}
 :root[data-hand=touch] .lk-log .close{justify-content:center;width:44px;height:44px;margin:-6px 0 -6px 0;border:1px solid rgb(var(--lk-cream) / .38);border-radius:50%;box-sizing:border-box;color:var(--lk-ink)}
@@ -188,6 +195,17 @@ const CSS = `
 .lk-log .w .y{grid-column:2;color:var(--lk-ink-faint);font-size:calc(12.5*var(--s));overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .lk-log .corners .w{grid-template-columns:calc(196*var(--s)) 1fr}.lk-log .corners .w:not(.got) .t{color:var(--lk-ink-soft)}
 .lk-log .none{color:var(--lk-ink-soft);font-size:calc(14*var(--s));padding-top:calc(8*var(--s))}
+/* the Tessie page (v2): her mark and level as the lead line, the rows as the corners', a row to press lit amber, the rank pips */
+.lk-log .tessie .lead{display:flex;align-items:center;gap:calc(10*var(--s));color:var(--lk-ink);font-size:calc(14*var(--s));margin-bottom:calc(10*var(--s))}
+.lk-log .tessie .lead svg{width:calc(40*var(--s));height:calc(25*var(--s));flex:none;color:var(--lk-ink)}
+.lk-log .tessie .lead .sub{color:var(--lk-ink-soft)}
+.lk-log .tessie .w{grid-template-columns:calc(160*var(--s)) 1fr}.lk-log .tessie .w:not(.got) .t{color:var(--lk-ink-soft)}
+.lk-log .tessie .w[data-press]{cursor:pointer;border-radius:calc(4*var(--s));outline:none}
+.lk-log .tessie .w[data-press] .g{color:rgb(var(--lk-amber))}
+.lk-log .tessie .w[data-press]:hover,.lk-log .tessie .w[data-press]:focus-visible{background:rgb(var(--lk-amber) / .1)}
+.lk-log .tessie .pips{display:inline-flex;gap:calc(4*var(--s));margin-left:calc(8*var(--s));vertical-align:middle}
+.lk-log .tessie .pip{width:calc(6*var(--s));height:calc(6*var(--s));border-radius:50%;box-sizing:border-box;border:1px solid rgb(var(--lk-cream) / .28)}
+.lk-log .tessie .pip.on{background:rgb(var(--lk-cream) / .9);border-color:transparent}
   opacity:0;transform:translateY(var(--lk-rise));transition:opacity var(--lk-out) var(--lk-ease-out),transform var(--lk-out) var(--lk-ease-out)}
 :where(:root[data-f-finger-targets=on]) .lk-log .pv{width:36px;height:36px}:where(:root[data-f-finger-targets=on]) .lk-log .play{opacity:.85}
 /* the phone: a bottom card, at most the lower half of the screen */
@@ -309,7 +327,7 @@ const loadImage = (src) => new Promise((res, rej) => {
 
 export function createLogbook({
   entries = ENTRIES, chart = null, storage = globalThis.localStorage, root = document.body, position = () => null,
-  onPlay = null, onOpen = null, onClose = null, onFind = null, once = true, now = false, seamanship = null, words = null, corners = null,
+  onPlay = null, onOpen = null, onClose = null, onFind = null, once = true, now = false, seamanship = null, words = null, corners = null, tessie = null,
   key = true,   // false (v2): no L key; Menu › Logbook and the wind dial open it
 } = {}) {
   ensureTokens();
@@ -334,9 +352,10 @@ export function createLogbook({
   const PER = 8, WORDS_PER = 4;
   const el = document.createElement('div'); el.className = 'lk-log'; el.dataset.state = 'closed'; root.appendChild(el);
   el.innerHTML = `<div class="card" role="dialog" aria-label="Logbook">
-    <div class="head"><span class="title">${seamanship || words || corners ? ['<span data-tab="log" class="on">Logbook</span>', seamanship && '<span data-tab="sea">seamanship</span>', words && '<span data-tab="words">sailor’s words</span>', corners && '<span data-tab="corners">corners</span>'].filter(Boolean).join('<span class="dot">·</span>') : '<b>Logbook</b>'}</span><button class="close" type="button" data-close aria-label="close the logbook"><span class="cap">L</span><span>close</span><span class="xx" aria-hidden="true">×</span></button></div>
+    <div class="head"><span class="title">${seamanship || words || corners || tessie ? ['<span data-tab="log" class="on">Logbook</span>', seamanship && '<span data-tab="sea">seamanship</span>', words && '<span data-tab="words">sailor’s words</span>', corners && '<span data-tab="corners">corners</span>', tessie && `<span data-tab="tessie">${tessie.name ?? 'Tessie'}</span>`].filter(Boolean).join('<span class="dot">·</span>') : '<b>Logbook</b>'}</span><button class="close" type="button" data-close aria-label="close the logbook"><span class="cap">L</span><span>close</span><span class="xx" aria-hidden="true">×</span></button></div>
     <div class="pager"><span class="plabel"></span><span class="pnav"><span class="cap wide">Tab</span><button class="pv" type="button" data-step="-1" aria-label="previous page">‹</button><span class="pn"></span><button class="pv" type="button" data-step="1" aria-label="next page">›</button></span></div>
     <div class="body"></div></div>`;
+  el.dataset.tabs = String(el.querySelectorAll('.title [data-tab]').length);
   const card = el.querySelector('.card'), body = el.querySelector('.body'), plabel = el.querySelector('.plabel'), pnav = el.querySelector('.pnav'), pn = el.querySelector('.pn');
   const views = [];   // { id, tab, el, label: () => html }
   const addView = (id, tab, cls, label) => { const v = document.createElement('div'); v.className = `view ${cls}`; v.dataset.view = id; body.appendChild(v); views.push({ id, tab, el: v, label }); return v; };
@@ -408,12 +427,30 @@ export function createLogbook({
     }
     if (pageNow === 'corners') showView(views.find((v) => v.tab === 'corners' && v.id === viewNow) ?? views.find((v) => v.tab === 'corners'));
   }
-  const pages = ['log', seamanship && 'sea', words && 'words', corners && 'corners'].filter(Boolean);
+  // the Tessie page (v2's RPG): one view each from the caller, rebuilt each time it is shown and after a press
+  function refreshTessie() {
+    if (!tessie) return;
+    const keep = views.filter((v) => v.tab !== 'tessie'); for (const v of views.filter((x) => x.tab === 'tessie')) v.el.remove(); views.length = 0; views.push(...keep);
+    let list = []; try { list = tessie.views?.() ?? []; } catch { list = []; }
+    if (!list.length) list = [{ id: 'none', label: tessie.name ?? 'Tessie', lead: '', rows: [] }];
+    for (const h of list) {
+      const v = addView(`tessie-${h.id}`, 'tessie', 'entries words tessie', () => h.label);
+      v.innerHTML = `${h.lead ? `<div class="lead">${h.lead}</div>` : ''}<div class="wl">${(h.rows ?? []).map((r, k) => `<div class="w${r.got ? ' got' : ''}" data-row="${r.id}"${r.press ? ' data-press role="button" tabindex="0"' : ''} style="--d:${0.06 + k * 0.03}s"><span class="t">${r.t}</span><span class="g">${r.g}</span></div>`).join('')}</div>`;
+      for (const r of v.querySelectorAll('[data-press]')) {
+        const go = (ev) => { ev.stopPropagation(); ev.preventDefault?.(); let ok = false; try { ok = !!tessie.press?.(r.dataset.row); } catch { ok = false; } if (ok) refreshTessie(); };
+        r.addEventListener('click', go);
+        r.addEventListener('keydown', (ev) => { if (ev.code === 'Enter' || ev.code === 'Space') go(ev); });
+      }
+    }
+    if (pageNow === 'tessie') showView(views.find((v) => v.tab === 'tessie' && v.id === viewNow) ?? views.find((v) => v.tab === 'tessie'));
+  }
+  const pages = ['log', seamanship && 'sea', words && 'words', corners && 'corners', tessie && 'tessie'].filter(Boolean);
   for (const tab of el.querySelectorAll('[data-tab]')) tab.addEventListener('click', (ev) => { ev.stopPropagation(); setPage(tab.dataset.tab); });
   for (const b of el.querySelectorAll('[data-step]')) b.addEventListener('click', (ev) => { ev.stopPropagation(); step(+b.dataset.step, true); });
   let pageNow = 'log', viewNow = views[0].id;
   refreshWords();   // the words' views exist from the start, so Tab reaches them
   refreshCorners();
+  refreshTessie();
   function showView(v) {
     if (!v) return;
     viewNow = v.id; pageNow = v.tab; el.dataset.page = pageNow; el.dataset.view = v.id;
@@ -430,6 +467,7 @@ export function createLogbook({
     if (tab === 'sea') refreshSeamanship();
     if (tab === 'words') refreshWords();
     if (tab === 'corners') refreshCorners();
+    if (tab === 'tessie') refreshTessie();
     showView(views.find((v) => v.tab === tab));
   }
   // Tab walks every view in turn (the log's, then seamanship, then the words); the arrows by the number stay in this page
@@ -440,6 +478,7 @@ export function createLogbook({
     if (next.tab === 'sea' && pageNow !== 'sea') refreshSeamanship();
     if (next.tab === 'words' && pageNow !== 'words') { refreshWords(); showView(views.find((v) => v.tab === 'words')); return; }
     if (next.tab === 'corners' && pageNow !== 'corners') { refreshCorners(); showView(views.find((v) => v.tab === 'corners')); return; }
+    if (next.tab === 'tessie' && pageNow !== 'tessie') { refreshTessie(); showView(views.find((v) => v.tab === 'tessie')); return; }
     showView(next);
   }
   words?.onChange?.((ev) => { if (ev.type === 'met' && pageNow === 'words' && (state === 'open' || state === 'opening')) refreshWords(); });
@@ -563,7 +602,7 @@ export function createLogbook({
     if (state === 'open' || state === 'opening') return;
     state = 'opening'; el.dataset.state = 'opening'; if (instant) el.dataset.now = '1';
     onOpen?.();
-    refreshSeamanship(); if (pageNow === 'words') refreshWords();
+    refreshSeamanship(); if (pageNow === 'words') refreshWords(); if (pageNow === 'tessie') refreshTessie();
     const fresh = [...tiles.values()].find((t) => t.dataset.new);   // a find since the last look: open on its page
     showView((fresh && viewOf(fresh)) ?? views.find((v) => v.id === viewNow) ?? views[0]);
     requestAnimationFrame(() => { if (instant) { drawChart(1); state = 'open'; el.dataset.state = 'open'; return; } animateOpen(); setTimeout(() => { if (state === 'opening') { state = 'open'; el.dataset.state = 'open'; } }, 500); });
@@ -632,7 +671,10 @@ export function createLogbook({
     else if (what === 'open') open({ now: true });
     else if (what === 'sea') { open({ now: true }); setPage('sea'); }
     else if (what === 'words') { open({ now: true }); setPage('words'); }
+    else if (what === 'tessie') { open({ now: true }); setPage('tessie'); }
   }
+  // open the logbook on a page (v2: her dials open it on the Tessie page); an unknown page opens the log's
+  function show(p) { open(); setPage(p); }
 
   // ---- input: L toggles; Escape and a press outside close (cardClose.js); never consumed ----
   const onKey = (e) => {
@@ -648,7 +690,7 @@ export function createLogbook({
 
   function dispose() { removeEventListener('keydown', onKey); offOutside(); removeEventListener('resize', onResize); removeEventListener('pagehide', endSession); cancelAnimationFrame(raf); el.remove(); }
 
-  return { open, close, toggle, record, note, get lines() { return [...lines]; }, setTrack, endSession, play, pin, dispose, el, refreshSeamanship, refreshWords,
+  return { open, close, toggle, show, record, note, get lines() { return [...lines]; }, setTrack, endSession, play, pin, dispose, el, refreshSeamanship, refreshWords, refreshTessie,
     get page() { return pageNow; }, set page(p) { setPage(p); },
     get isOpen() { return state === 'open' || state === 'opening'; }, get state() { return state; },
     found: (id) => found(id), get entries() { return entries.map((e) => ({ ...e, ...(save.entries[e.id] ?? { foundAt: null, image: null }) })); }, get memoryOnly() { return memoryOnly; } };

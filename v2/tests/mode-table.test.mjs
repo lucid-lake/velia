@@ -45,7 +45,7 @@ const OWN = ['cruise/', 'regatta/', 'engine/modes.js', 'tests/'];
 const ALLOW = {
   'audio/fireworks.js': 3, 'audio/music.js': 7, 'audio/playlist.js': 1, 'audio/tessieMix.js': 1, 'living/kayaks.js': 2,
   'living/tessie.js': 1, 'living/tessiePlayer.js': 3, 'main.js': 5, 'render/kayak/asset.js': 1, 'sim/birds.js': 1,
-  'sim/boat.js': 2, 'sim/kayak-stroke.js': 2, 'sim/solids.js': 1, 'sim/tessieHits.js': 1, 'sim/tessieRevenge.js': 3,
+  'sim/boat.js': 2, 'sim/kayak-stroke.js': 2, 'sim/solids.js': 1, 'sim/tessieBounty.js': 2, 'sim/tessieHits.js': 1, 'sim/tessieRevenge.js': 3,
   'sim/waymark.js': 2, 'sim/wind.js': 4, 'ui/autoReef.js': 1, 'ui/chart/chartModel.js': 1, 'ui/chart/liveChart.js': 4,
   'ui/chart/mapScreen.js': 1, 'ui/cinematicIntro.js': 2, 'ui/engagement.js': 1, 'ui/firstSail.js': 1, 'ui/flat.js': 13,
   'ui/front.js': 3, 'ui/install.js': 2, 'ui/keyMap.js': 11, 'ui/metrics.js': 1, 'ui/plan.js': 9,
