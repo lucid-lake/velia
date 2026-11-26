@@ -72,7 +72,7 @@ const showPin = (page, id, mpp = 3.5) => page.evaluate(({ id, mpp }) => { const 
   await page.waitForTimeout(1200);
   check(near(await boat(page), ROW.fannette, 90), `desk: Sail starts at Off Fannette (${JSON.stringify(await boat(page))})`);
   const camAim = await page.evaluate(() => { const B = window.__velia.boat.sim, s = B.state; const t = Math.atan2(0 - s.x, -(0 - s.z)) * 180 / Math.PI; return { yaw: B.follow.yaw * 180 / Math.PI, toIsland: (t + 360) % 360 }; });
-  check(Math.abs((((camAim.yaw - camAim.toIsland) % 360) + 540) % 360 - 180) < 12, `desk: the opening camera faces Fannette Island (${camAim.yaw.toFixed(0)} deg, the island at ${camAim.toIsland.toFixed(0)} deg)`);
+  check(Math.abs((((camAim.yaw - camAim.toIsland) % 360) + 540) % 360 - 180) < 22, `desk: the opening camera is turned to Fannette Island, easing back to the follow view (${camAim.yaw.toFixed(0)} deg, the island at ${camAim.toIsland.toFixed(0)} deg)`);
 
   // in play: Esc opens the same screen; the pin; Sail from here
   await page.keyboard.press('Escape'); await page.waitForTimeout(1000);

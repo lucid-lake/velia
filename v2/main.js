@@ -805,8 +805,10 @@ async function boot() {
   const B = boatR ? createBoatSim({ water: waterFor(water.heightAt, { velocityAt: water.velocityAt, now: () => clock.t }), heightAt: (x, z) => terrain.field.height(x, z), wind: windField, start: startPose, flags, t0: P.t0, headless: P.headless, wake: wakeFx?.track, makeSpray: wakeFx?.makeSpray, trim: feature('deskTrim').on ? DESK_TRIM : null }) : null;   // wake: the ride steps them   // a desk page's faster held sheet (DESK_TRIM; a phone keeps v1's)
   if (B && feature('flatControls').on) B.setFlat(true);   // a phone's flat controls: the Boat view's flat pose (sim/camTilt.js BOAT_VIEW_FLAT: the masthead under the taller top bar)
   // the hero further than 35° off the bow: the camera starts turned to it, holds BIRTH.camHoldS of sim, then the chase brings it back
-  let birthCamUntil = null;
-  const birthCam = (pose) => { if (!B || !pose?.camYawDeg || flags.camyaw != null) return; B.follow.yaw = (pose.headingDeg + pose.camYawDeg) * DEG; B.follow.chase = false; birthCamUntil = B.t + BIRTH.camHoldS; };
+  // the hold counts from the first frame the lake is on screen (the card gone; a capture has no card), not from the pose: the sim runs
+  // behind the card and the shell, and a hold counted from the pose was over before the player saw the lake (Off Fannette, 2026-11-25)
+  let birthCamUntil = null, birthCamArm = false;
+  const birthCam = (pose) => { if (!B || !pose?.camYawDeg || flags.camyaw != null) return; B.follow.yaw = (pose.headingDeg + pose.camYawDeg) * DEG; B.follow.chase = false; birthCamUntil = B.t + BIRTH.camHoldS; birthCamArm = true; };
   birthCam(birthPose0);
   // audit W4: v1's gust payoff (controllers/sail.js: createGustFx; ?gustfx=0 off, as the gust cells): Sail and Regatta, not Cruise
   const gust = B ? createGust({ on: flags.gustfx == null || (flags.gustfx !== false && flags.gustfx !== '0' && flags.gustfx !== 0), reduced: () => !P.headless && reducedNow() }) : null;
@@ -1555,7 +1557,11 @@ async function boot() {
     const h = P.headless ? handsNow : readHands(dt);
     intro.step(P.headless ? n * clock.dt : dt);   // the cinematic intro's clock (before the UI: its holds read this frame's state)
     if (!P.headless) m4.beforeStep(dt, h);   // M4: the station's hands go in (the wheel, the winches, the Tack assist)
-    if (birthCamUntil != null && B.t >= birthCamUntil) { birthCamUntil = null; B.follow.chase = true; }   // the hero shown: the camera's chase on again
+    if (birthCamUntil != null) {
+      const st = cardNow();
+      if (birthCamArm) { if (st == null || st === 'gone') { birthCamArm = false; birthCamUntil = B.t + BIRTH.camHoldS; } }
+      else if (B.t >= birthCamUntil) { birthCamUntil = null; B.follow.chase = true; }   // the hero shown: the camera's chase on again
+    }
     birthplaces?.step(P.headless ? n * clock.dt : dt);   // a birthplace move's veil and its place, before the boat's step
     const kts = kdFrame(P.headless ? n * clock.dt : dt);   // K3: the knockdown's slow (1 while she sails)
     if (n > 0) {

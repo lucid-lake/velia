@@ -304,6 +304,8 @@ for (const how of ['button', 'dblclick', 'keyboard']) {
   check(!!walked, `keys: Tab on the map walks its points (${walked})`);
   await page.keyboard.press('Tab'); await page.waitForTimeout(150);
   check((await chartState(page)).focus !== walked, 'keys: the next Tab goes to the next point');
+  // Enter on a far pin (Rubicon, South Lake) loads its level and Enter on the lit start starts the sail: the card test walks back to a bay pin
+  for (let i = 0; i < 5 && !['bp-narrows', 'bp-vikingsholm'].includes((await chartState(page)).focus); i++) { await page.keyboard.press('Shift+Tab'); await page.waitForTimeout(150); }
   await page.keyboard.press('Enter'); await page.waitForTimeout(400);
   check((await chartState(page)).card != null, 'keys: Enter on a point opens its card');
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
