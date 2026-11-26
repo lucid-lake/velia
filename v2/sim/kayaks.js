@@ -33,6 +33,8 @@
 //   fleet.bite(id, { x, z })  play as Tessie: her bite on a kayak (round B, owner 2026-11-21: "tessie can attack kayak"): it rolls
 //                         over away from her, the paddler swims beside it, waits TESSIE_REACT.holdS out of her reach, rights it,
 //                         climbs back in and paddles away from her (v2/sim/kayak-roll.js's swim, held)
+//   fleet.berth(m)        play as Tessie's lookout (the RPG, phase 6): within m of her parts at the surface (past backM) each kayaker
+//                         paddles away from her (the 'away' reaction) instead of stopping to watch; 0 (the default) is off
 //   fleet.lure(x, z, r, s)  play as Tessie's Lure (the RPG): each kayaker within r m who has not seen her (no watch, back strokes,
 //                         paddling away or wariness) turns and paddles toward (x, z) at the cruise for s seconds, and stops paddling
 //                         within LURE.kayakArriveM; she at the surface within watchM wins (the watch) → the ids lured
@@ -248,7 +250,7 @@ export function createKayakFleet({ terrain, seed = 1, start: start0 = null, boat
 
   // ---- round B: Tessie near (the watch, the back strokes, paddling away after a swim) ----
   // her nearest part at the surface: { x, z, d } or null
-  let herNow = null;
+  let herNow = null, berthM = 0;   // berthM: play as Tessie's lookout (the RPG, phase 6: fleet.berth(m)); 0 keeps the watch as before
   function herNear(a) {
     if (!herNow) return null;
     let best = null;
@@ -260,7 +262,9 @@ export function createKayakFleet({ terrain, seed = 1, start: start0 = null, boat
     const a = it.a, K = TESSIE_REACT, h = herNear(a);
     if (h) it.tzAt = { x: h.x, z: h.z };
     if (h && h.d <= K.backM && it.tz?.mode !== 'away' && !it.tz?.still) it.tz = { mode: 'back', t: K.keepS, x: h.x, z: h.z };
-    else if (h && h.d <= K.watchM && (!it.tz || it.tz.mode === 'watch' || it.tz.mode === 'curious')) it.tz = { mode: 'watch', t: K.keepS, x: h.x, z: h.z };
+    else if (berthM > 0 && h && h.d <= berthM && it.tz?.mode !== 'back') {   // the RPG's lookout (level 6+): her water kept at berthM
+      if (it.tz?.mode === 'away') { it.tz.t = Math.max(it.tz.t, K.keepS); it.tz.x = h.x; it.tz.z = h.z; } else it.tz = { mode: 'away', t: K.keepS, x: h.x, z: h.z };
+    } else if (h && h.d <= K.watchM && (!it.tz || it.tz.mode === 'watch' || it.tz.mode === 'curious')) it.tz = { mode: 'watch', t: K.keepS, x: h.x, z: h.z };
     else if (h && it.tz && it.tz.mode !== 'curious') { it.tz.x = h.x; it.tz.z = h.z; }   // (the Lure's point stays where the ring was)
     const z = it.tz; if (!z) return null;
     z.t -= dt;
@@ -497,6 +501,9 @@ export function createKayakFleet({ terrain, seed = 1, start: start0 = null, boat
     get laid() { return first.laid; },
     // play as Tessie: a splash at (x, z) spooks the kayakers within r m at the next step (never tips them)
     spook(x, z, r = 20) { spooks.push({ x, z, r }); return true; },
+    // the RPG's lookout (level 6+, v2/sim/tessieWary.js): within m of her at the surface each kayaker paddles away (0: off, the watch as before)
+    berth(m = 0) { berthM = Number.isFinite(+m) && +m > 0 ? +m : 0; return berthM; },
+    get berthM() { return berthM; },
     // play as Tessie's Lure: the kayakers within r who have not seen her turn curious toward (x, z) for s seconds
     lure(x, z, r = 120, s = 12) {
       const ids = [];

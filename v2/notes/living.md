@@ -236,3 +236,15 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
   her free paddlers paddle over. Rank 4: the Halcyon's flee (`sim/tessieFlee.js` `lure`).
 - **Sonar** marks every boat within the ping's range (no paddleboards): rings projected onto the water under the hulls (a pooled SVG
   layer in the play's own DOM, `.tp-world`), ticks on the SONAR dial's rim, the dial's word the range. Ranks: `sim/tessieSkills.js`.
+
+## The lake grows wary, more targets, the sets (`?tessierpg=1`, phase 6a; sim/tessieWary.js, living/tessiePlayer.js)
+
+- **By her level** (`waryOf(level)`): levels 1–5 keep today's sight (60 m at the surface); from 6 the threat's `seeM` is 90 m (the busy
+  lake's evade reads it), `kayaks.berth(100)` turns the watch into paddling away within 100 m of her parts at the surface (only while
+  she is played; 0 otherwise), and a boat's first sighting asks one of two chatter lines once ever (not under `?chatter=0`). From 13
+  her Lure never turns the Halcyon (he flees at the first ring); `rivalBerthM` waits for a race she is played in.
+- **Targets:** the boats at anchor list as kind `anchored` (`anchoredBoats.targets()`, `knock(id, side)`: over to 62°, held, righted
+  on her rode; `kheel` adds to the drawn heel, 0 unless knocked) and score as `still`; a Regatta rival scores whenever a `rivals()`
+  source lists it (none yet: the Deep tie-in); the paddle-wheeler's splash scores as `paddle` (splashed, 10 XP).
+- **Sets:** the Logbook's Tessie tab groups the bounty by set (Emerald Bay, South Lake), each with its set row; a set completed pays
+  +25 XP once and asks its legend line once on the skipper's line (`tip.tessie.legend.*`).
