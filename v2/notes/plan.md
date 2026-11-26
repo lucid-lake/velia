@@ -12,7 +12,7 @@ to the lake at once with NAV still on; a hand on the helm takes over, as NAV doe
 
 **The boat on the map** is the cockpit Coach's own drawing: `src/ui/captainView.js coachBoat({ svg, scale, coach, … })`, the group
 the Coach dial draws inside its ring, laid on the map by `ui/chart/mapBoat.js` (turned to her heading on the map, words upright,
-a small navy chip under her: point of sail, tack, SPEED, WIND; 70–130 px by zoom, words at 11 px, the chip down to its first row
+a small navy chip under her: point of sail, SPEED, WIND (no action words, no tack chip, no "feels N", owner 2026-11-25); 70–130 px by zoom, words at 11 px, the chip down to its first row
 under 80 px; port and starboard muted for the map, `--lk-map-port` / `--lk-map-stbd`), in place of the chart's sloop glyph
 (`chart.setOwnBoat(false)`). `setMapBoat(factory)` swaps the drawing in one place.
 
