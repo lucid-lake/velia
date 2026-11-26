@@ -427,8 +427,8 @@ export const TESSIE = {
         services: () => c.m4.ui?.services ?? null, touch: () => c.feature('tessieTouch').on, headless: !!c.P.headless, rpg: c.flags?.tessierpg === true,   // the Tessie RPG (phase 1)
         waterAt: (x, z) => { const v = water.heightAt(x, z, { coarse: true }); return Number.isFinite(v) ? v : 0; }, floorAt: (x, z) => terrain.field.height(x, z), underOn: c.under,   // phase 2a: the eye under the water
         focal: () => 0.5 * (canvas.clientHeight || canvas.height) / Math.tan(0.5 * c.fovDeg * DEG),
-        project: (x, y, z) => { const m = c.viewProj, w = m[3] * x + m[7] * y + m[11] * z + m[15]; if (!(w > 1e-3)) return null; const cx = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w, cy = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w;
-          return [(cx * 0.5 + 0.5) * (canvas.clientWidth || canvas.width), (0.5 - cy * 0.5) * (canvas.clientHeight || canvas.height), w]; } });
+        project: (x, y, z, out = null) => { const m = c.viewProj, w = m[3] * x + m[7] * y + m[11] * z + m[15]; if (!(w > 1e-3)) return null; const cx = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w, cy = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w;
+          const o = out ?? [0, 0, 0]; o[0] = (cx * 0.5 + 0.5) * (canvas.clientWidth || canvas.width); o[1] = (0.5 - cy * 0.5) * (canvas.clientHeight || canvas.height); o[2] = w; return o; } });   // out: the caller's array (no allocation: the RPG's world marks)
       c.player.add('tessie', playedTessie(side.play, t));
     },
     audio: (t, c, audio) => t.setAudio(audio, pageSettings()),   // her synthesised breath, water and splashes (living/tessie-sound.js)

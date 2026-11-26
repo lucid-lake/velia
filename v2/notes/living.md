@@ -224,3 +224,15 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
   noise); the CPU (the fleet's step and the records' fill, 4 boards) 0.017 ms a frame; 4,344 triangles, 5 draws. The phone's shape
   (1170 x 2532, `terrain=phone`, boards forced on with `?sup=1`): scene 3.227 on, 3.222 off (+0.005 ms). The phone's policy makes no board,
   no pipeline: 0 ms. The budget is 0.2 ms on a desktop.
+
+## Tessie's Lure and Sonar (`?tessierpg=1`; sim/tessieLure.js, sim/tessieSonar.js, living/tessiePlayer.js)
+
+- **Lure: the `curious` kind**, the opposite sign of the evade. `busyLake.lure(id, { x, z, s })`: the sailboat steers toward the ring
+  for s seconds (`curiousHeading`: never inside the 50° no-go cone, never at shoal water), eases her sheets inside 60 m and luffs 25 m
+  off. Order of advice: the channel, then an evade (she has seen Tessie), then curious, then the held course. A knock clears it; a
+  boat that sees Tessie forgets it. `kayaks.lure(x, z, r, s)`: a kayaker who has not seen her (no watch, back strokes, paddling
+  away or wariness) paddles to the ring at the cruise and stops 10 m off; her surfacing within 40 m still wins (the watch).
+  `tourBoat.lure(x, z, s, r)`: underway the glass boat turns off her route at the bay's 4 kn and stops 25 m off; at a stop she holds and
+  her free paddlers paddle over. Rank 4: the Halcyon's flee (`sim/tessieFlee.js` `lure`).
+- **Sonar** marks every boat within the ping's range (no paddleboards): rings projected onto the water under the hulls (a pooled SVG
+  layer in the play's own DOM, `.tp-world`), ticks on the SONAR dial's rim, the dial's word the range. Ranks: `sim/tessieSkills.js`.

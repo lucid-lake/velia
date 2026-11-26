@@ -33,6 +33,9 @@
 //   fleet.bite(id, { x, z })  play as Tessie: her bite on a kayak (round B, owner 2026-11-21: "tessie can attack kayak"): it rolls
 //                         over away from her, the paddler swims beside it, waits TESSIE_REACT.holdS out of her reach, rights it,
 //                         climbs back in and paddles away from her (v2/sim/kayak-roll.js's swim, held)
+//   fleet.lure(x, z, r, s)  play as Tessie's Lure (the RPG): each kayaker within r m who has not seen her (no watch, back strokes,
+//                         paddling away or wariness) turns and paddles toward (x, z) at the cruise for s seconds, and stops paddling
+//                         within LURE.kayakArriveM; she at the surface within watchM wins (the watch) → the ids lured
 import { planFleet, kayakCount, KAYAK_DAY } from '../../src/sim/kayaks/plan.js';
 import { createAgent, stepHull, steerTo, HULL } from '../../src/sim/kayaks/agent.js';
 import { createStroke, strokeStep, meanForce, lookAt, STROKE } from './kayak-stroke.js';
@@ -46,6 +49,7 @@ import { poseRows } from './kayak-clip.js';
 import { blendRows } from './kayak-rigid.js';
 import { createRoll, rollImpulse, stepRoll, ROLL } from './kayak-roll.js';
 import { hash01 } from '../../src/sim/kayaks/plan.js';
+import { LURE } from './tessieLure.js';
 
 const SPAWN_CLEAR_M = 250, RETIRE_M = 400;   // v1's: a kayak appears or leaves only this far from the camera
 const PAIR_FULL_M = 150;                     // v1's: the pair stays full inside this whatever the tier's cap
@@ -256,8 +260,8 @@ export function createKayakFleet({ terrain, seed = 1, start: start0 = null, boat
     const a = it.a, K = TESSIE_REACT, h = herNear(a);
     if (h) it.tzAt = { x: h.x, z: h.z };
     if (h && h.d <= K.backM && it.tz?.mode !== 'away' && !it.tz?.still) it.tz = { mode: 'back', t: K.keepS, x: h.x, z: h.z };
-    else if (h && h.d <= K.watchM && (!it.tz || it.tz.mode === 'watch')) it.tz = { mode: 'watch', t: K.keepS, x: h.x, z: h.z };
-    else if (h && it.tz) { it.tz.x = h.x; it.tz.z = h.z; }
+    else if (h && h.d <= K.watchM && (!it.tz || it.tz.mode === 'watch' || it.tz.mode === 'curious')) it.tz = { mode: 'watch', t: K.keepS, x: h.x, z: h.z };
+    else if (h && it.tz && it.tz.mode !== 'curious') { it.tz.x = h.x; it.tz.z = h.z; }   // (the Lure's point stays where the ring was)
     const z = it.tz; if (!z) return null;
     z.t -= dt;
     if (z.t <= 0) {
@@ -265,6 +269,13 @@ export function createKayakFleet({ terrain, seed = 1, start: start0 = null, boat
       it.tz = null; a.look = null; a.turning = 0; return null;
     }
     const toHer = Math.atan2(z.x - a.x, -(z.z - a.z)), off = Math.atan2(Math.sin(toHer - a.heading), Math.cos(toHer - a.heading)), aoff = Math.abs(off) / RDEG;
+    if (z.mode === 'curious') {
+      // the Lure: toward the ring at the cruise, the head on it; there, the paddle stops (a back stroke or two to check the glide)
+      const toIt = Math.atan2(z.x - a.x, -(z.z - a.z)), offIt = Math.atan2(Math.sin(toIt - a.heading), Math.cos(toIt - a.heading));
+      a.look = Math.max(-K.lookMax, Math.min(K.lookMax, offIt / RDEG));
+      if (Math.hypot(z.x - a.x, z.z - a.z) > LURE.kayakArriveM) return steerTo(a, toIt, 0.5);
+      return (a.intent = { throttle: a.v > 0.3 ? -0.6 : 0, turn: 0 });
+    }
     if (z.mode === 'away') {
       // paddling away from her at the cruise (the bow swung round first with sweeps, as steerTo does)
       a.look = aoff < 100 ? Math.max(-K.lookMax, Math.min(K.lookMax, off / RDEG)) : null;
@@ -486,6 +497,16 @@ export function createKayakFleet({ terrain, seed = 1, start: start0 = null, boat
     get laid() { return first.laid; },
     // play as Tessie: a splash at (x, z) spooks the kayakers within r m at the next step (never tips them)
     spook(x, z, r = 20) { spooks.push({ x, z, r }); return true; },
+    // play as Tessie's Lure: the kayakers within r who have not seen her turn curious toward (x, z) for s seconds
+    lure(x, z, r = 120, s = 12) {
+      const ids = [];
+      for (const it of live.values()) {
+        const a = it.a; if (it.R.busy || it.bitten || it.wary > 0 || (it.tz && it.tz.mode !== 'curious')) continue;
+        if (Math.hypot(a.x - x, a.z - z) > r) continue;
+        it.tz = { mode: 'curious', t: s, x, z }; ids.push(it.slot.id);
+      }
+      return ids;
+    },
     get spooked() { return spookCount; },
     wary(id) { const it = live.get(id); return !!it && it.wary > 0; },
     marks,

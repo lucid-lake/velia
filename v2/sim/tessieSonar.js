@@ -1,0 +1,42 @@
+// Play as Tessie, the Sonar, the "super radar" (the Tessie RPG, phase 3; behind ?tessierpg=1). Pure: no DOM, no clock, no Math.random.
+// One ping: every boat within the rank's range is marked for the rank's mark time: a faint cream ring on the water under each hull
+// (living/tessiePlayer.js draws it into the world), a tick on her SONAR dial's rim at its bearing and the dial's word reading the
+// ping's range while the marks last (v2/ui/tessieHud.js). No sweep, no pulse. The boats within SONAR.hearM hear it (the seen tick)
+// unless she pings from HIDDEN.
+//   sonarPing(her { x, z }, list [{ id, kind, x, z }], { rangeM, max }) → [{ id, kind, d }] nearest first, at most max
+//   rimMarks(her { x, z, psi }, list, has(id) → bool, out) → out: [{ id, a }] (a: rad clockwise from her heading, up = ahead)
+//   markRing(L) → the ring's radius under a hull of length L (m)
+export const SONAR = Object.freeze({
+  max: 16,            // marks at once (the world's ring pool)
+  hearM: 60,          // m: the boats this near hear the ping (they have seen her) unless she is HIDDEN
+  ringK: 0.75,        // the ring's radius as a share of the hull's length
+  ringMinM: 2.5,      // m: the smallest ring (a kayak's)
+  tailK: 1.6,         // rank 3+: the heading tail's length as a share of the ring's radius
+});
+
+export function sonarPing(her, list = [], { rangeM = 300, max = SONAR.max } = {}) {
+  if (!her) return [];
+  const out = [];
+  for (const b of list) {
+    if (b.kind === 'sup') continue;
+    const d = Math.hypot(b.x - her.x, b.z - her.z);
+    if (d <= rangeM) out.push({ id: b.id, kind: b.kind, d });
+  }
+  out.sort((a, b) => a.d - b.d);
+  if (out.length > max) out.length = max;
+  return out;
+}
+
+export function rimMarks(her, list = [], has = () => false, out = []) {
+  out.length = 0;
+  if (!her) return out;
+  const c = Math.cos(her.psi), s = Math.sin(her.psi);
+  for (const b of list) {
+    if (!has(b.id)) continue;
+    const dx = b.x - her.x, dz = b.z - her.z, ahead = dx * s - dz * c, right = dx * c + dz * s;
+    out.push({ id: b.id, a: Math.atan2(right, ahead) });
+  }
+  return out;
+}
+
+export const markRing = (L = 8.5) => Math.max(SONAR.ringMinM, SONAR.ringK * (L || 8.5));

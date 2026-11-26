@@ -31,6 +31,9 @@
 //                                eye's view (ctx.fwd: the camera's forward; outside CAPSIZE.viewDeg of it, or CAPSIZE.farM away): never upright on
 //                                screen. A knock that never lays her over is over after holdS (she rights and sails on)
 //   others may carry seeM: a threat she keeps clear of only while it is within seeM (Tessie seen)
+//   L.lure(id, { x, z, s }) | L.lure(id, null)   play as Tessie's Lure (the RPG): the `curious` threat kind, the opposite sign of the
+//                                evade: she turns toward (x, z) for s seconds (never into the no-go cone, never at shoal water), eases her
+//                                sheets inside LURE.slowM and stops closing at LURE.arriveM; an evade (Tessie seen) or a knock wins; null forgets it
 //   activeRegions(regions, live, x, z) → Set of region ids     spawnOf(boat, seed, ctx) → { x, z, heading, leg, speed, side }
 import { CONTROLS, DT, KN } from '../../src/sim/boat.js';
 import { craftOf } from '../../src/sim/craft/index.js';
@@ -41,7 +44,8 @@ import { CHANNEL, channelAt } from '../terrain/channel.js';
 import { createChannelHelm, CHANNEL_HELM } from '../sim/channelHelm.js';
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
 import { busyRegionsOf } from '../sim/regions.js';   // the region table (refactor round 3 C5)
-import { clearLook, CLEAR } from '../sim/clearLook.js';   // the clear look (moved to sim/, refactor round 3 C6: Tessie's flee reads it too)
+import { clearLook, CLEAR } from '../sim/clearLook.js';
+import { LURE, curiousHeading } from '../sim/tessieLure.js';   // play as Tessie's Lure: the curious kind   // the clear look (moved to sim/, refactor round 3 C6: Tessie's flee reads it too)
 
 const DEG = Math.PI / 180, TAU = 2 * Math.PI;
 const wrap = (a) => { a %= TAU; return a > Math.PI ? a - TAU : a < -Math.PI ? a + TAU : a; };
@@ -205,7 +209,7 @@ export function createBusyLake({ seed = 1, birthplaces = [], regions = REGIONS, 
   const chHelmWide = createChannelHelm({ chart: { channel: CHANNEL, channelSide: (dest) => nearEnd(dest) }, K: chK });
   let now = 0;
   const boats = [];
-  for (const r of live) for (const row of r.boats) boats.push({ id: row.id, region: r.id, row, prio: row.prio ?? 0, tint: row.tint ?? BUSY_TINTS[0], phys: null, ctl: null, sk: null, env: null, live: false, knock: null, bare: 0, motoring: false, evade: null, evadeUntil: -1, avoidT: 0, cache: new Map(), spawn: null, want: false });
+  for (const r of live) for (const row of r.boats) boats.push({ id: row.id, region: r.id, row, prio: row.prio ?? 0, tint: row.tint ?? BUSY_TINTS[0], phys: null, ctl: null, sk: null, env: null, live: false, knock: null, bare: 0, motoring: false, evade: null, evadeUntil: -1, curious: null, avoidT: 0, cache: new Map(), spawn: null, want: false });
   boats.sort((a, b) => a.prio - b.prio || (a.id < b.id ? -1 : 1));
   const stats = { live: 0, spawned: 0, despawned: 0, evades: 0, shore: 0, tacks: 0, held: 0, irons: 0, contacts: 0, motoring: 0, stepUs: 0 };
   const shoreTurn = (b, s, windFrom) => { const away = wrap(s.heading - windFrom) > 0 ? 1 : -1; for (let k = 1; k <= 17; k++) for (const sg of [away, -away]) { const h = wrap(s.heading + sg * k * 10 * DEG); if (Math.abs(wrap(h - windFrom)) >= K.avoid.noGoDeg * DEG && b.clear(h, 20, s)) return h; } return null; };   // never into the no-go cone
@@ -236,7 +240,7 @@ export function createBusyLake({ seed = 1, birthplaces = [], regions = REGIONS, 
     b.clear = clear;
     b.sk = new AISkipper({ skill: K.skill, seed: (seed * 131 + strHash(b.id)) >>> 0, windAt: null, clear, arriveM: K.arriveM, ...(vessel ? { vessel } : {}) });
     b.sk.route = b.row.route.map((at) => ({ at })); b.sk.leg = sp.leg;   // { at }: the skipper reads p.at ?? p (a bare array's .at is a method) b.sk.side = sp.side;
-    b.live = true; b.evade = null; b.motoring = false; stats.spawned++;
+    b.live = true; b.evade = null; b.curious = null; b.motoring = false; stats.spawned++;
     return true;
   }
   const despawn = (b) => { b.live = false; b.phys = null; b.sk = null; b.motoring = false; stats.despawned++; };
@@ -258,7 +262,8 @@ export function createBusyLake({ seed = 1, birthplaces = [], regions = REGIONS, 
     }
     if (!threats.length) return null;
     const close = player && Math.hypot(player.x - s.x, player.z - s.z) < A.tackClearM;
-    const w0 = b.sk.rep?.heading, want = close || !Number.isFinite(w0) || Math.abs(wrap(w0 - s.heading)) > 60 * DEG ? s.heading : w0;   // the player close, or her skipper's course far round (the other board): from the course she is on (an evasion is never a tack)
+    const w0 = b.sk.rep?.heading, cu = b.curious, cuOn = !!cu && t <= cu.until && Math.hypot(cu.x - s.x, cu.z - s.z) > LURE.arriveM;
+    const want = cuOn ? curiousHeading(s, cu, windFrom, A.noGoDeg) : close || !Number.isFinite(w0) || Math.abs(wrap(w0 - s.heading)) > 60 * DEG ? s.heading : w0;   // curious: the evasion bends the course to the ring, not her old one   // the player close, or her skipper's course far round (the other board): from the course she is on (an evasion is never a tack)
     return evadeHeading(s, Number.isFinite(want) ? want : s.heading, threats, windFrom, b.clear, A);
   }
 
@@ -330,7 +335,16 @@ export function createBusyLake({ seed = 1, birthplaces = [], regions = REGIONS, 
       if (!boatNear) for (const o of othersNow) if (closingTo(o, K.avoid.boatClearM)) { boatNear = true; break; }
       if (closing && b.holdH == null) b.holdH = s.heading; else if (!closing) b.holdH = null;
       if (closing && b.sk.man && b.evade == null && b.sk.man.type !== 'around') { b.sk.man = null; b.sk.helm.i = 0; }   // no tack or gybe across the player's bow
-      let advice = chH != null ? { evade: true, heading: chH, mode: 'reach' } : b.evade != null ? { evade: true, heading: b.evade, mode: 'reach' } : b.holdH != null ? { evade: true, heading: b.holdH, mode: 'reach' } : null;
+      // curious (Tessie's Lure): toward the ring while it lasts, under the channel and an evasion (she has seen Tessie: the evade wins)
+      let curH = null, curEase = false;
+      const cu = b.curious;
+      if (cu) {
+        const dc = Math.hypot(cu.x - s.x, cu.z - s.z);
+        if (t > cu.until) b.curious = null;
+        else if (dc > LURE.arriveM) { const h = curiousHeading(s, cu, windFrom, K.avoid.noGoDeg); if (b.clear(h, 20, s)) { curH = h; curEase = dc < LURE.slowM; } else b.curious = null; }
+        else { curH = s.heading; curEase = true; }   // there: she luffs and drifts, looking
+      }
+      let advice = chH != null ? { evade: true, heading: chH, mode: 'reach' } : b.evade != null ? { evade: true, heading: b.evade, mode: 'reach' } : curH != null ? { evade: true, heading: curH, mode: 'reach' } : b.holdH != null ? { evade: true, heading: b.holdH, mode: 'reach' } : null;
       // in irons (stalled head to wind, an evasion or a shore turn left her there): v1's skipper's own way out (the jib backed, the helm
       // over, she falls off onto a board), which its irons watch runs only without advice; the advice waits until she sails again
       const twaAbs = Math.abs(s.trueWind?.angle ?? Math.PI);
@@ -346,6 +360,7 @@ export function createBusyLake({ seed = 1, birthplaces = [], regions = REGIONS, 
         if (sideNow !== sideWant && Math.sign(d) === Math.sign(toWind) && Math.abs(toWind) < Math.abs(d)) { b.sk.side = sideNow; b.sk.startMan(s, t, { mode: 'beat', side: sideWant, forced: true }); if (b.sk.man) stats.tacks++; }
       }
       b.sk.update(dt, s, ctl, { t, advice });
+      if (curEase && chH == null && b.evade == null && !b.motoring) ctl.sheet = LURE.easeDeg * DEG;   // curious: the sheets eased, she slows to look (the skipper trims again next tick)
       // a tack or gybe her skipper starts with another boat closing within boatClearM waits (unless her own course runs into shoal water)
       if (boatNear && b.sk.man && b.sk.man.t0 === t && b.sk.man.type !== 'around' && b.clear(s.heading, 20, s)) { b.sk.man = null; b.sk.helm.i = 0; b.sk.lastManT = t - 1e3; stats.held++; }
       if (chH != null && motor) {
@@ -390,13 +405,21 @@ export function createBusyLake({ seed = 1, birthplaces = [], regions = REGIONS, 
       const b = boats.find((o) => o.id === id && o.live); if (!b) return false;
       if (bump) b.bump = { ...BUMP, ...bump, t0: t };   // her jaw on its rail (or her back under its bottom): the jolt at that point
       b.phys.P.knockdown = true;   // the large-angle righting arm: she goes far over and comes back up (src/sim/boat.js rightingArm)
-      b.knock = { K, t0: t, holdS, maxHeel: 0 }; b.evade = null; b.holdH = null; stats.knocks = (stats.knocks ?? 0) + 1;
+      b.knock = { K, t0: t, holdS, maxHeel: 0 }; b.evade = null; b.holdH = null; b.curious = null; stats.knocks = (stats.knocks ?? 0) + 1;
       return true;
     },
     // cheat on where (the reach): a live boat laid at a pose (play as Tessie's first boat ahead of her)
     lay(id, { x, z, heading, speed = 2.5 } = {}) {
       const b = boats.find((o) => o.id === id && o.live); if (!b) return false;
-      b.phys = craftOf(vessel).createPhysics({ x, z, heading, speed, ...(vessel ? { vessel } : {}) }); b.ctl = { ...CONTROLS }; b.evade = null; b.holdH = null; b.knock = null;
+      b.phys = craftOf(vessel).createPhysics({ x, z, heading, speed, ...(vessel ? { vessel } : {}) }); b.ctl = { ...CONTROLS }; b.evade = null; b.holdH = null; b.knock = null; b.curious = null;
+      return true;
+    },
+    // play as Tessie's Lure: a live, upright boat turns curious toward (x, z) for s seconds (null: forgets it); false: no such boat
+    lure(id, at = null) {
+      const b = boats.find((o) => o.id === id && o.live); if (!b) return false;
+      if (!at) { b.curious = null; return true; }
+      if (b.knock) return false;
+      b.curious = { x: at.x, z: at.z, until: now + (at.s ?? 12) };
       return true;
     },
     get active() { return active; }, set active(v) { active = !!v; },
