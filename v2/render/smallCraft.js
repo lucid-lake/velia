@@ -7,10 +7,10 @@
 //   SC.update(boats, { eye, heightAt })   once a frame (boats: the sim's live boats; [] draws nothing)
 //   SC.draw(pass, c)                      before the water (the boats' order)
 import { COMMON } from './kayaks.js';
-import { buildCraftMeshes, VF, SLOT, DRAW_M, lodFor, HULLS, KINDS } from './smallCraftMesh.js';
+import { buildCraftMeshes, VF, SLOT, DRAW_M, lodFor, HULLS, KINDS, JET } from './smallCraftMesh.js';
 import { poseRows } from '../sim/kayak-clip.js';
 
-const REC = 5;      // vec4 per instance: three rows of her pose, (hull rgb, duck), (stripe rgb, kind 0 runabout / 1 jet ski)
+const REC = 6;      // vec4 per instance: three rows of her pose, (hull rgb, duck), (stripe rgb, kind 0 runabout / 1 jet ski), (the rider's lean, its pivot y, z, 0)
 const MAX = 8;      // instances (the region's traffic is 3)
 const f = (x) => x.toFixed(3);
 const lin = (hex) => { const v = parseInt(String(hex).replace('#', ''), 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255].map((c0) => { const c = c0 / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); };
@@ -20,9 +20,14 @@ const CRAFT_WGSL = (fs) => `${COMMON(fs)}
 struct CV { @builtin(position) pos: vec4f, @location(0) world: vec3f, @location(1) n: vec3f, @location(2) lp: vec3f, @location(3) @interpolate(flat) slot: u32, @location(4) @interpolate(flat) ii: u32 }
 @vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f, @location(2) slot: f32, @builtin(instance_index) ii: u32) -> CV {
   let r0 = CI[ii * ${REC}u]; let r1 = CI[ii * ${REC}u + 1u]; let r2 = CI[ii * ${REC}u + 2u]; let p0 = CI[ii * ${REC}u + 3u];
-  var q = p;
-  if (slot > ${SLOT.rider - 0.5}) { q = q + vec3f(0.0, -0.22, -0.08) * p0.w * smoothstep(0.0, 0.9, q.y); }   // the rider ducks (a splash)
-  let p4 = vec4f(q, 1.0); let n4 = vec4f(n, 0.0);
+  var q = p; var m = n;
+  if (slot > ${SLOT.rider - 0.5}) {
+    let p2 = CI[ii * ${REC}u + 5u];   // the rider leans into the curve about the seat (the hull's roll is in her pose), and ducks (a splash)
+    let c = cos(-p2.x); let s = sin(-p2.x); let d = q.xy - vec2f(0.0, p2.y);
+    q = vec3f(d.x * c - d.y * s, p2.y + d.x * s + d.y * c, q.z); m = vec3f(m.x * c - m.y * s, m.x * s + m.y * c, m.z);
+    q = q + vec3f(0.0, -0.22, -0.08) * p0.w * smoothstep(0.0, 0.9, q.y - p2.y + 0.6);
+  }
+  let p4 = vec4f(q, 1.0); let n4 = vec4f(m, 0.0);
   let wp = vec3f(dot(r0, p4), dot(r1, p4), dot(r2, p4)); let wn = vec3f(dot(r0, n4), dot(r1, n4), dot(r2, n4));
   var o: CV; o.pos = F.viewProj * vec4f(wp, 1.0); o.world = wp; o.n = wn; o.lp = q; o.slot = u32(slot + 0.5); o.ii = ii; return o;
 }
@@ -45,13 +50,26 @@ fn litC(v: CV) -> vec3f {
   var alb = vec3f(0.78); var rough = 0.4; var metal = 0.0; var spK = 1.0;
   let jet = p1.w > 0.5;
   switch (v.slot) {
-    case ${SLOT.hull}u: {   // gelcoat in the row's colour, one stripe along the topsides, a dark boot line at the water
-      let s0 = select(${f(HULLS.power.stripe[0])}, ${f(HULLS.jetski.stripe[0])}, jet); let s1 = select(${f(HULLS.power.stripe[1])}, ${f(HULLS.jetski.stripe[1])}, jet);
-      let band = smoothstep(s0 - aaY, s0 + aaY, lp.y) * (1.0 - smoothstep(s1 - aaY, s1 + aaY, lp.y));
-      alb = mix(p0.rgb, p1.rgb, band); rough = 0.22; spK = 1.0;
+    case ${SLOT.hull}u: {   // gelcoat in the row's colour, one stripe along the topsides, a dark boot line at the water; the jet ski two-tone:
+      // the second colour below her sponson ledge (its line follows the hull's sheer), a thin pale pinstripe on the ledge
+      let s0 = ${f(HULLS.power.stripe[0])}; let s1 = ${f(HULLS.power.stripe[1])};
+      var band = smoothstep(s0 - aaY, s0 + aaY, lp.y) * (1.0 - smoothstep(s1 - aaY, s1 + aaY, lp.y));
+      if (jet) {
+        let u = clamp((lp.z + ${f(JET.L / 2)}) / ${f(JET.L)}, 0.0, 1.0); let w = select(1.0, pow(sin(u / 0.45 * 1.5708), 0.62), u < 0.45);
+        let yk = -0.18 + select(0.03 * (u - 0.42), 0.55 * (1.0 - u / 0.42) * (1.0 - u / 0.42), u < 0.42);
+        let ysp = yk + (0.15 + ${f(JET.sponsonY)}) * w + 0.13;   // the colour line a hand above the ledge: dark topsides, the deck and hood bright
+        band = 1.0 - smoothstep(ysp - aaY, ysp + aaY, lp.y);
+        let pin = 1.0 - smoothstep(0.012 - aaY, 0.012 + aaY, abs(lp.y - ysp - 0.03));
+        alb = mix(mix(p0.rgb, p1.rgb, band), vec3f(0.85), pin * 0.8);
+      } else { alb = mix(p0.rgb, p1.rgb, band); }
+      rough = 0.22; spK = 1.0;
       alb = mix(alb, vec3f(0.06, 0.06, 0.07), (1.0 - smoothstep(0.04 - aaY, 0.04 + aaY, lp.y)) * 0.7);
     }
-    case ${SLOT.deck}u: { alb = select(vec3f(0.74, 0.73, 0.7), p0.rgb * 0.92, jet); rough = 0.7; spK = 0.5; }   // non-skid deck
+    case ${SLOT.deck}u: { alb = select(vec3f(0.74, 0.73, 0.7), vec3f(0.42, 0.43, 0.44), jet); rough = 0.75; spK = 0.5; }   // non-skid deck (the jet ski's rear deck grey)
+    case ${SLOT.hood}u: { alb = p0.rgb; rough = 0.18; spK = 1.1; }   // the hood and the pedestal: glossy, the row's colour
+    case ${SLOT.mat}u: { alb = vec3f(0.035, 0.037, 0.04) * (0.85 + 0.3 * ch3(floor(lp * 40.0))); rough = 0.9; spK = 0.2; }   // the footwells' mat
+    case ${SLOT.helmet}u: { alb = vec3f(0.86, 0.86, 0.84); rough = 0.2; spK = 1.0; }
+    case ${SLOT.glove}u: { alb = vec3f(0.05, 0.05, 0.06); rough = 0.7; spK = 0.3; }
     case ${SLOT.glass}u: { alb = vec3f(0.02, 0.025, 0.03); rough = 0.05; spK = 1.2; }
     case ${SLOT.seat}u: { alb = vec3f(0.82, 0.78, 0.68); rough = 0.55; spK = 0.6; }   // cream vinyl
     case ${SLOT.seatDark}u: { alb = vec3f(0.03, 0.03, 0.035); rough = 0.5; spK = 0.6; }
@@ -111,6 +129,7 @@ export function createSmallCraftRender({ device, reg, frameBGL, frameStruct, sky
         let c = colours.get(b.id); if (!c) colours.set(b.id, c = { hull: lin(b.row?.hull ?? '#f3f1ea'), stripe: lin(b.row?.stripe ?? '#1d3557') });
         inst[o + 12] = c.hull[0]; inst[o + 13] = c.hull[1]; inst[o + 14] = c.hull[2]; inst[o + 15] = b.duck ?? 0;
         inst[o + 16] = c.stripe[0]; inst[o + 17] = c.stripe[1]; inst[o + 18] = c.stripe[2]; inst[o + 19] = b.kind === 'jetski' ? 1 : 0;
+        inst[o + 20] = b.kind === 'jetski' ? (b.lean ?? 0) : 0; inst[o + 21] = b.kind === 'jetski' ? JET.seatTop : 1; inst[o + 22] = JET.seatZ; inst[o + 23] = 0;
         n++;
       }
       if (n > first) { groups.push({ run: mesh.runs[key], first, count: n - first }); stats.groups[key] = n - first; }

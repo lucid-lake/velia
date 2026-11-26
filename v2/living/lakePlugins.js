@@ -151,7 +151,7 @@ const POWER_BOATS = {
     },
     'audio.late': (p, c, audio) => p.setAudio(audio),
     'compute.water': (p, c, pass, cc) => { if (c.PG.boatfx) p.runWater(pass, cc); },   // their own map (only when the paddle-wheeler has none)
-    'fill.boats': (p, c, f) => p.fill(f.eye, { heightAt: (x, z) => c.water.heightAt(x, z), race: f.race, wakeBusy: !!c.plugins.get('tour')?.wakeStats?.on || !!c.plugins.get('paddle')?.hasWake }),
+    'fill.boats': (p, c, f) => p.fill(f.eye, { focal: f.focal, heightAt: (x, z) => c.water.heightAt(x, z), race: f.race, wakeBusy: !!c.plugins.get('tour')?.wakeStats?.on || !!c.plugins.get('paddle')?.hasWake }),
     'scene.solid3': (p, c, pass, cc, s) => { if (!s.race && c.PG.boatfx) p.draw(pass, cc); },
   },
   stats: (p) => ({ power: p?.stats() ?? null }),

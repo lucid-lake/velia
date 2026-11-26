@@ -3,10 +3,13 @@
 // south-lake region's `traffic` rows of kind 'power' and 'jetski' (src/waters/<id>.json; v2/sim/regions.js trafficOf): closed loops,
 // each leg in 4 m of water and 80 m off the shore (v2/tests/busy-lake.test.mjs). Generic boats by code, no names or liveries.
 //   runabout  a 6.6 m bowrider: idles out of the Keys' no-wake water at 5 kn (a `slow` leg), opens the throttle, rises over the hump
-//             (her bow up about 7° near 11 kn) and planes at the lap's speed (row.kn, 15–25 kn: seeded per lap); she banks into her turns
+//             (her bow up about 7° near 11 kn) and planes at the lap's speed (row.kn, 15–23 kn: seeded per lap); she banks into her turns
 //             and slows for the sharp ones (a planing hull's turn: about 12°/s at speed).
-//   jet ski   a 3.2 m sit-down ski: quick and playful, S-curves either side of her loop (row.weave: amplitude m, wavelength m), 22–30 kn,
-//             banking hard; her loop stays off the swimmers' beaches (80 m off the shore, 4 m of water, the weave included).
+//   jet ski   a 3.2 m sit-down ski at a recreational pace: cruising 12–18 kn (row.kn, seeded per lap), now and then a burst to 23–25 kn
+//             (row.burst: [lo, hi, share of 250 m stretches]), wide S-curves either side of her loop (row.weave: amplitude m, wavelength m:
+//             a turn of about 70 m radius, 7°/s), the speed eased (never a step); she rides bow-up at speed and rolls into the curves, her
+//             rider leaning with her, a rooster tail of spray off the pump (roosterTail: droplets for the splash system); her loop stays
+//             off the swimmers' beaches (80 m off the shore, 4 m of water, the weave included).
 // Where each is when a page opens comes from the day's clock and the seed (a seeded offset run at her mean speed), so a reload at the
 // same ?hour and ?seed finds them in the same places. A first birth in the region (Ski Run) shifts the runabout that comes nearest and
 // the jet ski once so each passes in view within a minute (birthS: cheat on when, never on motion). Power gives way: each keeps clear
@@ -33,8 +36,11 @@ const smooth = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a
 export const POWER = Object.freeze({
   power: Object.freeze({ length: 6.6, beam: 2.5, slowKn: 5, accel: 1.1, decel: 1.4, yawFast: 12, yawSlow: 18, bankDeg: 11, bankK: 0.95, look: 34,
     trimHumpDeg: 7, trimPlaneDeg: 2.6, humpKn: 11, planeKn: 17, hull: Object.freeze([[1.7, 1.25], [-1.7, 1.25]]), circleKg: 900 }),
-  jetski: Object.freeze({ length: 3.2, beam: 1.2, slowKn: 5, accel: 2.4, decel: 2.2, yawFast: 34, yawSlow: 45, bankDeg: 20, bankK: 1.4, look: 22,
-    trimHumpDeg: 5, trimPlaneDeg: 2, humpKn: 9, planeKn: 14, hull: Object.freeze([[0.7, 0.75], [-0.8, 0.75]]), circleKg: 380 }),
+  jetski: Object.freeze({ length: 3.2, beam: 1.2, slowKn: 5, accel: 0.9, decel: 0.8, ease: 2.5, yawFast: 14, yawSlow: 20, bankDeg: 14, bankK: 1.3, lean: 0.6, look: 24,
+    trimHumpDeg: 5.5, trimPlaneDeg: 3.5, humpKn: 9, planeKn: 14, hull: Object.freeze([[0.7, 0.75], [-0.8, 0.75]]), circleKg: 380 }),
+  // the jet ski's rooster tail off the pump (droplets for the splash system, living/kayaks-splash.js): per second at full rate, from k 0 at
+  // fromKn to 1 at fullKn; the throw aft and up (m/s, at k 1), the droplets' size (m) and life (s)
+  rooster: Object.freeze({ perS: 240, fromKn: 7, fullKn: 24, aft: Object.freeze([0.4, 2.4]), up: Object.freeze([3.0, 5.4]), side: 0.28, size: Object.freeze([0.01, 0.026]), life: 1.15, at: Object.freeze([1.62, 0.12]) }),
   sharpDeg: 55, sharpAheadM: 70, sharpKn: 12,   // a turn of more than sharpDeg in the next sharpAheadM: down to sharpKn
   avoid: Object.freeze({ everyS: 0.25, aheadS: 20, rangeM: 450, playerM: 60, paddleM: 75, boatM: 40, kayakM: 45, holdS: 4, stepDeg: 10, maxDeg: 80, noGoDeg: -1, slowS: 10 }),
   clear: Object.freeze({ depthM: 3.0, pierM: 30, lookM: [20, 60, 110] }),
@@ -75,6 +81,24 @@ export function birthS(row, loop, birth, { seed = 1, K = POWER } = {}) {
   return ok.length ? ok[Math.min(ok.length - 1, Math.floor(hash01(seed, strHash(row.id) + 99) * ok.length))] : null;
 }
 
+// the rooster tail (the jet ski): droplets thrown aft and up off her pump this step, by her speed; spawn(x, y, z, vx, vy, vz, size,
+// life, water) is the splash system's (living/kayaks-splash.js createSplashSim); rnd a seeded generator. Returns the count thrown.
+export function roosterTail(b, dt, rnd, spawn, water = 0, K = POWER) {
+  const R = K.rooster, kn = b.v / KN, k = smooth(R.fromKn, R.fullKn, kn);
+  if (!(k > 0) || b.knockT != null) return 0;
+  b.roosterAcc = (b.roosterAcc ?? 0) + R.perS * k * dt;
+  const fx = Math.sin(b.heading), fz = -Math.cos(b.heading), sx = -fz, sz = fx;
+  const px = b.x - fx * R.at[0], pz = b.z - fz * R.at[0];
+  let n = 0;
+  while (b.roosterAcc >= 1) {
+    b.roosterAcc -= 1; n++;
+    const aft = (R.aft[0] + (R.aft[1] - R.aft[0]) * rnd()) * (0.5 + 0.5 * k), up = (R.up[0] + (R.up[1] - R.up[0]) * rnd()) * (0.45 + 0.55 * k), side = (rnd() - 0.5) * 2 * R.side;
+    const vx = fx * (b.v * 0.12 - aft) + sx * side, vz = fz * (b.v * 0.12 - aft) + sz * side;
+    spawn(px, water + R.at[1], pz, vx, up, vz, R.size[0] + (R.size[1] - R.size[0]) * rnd(), R.life, water);
+  }
+  return n;
+}
+
 export function createPowerTraffic({ rows = [], seed = 1, hour = 13, birth = null, depthAt = () => 20, piers: piers0 = [], tier = 'full', onBump = null, K = POWER } = {}) {
   const cap = K.tiers[tier] ?? K.tiers.full;
   let piers = piers0;
@@ -104,6 +128,8 @@ export function createPowerTraffic({ rows = [], seed = 1, hour = 13, birth = nul
   function wantV(b) {
     const seg = b.loop.seg.find((g) => b.s >= g.s0 && b.s <= g.s0 + g.L) ?? b.loop.seg[0];
     let v = (seg.fast ? b.lapKn : b.C.slowKn) * KN;
+    // a burst now and then (the jet ski): a seeded share of her 250 m stretches at row.burst's speed, the next lap a new draw
+    const bu = b.row.burst; if (bu && seg.fast) { const ch = Math.floor(b.s / 250), h = strHash(b.row.id) + ch * 13 + 5; if (hash01(seed + b.lap * 7, h) < bu[2]) v = (bu[0] + (bu[1] - bu[0]) * hash01(seed + b.lap * 7, h + 1)) * KN; }
     const ahead = b.loop.seg.find((g) => { const ds = ((g.s0 - b.s) % b.loop.length + b.loop.length) % b.loop.length; return ds > 0 && ds < 80; });
     if (ahead && !ahead.fast) v = Math.min(v, b.C.slowKn * KN + 0.6);
     // a sharp corner ahead: the heading change over the next sharpAheadM
@@ -151,7 +177,8 @@ export function createPowerTraffic({ rows = [], seed = 1, hour = 13, birth = nul
     const aim = aimAt(b.row, b.loop, b.s + C.look);
     const hw = b.evade ?? Math.atan2(aim.x - b.x, -(aim.z - b.z));
     if (!clearOf(b)(b.heading, 0, st)) stats.shore++;   // her bow at shoal water or a pier inside the look (a count: her route keeps her off)
-    const vT = wantV(b) * b.slowK;
+    let vT = wantV(b) * b.slowK;
+    if (C.ease) { b.vEase = (b.vEase ?? b.v) + (vT - (b.vEase ?? b.v)) * (1 - Math.exp(-dt / C.ease)); vT = b.slowK < 1 ? Math.min(vT, b.vEase) : b.vEase; }   // the throttle eased (no step in speed); a give-way slows at once
     b.v += Math.max(-C.decel * dt, Math.min(C.accel * dt * (b.v < C.humpKn * KN ? 0.75 : 1), vT - b.v));   // slower through the hump
     b.v = Math.max(0, b.v);
     // the turn: a planing hull's rate (yawFast at speed, yawSlow slower), eased (no snap)
@@ -173,6 +200,7 @@ export function createPowerTraffic({ rows = [], seed = 1, hour = 13, birth = nul
     const hump = smooth(C.slowKn, C.humpKn, vk) * (1 - smooth(C.humpKn, C.planeKn + 3, vk));
     const trimT = (C.trimHumpDeg * hump + C.trimPlaneDeg * b.plane * (1 - hump) + 0.6 * smooth(1, C.slowKn, vk) * (1 - b.plane)) * DEG;
     b.trim += (trimT - b.trim) * (1 - Math.exp(-dt / 0.6));
+    b.lean = (C.lean ?? 0) * b.heel;   // the rider leans into the curve with her (a share more than the hull's roll, in the shader)
   }
   function record(b, dt) {
     for (const p of b.trail) p.age += dt;

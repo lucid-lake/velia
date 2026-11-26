@@ -11,9 +11,9 @@ import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import { createPaddleWheeler, paddleRoute, paddleBirthTau, pierDistance, PADDLE, PADDLE_RUN } from '../sim/paddleWheeler.js';
 import { routeLoop } from '../sim/tourBoat.js';
-import { createPowerTraffic, POWER, loopOfRow } from '../living/powerTraffic.js';
+import { createPowerTraffic, POWER, loopOfRow, roosterTail } from '../living/powerTraffic.js';
 import { nearestVoice, powerGain } from '../living/powerBoats-sound.js';
-import { buildCraft, buildCraftMeshes, SLOT, VF, lodFor, DRAW_M } from '../render/smallCraftMesh.js';
+import { buildCraft, buildCraftMeshes, SLOT, VF, lodFor, DRAW_M, JET } from '../render/smallCraftMesh.js';
 import { createTessieHits, hitRule, HIT_RULE } from '../sim/tessieHits.js';
 import { trafficOf, birthplaceRows } from '../sim/regions.js';
 import { birthPose } from '../sim/birthplace.js';
@@ -160,7 +160,7 @@ test('Tessie: a paddle-wheeler target is splashed, never knocked down', () => {
 // ---- the runabouts and the jet ski ----
 const ROWS = trafficOf(WATERS);
 const traffic = (o = {}) => createPowerTraffic({ rows: ROWS, seed: 1, hour: 15, depthAt, piers: PIERS, ...o });
-test('two runabouts out of the Keys and a jet ski: generic, by code; 15–25 kn and 22–30 kn; the runabouts idle out of the no-wake water and plane up (bow up over the hump, then flatter); the jet ski weaves', () => {
+test('two runabouts out of the Keys and a jet ski: generic, by code; runabouts 15–23 kn, the jet ski cruising 12–18 kn with bursts to 25; the runabouts idle out of the no-wake water and plane up (bow up over the hump, then flatter); the jet ski weaves', () => {
   const T = traffic();
   assert.deepEqual(T.boats.map((b) => b.kind).sort(), ['jetski', 'power', 'power']);
   for (const b of T.boats.filter((o) => o.kind === 'power')) {
@@ -177,18 +177,31 @@ test('two runabouts out of the Keys and a jet ski: generic, by code; 15–25 kn 
     const kn = b.v / KN; vmax = Math.max(vmax, kn);
     if (b.s < 300 && kn < 6) slowSeen = true;
     if (kn > 8 && kn < 14) humpMax = Math.max(humpMax, b.trim / DEG);
-    if (kn > 17 && b.plane > 0.95) planeTrim = b.trim / DEG;
+    if (kn > 15 && b.plane > 0.9) planeTrim = b.trim / DEG;
   }
   assert.ok(slowSeen, 'idling out of the channel');
   assert.ok(humpMax > 5, `over the hump the bow rises ${humpMax.toFixed(1)}°`);
-  assert.ok(planeTrim != null && planeTrim < 3.5, `planing she flattens to ${planeTrim?.toFixed(1)}°`);
-  assert.ok(vmax >= 15 && vmax <= 25.5, `top ${vmax.toFixed(1)} kn`);
-  // the jet ski: S-curves (her heading swings either way over a straight leg), 22–30 kn
+  assert.ok(planeTrim != null && planeTrim < humpMax - 1.5, `planing she flattens to ${planeTrim?.toFixed(1)}° (the hump ${humpMax.toFixed(1)}°)`);
+  assert.ok(vmax >= 15 && vmax <= 23.5, `top ${vmax.toFixed(1)} kn`);
+  // the jet ski: a recreational pace (cruising 12–18 kn most of the time, bursts to 23–25 kn), gentle S-curves (her heading swings
+  // either way at 3°/s or more, never past 16°/s), the speed eased (under 1 m/s² of change), bow up at speed, rolled into the curves
   const J = createPowerTraffic({ rows: [ROWS.find((r) => r.kind === 'jetski')], seed: 1, hour: 15, depthAt }), j = J.boats[0];
-  let left = 0, right = 0, jmax = 0;
-  for (let i = 0; i < 60 * 20; i++) { J.post(null, 0.05, i * 0.05, { hour: 15 }); if (j.yawRate > 10 * DEG) right++; if (j.yawRate < -10 * DEG) left++; jmax = Math.max(jmax, j.v / KN); }
-  assert.ok(left > 50 && right > 50, `S-curves: ${left} ticks to port, ${right} to starboard`);
-  assert.ok(jmax >= 20 && jmax <= 30.5, `top ${jmax.toFixed(1)} kn`);
+  let left = 0, right = 0, jmax = 0, ymax = 0, amax = 0, cruise = 0, n = 0, last = j.v, trimAt = 0, heelMax = 0, leanMax = 0;
+  for (let i = 0; i < 600 * 20; i++) {
+    J.post(null, 0.05, i * 0.05, { hour: 15 });
+    if (i < 200) { last = j.v; continue; }
+    const kn = j.v / KN; n++; if (kn >= 11.5 && kn <= 18.5) cruise++;
+    if (j.yawRate > 3 * DEG) right++; if (j.yawRate < -3 * DEG) left++;
+    jmax = Math.max(jmax, kn); ymax = Math.max(ymax, Math.abs(j.yawRate)); amax = Math.max(amax, Math.abs(j.v - last) / 0.05); last = j.v;
+    if (kn > 12) trimAt = Math.max(trimAt, j.trim / DEG); heelMax = Math.max(heelMax, Math.abs(j.heel)); leanMax = Math.max(leanMax, Math.abs(j.lean));
+  }
+  assert.ok(left > 300 && right > 300, `S-curves: ${left} ticks to port, ${right} to starboard`);
+  assert.ok(cruise / n > 0.7, `cruising 12–18 kn ${(100 * cruise / n).toFixed(0)} % of the time`);
+  assert.ok(jmax >= 22 && jmax <= 25.5, `bursts to ${jmax.toFixed(1)} kn`);
+  assert.ok(ymax <= 16 * DEG, `yaw at most ${(ymax / DEG).toFixed(1)}°/s`);
+  assert.ok(amax <= 1.0, `speed change at most ${amax.toFixed(2)} m/s²`);
+  assert.ok(trimAt >= 3, `bow up ${trimAt.toFixed(1)}° at speed`);
+  assert.ok(heelMax > 4 * DEG && heelMax <= 14 * DEG + 1e-9 && leanMax > heelMax * 0.5, `rolled ${(heelMax / DEG).toFixed(1)}° into the curves, the rider leaning ${(leanMax / DEG).toFixed(1)}° more`);
 });
 
 test('ten minutes at the Ski Run start with the player parked in their way: deep water (3 m) under them, 30 m off every pier, never touching the player, the runabouts and the jet ski passing in view', () => {
@@ -267,8 +280,9 @@ test('Tessie: power and jetski are targets; a runabout is knocked down (heeled h
 });
 
 // ---- their drawing and sound ----
-test('the models: a runabout about 6.6 m with a figure at the helm, a jet ski about 3.2 m with its rider; every vertex finite, every slot known; far LODs light', () => {
+test('the models: a runabout about 6.6 m with a figure at the helm; a detailed jet ski about 3.2 m under 2.5 k triangles (far under 400): a pointed bow, the sponson ledge, two-tone deck, raised bars, mirrors, the cushion, footwells, grab handle, the pump\'s nozzle, the rider in a buoyancy aid and a helmet', () => {
   const known = new Set(Object.values(SLOT));
+  const tris = {};
   for (const kind of ['power', 'jetski']) for (const lod of ['near', 'far']) {
     const a = buildCraft(kind, { lod });
     assert.equal(a.length % (VF * 3), 0);
@@ -277,12 +291,36 @@ test('the models: a runabout about 6.6 m with a figure at the helm, a jet ski ab
     const L = hi[2] - lo[2], want = kind === 'power' ? [6.4, 7.5] : [3.1, 3.7];
     assert.ok(L > want[0] && L < want[1], `${kind} ${lod}: ${L.toFixed(2)} m`);
     assert.ok(rider > 0, `${kind} ${lod}: a figure aboard`);
-    const tris = a.length / VF / 3; assert.ok(lod === 'far' ? tris <= 300 : tris <= 1200, `${kind} ${lod}: ${tris} tris`);
+    tris[`${kind}-${lod}`] = a.length / VF / 3;
   }
+  assert.ok(tris['power-near'] <= 1200 && tris['power-far'] <= 300, JSON.stringify(tris));
+  assert.ok(tris['jetski-near'] >= 1500 && tris['jetski-near'] <= 2500 && tris['jetski-far'] <= 400 && tris['jetski-far'] * 4 < tris['jetski-near'], JSON.stringify(tris));
+  // the jet ski's parts by their slots and places
+  const a = buildCraft('jetski', { lod: 'near' }), slots = new Set(); const at = (pred) => { for (let i = 0; i < a.length; i += VF) if (pred(a[i], a[i + 1], a[i + 2], a[i + 6])) return true; return false; };
+  for (let i = 0; i < a.length; i += VF) slots.add(a[i + 6]);
+  for (const k of ['hood', 'deck', 'mat', 'seatDark', 'seat', 'metal', 'glass', 'vest', 'helmet', 'glove', 'skin', 'trunks']) assert.ok(slots.has(SLOT[k]), `jet ski: ${k}`);
+  let bowW = 0; for (let i = 0; i < a.length; i += VF) if (a[i + 6] === SLOT.hull && a[i + 2] < -JET.L / 2 + 0.05) bowW = Math.max(bowW, Math.abs(a[i]));
+  assert.ok(bowW < 0.08, `a pointed bow (${bowW.toFixed(3)} m wide at the stem)`);
+  assert.ok(at((x, y, z, s) => s === SLOT.metal && z > JET.L / 2 && Math.abs(x) < 0.1 && y < 0.2), 'the nozzle at the stern');
+  assert.ok(at((x, y, z, s) => s === SLOT.mat && Math.abs(x) > 0.25 && Math.abs(y - JET.footY) < 1e-6), 'the footwells beside the seat');
+  assert.ok(at((x, y, z, s) => s === SLOT.glass && Math.abs(x) > 0.3 && y > 0.6), 'a mirror pair');
+  assert.ok(at((x, y, z, s) => s === SLOT.glove && y > JET.barY - 0.1 && Math.abs(z - JET.barZ) < 0.1), 'hands on the bars');
+  assert.ok(at((x, y, z, s) => s === SLOT.helmet && y > 1.2), 'a helmet');
   assert.deepEqual(Object.keys(buildCraftMeshes().runs), ['power-near', 'power-far', 'jetski-near', 'jetski-far']);
   assert.equal(lodFor('power', 100), 'near'); assert.equal(lodFor('power', 310, 'near'), 'near'); assert.equal(lodFor('power', 310), 'far');
   assert.ok(DRAW_M.lite.power < DRAW_M.full.power);
-  assert.ok(!Object.keys(SLOT).some((k) => /name|text|glyph|letter|logo|livery/i.test(k)));
+  assert.ok(!Object.keys(SLOT).some((k) => /name|text|glyph|letter|logo|livery|brand/i.test(k)));
+});
+
+test('the rooster tail: droplets thrown aft and up off the jet ski\'s pump, more and higher with her speed, none slow or knocked; deterministic', () => {
+  const run = (kn, seed = 3) => { const b = { x: 0, z: 0, heading: 0, v: kn * KN, knockT: null }; let r = seed; const rnd = () => ((r = (Math.imul(r, 1103515245) + 12345) >>> 0) / 4294967296); const out = []; for (let i = 0; i < 20; i++) roosterTail(b, 0.05, rnd, (x, y, z, vx, vy, vz) => out.push({ x, y, z, vx, vy, vz })); return out; };
+  assert.equal(run(4).length, 0, 'none at 4 kn');
+  const mid = run(14), fast = run(25);
+  assert.ok(fast.length > mid.length && mid.length > 10, `${mid.length} at 14 kn, ${fast.length} at 25 kn in 1 s`);
+  const mean = (a, k) => a.reduce((m, d) => m + d[k], 0) / a.length;
+  assert.ok(mean(fast, 'vy') > mean(mid, 'vy'), 'higher at speed');
+  assert.ok(fast.every((d) => d.z > 1.4 && d.vz > 0 && d.vy > 0), 'from the stern (heading north: aft is +z), thrown aft and up');
+  assert.deepEqual(run(20), run(20));
 });
 
 test('their engines: one voice on the nearest boat, faint at 300 m, silent past 600 m', () => {

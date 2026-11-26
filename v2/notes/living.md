@@ -161,11 +161,17 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
 
 - Two runabouts out of the Tahoe Keys and a jet ski off Ski Run, the south-lake region's `traffic` rows of kind `power` and `jetski`.
   Generic, by code: a 6.6 m bowrider (hull colour and one stripe from the row, a windscreen, console, seats, outboard, a skipper at the
-  helm) and a 3.2 m sit-down ski with its rider in an orange buoyancy aid. No names or liveries.
+  helm) and a 3.2 m sit-down ski (render/smallCraftMesh.js jetSki: a raked pointed bow, a chine and a sponson ledge, two-tone topsides,
+  the hood and pedestal in the row's colour, black footwell mats, a grey rear deck, a raised bar on a steering column with grips and a
+  mirror pair, a piped cushion, a grab handle, the pump's nozzle; the rider seated with bent knees, hands on the grips, an orange
+  buoyancy aid and a helmet). No names or liveries.
 - The runabouts idle out of the Keys' no-wake water at 5 kn (a `slow` leg), open up, rise over the hump (bow up about 7° near 11 kn)
   and plane at the lap's seeded speed (15–25 kn), banking into turns (11° at most), slowing to 12 kn for a corner sharper than 55°.
-  The jet ski weaves ±22 m either side of her loop every 150 m at 22–30 kn, banking to 20°; her loop with the weave stays 80 m off
-  the shore in 4 m of water (busy-lake.test.mjs).
+  The jet ski cruises 12–18 kn (row.kn, per lap) with a burst to 23–25 kn on a seeded quarter of her 250 m stretches (row.burst), the
+  throttle eased over 2.5 s; wide S-curves ±20 m every 240 m (yaw 16°/s at most, about 7°/s in the weave), bow up about 3.5° at
+  speed, rolled up to 14° into the curves, her rider leaning 0.6 × that more (the vertex shader); a rooster tail off the pump (up to
+  240 droplets a second through the splash system, living/kayaks-splash.js, its own `craft-spray` pipeline; none on a phone). Her loop
+  with the weave stays 80 m off the shore in 4 m of water (busy-lake.test.mjs). The runabouts: 16–23 kn and 15–22 kn.
 - Made only for a start in South Lake (ctx.levelKey 'south-lake'): a bay start makes no sim, no pipeline. Where each is: a seeded
   offset run at her mean speed since midnight (?hour and ?seed). A first birth at Ski Run shifts the jet ski and the runabout past
   Ski Run once so each passes within 450 m in the first 90 s.
@@ -174,7 +180,7 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
   never into water under 3 m or within 30 m of a pier. A soft hull for the player (two circles each). Out in the day (BUSY.day), none
   in a race.
 - Drawn: one pipeline (`craft-solid`, boat effects' group), an instanced draw per kind and LOD in use (at most 4). Near within 300 m
-  (runabout, 751 triangles) and 200 m (jet ski, 659); far (227 and 243) to 4 km and 2.5 km (lite: half). Their wakes in the vessels'
+  (runabout, 751 triangles) and 200 m (jet ski, 2,127); far (227 and 375) to 4 km and 2.5 km (lite: half). Their wakes in the vessels'
   map (prop wash, the V, its arms heavier over the hump), their own map only when the paddle-wheeler has none. One engine voice on the
   nearest boat (synthesised, as the glass boat's outboards), silent past 600 m.
 - Tiers (`src/core/features.js` powerBoats, `?power=`): full 3 (desktop, tablet L0-L1), lite 2 (the jet ski and the runabout past Ski
