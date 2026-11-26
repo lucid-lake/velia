@@ -55,6 +55,10 @@ export const LEAN_CLASS = Object.freeze({
   // the Tessie RPG's level-up (v2/sim/tessieLevelUp.js, ?tessierpg=1): "Level N: pick one skill to grow.", a TIP that comes back while a
   // point waits (its own cadence: still 2 s, at most every 60 s); the gap and busy rules hold
   'tip.tessie.level': TIP,
+  // the free trials (v2/sim/tessieTrials.js): "Free try: 5 Sonars. …" on a skill's first trial, "That was your last free Sonar." after its
+  // last; once ever each
+  'tip.tessie.try.lure': TIP, 'tip.tessie.try.sonar': TIP, 'tip.tessie.try.surge': TIP, 'tip.tessie.try.breach': TIP,
+  'tip.tessie.tried.lure': TIP, 'tip.tessie.tried.sonar': TIP, 'tip.tessie.tried.surge': TIP, 'tip.tessie.tried.breach': TIP,
   // a press or a tap refused, with the way out (the planner, the double-tap mark, the pilot)
   'mark.set': MUST,   // "Mark set. Click NAV to sail there.": the answer to a double-click; said at once
   'refuse.plan': MUST, 'refuse.mark': MUST, 'refuse.pilot': MUST, 'refuse.dest': MUST, 'refuse.course': MUST,

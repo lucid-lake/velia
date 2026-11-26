@@ -19,7 +19,8 @@
 //   THE RPG, phase 2 (rpg): five slots (Dash, Lure, Sonar, Tail Surge, Breach: v2/sim/tessieBounty.js SKILL_ORDER), each with four 4 px
 //          rank pips at its foot (filled cream 90 % to its rank, empty outlined 28 %) in place of the "Lv 1" tag; a locked skill keeps the
 //          empty slot's look (its glyph at 25 %, no pips, its number key); the slots a point can go to carry a soft steady amber halo
-//          (hud.halo(ids)); her legend gains a line per unlocked skill (hud.ranks(ranks))
+//          (hud.halo(ids)); her legend gains a line per unlocked skill (hud.ranks(ranks, trials)). The free trials: a locked skill
+//          with uses left shows its glyph at 60 % and the uses left in the pips' place (its legend line shows too); at 0 the locked look
 import { SLOT_COUNT, slotLabel } from '../sim/tessieSkills.js';
 import { CAP_RULE, capFace, ensureLegendStyle } from '../../src/ui/keyLegend.js';
 export { CAP_RULE };
@@ -51,6 +52,9 @@ export const RPG_SKILLS = Object.freeze([
 export const RPG_LEGEND = Object.freeze([...LEGEND.slice(0, 2), ...RPG_SKILLS.map(({ id, word, caps, codes }) => Object.freeze({ id, word, caps, codes, skill: true })), ...LEGEND.slice(2)]);
 // a slot pip row's state (pure): rank → four pips, true = filled; a locked skill (rank 0) shows none
 export const pipsOf = (rank) => (rank > 0 ? [0, 1, 2, 3].map((i) => i < rank) : []);
+// a slot's state (pure): 'unlocked' (pips), 'trial' (locked, free uses left: glyph 60 %, the count), 'locked' (glyph 25 %)
+export const slotState = (rank = 0, trials = 0) => (rank > 0 ? 'unlocked' : trials > 0 ? 'trial' : 'locked');
+export const slotGlyph = (state) => (state === 'locked' ? 0.25 : state === 'trial' ? 0.6 : 1);
 const DEG = Math.PI / 180;
 import { wrap } from '../../src/sim/core/math.js';
 
@@ -104,7 +108,7 @@ export function slotLook(state) {
   return { ring: 1, ink: 'ready', glyph: 1 };
 }
 
-const LOCKED_LOOK = Object.freeze({ ring: 0, ink: 'empty', glyph: 0.25 }), READY = Object.freeze({ phase: 'ready' });
+const LOCKED_LOOK = Object.freeze({ ring: 0, ink: 'empty', glyph: slotGlyph('locked') }), TRIAL_LOOK = Object.freeze({ ring: 0, ink: 'empty', glyph: slotGlyph('trial') }), READY = Object.freeze({ phase: 'ready' });
 const HUD_CSS = `#lk-tplay .tp-sonar{position:absolute;right:22px;bottom:22px;width:132px;height:132px}
 #lk-tplay .tp-sonar svg{width:100%;height:100%;overflow:visible}
 #lk-tplay .tp-sonar .sw{position:absolute;left:0;right:0;top:84px;text-align:center;font:600 11px/1 var(--lk-ui,system-ui);letter-spacing:.16em;opacity:.8}
@@ -141,6 +145,8 @@ const HUD_CSS = `#lk-tplay .tp-sonar{position:absolute;right:22px;bottom:22px;wi
 #lk-tplay .tp-slot .pp b.on{background:rgb(var(--lk-cream) / .9);border-color:transparent}
 #lk-tplay .tp-slot.locked{border:1.5px solid rgb(var(--lk-cream) / .28);background:rgb(var(--lk-brand-navy) / .35)}
 #lk-tplay .tp-slot.locked .base,#lk-tplay .tp-slot.locked .rg,#lk-tplay .tp-slot.locked .nm,#lk-tplay .tp-slot.locked .pp{display:none}
+#lk-tplay .tp-slot .tr{display:none;position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font:600 10px/1 var(--lk-ui,system-ui);letter-spacing:.04em;color:rgb(var(--lk-cream) / .9);pointer-events:none}
+#lk-tplay .tp-slot.locked.trial .tr{display:block}
 #lk-tplay .tp-slot.locked .kn{background:none;border-color:transparent;opacity:.4}
 #lk-tplay .tp-slot[data-halo]{box-shadow:0 0 0 2px rgb(var(--lk-brand-navy) / .55),0 0 0 4px rgb(var(--lk-amber,240 172 64) / .55),0 0 14px 5px rgb(var(--lk-amber,240 172 64) / .28)}   /* a navy hairline keeps the amber apart from the cream ring */
 #lk-tplay .tp-slot{transition:box-shadow .4s ease}
@@ -173,7 +179,7 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
     ? `<button type="button" class="tp-slot sk" data-skill="${sk.id}" aria-label="${sk.name}, key ${slotLabel(sk.slot ?? 1)}" tabindex="-1">${ring(GLYPH)}<i class="lv">Lv ${sk.level}</i><i class="kn">${slotLabel(sk.slot ?? 1)}</i><b class="nm">${sk.name.toUpperCase()}</b></button>`
     : `<i class="tp-slot empty" data-slot="${n}" aria-hidden="true"><i class="kn">${n}</i></i>`;
   // the RPG: every slot is a skill, locked until a point opens it (hud.ranks); the pips in place of the level tag
-  const rpgSlot = (sk) => `<button type="button" class="tp-slot sk${sk.id === 'dash' ? '' : ' locked'}" data-skill="${sk.id}" data-rank="${sk.id === 'dash' ? 1 : 0}" aria-label="${sk.name}, key ${slotLabel(sk.slot)}" tabindex="-1">${ring(GLYPHS[sk.id])}<i class="pp">${pipsOf(4).map(() => '<b></b>').join('')}</i><i class="kn">${slotLabel(sk.slot)}</i><b class="nm">${sk.short}</b></button>`;
+  const rpgSlot = (sk) => `<button type="button" class="tp-slot sk${sk.id === 'dash' ? '' : ' locked'}" data-skill="${sk.id}" data-rank="${sk.id === 'dash' ? 1 : 0}" aria-label="${sk.name}, key ${slotLabel(sk.slot)}" tabindex="-1">${ring(GLYPHS[sk.id])}<i class="pp">${pipsOf(4).map(() => '<b></b>').join('')}</i><i class="tr"></i><i class="kn">${slotLabel(sk.slot)}</i><b class="nm">${sk.short}</b></button>`;
   // a skill sits in its own slot (its `slot`, else the next free one); the rest are reserved
   const bySlot = {}; skills.forEach((sk, i) => { bySlot[sk.slot ?? i + 1] = sk; });
   const dashRow = bySlot[1] ?? { id: 'dash', name: 'Dash', slot: 1 };
@@ -209,7 +215,7 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
     paint({ t = 0, states = {}, her = null, boats = [], targetId = null, lockId = null, seen = () => false, hidden = false } = {}) {
       for (const s of row.querySelectorAll('.tp-slot.sk')) {
         // the RPG: a locked slot keeps the empty slot's look (its glyph at 25 %); an unlocked skill with no state yet reads ready
-        const look = s.classList.contains('locked') ? LOCKED_LOOK : slotLook(states[s.dataset.skill] ?? (rpg ? READY : null));
+        const look = s.classList.contains('locked') ? (s.classList.contains('trial') ? TRIAL_LOOK : LOCKED_LOOK) : slotLook(states[s.dataset.skill] ?? (rpg ? READY : null));
         if (s.dataset.ink !== look.ink) s.dataset.ink = look.ink;
         s.querySelector('.rg').setAttribute('stroke-dasharray', `${(circ * look.ring).toFixed(1)} ${circ.toFixed(1)}`);
         s.querySelector('.gl').style.opacity = String(look.glyph);
@@ -245,16 +251,18 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
       return true;
     },
     // the RPG: each skill's rank ({ dash: 1, lure: 0 … }): the pips filled to it, a locked slot's look at 0, a legend line per unlocked skill
-    ranks(ranks = {}) {
+    // trials: the free uses left of each locked skill ({ lure: 5 … })
+    ranks(ranks = {}, trials = {}) {
       if (!rpg) return false;
       for (const s of row.querySelectorAll('.tp-slot.sk')) {
-        const r = Math.max(0, Math.min(4, ranks[s.dataset.skill] ?? (s.dataset.skill === 'dash' ? 1 : 0)));
-        if (s.dataset.rank === String(r) && s.dataset.painted) continue;
-        s.dataset.rank = String(r); s.dataset.painted = '1';
-        s.classList.toggle('locked', r === 0);
+        const id = s.dataset.skill, r = Math.max(0, Math.min(4, ranks[id] ?? (id === 'dash' ? 1 : 0))), n = r === 0 ? Math.max(0, trials[id] ?? 0) : 0;
+        const key = `${r}:${n}`; if (s.dataset.look === key) continue;
+        s.dataset.look = key; s.dataset.rank = String(r); s.dataset.trials = String(n);
+        const st = slotState(r, n); s.classList.toggle('locked', st !== 'unlocked'); s.classList.toggle('trial', st === 'trial');
+        s.querySelector('.tr').textContent = n > 0 ? String(n) : '';
         const on = pipsOf(r); s.querySelectorAll('.pp b').forEach((b, i) => b.classList.toggle('on', !!on[i]));
       }
-      for (const k of legend.querySelectorAll('.kl')) { const l = RPG_SKILLS.find((x) => x.id === k.dataset.id); if (l) k.classList.toggle('off', !((ranks[l.id] ?? 0) > 0)); }
+      for (const k of legend.querySelectorAll('.kl')) { const l = RPG_SKILLS.find((x) => x.id === k.dataset.id); if (l) k.classList.toggle('off', !((ranks[l.id] ?? 0) > 0 || (trials[l.id] ?? 0) > 0)); }
       return true;
     },
     // the RPG: the slots a point can go to now carry the soft amber halo (steady: no pulse)

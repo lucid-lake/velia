@@ -9,15 +9,18 @@
 //   the points   one a level (19 in all); a point unlocks a skill (rank 0 → 1) or grows one by a rank, to rank 4; Dash's rank 1 is
 //                free; a skill unlocks only after the one before it (Lure → Sonar → Surge → Breach). Points are derived (earned − spent)
 //                on every read, so a point is never lost, whatever the save holds
-//   the save     BOUNTY.key { _v: 1, xp, level, points, byType: { sail: { wrecked, splashed, first, deepestM, unseen, fastestS } … },
-//                ranks: { dash: 1, lure: 0 … }, sets: [] }; the old knock total (BOUNTY.knocksKey) moves into sail.wrecked on the
-//                first read (no XP: a count only)
+//   the save     BOUNTY.key { _v: 2, xp, level, points, byType: { sail: { wrecked, splashed, first, deepestM, unseen, fastestS } … },
+//                ranks: { dash: 1, lure: 0 … }, trials: { lure: 5, sonar: 5, surge: 5, breach: 5 }, sets: [] }; the old knock total
+//                (BOUNTY.knocksKey) moves into sail.wrecked on the first read (no XP: a count only); a _v 1 save gains 5 trials a skill
+//   the trials   every skill but the Dash (rank 1 free) has BOUNTY.trials (5) free uses while it is locked, in any order (the unlock
+//                order binds only a point); a trial use acts as rank 1; only a real use spends one (T.trial(id)), never below 0
 //   const T = createTessieBounty({ storage });   every call reads the store afresh and writes it back (two holders never fight)
 //   T.score({ kind, depthM, seen, hidden, skill, sinceS, splash }, { day }) → { xp, base, mult, first, set, levels, state } or null
-//   T.spend(id) → { ok, why, state };  T.can(id) → null | why;  T.state() → the save with its derived level, points, toNext
+//   T.spend(id) → { ok, why, state };  T.trial(id) → { ok, why, left, first, last, state };  T.can(id) → null | why;  T.state() → the save with its derived level, points, toNext
 //   T.legend() → { level, k (share inside this level, 0…1), xp, at, next }
 export const BOUNTY = Object.freeze({
-  key: 'lakeshore.tessie.bounty.v1', knocksKey: 'lakeshore.tessie.knocks.v1', v: 1,
+  key: 'lakeshore.tessie.bounty.v1', knocksKey: 'lakeshore.tessie.knocks.v1', v: 2,   // _v 2: the free trials (a _v 1 save migrates)
+  trials: 5,                   // free uses of each locked skill (not the Dash)
   // XP per wreck by type (the bounty's kinds: sail the busy lake's sailboats, halcyon your boat, rival a Regatta boat, glass the glass
   // boat, kayak a pair splashed or tipped, paddle the paddle-wheeler, still a boat at anchor; South Lake's traffic: runabout a runabout
   // knocked down, jetski the jet ski's rider splashed: he ducks, never in the water)
@@ -48,6 +51,10 @@ export const SETS = Object.freeze([
 // the five skills in their slots' order: the unlock order too
 export const SKILL_ORDER = Object.freeze(['dash', 'lure', 'sonar', 'surge', 'breach']);
 export const SKILL_NAMES = Object.freeze({ dash: 'Dash', lure: 'Lure', sonar: 'Sonar', surge: 'Tail Surge', breach: 'Breach' });
+export const SKILL_PLURALS = Object.freeze({ dash: 'Dashes', lure: 'Lures', sonar: 'Sonars', surge: 'Tail Surges', breach: 'Breaches' });
+// the skills with free trials (all but the Dash)
+export const TRIAL_SKILLS = Object.freeze(SKILL_ORDER.filter((id) => id !== 'dash'));
+const fullTrials = () => Object.fromEntries(TRIAL_SKILLS.map((id) => [id, BOUNTY.trials]));
 
 // XP to go from level L to L + 1, and the total XP at which level L starts
 export const xpToNext = (L) => 5 * L + 5;
@@ -59,7 +66,7 @@ export function levelOf(xp) {
 }
 const blankType = () => ({ wrecked: 0, splashed: 0, first: null, deepestM: null, unseen: 0, fastestS: null });
 export function blankSave() {
-  return { _v: BOUNTY.v, xp: 0, level: 1, points: 0, byType: Object.fromEntries(TYPES.map((t) => [t.id, blankType()])), ranks: Object.fromEntries(SKILL_ORDER.map((id) => [id, id === 'dash' ? 1 : 0])), sets: [] };
+  return { _v: BOUNTY.v, xp: 0, level: 1, points: 0, byType: Object.fromEntries(TYPES.map((t) => [t.id, blankType()])), ranks: Object.fromEntries(SKILL_ORDER.map((id) => [id, id === 'dash' ? 1 : 0])), trials: fullTrials(), sets: [] };
 }
 const nat = (v) => (Number.isFinite(+v) && +v > 0 ? Math.floor(+v) : 0);
 const numOrNull = (v) => (v == null || !Number.isFinite(+v) ? null : +v);
@@ -81,6 +88,8 @@ export function normalise(raw) {
     s.ranks[id] = id === 'dash' ? Math.max(1, v) : open ? v : 0;   // a rank past a locked slot was never reachable: refunded
     if (s.ranks[id] === 0) open = false;
   }
+  // the trials: 0 … 5 each; a save without them (a _v 1 save) gets the full 5
+  for (const id of TRIAL_SKILLS) { const v = raw.trials?.[id]; s.trials[id] = v == null || !Number.isFinite(+v) ? BOUNTY.trials : Math.min(BOUNTY.trials, nat(v)); }
   s.sets = Array.isArray(raw.sets) ? SETS.map((x) => x.id).filter((id) => raw.sets.includes(id)) : [];
   s.level = levelOf(s.xp);
   // more ranks than levels (a hand-edited save): the newest unlocks are refunded from the top, never the player's earned points
@@ -90,7 +99,9 @@ export function normalise(raw) {
 }
 // the first read: the save, or a new one carrying the old knock total into sail.wrecked
 export function migrate(rawBounty, rawKnocks) {
-  if (rawBounty != null) { try { const j = typeof rawBounty === 'string' ? JSON.parse(rawBounty) : rawBounty; if (j && j._v === BOUNTY.v) return { save: normalise(j), migrated: false }; } catch { /* a corrupt save: start again (below) */ } }
+  if (rawBounty != null) { try { const j = typeof rawBounty === 'string' ? JSON.parse(rawBounty) : rawBounty; if (j && j._v === BOUNTY.v) return { save: normalise(j), migrated: false };
+    if (j && j._v === 1) return { save: normalise(j), migrated: true };   // _v 1 → 2: everything kept, 5 free trials a skill
+  } catch { /* a corrupt save: start again (below) */ } }
   const s = blankSave();
   const n = nat(rawKnocks);
   if (n) s.byType.sail.wrecked = n;
@@ -132,6 +143,16 @@ export function spendInto(s, id) {
   s.ranks[id]++; s.points = s.level - 1 - spent(s.ranks);
   return { ok: true, why: null, rank: s.ranks[id] };
 }
+// the free uses left of a skill (0: none, or not a trial skill)
+export const trialsLeft = (s, id) => (TRIAL_SKILLS.includes(id) && s?.trials ? s.trials[id] ?? 0 : 0);
+// one free use spent (mutates): only a locked skill with trials left; { ok, why, left, first (the first one used), last (none left now) }
+export function trialInto(s, id) {
+  if (!TRIAL_SKILLS.includes(id)) return { ok: false, why: 'unknown', left: 0 };
+  if (s.ranks[id] > 0) return { ok: false, why: 'unlocked', left: s.trials[id] };
+  const n = s.trials[id] ?? 0; if (n <= 0) return { ok: false, why: 'none', left: 0 };
+  s.trials[id] = n - 1;
+  return { ok: true, why: null, left: n - 1, first: n === BOUNTY.trials, last: n === 1 };
+}
 // the level's share for the legend's fill: { level, k, xp, at (this level's start), next (the next level's start; null at 20) }
 export function legendOf(s) {
   const L = levelOf(s.xp), at = xpAt(L), next = L < BOUNTY.maxLevel ? xpAt(L + 1) : null;
@@ -154,5 +175,7 @@ export function createTessieBounty({ storage = null } = {}) {
     score(hit, opts = {}) { const s = read(), r = scoreInto(s, hit, opts); if (!r) return null; write(s); return { ...r, state: s }; },
     can: (id) => canSpend(read(), id),
     spend(id) { const s = read(), r = spendInto(s, id); if (r.ok) write(s); return { ...r, state: s }; },
+    trial(id) { const s = read(), r = trialInto(s, id); if (r.ok) write(s); return { ...r, state: s }; },
+    trialsLeft: (id) => trialsLeft(read(), id),
   };
 }

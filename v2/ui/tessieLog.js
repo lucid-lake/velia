@@ -1,10 +1,10 @@
 // The Logbook's Tessie page (the Tessie RPG, phase 1; behind ?tessierpg=1): her mark and "Level N · x / y XP · k points to spend" as
 // the lead line, then two views in the logbook's own hand (src/ui/logbook.js, the corners' rows): the bounty, one row per boat type
 // on the water today (wrecked or splashed, the first day, the records), and her five skills with four rank pips each. A press on a
-// skill row that can take a point spends it there (v2/sim/tessieBounty.js: an unlock costs a point, Lure → Sonar → Surge → Breach, rank 4
+// skill row that can take a point spends it there; a locked skill's row says its free tries left ("4 free tries left") (v2/sim/tessieBounty.js: an unlock costs a point, Lure → Sonar → Surge → Breach, rank 4
 // the cap). The text is built here, pure (no DOM): the logbook draws it.
 //   const src = tessiePage({ bounty: createTessieBounty({ storage }) });   createLogbook({ …, tessie: src })
-import { TYPES, SKILL_ORDER, SKILL_NAMES, BOUNTY, legendOf, canSpend } from '../sim/tessieBounty.js';
+import { TYPES, SKILL_ORDER, SKILL_NAMES, BOUNTY, legendOf, canSpend, trialsLeft } from '../sim/tessieBounty.js';
 import { tessieMarkSvg } from './tessieMark.js';
 export { createTessieBounty } from '../sim/tessieBounty.js';   // m4.js makes the page's store from this chunk
 
@@ -35,6 +35,8 @@ export function skillRow(s, id) {
   else if (why === 'max') g = 'rank 4 · full';
   else if (why === 'order') g = `locked · after ${SKILL_NAMES[SKILL_ORDER[i - 1]]}`;
   else g = rank ? `rank ${rank} of ${BOUNTY.rankCap}` : 'locked · a point unlocks it';
+  const tries = rank ? 0 : trialsLeft(s, id);   // a locked skill's free uses left
+  if (tries) g += ` · ${plural(tries, 'free try', 'free tries')} left`;
   return { id, t: `${SKILL_NAMES[id]}${pips(rank)}`, g, got: rank > 0, press: !why };
 }
 // the logbook's tessie source: views read the store afresh each time; press(id) spends a point

@@ -13,6 +13,8 @@
 //   a waiting point: once she is still the skipper's line says "Level 4: pick one skill to grow."; a number key on a glowing slot
 //     during the line picks (the pips, the unlock, its legend line); a press after the line fires the skill (the dash); a click on a
 //     glowing slot during a fresh level's line picks the last point, and the halo goes
+//   the free trials: a locked skill with uses left shows its glyph at 60 % and the count (its legend line too); a press with no
+//     behaviour spends none; a real use (a stub behaviour) spends one and at 0 the slot returns to the locked look
 // Evidence: TESSIE_RPG_SHOT=<png> saves the Tessie page as drawn; TESSIE_RPG2_SHOT=<prefix> saves her HUD during the level-up line
 // at 1280 and 1180 (<prefix>-1280.png, <prefix>-1180.png). Run by `npm run test:pages:v2 -- tessieRpg`, or
 // node v2/tests/pages/tessieRpg.page.mjs --base http://127.0.0.1:<port>
@@ -28,6 +30,8 @@ const PERSON = () => Object.defineProperty(Navigator.prototype, 'webdriver', { g
 const SAVE = { _v: 1, xp: 52, level: 4, points: 2, ranks: { dash: 2, lure: 0, sonar: 0, surge: 0, breach: 0 }, sets: [],
   byType: { sail: { wrecked: 9, splashed: 0, first: '2026-11-24', deepestM: 9.4, unseen: 2, fastestS: null }, glass: { wrecked: 1, splashed: 0, first: '2026-11-25', deepestM: 3.2, unseen: 0, fastestS: null },
     kayak: { wrecked: 0, splashed: 3, first: '2026-11-25', deepestM: 0, unseen: 0, fastestS: null } } };
+// phase 2: the same at _v 2 with the free trials: Lure 5 (tried in any order), Breach 1, Sonar and Surge used up
+const SAVE2 = { ...SAVE, _v: 2, trials: { lure: 5, sonar: 0, surge: 0, breach: 1 } };
 const SEED = (save) => { try { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('lakeshore.settings.v1', JSON.stringify({ _v: 2, welcomed: true, introShown: true, goalDone: true, cruiseOffered: true, proOffered: true })); localStorage.removeItem('lakeshore.course.v1');
   if (save) localStorage.setItem('lakeshore.tessie.bounty.v1', save); else localStorage.removeItem('lakeshore.tessie.bounty.v1'); sessionStorage.setItem('seeded', '1'); } } catch {} };
 const Q = 'mode=sail&seed=1&wind=3&noload=1&attract=0&fv=1&once=0&hm=0&chatter=0&hour=13&stage=off&cinema=0&tessie=1';
@@ -127,14 +131,15 @@ try {
   }
   // ---- phase 2: the five slots, the level-up line and its pick ----
   {
-    const { ctx, page, errors } = await open(`${Q}&tessierpg=1`, SAVE);
+    const { ctx, page, errors } = await open(`${Q}&tessierpg=1`, SAVE2);
     await page.evaluate(() => window.__velia.tessiePlay.become('menu'));
     const inT = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie' && !document.querySelector('#lk-tplay .tp-sonar')?.hidden, null, { timeout: 30000 }).then(() => true, () => false);
     check(inT, 'phase 2: you are her');
     await page.waitForTimeout(800);
     const slots = () => page.evaluate(() => [...document.querySelectorAll('#lk-tplay .tp-skills .tp-slot')].map((s) => {
       const pp = s.querySelector('.pp'), kn = s.querySelector('.kn'), gl = s.querySelector('.gl');
-      return { id: s.dataset.skill ?? null, locked: s.classList.contains('locked'), pips: pp && getComputedStyle(pp).display !== 'none' ? pp.querySelectorAll('b').length : 0, on: s.querySelectorAll('.pp b.on').length,
+      const tr = s.querySelector('.tr');
+      return { id: s.dataset.skill ?? null, locked: s.classList.contains('locked'), tries: tr && getComputedStyle(tr).display !== 'none' ? tr.textContent : null, pips: pp && getComputedStyle(pp).display !== 'none' ? pp.querySelectorAll('b').length : 0, on: s.querySelectorAll('.pp b.on').length,
         glyph: gl ? +getComputedStyle(gl).opacity : null, key: kn && getComputedStyle(kn).display !== 'none' ? kn.textContent : null, lv: !!s.querySelector('.lv'), halo: s.hasAttribute('data-halo') };
     }));
     let sl = await slots();
@@ -142,11 +147,17 @@ try {
     check(sl.map((x) => x.id).join() === 'dash,lure,sonar,surge,breach' && sl[0].pips === 4 && sl[0].on === 2 && !sl[0].locked && sl.every((x) => !x.lv),
       `five slots in order; Dash rank 2: four pips, two filled; no "Lv" tag (${JSON.stringify(sl.map((x) => `${x.id}:${x.on}/${x.pips}`))})`);
     check(pip.w === 4 && pip.h === 4 && /0\.9\)$/.test(pip.fill ?? '') && /0\.28\)$/.test(pip.empty ?? ''), `a pip is 4 px: filled cream 90 %, empty outlined 28 % (${JSON.stringify(pip)})`);
-    check(sl.slice(1).every((x) => x.locked && x.pips === 0 && Math.abs(x.glyph - 0.25) < 0.01) && sl.slice(1).map((x) => x.key).join() === '2,3,4,5',
-      `a locked skill: glyph at 25 %, no pips, its number key (${JSON.stringify(sl.slice(1))})`);
+    check([sl[2], sl[3]].every((x) => x.locked && x.pips === 0 && Math.abs(x.glyph - 0.25) < 0.01 && x.tries === null) && sl.slice(1).map((x) => x.key).join() === '2,3,4,5',
+      `a locked skill with no trials: glyph at 25 %, no pips, its number key (${JSON.stringify(sl.slice(1))})`);
+    check(sl[1].locked && sl[1].tries === '5' && sl[1].pips === 0 && Math.abs(sl[1].glyph - 0.6) < 0.01 && sl[4].tries === '1' && Math.abs(sl[4].glyph - 0.6) < 0.01,
+      `a locked skill with free trials: glyph at 60 %, the uses left (Lure 5, Breach 1) (${JSON.stringify([sl[1], sl[4]])})`);
     check(sl.map((x) => x.halo).join() === 'true,true,false,false,false', `the halo on Dash and Lure, the slots a point can go to (${JSON.stringify(sl.map((x) => x.halo))})`);
     const lines0 = await page.evaluate(() => [...document.querySelectorAll('#lk-tplay .tp-keys .kl')].filter((k) => getComputedStyle(k).display !== 'none').map((k) => k.dataset.id));
-    check(lines0.join() === 'level,swim,dash,bite,updown,view,boat', `the legend: no line for a locked skill (${lines0.join()})`);
+    check(lines0.join() === 'level,swim,dash,lure,breach,bite,updown,view,boat', `the legend: a line for each skill with trials left, none for Sonar and Surge (${lines0.join()})`);
+    // a press with no behaviour yet (Breach until its phase): nothing happens, no trial spent
+    const open0 = await page.evaluate(() => window.__velia.tessiePlay.stats().rpg.open);
+    await page.keyboard.press('Digit5'); await page.waitForTimeout(250);
+    check(!open0 && (await saved(page)).trials.breach === 1 && (await slots())[4].tries === '1', 'a trial press with no behaviour spends nothing');
     // the row clear of the dials and the legend at three widths
     const clear = () => page.evaluate(() => {
       const R = (e) => e && !e.hidden && getComputedStyle(e).display !== 'none' ? e.getBoundingClientRect() : null;
@@ -202,6 +213,15 @@ try {
     sv = await saved(page); sl = await slots();
     const st2 = await page.evaluate(() => window.__velia.tessiePlay.stats().rpg);
     check(up2 && sv.ranks.sonar === 1 && sv.points === 0 && sl.every((x) => !x.halo) && !st2.open && st2.halo.length === 0, `a click on the glowing Sonar during the line unlocks it; no point left, no halo (${JSON.stringify({ up2, ranks: sv.ranks, points: sv.points, halo: sl.map((x) => x.halo) })})`);
+    // a real use (a stub behaviour, as phases 3–5 will register theirs): the last free Breach spent; the slot locked again
+    await page.evaluate(() => { window.__velia.tessiePlay.skillRun.breach = (rank) => rank === 1; });
+    await page.keyboard.press('Digit5'); await page.waitForTimeout(400);
+    sl = await slots(); sv = await saved(page);
+    const brLine = await page.evaluate(() => { const k = document.querySelector('#lk-tplay .tp-keys .kl[data-id=breach]'); return k ? getComputedStyle(k).display !== 'none' : null; });
+    await page.keyboard.press('Digit5'); await page.waitForTimeout(250);
+    const sv2 = await saved(page);
+    check(sv.trials.breach === 0 && sv.ranks.breach === 0 && sl[4].locked && sl[4].tries === null && Math.abs(sl[4].glyph - 0.25) < 0.01 && brLine === false && sv2.trials.breach === 0,
+      `a real trial use spends the last one: the locked look again, its legend line gone, never below 0 (${JSON.stringify({ trials: sv.trials, breach: sl[4], brLine })})`);
     check(errors.length === 0, `phase 2: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }

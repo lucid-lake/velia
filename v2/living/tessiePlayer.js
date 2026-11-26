@@ -44,7 +44,8 @@ import { mountHud, hudLayout, capLine, HUD } from '../ui/tessieHud.js';   //: th
 import { skillOfCode, RPG_SLOT_COUNT } from '../sim/tessieSkills.js';   // the dash's keys: the slot's 1 and Shift
 import { Press } from '../../src/ui/pointer.js';
 import { createTessieBounty, BOUNTY_KIND, SKILL_ORDER } from '../sim/tessieBounty.js';
-import { createLevelUp, LEVEL_UP } from '../sim/tessieLevelUp.js';   // the RPG, phase 2: the level-up line, the halo, the pick   // the Tessie RPG (rpg, ?tessierpg=1): each wreck scored into her bounty and level   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
+import { createLevelUp, LEVEL_UP } from '../sim/tessieLevelUp.js';
+import { useSkill } from '../sim/tessieTrials.js';   // the RPG: a slot's own press, the free trials of a locked skill   // the RPG, phase 2: the level-up line, the halo, the pick   // the Tessie RPG (rpg, ?tessierpg=1): each wreck scored into her bounty and level   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
 
 const DEG = Math.PI / 180;
 export const TESSIE_KEYS = new Set(['ShiftLeft', 'ShiftRight', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyT', 'KeyC', 'KeyE', 'KeyQ', 'Digit1']);   // phase 2a: E rises, Q sinks
@@ -229,6 +230,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const bounty = rpg ? createTessieBounty({ storage }) : null;
   const levelUp = bounty ? createLevelUp({ bounty }) : null;   // phase 2: the level-up moment on the skipper's line and the slots
   let rpgReadT = 0, rpgRanks = null, rpgHalo = '';
+  // each skill's behaviour, (rank) → true when it really ran (a press that did something: a locked skill's trial is spent only then).
+  // Lure, Sonar, Tail Surge and Breach have none yet: phases 3–5 add theirs here; until then their presses are quiet no-ops
+  const SKILL_RUN = {};
   const sawAt = new Map(), splashAt = new Map();   // the RPG: when each boat last saw her; when each kayak was last splashed (s, her clock)
   let strike = null, biteWas = null, lungeWas = null;   // the RPG: the strike under way ({ at, depthM, hidden, seen: Set, skill })
   let knockTotal = 0; try { knockTotal = +(storage?.getItem(COUNT_KEY) ?? 0) || 0; } catch { /* */ }
@@ -477,8 +481,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   function rpgSync(force = false) {
     if (!bounty || (!force && clock - rpgReadT < RPG.readS)) return;
     rpgReadT = clock;
-    const s = bounty.state(), key = SKILL_ORDER.map((id) => s.ranks[id]).join();
-    if (key !== rpgRanks) { rpgRanks = key; C.skills.rank('dash', s.ranks.dash); hud?.ranks(s.ranks); }
+    const s = bounty.state(), key = SKILL_ORDER.map((id) => `${s.ranks[id]}.${s.trials?.[id] ?? ''}`).join();
+    if (key !== rpgRanks) { rpgRanks = key; C.skills.rank('dash', s.ranks.dash); hud?.ranks(s.ranks, s.trials); }
     const halo = levelUp.halo().join();
     if (halo !== rpgHalo) { rpgHalo = halo; hud?.halo(levelUp.halo()); }
   }
@@ -492,10 +496,13 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       return 'pick';
     }
     if (id === 'dash') { dashPulse = true; return 'fire'; }
-    return skillPlaceholder(id);
+    // the other skills: their behaviour at the rank (a locked one with free trials left: rank 1); a trial is spent only by a real use
+    const u = useSkill({ bounty, id, run: (sid, rank) => !!SKILL_RUN[sid]?.(rank) });
+    if (u.line) tip(u.line.kind, u.line.text);   // the first trial's line, the last one's (once ever each: the lean skipper)
+    if (u.trial && u.used) { log.trials = [...(log.trials ?? []), { id, left: u.left, at: +clock.toFixed(1) }].slice(-8); rpgSync(true); }
+    if (!u.used) log.idle = (log.idle ?? 0) + 1;   // nothing happened: a quiet no-op
+    return u.used ? 'fire' : 'idle';
   }
-  // Lure, Sonar, Tail Surge and Breach have no behaviour yet (later phases): an unlocked one's press is a quiet no-op, as is a locked one's
-  function skillPlaceholder(id) { log.idle = (log.idle ?? 0) + 1; return id ? 'idle' : null; }
   // each step while she is played: the level-up line (asked through the lean skipper), the halo, the ranks
   function rpgStep(dt) {
     if (!levelUp) return;
@@ -564,6 +571,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     get bounty() { return bounty; },   // the RPG's (null without ?tessierpg=1)
     get levelUp() { return levelUp; },   // the RPG's level-up moment (null without ?tessierpg=1)
     pressSlot: (id) => (bounty ? pressSlot(id) : null),   // the RPG: a slot pressed as its key or a tap would
+    skillRun: SKILL_RUN,   // the RPG: the skills' behaviours by id (phases 3–5; the page test registers a stub)
     // the door: the Logbook on its Tessie page (the dials' click; the RPG only)
     openLog() { const L = svc()?.get?.('logbook')?.logbook; if (!bounty || !L?.show) return false; L.show('tessie'); return true; },
     girthAt: (i, N) => reachAt(i * sim.L / Math.max(1, N - 1), sim.L),   // phase 2b: her body's reach at spine frame i of N (m: her bubbles leave her skin)

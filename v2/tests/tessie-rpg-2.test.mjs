@@ -165,3 +165,72 @@ test('the pips: four by rank, none on a locked skill; the legend gains a line pe
   assert.equal(legendLevels({ lure: 3 }, RPG_LEGEND).find((l) => l.id === 'lure').level, 'learned');
   assert.equal(LEGEND.length, 6);
 });
+
+// ---- the free trials (v2/sim/tessieTrials.js, the bounty's trials) ----
+import { useSkill, TRIALS, TRIAL_KINDS } from '../sim/tessieTrials.js';
+import { migrate, trialInto, trialsLeft, TRIAL_SKILLS } from '../sim/tessieBounty.js';
+import { slotState, slotGlyph } from '../ui/tessieHud.js';
+import { skillRow } from '../ui/tessieLog.js';
+
+test('the trials: 5 free uses of each locked skill but the Dash; a _v 1 save migrates with 5 each, everything else kept', () => {
+  assert.deepEqual(TRIAL_SKILLS, ['lure', 'sonar', 'surge', 'breach']);
+  assert.deepEqual(blankSave().trials, { lure: 5, sonar: 5, surge: 5, breach: 5 });
+  const v1 = { _v: 1, xp: 52, ranks: { dash: 2 }, byType: { sail: { wrecked: 9 } }, sets: [] };
+  const m = migrate(JSON.stringify(v1), null);
+  assert.equal(m.migrated, true); assert.equal(m.save._v, 2);
+  assert.deepEqual(m.save.trials, { lure: 5, sonar: 5, surge: 5, breach: 5 });
+  assert.deepEqual([m.save.xp, m.save.ranks.dash, m.save.byType.sail.wrecked, m.save.points], [52, 2, 9, 2]);
+  const st = memStore({ [BOUNTY.key]: JSON.stringify(v1) }), T = createTessieBounty({ storage: st });
+  T.state();
+  assert.equal(JSON.parse(st.getItem(BOUNTY.key))._v, 2, 'the first read writes the migrated save');
+  assert.deepEqual(normalise({ _v: 2, trials: { lure: 9, sonar: -3, surge: 'x' } }).trials, { lure: 5, sonar: 0, surge: 5, breach: 5 }, 'clamped 0 … 5');
+});
+
+test('a trial is spent only by a real use, never below 0, and survives a reload', () => {
+  const st = memStore(), T = createTessieBounty({ storage: st });
+  let ran = [];
+  const stub = (id, rank) => { ran.push([id, rank]); return true; };
+  // no behaviour yet: the press does nothing and spends nothing
+  let r = useSkill({ bounty: T, id: 'sonar', run: () => false });
+  assert.equal(r.used, false); assert.equal(r.why, 'no-behaviour'); assert.equal(T.trialsLeft('sonar'), 5);
+  r = useSkill({ bounty: T, id: 'sonar' }); assert.equal(T.trialsLeft('sonar'), 5, 'no run given: nothing spent');
+  // a real use: rank 1, one spent; trials ignore the unlock order (Sonar before Lure)
+  r = useSkill({ bounty: T, id: 'sonar', run: stub });
+  assert.deepEqual([r.used, r.trial, r.rank, r.left], [true, true, 1, 4]); assert.deepEqual(ran, [['sonar', 1]]);
+  assert.equal(T.state().ranks.sonar, 0, 'still locked: a trial is not an unlock');
+  assert.equal(createTessieBounty({ storage: st }).trialsLeft('sonar'), 4, 'a reload reads 4');
+  for (let i = 0; i < 6; i++) useSkill({ bounty: T, id: 'sonar', run: stub });
+  assert.equal(T.trialsLeft('sonar'), 0, 'never below 0');
+  assert.equal(ran.length, 5, 'the sixth and seventh presses ran nothing');
+  r = useSkill({ bounty: T, id: 'sonar', run: stub }); assert.equal(r.why, 'locked');
+  assert.deepEqual(trialInto(T.state(), 'dash'), { ok: false, why: 'unknown', left: 0 }, 'the Dash has no trials');
+  assert.equal(trialsLeft(T.state(), 'lure'), 5, 'each skill its own');
+});
+
+test('an unlocked skill runs at its rank and spends no trial; a locked one with trials runs at rank 1', () => {
+  const T = createTessieBounty({ storage: seeded({ dash: 1, lure: 2 }, 270) }), ran = [];
+  const r = useSkill({ bounty: T, id: 'lure', run: (id, rank) => { ran.push(rank); return true; } });
+  assert.deepEqual([r.used, r.trial, r.rank], [true, false, 2]); assert.deepEqual(ran, [2]);
+  assert.equal(T.trialsLeft('lure'), 5);
+  const s = T.state(); s.ranks.lure = 0; assert.equal(trialInto(s, 'lure').ok, true);
+});
+
+test('the trial lines: "Free try: 5 Sonars. …" on the first, "That was your last free Sonar." after the last; TIP kinds, once ever each', () => {
+  const T = createTessieBounty({ storage: memStore() }), lines = [];
+  for (let i = 0; i < 5; i++) lines.push(useSkill({ bounty: T, id: 'sonar', run: () => true }).line);
+  assert.deepEqual(lines[0], { kind: 'tip.tessie.try.sonar', text: 'Free try: 5 Sonars. Like it? Spend a point to keep it.' });
+  assert.deepEqual(lines.slice(1, 4), [null, null, null]);
+  assert.deepEqual(lines[4], { kind: 'tip.tessie.tried.sonar', text: 'That was your last free Sonar.' });
+  assert.equal(TRIALS.last('surge'), 'That was your last free Tail Surge.'); assert.equal(TRIALS.first('breach'), 'Free try: 5 Breaches. Like it? Spend a point to keep it.');
+  for (const k of TRIAL_KINDS) { assert.equal(classOf(k), TIP, k); assert.equal(LEAN_REPEAT[k], undefined, `${k}: once ever`); }
+});
+
+test('the display: trial (glyph 60 %, the count) vs locked (25 %) vs unlocked (pips); the Logbook row says the tries left', () => {
+  assert.equal(slotState(0, 5), 'trial'); assert.equal(slotState(0, 0), 'locked'); assert.equal(slotState(2, 5), 'unlocked');
+  assert.deepEqual(['trial', 'locked', 'unlocked'].map(slotGlyph), [0.6, 0.25, 1]);
+  const s = normalise({ _v: 2, xp: 52, ranks: { dash: 2 }, trials: { lure: 4, sonar: 1, surge: 0 } });
+  assert.match(skillRow(s, 'lure').g, /^press to unlock · 4 free tries left$/);
+  assert.match(skillRow(s, 'sonar').g, /after Lure · 1 free try left$/);
+  assert.doesNotMatch(skillRow(s, 'surge').g, /free/);
+  assert.doesNotMatch(skillRow(s, 'dash').g, /free/);
+});
