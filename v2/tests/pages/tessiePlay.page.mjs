@@ -310,9 +310,10 @@ try {
     check(more, 'her mark: the card on Off Fannette offers Be Tessie');
     if (more) await page.click('.lk-livechart .lkc-card [data-act=beTessie]');
     const inT = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie', null, { timeout: 20000 }).then(() => true, () => false);
+    await page.waitForFunction(() => !!window.__velia.tessie.sim.state.nose, null, { timeout: 10000 }).catch(() => {});   // placed: her nose exists
     const s = await stats(page);
-    const near = await page.evaluate(() => { const n = window.__velia.tessie.sim.state.nose; return Math.hypot(n.x - 300, n.z + 130); });
-    check(inT && s?.entry === 'chart' && near < 420, `her mark: Be Tessie, and you are her in her water (${s?.entry}, ${near.toFixed(0)} m from its centre)`);
+    const near = await page.evaluate(() => { const n = window.__velia.tessie.sim.state.nose; return n ? Math.hypot(n.x - 300, n.z + 130) : Infinity; });
+    check(inT && s?.entry === 'chart' && near < 420, `her mark: Be Tessie, and you are her in her water (${inT}, ${s?.entry}, ${near.toFixed(0)} m from its centre)`);
     check(errors.length === 0, `her mark: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }
