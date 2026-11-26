@@ -180,7 +180,7 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
   never into water under 3 m or within 30 m of a pier. A soft hull for the player (two circles each). Out in the day (BUSY.day), none
   in a race.
 - Drawn: one pipeline (`craft-solid`, boat effects' group), an instanced draw per kind and LOD in use (at most 4). Near within 300 m
-  (runabout, 751 triangles) and 200 m (jet ski, 2,127); far (227 and 375) to 4 km and 2.5 km (lite: half). Their wakes in the vessels'
+  (runabout, 1,057 triangles) and 200 m (jet ski, 2,127); far (239 and 375) to 4 km and 2.5 km (lite: half). Their wakes in the vessels'
   map (prop wash, the V, its arms heavier over the hump), their own map only when the paddle-wheeler has none. One engine voice on the
   nearest boat (synthesised, as the glass boat's outboards), silent past 600 m.
 - Tiers (`src/core/features.js` powerBoats, `?power=`): full 3 (desktop, tablet L0-L1), lite 2 (the jet ski and the runabout past Ski
