@@ -100,11 +100,13 @@ try {
     // owner, 2026-11-24: one skipper line, not a pill: "Tessie's up. [T] to be her.", the cap inline, on the hint row under the bar
     const be = await beLine(page);
     check(/^Tessie's up\. ?T to be her\.$/.test(be.text) && be.caps.join() === 'T' && !be.tap && !be.pill && be.barB > 0 && be.top >= be.barB && be.top < be.barB + 60, `the line: "Tessie's up. [T] to be her." on the skipper's row under the bar, no pill (${JSON.stringify(be)})`);
-    // owner, 2026-11-21: the boat's instrument plate (COG, TWS, TWA, VMG, HEEL, RUD) showed while you were her. Pro puts it up first
-    const boatHud = () => page.evaluate(() => ['.lk-nav', '.lk-pro', '.lk-cp', '.lk-thr', '.lk-guide', '.lk-calm-mark'].filter((q) => [...document.querySelectorAll(q)].some((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05)));
+    // owner, 2026-11-21: the boat's instruments showed while you were her. The boat's HUD is the two dials (the wind dial .lk-cv, the
+    // chart dial .lk-chart .small; ui/dials.js) with the Pro instruments panel .lk-proi when it is on; Pro puts the boat's HUD up first
+    const DIALS = ['.lk-cv', '.lk-chart .small'];
+    const boatHud = () => page.evaluate(() => ['.lk-cv', '.lk-chart .small', '.lk-proi', '.lk-pro', '.lk-cp', '.lk-thr', '.lk-guide', '.lk-calm-mark'].filter((q) => [...document.querySelectorAll(q)].some((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05)));
     await page.evaluate(() => window.__velia.m4.ui.setPro(true)); await page.waitForTimeout(1200);
     const hud0 = await boatHud();
-    check(hud0.includes('.lk-nav'), `the boat's HUD: the instrument plate up as the Halcyon with Pro (${JSON.stringify(hud0)})`);
+    check(DIALS.every((q) => hud0.includes(q)), `the boat's HUD: the dials up as the Halcyon with Pro (${JSON.stringify(hud0)})`);
     await page.keyboard.press('KeyT');
     const inT = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie', null, { timeout: 8000 }).then(() => true, () => false);
     const h = await page.evaluate(() => ({ attr: document.documentElement.hasAttribute('data-tessie-play'), dial: !document.querySelector('#lk-tplay .tp-dial')?.hidden, sw: !!document.querySelector('.lk-view .lk-tsw'), driven: window.__velia.boat.sim.driven }));
@@ -261,9 +263,9 @@ try {
     await page.keyboard.press('KeyT');
     const back = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'boat' && !window.__velia.boat.sim.driven && !document.documentElement.hasAttribute('data-tessie-play'), null, { timeout: 8000 }).then(() => true, () => false);
     check(back, 'swap: T again gives you the Halcyon back (the boat\'s hands, the cockpit)');
-    // the plate comes back at once (the Calm HUD may fade it again a few seconds later, as it does on any idle boat)
-    const navBack = await page.waitForFunction(() => [...document.querySelectorAll('.lk-nav')].some((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05), null, { timeout: 3000 }).then(() => true, () => false);
-    check(navBack, `given back: the instrument plate returns (${JSON.stringify(await boatHud())})`);
+    // the dials come back at once (Calm may dim them after its idle, never hides them)
+    const dialsBack = await page.waitForFunction((qs) => qs.every((q) => [...document.querySelectorAll(q)].some((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05)), DIALS, { timeout: 3000 }).then(() => true, () => false);
+    check(dialsBack, `given back: the dials return (${JSON.stringify(await boatHud())})`);
     check(errors.length === 0, `swap: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }
