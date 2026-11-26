@@ -490,7 +490,7 @@ async function boot() {
   const player = createPlayer({ boat: () => B?.state ?? null });
   const musicOn = !P.headless && flags.filmui !== true && flags.music !== '0' && flags.music !== false;   // music: live pages, not a ?filmui=1 film or ?music=0 (below)
   const musicDoor = createLateCore();   // music: the fireworks' pieces and the boat's radio on the page's music bus (bound below)
-  const plugCtx = { device, reg, frameBGL, frameStruct, sky, shadow: tshadow, hdrTarget, depthFormat, msaaCounts, chunks, musicDoor: musicOn ? musicDoor : null, errors, flags, P, feature, inGroup, terrain, water, tBase, manifest: shoreM, under: underOn, boatOn, wake: wakeFx,
+  const plugCtx = { levelKey, device, reg, frameBGL, frameStruct, sky, shadow: tshadow, hdrTarget, depthFormat, msaaCounts, chunks, musicDoor: musicOn ? musicDoor : null, errors, flags, P, feature, inGroup, terrain, water, tBase, manifest: shoreM, under: underOn, boatOn, wake: wakeFx,
     get B() { return B; }, get boatR() { return boatR; }, get clock() { return clock; }, get windField() { return windField; }, get m4() { return m4; }, get storm() { return storm; }, get weatherWind() { return weatherWind; },
     get cockpitIn() { return cockpitIn; }, get pipeQ() { return pipeQ; }, get regatta() { return regatta; }, get startPose() { return startPose; }, get sailBirth() { return sailBirth; },
     get birthRow() { return birthRow; }, get beds() { return beds; },

@@ -197,7 +197,7 @@ export function createClickBite({ on = () => true, bite = () => {}, now = () => 
   return api;
 }
 
-export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, birthplaces = null, veil = null,
+export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, sups = () => null, birthplaces = null, veil = null,
   project = null, focal = () => 600, canvas = null, mode = () => 'sail', race = () => false, knocked = () => false, reduced = () => false,
   services = () => null, touch = () => false, headless = false, storage = (() => { try { return globalThis.localStorage ?? null; } catch { return null; } })(),
   waterAt = null, floorAt = null, underOn = true, settings = null, keyHints = () => true } = {}) {
@@ -334,6 +334,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     return h;
   };
 
+  // a splash spooks the kayakers and the paddleboarders within r (the kayaks back away; a board's paddler wobbles and kneels)
+  const spookAt = (x, z, r) => { kayaks()?.spook?.(x, z, r); sups()?.spook?.(x, z, r); };
   // ---- the world as she sees it: the boats, the glass boat, the kayakers ----
   function targets() {
     const out = [];
@@ -344,6 +346,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const T = tour(); if (T?.active) { const g = T.boat; out.push({ id: 'glass', kind: 'glass', x: g.x, z: g.z, heading: g.heading, u: g.v ?? 0, ...GLASS }); for (const k of T.kayaks) out.push({ id: `gk${k.i}`, kind: 'kayak', x: k.x, z: k.z, heading: k.heading, L: 3.4, B: 0.85 }); }
     // the lake's kayakers (round B): each a bite target while upright (a pair: two targets); the glass boat's are only spooked
     const F = kayaks(); if (F) F.marks().forEach((m, i) => out.push({ id: `k:${m.id ?? i}`, kind: 'kayak', x: m.x, z: m.z, heading: m.heading ?? 0, L: 3.4, B: 0.85, bite: !m.busy && !!F.bite }));
+    // the stand-up paddleboards (South Lake): splashed and spooked only, never a target (v2/sim/tessieHits.js 'sup')
+    const Sp = sups(); if (Sp) for (const m of Sp.marks()) out.push({ id: `s:${m.id}`, kind: 'sup', x: m.x, z: m.z, heading: m.heading ?? 0, L: 3.35, B: 0.76 });
     return out;
   }
   // the hull the sim holds her outside this frame: the nearest of the Halcyon and the lake's sailboats (posed as drawn)
@@ -553,11 +557,11 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
           const r = H.fall(e, list, clock, { hitM: e.locked ? H.K.lock.footM : H.K.hitM });   // the rising strike's fall: 3.5 m while locked
           log.lastFall = { x: +e.x.toFixed(1), z: +e.z.toFixed(1), hit: r.hit?.id ?? null, d: r.d ?? null, at: +clock.toFixed(1) };
           const ok = r.hit ? knock(r) : false; if (ok) log.hits++;
-          kayaks()?.spook?.(e.x, e.z, H.K.spookM); log.spooks += r.spooked.length;
+          spookAt(e.x, e.z, H.K.spookM); log.spooks += r.spooked.length;
           C.result(ok);
-        } else if (e.type === 'surfaced') kayaks()?.spook?.(e.x, e.z, H.K.spookM);
+        } else if (e.type === 'surfaced') spookAt(e.x, e.z, H.K.spookM);
       }
-      for (const e of sim.state.events) if (e.type === 'breach' || e.type === 'break') kayaks()?.spook?.(e.x, e.z, H.K.spookM);
+      for (const e of sim.state.events) if (e.type === 'breach' || e.type === 'break') spookAt(e.x, e.z, H.K.spookM);
       // the kayaks and the glass boat are solid to her (the sailboats: the sim's own hold)
       // (round B: not the kayak she is biting: her jaw meets its hull, not the water beside it)
       const biting = C.state.bite?.target?.id ?? C.state.lunge?.target?.id ?? null;

@@ -41,7 +41,7 @@ test('the region row: South Lake Tahoe, its level, the pin, neighbours both ways
   const S = R['south-lake'];
   assert.ok(S, 'a south-lake row');
   assert.equal(S.label.text, 'South Lake Tahoe');
-  assert.ok(Math.hypot(S.centre[0] - 10500, S.centre[1] - 500) < 1 && S.radiusM === 2500);
+  assert.ok(Math.hypot(S.centre[0] - 10500, S.centre[1] - 500) < 1 && S.radiusM === 4800);
   assert.deepEqual([...S.neighbours], ['tahoe-west']); assert.ok(R['tahoe-west'].neighbours.includes('south-lake'));
   assert.deepEqual({ ...S.level }, { dir: 'south', full: 'south.json', phone: 'south-phone.json', photo: 'photo/manifest.json' });
   const bp = S.birthplaces.find((b) => b.id === 'ski-run');

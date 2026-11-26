@@ -204,6 +204,16 @@ export const POLICIES = Object.freeze({
       if (f === 'lite') return 'lite';
       if (phoneOnly(p, c)) return 'off';
       return !c.headless && lite(p) ? 'lite' : 'full'; } },   // the tablet rule: desktopLike, scaled by lite(p)
+  // --- the stand-up paddleboarders (South Lake's rows, v2/living/sup.js): a few boards on slow lanes off the beach, each a standing paddler.
+  // full: 4 boards (a desktop or a tablet at L0-L1); lite: 2 (L2-L3); a phone has none (no sim, no pipeline). A capture: full ---
+  paddleboards: { fixed: true, axes: 'form, gpu', aliases: '?sup=0 (off), ?sup=1 (full, a phone too), ?sup=lite, ?profile=form:phone',
+    why: 'the stand-up paddleboarders off South Lake\'s beach (1 pipeline, 5 instanced draws): 4 boards on a desktop or a tablet at L0-L1, 2 at L2-L3, none on a phone',
+    tier: (p, c) => { const f = c.flags.sup == null ? '' : String(c.flags.sup);
+      if (f === '0' || f === 'false' || f === 'off') return 'off';
+      if (f === '1' || f === 'true' || f === 'full') return 'full';
+      if (f === 'lite') return 'lite';
+      if (phoneOnly(p, c)) return 'off';
+      return !c.headless && lite(p) ? 'lite' : 'full'; } },
   // --- the paddle-wheeler (South Lake's birthplace, phase C): a generic 46 m stern-wheeler (v2/sim/paddleWheeler.js). Off in play
   // until her routes come; ?paddle=x,z,heading[,kn] places her for review. full: every LOD and her wake map (a desktop or a tablet at
   // L0-L1: the tablet rule); lite: the mid and far LODs only, drawn half as far, no wake map (L2-L3 and a phone) ---

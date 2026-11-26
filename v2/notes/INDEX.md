@@ -58,6 +58,7 @@ Every `##` section of the old `v2/README.md` and the note file that holds it (re
 | The binoculars and the VHF (#5, #6, 2026-11-13: ui/captain.js) | `ui.md` |
 | The engine and the ground tackle (#8, #14, 2026-11-14: sim/seamanship.js, ui/seamanship.js, audio/engine.js, render/exhaust.js) | `boat.md` |
 | The kayaks (the living lake: living/kayaks.js, sim/kayaks.js, sim/lake.js, render/kayaks.js, render/kayak/*) | `living.md` |
+| South Lake's paddlers (the region rows' kayaks and sups: living/sup.js, sim/sup.js, sim/supPose.js, render/sup.js; Tessie's `sup` kind) | `living.md` |
 | The towns (10a, trimmed by the owner 2026-11-13: render/towns.js, towns/format.js, towns/wgsl.js) | `terrain.md` |
 | The buildings (Phase B of the South Lake birthplace: render/buildings.js, towns/buildings.js) | `terrain.md` |
 | the opening text (milestones M0 to M5e) | `overview.md` |

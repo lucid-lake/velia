@@ -23,6 +23,7 @@
 import { createKayaksRender } from '../render/kayaks.js';
 import { createKayakSplash } from './kayaks-splash.js';
 import { createKayakSound } from './kayaks-sound.js';
+import { createSupSystem } from './sup.js';
 import { createKayakFleet } from '../sim/kayaks.js';
 import { createLauncher } from './kayakLaunch.js';
 import { polyline } from '../../src/sim/kayaks/routes.js';
@@ -34,10 +35,12 @@ import { inflate, unpredict } from '../terrain/decode.js';
 
 const KAYAK_URL = new URL('../assets/kayak/kayak.kyb.gz', import.meta.url);
 
-export function createKayaksPlugin({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, errors = [], flags, P, tBase, manifest, terrain, mirrors = false, under = false }) {   // under: phase 2a (src/core/features.js tessieUnder)
+export function createKayaksPlugin({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, errors = [], flags, P, tBase, manifest, terrain, mirrors = false, under = false, sup = null }) {   // under: phase 2a (src/core/features.js tessieUnder)
   if (!kayaksOn(flags.kayaks == null ? undefined : String(flags.kayaks))) return null;
   const R = createKayaksRender({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, errors, mirrors, under });
   const S = createKayakSplash({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, seed: P.seed });
+  // sup: { tier, loaded } the stand-up paddleboarders of a region with its own level (v2/living/sup.js; null: none, no pipeline)
+  const U = sup ? createSupSystem({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, tier: sup.tier }) : null;
   let B = null, water = null, clock = null, windField = null, ui = null, startPose = null, evening = () => false, storm = () => false, firstPair = () => true;
   let fleet = null, lake = null, shoreP = null, assetP = null, started = false, making = false, sound = null, residents = null, launch = null, tessieSim = () => null;   // residents: (hour) → the regions' kayak rows (attach)
   const phone = feature('kayaksTier').tier === 'lite';   // src/core/features.js: a phone, a tablet or L2–L3 (never a capture)
@@ -114,7 +117,7 @@ export function createKayaksPlugin({ device, reg, frameBGL, frameStruct, sky, sh
     render: R, get fleet() { return fleet; }, get lake() { return lake; },
     loadAsset,   // the paddler asset alone (the glass boat's paddlers: v2/living/tourBoat.js) → the clips
     lakeReady: () => loadShoreOnce().then(lakeOf),   // v1's lake terrain (the birds' places read its shore distance)
-    attach(o) { ({ B, water, clock, windField } = o); ui = o.ui ?? null; hold = o.hold ?? null; startPose = o.start; evening = o.evening ?? (() => false); storm = o.storm ?? (() => false); firstPair = o.firstPair ?? (() => true); residents = o.residents ?? null; launch = o.launch ?? null; tessieSim = o.tessie ?? (() => null); return self; },
+    attach(o) { ({ B, water, clock, windField } = o); ui = o.ui ?? null; hold = o.hold ?? null; startPose = o.start; evening = o.evening ?? (() => false); storm = o.storm ?? (() => false); firstPair = o.firstPair ?? (() => true); residents = o.residents ?? null; launch = o.launch ?? null; tessieSim = o.tessie ?? (() => null); U?.attach({ clock, water, storm: () => !!storm(), tessie: () => tessieSim(), loaded: sup.loaded, seed: P.seed }); return self; },
     async prime(view) {
       const [shore] = await loadAll();
       makeFleet(shore);
@@ -129,6 +132,7 @@ export function createKayaksPlugin({ device, reg, frameBGL, frameStruct, sky, sh
       if (!fleet) {
         // the fleet on the whole land (the stream's end), the shore grids and the asset in
         if (!making && terrain.stats.streamed && t.shoreMs != null && R.ready) { making = true; shoreP.then(makeFleet).catch((e) => errors.push(`kayaks: ${e?.message ?? e}`)); }
+        U?.step(dt, null);   // the paddleboarders need no asset or shore grid: they paddle from the first frame
         return;
       }
       // play has started: the pair in the camera's view, once (v1's layFirst; a view it cannot be placed in drops it, as v1's)
@@ -139,21 +143,23 @@ export function createKayaksPlugin({ device, reg, frameBGL, frameStruct, sky, sh
       lastView = view;
       const cam = camOf(view);
       fleet.step(dt, cam);
+      U?.step(dt, fleet);   // the boards' blades: their catches and drips join the fleet's lists for the same droplets
       S.step(dt, fleet);   // the splash at the blades' catches, the drips after their exits
       if (sound) for (const e of fleet.sfx) sound.play(e, cam);   // a capsize's splash, a righted hull's
     },
     fill(eye, focalPx) {
+      U?.fill(eye);
       if (!fleet) return;
       fleet.draws.camX = eye[0]; fleet.draws.camZ = eye[2];
       R.update(fleet.draws, focalPx);
       S.fill(focalPx);
     },
     on: true,   // the harness's A/B (the budget: alternating blocks of frames with and without the draws, one page)
-    draw(pass, c) { if (fleet && self.on) { R.draw(pass, c); S.draw(pass, c); } },
+    draw(pass, c) { if (self.on) { U?.draw(pass, c); if (fleet) { R.draw(pass, c); S.draw(pass, c); } } },
     drawMirror(pass, c) { if (fleet && self.on) R.drawMirror(pass, c); },   // the kayakers in the water's mirror (after the water)
-    splash: S,
+    splash: S, sup: U,   // the paddleboarders (living/sup.js; null off South Lake or on a phone)
     setAudio(audio) { if (!P.headless && audio) sound = createKayakSound({ audio }); },
-    stats() { return { ...(fleet ? fleet.stats() : { out: 0 }), render: R.stats, splash: S.stats, ms: t }; },
+    stats() { return { ...(fleet ? fleet.stats() : { out: 0 }), render: R.stats, splash: S.stats, ms: t, ...(U ? { sup: U.stats() } : {}) }; },
   };
   return self;
 }

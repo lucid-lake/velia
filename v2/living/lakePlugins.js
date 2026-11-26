@@ -26,7 +26,8 @@ import { createRivalFloats } from '../regatta/rivalFloat.js';
 import { fleetLod, LOD_BANDS, lodState } from '../regatta/lod.js';
 import { DEG } from '../engine/math.js';
 import { actById } from '../stage/acts.js';
-import { REGIONS, residentKayaks, regionsWithBirthplaces } from './busyLake.js';
+import { REGIONS, residentKayaks, regionsWithBirthplaces, regionLoaded } from './busyLake.js';
+import { supsLoaded } from './sup.js';
 import { polyline } from '../../src/sim/kayaks/routes.js';
 import { listBirthplaces } from '../sim/birthplace.js';
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
@@ -36,7 +37,8 @@ const KAYAKS = {
   id: 'kayaks', group: 'kayaks', createAt: 'living', statsAt: 'living',
   // the living lake: v1's fleet and its first pair in view at the start, v1's paddlers and strokes (?kayaks=0 off: create → null)
   on: (c) => c.boatOn,
-  create: (c) => createKayaksPlugin({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: c.P.msaa, depthFormat: c.depthFormat, errors: c.errors, flags: c.flags, P: c.P, tBase: c.tBase, manifest: c.manifest, terrain: c.terrain, mirrors: c.feature('boatMirrors').tier === 'all', under: c.under }),
+  create: (c) => createKayaksPlugin({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: c.P.msaa, depthFormat: c.depthFormat, errors: c.errors, flags: c.flags, P: c.P, tBase: c.tBase, manifest: c.manifest, terrain: c.terrain, mirrors: c.feature('boatMirrors').tier === 'all', under: c.under,
+    sup: c.feature('paddleboards').tier !== 'off' && supsLoaded(c.levelKey) ? { tier: c.feature('paddleboards').tier, loaded: c.levelKey } : null }),   // the paddleboarders: only a start in a region with its own level and boards (South Lake), on a tier that has them
   at: {
     // round B: the shore launch (v2/living/kayakLaunch.js); the kayakers watch Tessie; birth: Sail's first birth pose (busyLake.js
     // birthLane: a pair passes within a minute; fixed now, a move never re-places them); its downloads wait for its group too;
@@ -45,8 +47,8 @@ const KAYAKS = {
       if (!c.B) return;
       const { B, clock, P, sailBirth, startPose, birthRow } = c;
       k.attach({ B, water: c.water, clock, windField: c.windField, ui: () => c.m4.ui, start: startPose, evening: () => c.plugins.has('fireworks') && clock.hour > 20.5 && clock.hour < 22.67, storm: () => !!c.storm.running, firstPair: () => !!actById('kayaks')?.opening, hold: () => !c.cockpitIn || !c.pipeQ.has('kayaks'),
-        residents: c.feature('regionKayaks').on ? ((birth) => (hour) => residentKayaks(REGIONS, listBirthplaces(CURRENT_WATERS), { seed: P.seed, hour, polyline, birth }))(sailBirth ? { x: startPose.x, z: startPose.z, headingDeg: startPose.headingDeg, speed: startPose.speed, region: birthRow.region, hour: clock.hour } : null) : null,
-        launch: { regions: regionsWithBirthplaces(REGIONS, listBirthplaces(CURRENT_WATERS)), race: () => !!c.regatta?.on, mode: () => c.modeNow(), player: () => c.player.pose() }, tessie: () => c.plugins.get('tessie')?.sim?.state ?? null });
+        residents: c.feature('regionKayaks').on ? ((birth) => (hour) => residentKayaks(REGIONS, listBirthplaces(CURRENT_WATERS), { seed: P.seed, hour, polyline, birth, loaded: c.levelKey }))(sailBirth ? { x: startPose.x, z: startPose.z, headingDeg: startPose.headingDeg, speed: startPose.speed, region: birthRow.region, hour: clock.hour } : null) : null,
+        launch: { regions: regionsWithBirthplaces(REGIONS, listBirthplaces(CURRENT_WATERS)).filter((r) => regionLoaded(r, c.levelKey)), race: () => !!c.regatta?.on, mode: () => c.modeNow(), player: () => c.player.pose() }, tessie: () => c.plugins.get('tessie')?.sim?.state ?? null });
     },
     audio: (k, c, audio) => k.setAudio(audio),   // a capsize's splash on the page's sound (v2/living/kayaks-sound.js)
     'fill.living': (k, c, f) => { if (!f.race) k.fill(f.eye, f.focal); },   // the palettes and the instance records (a race cuts them)
@@ -288,6 +290,7 @@ const BUSY_LAKE = {
         if (T?.active) { const g = T.boat; otherAt(nO++, g.x, g.z, g.heading, g.v ?? 0, BUSY.avoid.tourM); for (const k of T.kayaks) otherAt(nO++, k.x, k.z, k.heading ?? 0, k.a?.v ?? 0, BUSY.avoid.kayakM); }
         const K = c.plugins.get('kayaks'); if (K?.fleet && (t - s.kayT > 0.5 || !s.kay)) { s.kayT = t; s.kay = K.fleet.marks(); }   // the kayakers (the regions' and v1's), read twice a second
         if (s.kay) for (const k of s.kay) otherAt(nO++, k.x, k.z, k.heading ?? 0, 1.2, BUSY.avoid.kayakM);
+        if (K?.sup) for (const m of K.sup.marks()) otherAt(nO++, m.x, m.z, m.heading, 0.85, BUSY.avoid.kayakM);   // the paddleboarders: kept clear as the kayakers are
         { const th = c.player.threat(); if (th) otherAt(nO++, th.x, th.z, th.heading, th.u, th.m, th.seeM); }   // the played thing (Tessie): the boats bear away from it once they see it
         busy.post(st, dt, t, bc);
         if (T?.setOthers) { states.length = 0; if (busy.active) for (const b of busy.boats) if (b.live) states.push(b.phys.state); T.setOthers(states); }
@@ -372,7 +375,7 @@ export const TESSIE = {
       if (!c.feature('playTessie').on) return;
       const side = TESSIE_SIDE.get(t), { canvas, terrain, water, plugins } = c;
       side.play = side.mod.createTessiePlayer({ plugin: t, B, depthAt: (x, z) => -terrain.field.height(x, z),
-        busy: () => plugins.get('busy'), tour: () => plugins.get('tour')?.sim ?? null, kayaks: () => plugins.get('kayaks')?.fleet ?? null, birthplaces: { moveTo: (id) => c.birthplaces?.moveTo(id) ?? Promise.resolve({ ok: false, why: 'unknown' }) },
+        busy: () => plugins.get('busy'), tour: () => plugins.get('tour')?.sim ?? null, kayaks: () => plugins.get('kayaks')?.fleet ?? null, sups: () => plugins.get('kayaks')?.sup ?? null, birthplaces: { moveTo: (id) => c.birthplaces?.moveTo(id) ?? Promise.resolve({ ok: false, why: 'unknown' }) },
         veil: (op, secs) => c.sea?.hooks?.veil?.(op, secs), canvas, mode: () => c.modeNow(), race: () => !!c.regatta?.on, knocked: () => !!c.kdGame && c.kdGame.state !== 'sailing',
         reduced: () => reducedNow(), keyHints: () => pageSettings()?.get?.('keyHints') !== false,   // Setup › key hints: her legend as Sail's (the UI audit)
         services: () => c.m4.ui?.services ?? null, touch: () => c.feature('tessieTouch').on, headless: !!c.P.headless,
