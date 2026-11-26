@@ -6,6 +6,8 @@
 //   double-click   a double-click on the map's water is Sail here's shortcut (the target moves there, NAV stays on)
 //   the boat       the map draws the Coach's boat (the cockpit's drawing) at her trim in place of the sloop glyph
 //   the dock       the left panel slides out 3 s after the pointer went to the map; the pointer at the left edge brings it back
+//   the line       with a target and NAV on, a line from the boat to the target in the route's dashed ink, through the planner's bends (never over
+//                  land); absent with no target or NAV off; clears when the target clears
 //   the boat       a click on the map's boat closes the map and she sails on from where she is (NAV kept); a click near but not on her still
 //                  opens the water's card
 //   Esc            closes the map: she sails on with NAV, the steering keys take over as NAV does today
@@ -80,6 +82,28 @@ try {
   const a2 = await pilot();
   check(a2.mode === 'to' && a2.target && Math.hypot(a2.target.x - T2[0], a2.target.z - T2[1]) < 10, `double-click: the target moves there, NAV on (${a2.mode})`);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/p1-chart-boat-sailing-to-target-1280x720.png` });
+  // the line: from the boat to the target through the planner's legs, never over land
+  const line = () => page.evaluate(() => { const c = window.__velia.m4.ui.services.get('liveChart'), ct = window.__velia.m4.ui.services.get('chartTarget'), L = c.stats().navLine;
+    let land = 0, n = 0; for (let i = 1; i < L.length; i++) { const a = L[i - 1], b = L[i], k = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 15)); for (let j = 0; j <= k; j++) { n++; if (!(ct.depth(a[0] + (b[0] - a[0]) * j / k, a[1] + (b[1] - a[1]) * j / k) > 0)) land++; } }
+    const bt = window.__velia.boat.state; return { pts: L.length, land, samples: n, from: L[0] ? Math.hypot(L[0][0] - bt.x, L[0][1] - bt.z) : null, to: L.length ? L[L.length - 1] : null }; });
+  await page.waitForTimeout(1200);
+  const l1 = await line();
+  check(l1.pts >= 2 && l1.from < 40 && l1.to && Math.hypot(l1.to[0] - T2[0], l1.to[1] - T2[1]) < 270 && l1.land === 0, `a target and NAV on: the route line from the boat to the target, ${l1.pts} points, ${l1.samples} samples, ${l1.land} on land (${JSON.stringify(l1.to)})`);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/p2-chart-route-line-1280x720.png` });
+  // it follows her: the first point stays at her place
+  await page.waitForTimeout(2500);
+  const l2 = await line();
+  check(l2.pts >= 2 && l2.from < 40, `the line updates as she sails (starts ${l2.from?.toFixed(0)} m from her)`);
+  // NAV off: no line
+  await page.evaluate(() => window.__velia.m4.ui.services.get('pilot').auto?.()); await page.waitForTimeout(900);
+  const l3 = await line();
+  check(l3.pts === 0, `NAV off: no line (${l3.pts})`);
+  await page.evaluate(() => window.__velia.m4.ui.services.get('pilot').auto?.()); await page.waitForTimeout(900);
+  check((await line()).pts >= 2, 'NAV on again: the line is back');
+  // clear the target: the line clears
+  await page.evaluate(() => window.__velia.m4.ui.services.get('chartTarget').clearTarget()); await page.waitForTimeout(900);
+  check((await line()).pts === 0, 'the target cleared: no line');
+  await page.evaluate(() => { const p = window.__velia.m4.ui.services.get('pilot'); if (p.mode !== 'off') p.auto(); }); await page.waitForTimeout(400);
   await page.evaluate((T) => window.__velia.m4.ui.services.get('chartTarget').sailHere({ x: T[0], z: T[1] }), T2); await page.waitForTimeout(900);
   // a click near but not on the boat opens the water's card; a click on the boat resumes
   const bq = await page.evaluate(() => { const c = window.__velia.m4.ui.services.get('liveChart'), b = window.__velia.boat.state, q = c.toClient(b.x, b.z); return { x: q.x, y: q.y }; });

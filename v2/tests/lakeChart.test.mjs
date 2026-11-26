@@ -91,6 +91,24 @@ test('AUTO on the whole-lake chart sails a cross-lake mark (the east shore, 14.7
   assert.ok(shoal > 20, `the shoalest water under her ${shoal.toFixed(0)} m`);
 });
 
+test('the chart line (autoNav.line): null off; on, from her place through the planner\'s bends to the mark, never over land; it updates as she sails', () => {
+  const B = boatAt(MOUTH), A = createAutoNav({ B, chart });
+  assert.equal(A.line, null, 'off: no line');
+  assert.equal(A.engage({ x: EAST[0], z: EAST[1], name: 'East shore' }).ok, true);
+  const L0 = A.line;
+  assert.ok(L0 && L0.length >= 2, 'on: a line');
+  assert.ok(Math.hypot(L0[0][0] - B.state.x, L0[0][1] - B.state.z) < 1, 'it starts at her place');
+  assert.ok(Math.hypot(L0.at(-1)[0] - A.dest.at[0], L0.at(-1)[1] - A.dest.at[1]) < 1, 'it ends at the mark');
+  const dry = (L) => { let n = 0; runLine(L, 15, (x, z) => { if (!(-W.terrain.heightAt(x, z) > 0)) n++; }); return n; };
+  assert.equal(dry(L0), 0, 'no point of it on land');
+  run(B, 60);
+  const L1 = A.line;
+  assert.ok(Math.hypot(L1[0][0] - B.state.x, L1[0][1] - B.state.z) < 1 && L1[0][0] !== L0[0][0], 'it starts at her new place');
+  assert.equal(dry(L1), 0, 'still no land a minute on');
+  A.release();
+  assert.equal(A.line, null, 'released: no line');
+});
+
 test('AUTO to a far mark upwind on the open lake beats: she tacks and makes ground to windward', () => {
   const B = boatAt([8000, -12000]);   // mid-lake (upwind of the mouth is the bay's own east shore)
   run(B, 2);

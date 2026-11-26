@@ -319,7 +319,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
 
   // ---- drawing ----
   const stats = { draws: 0, ms: [], max: 0 };
-  const drawn = { pois: [], labels: [], ground: 'none', sheets: [] };
+  const drawn = { pois: [], labels: [], ground: 'none', sheets: [], navLine: [] };
   const P = [0, 0];
   function fontSize(n) {
     const t = touch();
@@ -460,6 +460,14 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
         g.beginPath(); g.arc(P[0], P[1], 7, 0, Math.PI * 2); g.fillStyle = rgba(bg, i < from ? 0.5 : 0.85); g.fill(); g.lineWidth = 1.2; g.strokeStyle = I(i < from ? 0.4 : 0.9); g.stroke();
         g.fillStyle = I(i < from ? 0.5 : 0.95); g.fillText(String(i + 1), P[0], P[1] + 0.5);
       });
+    }
+    // the pilot's line to the target while NAV sails her there: the route's own dashed ink, from the boat through the planner's bends round land
+    const navPts = src('navLine', null);
+    drawn.navLine = navPts && navPts.length > 1 ? navPts.map((q) => [q[0], q[1]]) : [];
+    if (drawn.navLine.length) {
+      g.save(); g.setLineDash([6, 5]); g.lineWidth = 1.5; g.strokeStyle = I(0.82); g.beginPath();
+      navPts.forEach((q, i) => { v.toPx(q[0], q[1], P); if (i) g.lineTo(P[0], P[1]); else g.moveTo(P[0], P[1]); });
+      g.stroke(); g.restore();
     }
     const mk = src('mark', null);
     if (mk && Number.isFinite(mk.x)) {
@@ -860,7 +868,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     },
     stats() {
       const a = [...stats.ms].sort((x, y) => x - y), pct = (p) => (a.length ? a[Math.min(a.length - 1, Math.floor(p * a.length))] : 0);
-      return { draws: stats.draws, drawMsMean: +(a.reduce((s, x) => s + x, 0) / Math.max(1, a.length)).toFixed(3), drawMsP95: +pct(0.95).toFixed(3), drawMsMax: +stats.max.toFixed(3),
+      return { navLine: drawn.navLine, draws: stats.draws, drawMsMean: +(a.reduce((s, x) => s + x, 0) / Math.max(1, a.length)).toFixed(3), drawMsP95: +pct(0.95).toFixed(3), drawMsMax: +stats.max.toFixed(3),
         bake: { day: +bakeMs.day.toFixed(1), night: +bakeMs.night.toFixed(1), slices: bakeMs.slices, maxSliceMs: +bakeMs.maxSliceMs.toFixed(2) } };
     },
     destroy() {

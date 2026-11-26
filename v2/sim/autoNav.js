@@ -62,7 +62,7 @@ export function pathAhead(path, lookM = MOTOR.lookM) {
 export function createAutoNav({ B, lake = null, chart: chartOpt = null, chartIn = {}, sun = () => 20, seed = 1 }) {
   const chart = chartOpt ?? buildChart(lake, { shoreline: chartIn.shoreline ?? null, harbour: chartIn.harbour ?? null, lanes: [] });
   let nav = null, pilot = null, on = false, arrived = null, dest = null;
-  let motoring = false, path = null, pathT = -Infinity;
+  let motoring = false, path = null, pathT = -Infinity, lineP = null, lineT = -Infinity, tNow = 0;
   const helm = new Helm({ rudderMaxDeg: B?.phys?.P?.rudder?.maxDeg });
   const lane = createChannelHelm({ chart });   // the bay's entrance channel: down its line (sim/channelHelm.js)
   const laneSteer = (s, dt) => { const h = lane.heading(s, dest.at); if (h == null) return false; B.ctl.rudder = helm.toHeading(s, h, Math.max(dt, 1e-3)); B.ctl.jibSide = 0; return true; };
@@ -76,6 +76,7 @@ export function createAutoNav({ B, lake = null, chart: chartOpt = null, chartIn 
     B.ctl.rudder = helm.toHeading(s, Math.atan2(p[0] - s.x, -(p[1] - s.z)), Math.max(dt, 1e-3));
   };
   const tick = (t, dt) => {
+    tNow = t;
     const eng = !!B.phys.engine?.on;
     if (eng !== motoring) { motoring = eng; path = null; if (!eng) nav.setDestination(dest.at, { name: dest.name ?? 'your mark' }); }
     if (motoring) { motorTick(t, dt); return; }
@@ -87,6 +88,28 @@ export function createAutoNav({ B, lake = null, chart: chartOpt = null, chartIn 
   const A = {
     chart,
     get on() { return on; }, get inChannel() { return lane.active; }, get motoring() { return on && motoring; }, get dest() { return dest; }, get tacks() { return pilot?.skipper.tacks ?? 0; }, get gybes() { return pilot?.skipper.gybes ?? 0; }, get replans() { return pilot?.skipper.replans ?? 0; },
+    // the routed line from her to the mark for the chart: the planner's own path round land and shoal (the navigator's, else the motor's, else
+    // one planned here every 2 s), from her place on through its bends to the mark; null when off or when there is no way round
+    get line() {
+      if (!on || !dest) return null;
+      const s = B.phys.state, at = dest.at;
+      let p = motoring ? path : nav?.path;
+      if (!p || p.length < 2) {
+        if (!lineP || tNow - lineT > 2) { lineP = findPath(chart, [s.x, s.z], at); lineT = tNow; }
+        p = lineP;
+      }
+      if (!p || p.length < 2) return null;
+      let k = 1, best = Infinity;   // the segment she is nearest: her place, the segment's far end, then the rest
+      for (let i = 1; i < p.length; i++) {
+        const a = p[i - 1], b = p[i], dx = b[0] - a[0], dz = b[1] - a[1], L = dx * dx + dz * dz || 1;
+        const u = Math.max(0, Math.min(1, ((s.x - a[0]) * dx + (s.z - a[1]) * dz) / L)), d = Math.hypot(a[0] + dx * u - s.x, a[1] + dz * u - s.z);
+        if (d < best) { best = d; k = i; }
+      }
+      const out = [[s.x, s.z], ...p.slice(k).map((q) => [q[0], q[1]])];
+      const e = out[out.length - 1];
+      if (Math.hypot(e[0] - at[0], e[1] - at[1]) > 1) out.push([at[0], at[1]]);
+      return out;
+    },
     get skipper() { return pilot?.skipper ?? null; },
     get turning() { return on && !motoring ? pilot?.skipper.turning ?? null : null; }, get beating() { return on && !motoring && pilot?.skipper.rep.mode === 'beat'; },
     get arrived() { const a = arrived; arrived = null; return a; },
