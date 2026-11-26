@@ -151,7 +151,9 @@ export function createTessiePlugin({ device, reg, frameBGL, frameStruct, sky, sh
       if (playing && t.playAt == null) t.playAt = +(performance.now() - t0).toFixed(1);
       // the model once play has started and the group is built (nothing before the first frame: the card first)
       if (!started && playing && !hold?.()) { started = true; load().catch(() => {}); }
-      if (!R.ready) return;
+      // her sim's play clock runs from play start, as the director's does, even while her model loads (a slow load must not
+      // shift her clock behind the stage's: no boat, so nothing starts before she is drawn)
+      if (!R.ready) { sim.step(dt, { playing }); return; }
       const cam = camOf(view), boat0 = boatOf(), boat = self.playing && self.boatFor ? (self.boatFor(boat0) ?? boat0) : boat0;
       // the window (yaw, half-angle) without the assist's turn: the director and the assist aim at the same place
       lastView = { ...cam, yaw: cam.yaw - assist };
