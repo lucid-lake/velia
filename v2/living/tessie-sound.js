@@ -161,6 +161,12 @@ export function voice(ctx, out, e, when, { gain = 1, pan = 0, seed = 1 } = {}) {
       for (const d of e.echoes ?? []) { const at = 0.35 + d / 700; tone(ctx, bus, when + at, 190, 184, 0.35, 0.07 * Math.min(1, 120 / Math.max(60, d))); }
       break;
     }
+    case 'surge': {
+      // the Tail Surge (the RPG): the wave's hiss running out from her slap (the slap itself is her own 'slap' event), a low swell under it
+      noiseVoice(ctx, bus, when, [{ type: 'bandpass', f: 900, q: 0.8, to: 2400, over: 1.6 }], [[0.15, 0.14], [1.0, 0.1], [2.1, 0]], r() * 2);
+      noiseVoice(ctx, bus, when, [{ type: 'lowpass', f: 160 }], [[0.1, 0.22], [0.8, 0.08], [1.5, 0]], r() * 2);
+      break;
+    }
     case 'flick': splash(0.35); break;
     case 'slap': splash(1.3); break;
     case 'breach': splash(1.0); running(3.5, 0.3); break;
