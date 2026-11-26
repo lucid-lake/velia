@@ -30,7 +30,7 @@ const BIRTHPLACES = birthplaceRows(WATERS);   // the region table's birthplaces 
 // regions that have life; a region before its lanes, put-ins and boats spends nothing. A region with a level of its own (South Lake) is
 // not part of the bay's rules (the glass boat, the density round the start, the first pair in 60 s): its paddlers are checked in
 // v2/tests/south-paddlers.test.mjs against the south level's bed
-const LIFE = new Set(WATERS.regions.filter((r) => (r.boats?.length || r.kayaks?.length) && !r.level).map((r) => r.id));
+const LIFE = new Set(WATERS.regions.filter((r) => (r.boats?.length || r.kayaks?.length) && (!r.level || r.level.life === 'always')).map((r) => r.id));   // (Rubicon Point's level keeps its region's life always: the bay's rules hold there)
 const LIVE_BIRTHS = BIRTHPLACES.filter((b) => LIFE.has(b.region)), LIFE_REGIONS = REGIONS.filter((r) => LIFE.has(r.id));
 let chartC = null;
 const chart = () => (chartC ??= planChart(decodePlanGrid(new Uint8Array(gunzipSync(readFileSync(resolve(ROOT, 'v2/ui/planChart.bin'))))), chartInputs(JSON.parse(readFileSync(resolve(ROOT, 'v2/cruise/chartWorld.json'), 'utf8')))));
@@ -243,8 +243,12 @@ test('every route on the chart: each leg in 4 m of water or more and 80 m off th
 const los = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0); for (let d = 20; d < L - 20; d += 20) if (!(depthAt(x0 + (x1 - x0) * d / L, z0 + (z1 - z0) * d / L) > 0.3)) return false; return true; };
 const SEEN = Object.freeze({ glassM: 1000, kayakM: 600 });   // m: a 10.7 m pontoon and a 3.4 m kayak still read on screen this far, with a line of sight over water
 
-test('the first birth: from every birthplace (default seed and two others) the glass boat is in sight within 60 s, underway or at a stop, never parked on the start', () => {
-  for (const bp of LIVE_BIRTHS) for (const seed of [1, 2, 3]) {
+// the glass boat is Emerald Bay's (her loop: the bay, the mouth and the water just outside it): her rule holds at the births within
+// reach of her loop (1.5 km); Rubicon Point, 3.7 km up the west shore, has its own lake boats and kayakers instead
+const nearGlass = (bp) => { const loop = routeLoop(); for (let s = 0; s < loop.length; s += 20) { const p = pointAt(loop, s); if (Math.hypot(p.x - bp.x, p.z - bp.z) <= 1500) return true; } return false; };
+test('the first birth: from every birthplace near her loop (default seed and two others) the glass boat is in sight within 60 s, underway or at a stop, never parked on the start', () => {
+  assert.deepEqual(LIVE_BIRTHS.filter((b) => !nearGlass(b)).map((b) => b.id), ['lake'], 'only Rubicon Point lies past her reach');
+  for (const bp of LIVE_BIRTHS.filter(nearGlass)) for (const seed of [1, 2, 3]) {
     const tau = birthPhase(bp, { seed, los }), T = createTourBoat({ depthAt, tauS: tau, seed });
     const d0 = Math.hypot(T.boat.x - bp.x, T.boat.z - bp.z);
     let seen = Infinity;

@@ -1,0 +1,48 @@
+{
+ "version": 1,
+ "region": "rubicon",
+ "proj": "+proj=tmerc +lat_0=38.954159 +lon_0=-120.100464 +k=1 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs",
+ "origin": {
+  "lat": 38.954159,
+  "lon": -120.100464
+ },
+ "y0": 1897.89,
+ "height": {
+  "offset": -600.0,
+  "step": 0.05
+ },
+ "distance": {
+  "step": 0.5
+ },
+ "box": {
+  "x0": -900.0,
+  "z0": -6300.0,
+  "x1": 1700.0,
+  "z1": -3700.0
+ },
+ "sources": [
+  "USGS 3DEP Bare Earth DEM (1 m lidar), public domain",
+  "USGS DDS-55 Lake Tahoe bathymetry 1998 (Gardner, Mayer, Hughes Clarke), public domain",
+  "USGS/MRLC NLCD 2021 land cover, public domain"
+ ],
+ "levels": [
+  {
+   "name": "rubicon",
+   "step": 4.0,
+   "x0": -898.0,
+   "z0": -6298.0,
+   "w": 650,
+   "h": 650,
+   "height": "rubicon-h.lsh",
+   "distance": "rubicon-d.lsh",
+   "dk": 1,
+   "dw": 650,
+   "dh": 650,
+   "cover": "rubicon-c.lsh",
+   "ck": 2,
+   "cw": 325,
+   "ch": 325
+  }
+ ],
+ "bytes": 319454
+}

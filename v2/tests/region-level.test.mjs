@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
 import { regionsOf, regionNamesOf, birthplaceRows } from '../sim/regions.js';
-import { regionLevels, levelOfBirth, levelKeyOfBirth, startRegionLevel, composeLevel, shoreManifest, regionPhotoLevel, startFiles, levelFiles, manifestFile } from '../terrain/region.js';
+import { regionLevels, levelOfRegion, levelOfBirth, levelKeyOfBirth, startRegionLevel, composeLevel, shoreManifest, regionPhotoLevel, startFiles, levelFiles, manifestFile } from '../terrain/region.js';
 import { streamPlan, shoreFiles, SLOTS } from '../terrain/levels.js';
 import { PHOTO_SETS, tilesOf, tileUrl } from '../terrain/photo.js';
 import { createHeightField } from '../terrain/sample.js';
@@ -47,10 +47,10 @@ test('the region row: South Lake Tahoe, its level, the pin, neighbours both ways
   const bp = S.birthplaces.find((b) => b.id === 'ski-run');
   assert.deepEqual([bp.x, bp.z], [11800, -875]);
   assert.ok(Math.hypot(bp.x - S.centre[0], bp.z - S.centre[1]) < S.radiusM, 'the pin inside its region\'s circle');
-  assert.deepEqual(regionLevels(W).map((l) => l.id), ['south-lake'], 'only South Lake declares a level today');
+  assert.deepEqual(regionLevels(W).map((l) => l.id), ['tahoe-west', 'south-lake'], 'Rubicon Point\'s (the tahoe-west row: v2/tests/rubicon.test.mjs) and South Lake\'s rows declare a level today');
   // the chart: the region's name and its towns, from the region table
   for (const t of ['South Lake Tahoe', 'Ski Run', 'Tahoe Keys', 'Camp Richardson']) assert.ok(NAMES.some((n) => n.text === t), t);
-  assert.deepEqual(regionNamesOf(W).map((n) => n.text), ['Ski Run', 'Tahoe Keys', 'Camp Richardson']);
+  assert.deepEqual(regionNamesOf(W).map((n) => n.text), ['Rubicon Point', 'Ski Run', 'Tahoe Keys', 'Camp Richardson']);
   assert.ok(listBirthplaces(W).some((b) => b.id === 'ski-run' && b.region === 'south-lake' && !b.locked), 'the pin is on the list (the card, the chart)');
   // the chart's pin: on the chart's paper since its south sheet (ui/chart/ground.js SHEETS), a plain pin at its own place; a tap picks ski-run
   const pin = buildPois({ birthplaces: listBirthplaces(W) }).find((r) => r.ref === 'ski-run');
@@ -58,11 +58,12 @@ test('the region row: South Lake Tahoe, its level, the pin, neighbours both ways
 });
 
 test('the loader picks a region\'s level only for a start at one of its birthplaces', () => {
-  const south = regionLevels(W)[0];
+  const south = levelOfRegion(W, 'south-lake');
   for (const b of birthplaceRows(W)) {
-    const want = b.region === 'south-lake' ? south : null;
+    const want = levelOfRegion(W, b.region);
     assert.deepEqual(startRegionLevel({ waters: W, birth: { id: b.id, source: 'flag' } }), want, b.id);
-    assert.equal(levelKeyOfBirth(W, b.id), want ? 'south-lake' : 'bay');
+    assert.equal(levelKeyOfBirth(W, b.id), want ? b.region : 'bay');
+    assert.equal(!!want, b.region === 'south-lake' || b.id === 'lake', `${b.id}: a level only for South Lake's and Rubicon Point's starts`);
   }
   const skiRun = { id: 'ski-run', source: 'saved' };
   assert.deepEqual(startRegionLevel({ waters: W, birth: skiRun }), south);
@@ -97,14 +98,14 @@ test('every birthplace: its start fetches its own region\'s level (or the bay\'s
   const north = { id: 'tahoe-city', name: 'Tahoe City', centre: [0, -40000], radiusM: 2000, neighbours: [], level: { dir: 'north', full: 'n.json', phone: 'n-phone.json', photo: 'photo/manifest.json' },
     birthplaces: [{ id: 'commons', name: 'Commons Beach', x: 0, z: -40000, look: [0, -41000], why: 'A test row.' }] };
   const fake = { ...W, regions: [...W.regions, north] };
-  const southLv = regionLevels(W)[0];
+  const southLv = levelOfRegion(W, 'south-lake');
   const asNorth = (lv, variant) => { const r = levelFor(southLv, variant), man = r.manifest; return { level: lv, manifest: man, photo: r.photo, composed: composeLevel(lv, man), photoLevel: { ...r.photoLevel, base: 'terrain/north/photo/' } }; };
   checkEveryBirthplace(fake, (lv, v) => (lv.id === 'tahoe-city' ? asNorth(lv, v) : levelFor(lv, v)));
-  assert.deepEqual(regionLevels(fake).map((l) => l.id), ['south-lake', 'tahoe-city']);
+  assert.deepEqual(regionLevels(fake).map((l) => l.id), ['tahoe-west', 'south-lake', 'tahoe-city']);
 });
 
 test('the plan: South Lake\'s grid in the bay\'s slot in stage 0; the bay\'s heights and photo not fetched; the budget', () => {
-  const lv = regionLevels(W)[0];
+  const lv = levelOfRegion(W, 'south-lake');
   for (const [variant, h, step] of [['full', 'south/south-h.lsh', 4], ['phone', 'south/south-h2.lsh', 8]]) {
     const R = levelFor(lv, variant), st = streamPlan(lake.full, lake.phone, variant, R.composed);
     const bay = st[0].filter((g) => g.slot === 'bay');
@@ -136,7 +137,7 @@ async function shoreOf(manifest) {
   const levels = await Promise.all(shoreLevelsOf(manifest).map(shoreGrid).map(async (g) => ({ ...g, D: unpredict(await inflate(readFileSync(T(g.file))), g.dw, g.dh) })));
   return shoreSampler(levels).distance;
 }
-const lv0 = regionLevels(W)[0], RF = levelFor(lv0, 'full'), RP = levelFor(lv0, 'phone');
+const lv0 = levelOfRegion(W, 'south-lake'), RF = levelFor(lv0, 'full'), RP = levelFor(lv0, 'phone');
 const FS = await field('full', RF), FB = await field('full', null), FP = await field('phone', RP);
 const SS = await shoreOf(shoreManifest(lake.full, RF.composed)), SB = await shoreOf(lake.full);
 const box = (() => { const L = RF.composed; return { x0: L.x0, z0: L.z0, x1: L.x0 + (L.w - 1) * L.step, z1: L.z0 + (L.h - 1) * L.step }; })();

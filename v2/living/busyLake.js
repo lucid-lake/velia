@@ -423,8 +423,9 @@ export function createBusyLake({ seed = 1, birthplaces = [], regions = REGIONS, 
 //   this file stays free of v1's kayak code)
 // A region with a detail level of its own (v2/sim/regions.js `level`: South Lake) owns its kayakers and paddleboarders only while the page
 // was started in it (its level is the one loaded: owner, 2026-11-24: "load south beach when selected"); `loaded` is that region's id
-// (levelKey in main.js: 'bay' or the region's id). A region without a level lives always.
-export const regionLoaded = (r, loaded) => !r.level || r.id === loaded;
+// (levelKey in main.js: 'bay' or the region's id). A region without a level lives always, and so does one whose level says life
+// 'always' (the tahoe-west row: its Rubicon level is only its start's ground, its mouth lanes and put-ins lie on the bay's own level)
+export const regionLoaded = (r, loaded) => !r.level || r.level.life === 'always' || r.id === loaded;
 export const KAYAK_LIFE = Object.freeze({ speedMs: 1.25, hours: Object.freeze([8, 20]), apartM: 6, personalities: Object.freeze(['experienced', 'casual', 'experienced']) });
 export const KAYAK_BIRTH = Object.freeze({ withinS: 60, nearM: Object.freeze([40, 120]), aheadDeg: 50, minStartM: 80, stepM: 5, probeS: 5, speeds: Object.freeze([2, 3.25, 4.5]) });   // speeds: m/s, the boat's first minute on her reach (she gathers way: 2.75 at the birth, up to ≈ 4.5)
 // the clock's place on a lane: a seeded offset walked at her pace since the morning

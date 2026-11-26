@@ -109,15 +109,19 @@
       "cup": { "id": "emerald-bay", "name": "Emerald Bay", "line": "The legend and the island: sheltered water, short tacks, close scenery.", "races": ["tea-house-run", "tessies-deep", "glass-boat-chase"], "hunt": "chart-the-bay", "huntName": "Chart the Bay" }
     },
     {
-      "id": "tahoe-west", "name": "Lake Tahoe", "centre": [2200, -1500], "radiusM": 1700, "area": [[1100, null, null, null], [null, null, null, -1000]], "neighbours": ["emerald-bay", "south-lake"],
+      "id": "tahoe-west", "name": "Lake Tahoe", "centre": [1700, -2700], "radiusM": 3000, "area": [[1100, null, null, null], [null, null, null, -1000]], "neighbours": ["emerald-bay", "south-lake"],
       "label": { "id": "n-tahoe", "text": "Lake Tahoe", "x": 3050, "z": -2250, "cls": "A", "kind": "water", "alt": [[2900, -1700]] },
+      "names": [
+        { "id": "n-rubicon", "text": "Rubicon Point", "x": 250, "z": -4880, "cls": "B", "kind": "land" }
+      ],
+      "level": { "dir": "rubicon", "full": "rubicon.json", "phone": "rubicon-phone.json", "photo": "photo/manifest.json", "life": "always" },
       "birthplaces": [
-        { "id": "lake", "name": "Open lake", "x": 2300, "z": -1400, "look": [1700, -1270], "why": "Outside the mouth, on the big lake." }
+        { "id": "lake", "name": "Rubicon Point", "x": 680, "z": -4900, "look": [530, -4640], "why": "The lake's clearest drop-off: granite cliffs, the old lighthouse, 200 m under the keel." }
       ],
       "kayaks": [
         { "id": "kayak-point", "lane": [[2010, -1150], [2080, -1000], [2130, -1010], [2060, -1170]], "colour": "yellow", "pfd": "orange" },
         { "id": "kayak-mouth-north", "lane": [[1515, -1465], [1615, -1585], [1690, -1580], [1595, -1445]], "colour": "red", "pfd": "orange" },
-        { "id": "kayak-lake-round", "lane": [[2150, -1300], [2300, -1250], [2450, -1350], [2420, -1480], [2250, -1520]], "colour": "orange", "pfd": "red", "mate": { "colour": "yellow", "pfd": "blue" }}
+        { "id": "kayak-lake-round", "lane": [[690, -4450], [665, -4650], [600, -4800], [560, -5000], [520, -5160], [640, -5130], [760, -5000], [790, -4700], [760, -4450]], "colour": "orange", "pfd": "red", "mate": { "colour": "yellow", "pfd": "blue" }}
       ],
       "launchSpots": [
         { "id": "eagle-point-lake", "name": "Eagle Point, lake shore", "at": [1930, -1080] },
@@ -125,9 +129,10 @@
         { "id": "west-shore-cove", "name": "the west shore cove", "at": [1065, -1680] }
       ],
       "boats": [
-        { "id": "lake-mouth", "prio": 0, "tint": "#f1efe8", "sail": { "cloth": "white", "inkA": "#1C2340", "inkB": "#2F6B45", "roseAlpha": 0.5, "number": "57" }, "route": [[1400, -2050], [2650, -1150], [2500, -1900]] },
-        { "id": "lake-north", "prio": 1, "tint": "#f3f1ea", "sail": null, "route": [[1800, -1800], [2350, -900], [2500, -1600]] },
-        { "id": "lake-point", "prio": 2, "tint": "#2f5d50", "sail": { "cloth": "white", "inkA": "#3A4670", "inkB": "#3A4670", "roseAlpha": 0, "number": "" }, "route": [[2550, -300], [2900, -1300], [2250, -2350], [2350, -1250]] }
+        { "id": "lake-mouth", "prio": 3, "tint": "#f1efe8", "sail": { "cloth": "white", "inkA": "#1C2340", "inkB": "#2F6B45", "roseAlpha": 0.5, "number": "57" }, "route": [[1400, -2050], [2650, -1150], [2500, -1900]] },
+        { "id": "lake-north", "prio": 0, "tint": "#f3f1ea", "sail": null, "route": [[1000, -4400], [1500, -5200], [1000, -5900], [700, -5600]] },
+        { "id": "lake-point", "prio": 1, "tint": "#2f5d50", "sail": { "cloth": "white", "inkA": "#3A4670", "inkB": "#3A4670", "roseAlpha": 0, "number": "" }, "route": [[300, -5500], [250, -6100], [850, -6200], [1150, -5700]] },
+        { "id": "lake-rubicon", "prio": 2, "tint": "#efece4", "sail": { "cloth": "cream", "inkA": "#1C2340", "inkB": "#A3312B", "roseAlpha": 0.45, "number": "" }, "route": [[750, -4500], [800, -3900], [1250, -4000], [1300, -4700]] }
       ],
       "cup": { "id": "the-mouth", "name": "The Mouth", "line": "The passage to the big lake: the bar, the buoys, open water, the show.", "races": ["pass-the-channel", "storm-run", "lights-on-the-lake"], "hunt": "chart-the-mouth", "huntName": "Chart the Mouth" }
     },

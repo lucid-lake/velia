@@ -480,9 +480,18 @@ async function boot() {
   // the landmarks' own pipeline in place of v1's ruin; a phone and a tablet never fetch it
   const teaOn = feature('teaHouse').on;
   if (!teaOn && !feature('oldRuin').on) landmarks.hideRuin();   // owner, 2026-11-18: no box-and-gable ruin on a phone or a tablet (?oldruin=1 keeps it)
+  // the Rubicon Point light (render/lighthouse.js): its own chunk, fetched only for a start on its level (the Rubicon start), its
+  // parts drawn with the tea house's (one extra range of the landmarks' own pipeline); every tier (14 boxes, 174 triangles)
+  const lightOn = levelKey === 'tahoe-west';
   let teaLoad = null;
-  const teaHouseLoad = () => (teaOn ? (teaLoad ??= import('./render/teaHouse.js').then(({ teaHouseParts }) => { hook.teaHouse = landmarks.addParts(teaHouseParts({ seed: 1 }).parts, { hide: 'ruin' }); })
-    .catch((e) => { errors.push(`teaHouse: ${e?.message ?? e}`); })) : Promise.resolve());
+  const teaHouseLoad = () => (teaOn || lightOn ? (teaLoad ??= Promise.all([
+    teaOn ? import('./render/teaHouse.js').then(({ teaHouseParts }) => teaHouseParts({ seed: 1 }).parts) : [],
+    lightOn ? import('./render/lighthouse.js').then(({ lighthouseFor, lighthouseParts }) => (lighthouseFor(levelKey) ? lighthouseParts().parts : [])) : [],
+  ]).then(([tea, light]) => {
+    const st = landmarks.addParts([...tea, ...light], { hide: teaOn ? 'ruin' : null });
+    if (tea.length) hook.teaHouse = st;
+    if (light.length) hook.lighthouse = { parts: light.length, triangles: light.reduce((n, p) => n + p.idx.length / 3, 0) };
+  }).catch((e) => { errors.push(`teaHouse: ${e?.message ?? e}`); })) : Promise.resolve());
   // --- end towns ---
   // --- the plug-in list (refactor round 3 C2; engine/plugins.js, living/lakePlugins.js): the living lake's features, each one row;
   // ctx is the bag they share (getters: what boot makes later). plugins.run(anchor) stands where a feature was called by hand ---

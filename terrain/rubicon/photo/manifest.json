@@ -1,0 +1,96 @@
+{
+ "source": "USDA FSA NAIP 2022 (public domain), de-lit and graded by tools/ground/build_naip.py --levels rubicon; cut by tools/v2-photo-tiles.mjs --region rubicon",
+ "region": "rubicon",
+ "flights": [
+  "2022-07-21"
+ ],
+ "sun": {
+  "az": 144,
+  "el": 68,
+  "date": "2022-07-21",
+  "note": "azimuth fitted from the image; elevation from the NOAA formula at that azimuth; flight time not published"
+ },
+ "grade": {
+  "median_before": {
+   "forest": 0.05107647925615311,
+   "brush": 0.08788354694843292,
+   "bare": 0.1372734010219574,
+   "sand": 0.4119957983493805
+  },
+  "gain_class": {
+   "forest": 0.20557407544364134,
+   "brush": 0.21050584145010864,
+   "bare": 0.2913892983069739,
+   "sand": 0.7281627657415917
+  },
+  "share": {
+   "forest": 0.7176219820976257,
+   "brush": 0.1028541848063469,
+   "bare": 0.18726208806037903,
+   "sand": 0.013910852372646332
+  }
+ },
+ "tile": 256,
+ "quality": 0.84,
+ "sets": {
+  "full": {
+   "levels": {
+    "rubicon": {
+     "file": "albedo-rubicon-4m.webp",
+     "texel": 4,
+     "w": 650,
+     "h": 650,
+     "x0": -900,
+     "z0": -6300,
+     "cols": 3,
+     "rows": 3,
+     "tiles": 9,
+     "bytes": 111838,
+     "alpha": [
+      64,
+      255
+     ],
+     "files": {
+      "0-0": 11666,
+      "1-0": 2342,
+      "2-0": 1450,
+      "0-1": 39372,
+      "1-1": 14836,
+      "2-1": 1254,
+      "0-2": 26970,
+      "1-2": 13170,
+      "2-2": 778
+     }
+    }
+   },
+   "bytes": 111838
+  },
+  "phone": {
+   "levels": {
+    "rubicon": {
+     "file": "albedo-rubicon-8m.webp",
+     "texel": 8,
+     "w": 325,
+     "h": 325,
+     "x0": -900,
+     "z0": -6300,
+     "cols": 2,
+     "rows": 2,
+     "tiles": 4,
+     "bytes": 35978,
+     "alpha": [
+      64,
+      255
+     ],
+     "files": {
+      "0-0": 21310,
+      "1-0": 1290,
+      "0-1": 12706,
+      "1-1": 672
+     }
+    }
+   },
+   "bytes": 35978
+  }
+ }
+}

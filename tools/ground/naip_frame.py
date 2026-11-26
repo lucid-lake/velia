@@ -17,9 +17,10 @@ LEVELS = {
     'region': dict(x0=-14000.0, z0=-46000.0, x1=26960.0, z1=15440.0),     # the lake level's box (32 m texels, 1280 x 1920), whole lake and its rim
     'lake':  dict(x0=-14000.0, z0=-46000.0, x1=26960.0, z1=15440.0),
     'south': dict(x0=6992.0, z0=-1504.0, x1=14512.0, z1=3008.0),          # the south region level (terrain/south/south.json): 4 m texels, 1880 x 1128
+    'rubicon': dict(x0=-900.0, z0=-6300.0, x1=1700.0, z1=-3700.0),        # the Rubicon region level (terrain/rubicon/rubicon.json): 4 m texels, 650 x 650
 }
 # the region levels: their DEM comes from terrain/<name>/<name>.json, laid over the lake-wide levels (lsh.load)
-REGION_LEVELS = ('south',)
+REGION_LEVELS = ('south', 'rubicon')
 
 def utm_bbox(L, margin=0.0):
     """Envelope in UTM 10N (EPSG:26910) of a world rectangle, plus a margin (m)."""
