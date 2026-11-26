@@ -546,6 +546,12 @@ rainbow's amount; `src/sim/weather/weatherMenu.js` the Weather menu), wrapped fo
   only when the rounded wind moves 0.5 m/s, the cheap re-composition between), and the storm-raised speed goes to `F.wind.x`
   for the foam and the glint's floor; the boat feels the same outflow through the field's `sample()` (v1's wiring:
   `wind.setStorm`). (The first round's amplitude gain, `setGainMul`, went with the old h0 path in the merge.)
+  **The storm's sea is pinned to the fair day's** (`sim/stormSea.js`, 2026-11-26): round 2's cheat (the sea's wind × 1.6 on
+  the outflow's, the fetch toward 10 km) drew 2.3–4 × the fair Hs, too big to sail; now at the outflow's full strength the sea
+  takes the day's wind (the outflow's gain taken out) × 1.4 over the spot's fetch along the day's wind, so Hs is about
+  1.37 × the fair day's wherever the storm passes (off Emerald Bay's mouth 0.53 → 0.73 m at wind level 2, 0.72 → 1.0 m at level 3); the whitecaps' share × 2.
+  The storm foam's age band (`STORM_WATER.ageJ`, render/water.js) moved from [0.5, 0.85] to [0.65, 0.9] so the smaller
+  waves' folds keep about the same share of white water. The sails, the rain, the light and the foam's local wind still read the outflow.
 - **The rain** (render/storm.js `storm-rain`): v1's maths one for one: 16,000 drops (4,000 under 0.6 Mpx, v1's Low tier) hashed
   into a 44 × 30 × 44 m box that wraps round the camera, falling at 9 m/s and drifting with the wind at the camera, each a
   camera-facing streak ≈ 0.6 m long in depth layers (the near ones longer, wider and fainter), none inside 1 m, gone by the
