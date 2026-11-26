@@ -207,13 +207,13 @@ export function anchorageAt(list, toPx, px, py, r = ANCHOR_GLYPH.hitPx) {
 
 export function createChartplotter({ root = document.body, terrain, shoreline = null, harbour = null, places = {}, boat, track = () => [], targets = () => [], kayaks = () => [],
   sunElevDeg = () => 20, trend = () => null, hidden = () => false, pro = false, course = null, startAfterS = 2.5, sliceMs = 4, onPick = null,
-  plan: planOn = false, windAt = null, time = () => 0, lake = null, mark = () => null, areas = () => [], anchorages = () => [], onAnchorage = null, aids = () => [], pins = null, onPin = null } = {}) {
+  plan: planOn = false, windAt = null, time = () => 0, lake = null, mark = () => null, areas = () => [], anchorages = () => [], onAnchorage = null, aids = () => [], pins = null, onPin = null, poi = null, shoreWarn = null, cogOn = () => false } = {}) {
   ensureTokens();
   if (!document.getElementById('lk-chart-css')) {
     const st = document.createElement('style'); st.id = 'lk-chart-css'; st.textContent = CSS; document.head.appendChild(st);
   }
   const el = document.createElement('div'); el.className = 'lk-chart';
-  el.innerHTML = '<div class="pane small lk-rd"><canvas></canvas><div class="win"><i class="sc t"></i><i class="sc b"></i><div class="inr t"><div class="rw"><i>HDG</i><b><span class="hdg">000</span>°T</b></div></div><div class="inr b"><div class="rw"><i>SOG</i><b><span class="sog">0.0</span><small>kn</small></b></div><div class="rw s"><i>DPT</i><b><span class="dep">0</span><small>m</small></b></div></div></div></div><div class="pane big"><canvas></canvas></div><div class="opener lk-rd sm" role="button" aria-label="chart"><span class="glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20Z"/><path d="M9 4v13.5M15 6.5V20"/></svg></span></div>';
+  el.innerHTML = '<div class="pane small lk-rd"><canvas></canvas><div class="win"><i class="sc t"></i><i class="sc b"></i><div class="inr t"><div class="rw"><i>HDG</i><b><span class="hdg">000</span>°T</b></div>' + (poi ? '<div class="rw s cogr" hidden><i>COG</i><b><span class="cog">000</span>°</b></div>' : '') + '</div><div class="inr b">' + (poi ? '<div class="rw s"><i>DPT</i><b><span class="dep">0</span><small>m</small></b></div><div class="rw s poi"><i class="pk"></i><b><span class="pd"></span><small>nm</small><span class="pb"></span></b></div>' : '<div class="rw"><i>SOG</i><b><span class="sog">0.0</span><small>kn</small></b></div><div class="rw s"><i>DPT</i><b><span class="dep">0</span><small>m</small></b></div>') + '</div></div></div><div class="pane big"><canvas></canvas></div><div class="opener lk-rd sm" role="button" aria-label="chart"><span class="glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20Z"/><path d="M9 4v13.5M15 6.5V20"/></svg></span></div>';
   root.appendChild(el);
   const small = el.querySelector('.small'), big = el.querySelector('.big'), opener = el.querySelector('.opener');
   // the tools row, bottom-left of the enlarged chart: the passage plan's Set course · Clear (only while a route exists) and
@@ -252,7 +252,7 @@ export function createChartplotter({ root = document.body, terrain, shoreline = 
     if (sayEl) { const t = race && course.laid ? `${course.label}${course.done ? ' · sailed' : ''}` : ''; if (sayEl.textContent !== t) sayEl.textContent = t; }
   }
   const cvS = small.querySelector('canvas'), cvB = big.querySelector('canvas');
-  const readEl = el.querySelector('.small .win'), hdgEl = readEl.querySelector('.hdg'), sogEl = readEl.querySelector('.sog'), depEl = readEl.querySelector('.dep');
+  const readEl = el.querySelector('.small .win'), hdgEl = readEl.querySelector('.hdg'), sogEl = readEl.querySelector('.sog'), depEl = readEl.querySelector('.dep'), poiRow = readEl.querySelector('.poi'), poiK = readEl.querySelector('.pk'), poiD = readEl.querySelector('.pd'), poiB = readEl.querySelector('.pb'), cogRow = readEl.querySelector('.cogr'), cogEl = readEl.querySelector('.cog');
 
   // ---- the static marks (world metres) ----
   const L = shoreline ?? {}, marks = [];
@@ -1029,6 +1029,49 @@ export function createChartplotter({ root = document.body, terrain, shoreline = 
         const [nx] = view.dirPx(0), left = nx > 0;
         if (isBig || S >= 150) txt('¼ nm', P[0] + (left ? -1 : 1) * (RR + 6), P[1], { align: left ? 'right' : 'left', fs: 12, a: CHART_TEXT_ALPHA.scale });   // an upright phone's 110 px circle: the ring alone (its words clipped at the rim)
       }
+      // the mini map (?dials=v2): the shore and the shallows as amber arcs on the compass band, the birthplaces, the nearest point of interest
+      if (s && shoreWarn) {   // shoreWarn(heightAt, x, z) → the first hazard's distance on each of n bearings (0: none), within reach m
+        const arcs = shoreWarn(gridOrTerrain, s.x, s.z) ?? [], n = arcs.length, reach = shoreWarn.reach ?? 240, half = 180 / Math.max(1, n) * 0.87;
+        drawn.shoreArcs = [];
+        for (let i = 0; i < n; i++) {
+          const hit = arcs[i]; if (!hit) continue;
+          const b = i * 360 / n * DEG, [ux, uy] = view.dirPx(b), a0 = Math.atan2(uy, ux) - half * DEG, a1 = a0 + 2 * half * DEG;
+          g.beginPath(); g.arc(R, R, R - bandW / 2, a0, a1); g.lineWidth = bandW - 6; g.lineCap = 'butt';
+          g.strokeStyle = A(0.35 + 0.6 * (1 - hit / reach)); g.stroke(); g.lineCap = 'round';
+          drawn.shoreArcs.push({ brg: Math.round(b / DEG), m: hit });
+        }
+      }
+      if (pins) for (const p of pins() ?? []) {
+        if (!near(p.x, p.z, -40)) continue;
+        view.toPx(p.x, p.z, P); const x = P[0], y = P[1];
+        g.setLineDash([]); g.beginPath(); g.arc(x, y, 5.5, 0, Math.PI * 2); g.fillStyle = rgba(bg, 0.82); g.fill();
+        g.lineWidth = 1.2; g.strokeStyle = I(0.95); g.beginPath(); g.arc(x, y, 3.8, 0, Math.PI * 2); g.stroke();
+        g.beginPath(); for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) { g.moveTo(x + dx * 3.8, y + dy * 3.8); g.lineTo(x + dx * 6.5, y + dy * 6.5); } g.stroke();
+      }
+      const pq = s && poi ? poi() : null;
+      drawn.poi = pq ? { kind: pq.kind, name: pq.name ?? '', dM: Math.round(pq.dM), brg: Math.round(pq.brgDeg) } : null;
+      if (pq) {
+        view.toPx(s.x, s.z, P); const x0 = P[0], y0 = P[1];
+        const [ux, uy] = view.dirPx(pq.brgDeg * DEG), rin = R - bandW - 4;
+        view.toPx(pq.x, pq.z, P);
+        let x1 = P[0], y1 = P[1];
+        const inCard = Math.hypot(x1 - R, y1 - R) < rin - 6;
+        if (!inCard) {   // off the card: the line runs to the band, a chevron points on
+          const ox = x0 - R, oy = y0 - R, b2 = ox * ux + oy * uy, c = ox * ox + oy * oy - rin * rin, t = -b2 + Math.sqrt(Math.max(0, b2 * b2 - c));
+          x1 = x0 + ux * t; y1 = y0 + uy * t;
+        }
+        g.setLineDash([3, 4]); g.beginPath(); g.moveTo(x0 + ux * 9, y0 + uy * 9); g.lineTo(x1 - ux * (inCard ? 8 : 0), y1 - uy * (inCard ? 8 : 0));
+        g.strokeStyle = rgba(bg, 0.8); g.lineWidth = 3.4; g.stroke(); g.strokeStyle = I(0.95); g.lineWidth = 1.5; g.stroke(); g.setLineDash([]);
+        if (!inCard) {
+          const px = -uy, py = ux, hx = x1 + ux * 1, hy = y1 + uy * 1;
+          g.beginPath(); g.moveTo(hx - ux * 7 + px * 5, hy - uy * 7 + py * 5); g.lineTo(hx, hy); g.lineTo(hx - ux * 7 - px * 5, hy - uy * 7 - py * 5);
+          g.strokeStyle = rgba(bg, 0.85); g.lineWidth = 3.6; g.stroke(); g.strokeStyle = I(0.98); g.lineWidth = 1.7; g.stroke();
+        } else if (pq.kind === 'anchorage') drawAnchorGlyph(g, x1, y1, ANCHOR_GLYPH.small * 1.15, I(0.95), rgba(bg, 0.82));
+        if (pq.name && S >= 150) {
+          const fs = 12, lx = clamp(x1 - ux * (inCard ? 0 : 10) + (inCard ? 0 : 0), 40, S - 40), ly = clamp(y1 - uy * (inCard ? -14 : 12), 30, S * 0.62);
+          txt(pq.name, lx, ly, { fs, it: true, a: 0.95 });
+        }
+      }
     } else {
       // north-up: a north arrow top-right; the scale bar bottom-right, in nautical miles
       g.beginPath(); g.moveTo(S - 22, 38); g.lineTo(S - 22, 12); g.moveTo(S - 27, 20); g.lineTo(S - 22, 12); g.lineTo(S - 17, 20); g.strokeStyle = rgba(bg, 0.85); g.lineWidth = 3.6; g.stroke(); g.strokeStyle = I(0.95); g.lineWidth = 1.6; g.stroke();
@@ -1049,10 +1092,10 @@ export function createChartplotter({ root = document.body, terrain, shoreline = 
       const kn = `TWS ${Math.round(twsKn)} kn`, fsz = Math.round(clamp(S / (isBig ? 38 : 17), 12, 15));
       g.font = `500 ${fsz}px ${UI}`;
       const kw = g.measureText(kn).width + 8, off = 9 + Math.abs(ux) * kw / 2 + Math.abs(uy) * (fsz + 6) / 2;
-      if (isBig || S >= 150) txt(kn, isBig ? ax + 20 : hx - ux * off, isBig ? ay : hy - uy * off, { align: isBig ? 'left' : 'center', fs: fsz, a: CHART_TEXT_ALPHA.depth, w: 500 });
+      if (isBig || (S >= 150 && !poi)) txt(kn, isBig ? ax + 20 : hx - ux * off, isBig ? ay : hy - uy * off, { align: isBig ? 'left' : 'center', fs: fsz, a: CHART_TEXT_ALPHA.depth, w: 500 });
     }
     // pro: the numbers a racing plotter shows, one quiet line at the foot
-    if (isPro && s) {
+    if (isPro && s && (isBig || !poi)) {   // the mini map (poi) keeps its foot for the depth and the nearest place
       const line = proLine({ vmgKn: plan ? toKn(vmgTo(s, waypoint ?? route[routeFrom()])) : null, underM: -gridOrTerrain(s.x, s.z) - PLOT.draft, trend: trend()?.kind, plan, big: isBig });
       const fx = isBig ? 18 : R, fy = isBig ? S - 22 : S - (S * 0.13);
       txt(line, fx, fy, { align: isBig ? 'left' : 'center', fs: Math.round(clamp(S / (isBig ? 42 : 18), 12, 14)), a: CHART_TEXT_ALPHA.depth });
@@ -1069,7 +1112,9 @@ export function createChartplotter({ root = document.body, terrain, shoreline = 
     if (st.shown && !st.big && s) {
       // the readout plate under the dial: HDG in °T, SOG in kn, DPT in m (the chart's own depth under the boat)
       const hd = String(Math.round(((s.heading * 180 / Math.PI) % 360 + 360) % 360) % 360).padStart(3, '0'), sg = toKn(s.sog ?? 0).toFixed(1), dpv = Math.max(0, s.depthM ?? -gridOrTerrain(s.x, s.z)), dp = dpv < 10 ? dpv.toFixed(1) : String(Math.round(dpv)), al = s.sounderLevel | 0;   // a sounder reads a tenth of a metre in the shallows
-      if (hdgEl.textContent !== hd) hdgEl.textContent = hd; if (sogEl.textContent !== sg) sogEl.textContent = sg; if (depEl.textContent !== dp) depEl.textContent = dp;
+      if (hdgEl.textContent !== hd) hdgEl.textContent = hd; if (sogEl && sogEl.textContent !== sg) sogEl.textContent = sg;
+      if (cogRow) { const on = !!cogOn(); if (cogRow.hidden === on) cogRow.hidden = !on; if (on) { const cg = String(Math.round((((s.cog ?? s.heading) * 180 / Math.PI) % 360 + 360) % 360) % 360).padStart(3, '0'); if (cogEl.textContent !== cg) cogEl.textContent = cg; } }
+      if (poiRow) { const pq = poi?.(); poiRow.style.visibility = pq ? '' : 'hidden'; if (pq) { if (poiK.textContent !== pq.label) poiK.textContent = pq.label; const dt2 = pq.dText, bt = pq.bText ?? ''; if (poiD.textContent !== dt2) poiD.textContent = dt2; if (poiB.textContent !== bt) poiB.textContent = bt; } } if (depEl.textContent !== dp) depEl.textContent = dp;
       const rwS = depEl.closest('.rw'); if (rwS && (rwS.dataset.alarm ?? '') !== (al ? String(al) : '')) { if (al) rwS.dataset.alarm = String(al); else delete rwS.dataset.alarm; }
       const S = sS, mpp = PLOT.smallR / (S / 2);
       const view = makeView({ cx: s.x, cz: s.z, mPerPx: mpp, rot: s.heading, ox: S / 2, oy: S * PLOT.boatAt });
@@ -1138,6 +1183,6 @@ export function createChartplotter({ root = document.body, terrain, shoreline = 
       updateMsMean: +(stats.updateMs.reduce((a, b) => a + b, 0) / Math.max(1, stats.updateMs.length)).toFixed(4), updateMsP99: +pct(stats.updateMs, 0.99).toFixed(3),
       build: Object.fromEntries(Object.entries(buildMs).map(([k, v]) => [k, +v.toFixed(2)])), base: [BW, BH], grid: [grid.w, grid.h],
       lake: far ? { build: Object.fromEntries(Object.entries(far.ms).map(([k, v]) => [k, +v.toFixed(2)])), base: [far.BW, far.BH], grid: [far.grid.w, far.grid.h] } : null,
-      contourSegs: Object.fromEntries([0, ...PLOT.contours].map((d) => [d, (contours[d]?.length ?? 0) / 4])), route: route.length ? { ...drawn } : null }),
+      contourSegs: Object.fromEntries([0, ...PLOT.contours].map((d) => [d, (contours[d]?.length ?? 0) / 4])), route: route.length ? { ...drawn } : null, poi: drawn.poi ?? null, shoreArcs: drawn.shoreArcs ?? null }),
   };
 }

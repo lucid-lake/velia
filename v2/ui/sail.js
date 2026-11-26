@@ -15,9 +15,8 @@
 //                        ("The stars come out…" once a night); no fireworks evening (a time event), no target for it
 //   the key legend       src/ui/keyLegend.js as it is (the edge pair's right block: desktop, Sail, the cockpit up; Setup's key
 //                        hints row; ?keylegend=0|1), v1's shell.js wiring
-//   the nav column       src/ui/navColumn.js and src/ui/passage.js as they are (the edge pair's left block: COG, TWS, TWA, VMG,
-//                        HEEL, RUD with Pro or edge instruments: always; the passage block with Sail Pro's chart waypoint;
-//                        Setup › Aids › edge instruments; ?navcol=0|1), v1's shell.js wiring (ui/nav.js)
+//   the Pro panel        ui/proHud.js top-left (COG, TWA, VMG, AWA, HEEL, RUD; Setup › Screen › Pro instruments, off by default;
+//                        the cockpit up); it replaced the nav column (src/ui/navColumn.js stays v1's); the passage service stays
 // Live pages only (a headless capture has no UI; ?filmui=1 is a live page on the film clock).
 //   const ui = createSailUi({ B, windField, clock, rig, terrain, flags, canvas });
 //   each frame: ui.update(dt, hands) (before the boat steps: the station's hands go in; hands: main.js's keys and fingers this
@@ -34,8 +33,10 @@ import { createSkills } from '../../src/sail/skills.js';
 import { createWords } from '../../src/ui/words.js';
 import { createCaptainView } from '../../src/ui/captainView.js';
 import { createChartplotter } from '../../src/ui/chartplotter.js';
-import { cockpitUp } from './cockpitUp.js';   // the cockpit up: the performance stats panel and the nav column follow it
+import { cockpitUp } from './cockpitUp.js';   // the cockpit up: the performance stats and the Pro instruments panels follow it
 import { createDialModules } from './dials.js';   // the two dials as 2D modules (?dials=cockpit: the old dials in the cockpit, one release)
+import { trimCue, steerCue, heelCue, tackOf, nearestPoi, poiRow, shoreArcs, mountDialsLayout, DIALS_V2 } from './dialsV2.js';   // the dials' north star: the Chart and the Coach
+import { createProHud, proHudAllowed, proHudShown, proHudSettings } from './proHud.js';   // the Pro instruments panel, top-left (Setup › Screen; replaced the nav column)
 import { showsDials, homeId } from '../engine/modes.js';
 import { luffAwaDeg, BOAT as BOAT_P } from '../../src/sim/boat.js';
 import { nightOf } from '../../src/ui/chartplotterData.js';   // the live chart's night palette weight (?livechart=1)
@@ -61,7 +62,7 @@ import { createTheme } from '../../src/ui/theme.js';   // M5e: the instruments' 
 import { GAME_SPEED, parseV2Flags, liveChartOn as liveChartFlag } from '../engine/flags.js';
 import { createDayClock } from './dayClock.js';
 import { createKeyLegend } from '../../src/ui/keyLegend.js';
-import { mountNav } from './nav.js';
+import { createPassage } from '../../src/ui/passage.js';   // the 'passage' service: the mark in force and the leg to it (main.js's beacon reads it)
 import { mountSeamanship, seaKey, isLeverKey, SEA_NOTES } from './seamanship.js';   // #8, #14: the engine's and the tackle's keys, switches and lines (v1's seamanship.js)
 import { createSkipperVoice } from '../../src/ui/skipperVoice.js';   // music: the old skipper speaks each hint line once (v1's controllers/sail.js)
 import { touchDevice } from '../../src/ui/device.js';
@@ -143,7 +144,8 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   // sails going up or down, the anchor going down or coming up
   const ANCHOR_WORK = new Set(['falling', 'down', 'weighing', 'up']);   // not 'held' (nor 'stowed'): at anchor is quiet water, so "Anchor's holding." (a tip) can show
   const leanBusy = () => !!assist?.active || !!B.carryKeep || Math.abs((phys.state.furl ?? 0) - furlWantNow()) > 0.03 || ANCHOR_WORK.has(B.sea?.tackle?.state?.anchor?.phase);
-  const lean = createLeanSkipper({ phone: phoneQuiet, storage: store, busy: leanBusy });
+  let captainRef = null;   // the Coach (below): while it shows a word, the skill model's same advice waits (leanSkipper.js coachSays)
+  const lean = createLeanSkipper({ phone: phoneQuiet, storage: store, busy: leanBusy, coachSays: () => !!captainRef?.coachSays });
   services.provide('lean', lean);
   const hint = createControlsHint({ services, state: () => phys.state, once, skills, words, proKeys: () => pro, pilot: () => B.assists?.pilot !== false, voice, phoneQuiet: lean,
     lean: true });   // the lean key set (owner 2026-11-20): no H list (the key legend always shows the keys; Menu › Keys has them all), no H+5/6/7 (Setup › Aids has them), no "hold H" whisper
@@ -191,8 +193,22 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
 
   // the dials: the wind dial (captainView) and the small chart (chartplotter): the raised views over the instruments
   const dialMods = flags.dials !== 'cockpit' && flags.dials !== 'top';
+  const dialsV2 = dialMods;   // the Chart and the Coach (owner, 2026-11-25): the modules' one design; ?dials=cockpit keeps the old dials
+  if (dialsV2) mountDialsLayout();
+  let heelS = 0;   // the heel, smoothed (about 0.3 s at 60 fps), for the overpowered word
+  const coach = dialsV2 ? { pro: () => pro, race: () => !!world.raceOn?.(), gybeAwaDeg: DIALS_V2.gybeAwaDeg, cues: (s, posId) => {
+    heelS += ((s.heel ?? 0) * 180 / Math.PI - heelS) * 0.05;
+    return { main: trimCue(s, 'main'), jib: trimCue(s, 'jib'), steer: steerCue(s, posId), heel: heelCue(heelS), tack: tackOf(s.trueWind?.angle ?? 0) };
+  } } : null;
   const captain = createCaptainView({ state: () => phys.state, once, always: true,
-    ...(dialMods ? { wedge: 'apparent', luffDeg: (s) => Math.round(luffAwaDeg(BOAT_P, s.leeway ?? 0)), pos: true, sectors: () => (settings?.get?.('profile') ?? 'new') === 'new' } : {}) });
+    ...(dialMods ? { wedge: 'apparent', luffDeg: (s) => Math.round(luffAwaDeg(BOAT_P, s.leeway ?? 0)), pos: !dialsV2, coach } : {}) });
+  captainRef = captain;
+  // the Pro instruments panel (ui/proHud.js): a desktop, Setup's row (off by default) or ?prohud=1, the cockpit up, not the intro
+  const proPolicy = feature('proHud').on, proStore = proHudSettings(), proFlag = parseV2Flags(globalThis.location?.search ?? '').prohud ?? null;
+  let proClosed = false;   // the ×: Setup's off, and closed for this load even under ?prohud=1
+  if (proPolicy) proStore.listen((on) => { proClosed = !on; });
+  const proHud = proPolicy ? createProHud({ state: () => phys.state, onClose: () => { proClosed = true; proStore.set(false); },
+    shown: () => proHudShown({ allowed: proHudAllowed({ policy: proPolicy, flag: proFlag, stored: proStore.on }), closed: proClosed, cockpitUp: ckUp, intro: document.documentElement.classList.contains('lk-intro-on') }) }) : null;
   services.provide('captain', captain);
   const terrainShim = { heightAt: (x, z) => terrain.field.height(x, z) };
   // Setup's shallow water (v1's src/sail/grounding.js: the assist bears away from a shoal, the sounder, R.'s words), on the boat's
@@ -265,7 +281,18 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
       // the birthplaces (Phase 1b): the pins on the enlarged chart, "Sail from here" the veiled move (main.js's service)
       pins: () => { const svc = services.get('birthplace'); if (!svc || world.raceOn?.()) return []; const cur = svc.current; return svc.list().map((r) => ({ id: r.id, name: r.name, x: r.x, z: r.z, why: r.why, lit: r.id === cur })); },
       onPin: async (p) => { const r = await services.get('birthplace')?.moveTo(p.id); return r?.ok ? { ok: true } : { ok: false, text: REFUSALS[r?.why] ?? REFUSALS.unknown }; },
-      onAnchorage: (a) => { const m = world.sailMark?.(); if (!m) return; m.set(a.x, a.z); hint.flash?.(`${a.name}: the mark is set. NAV takes her there.`, { secs: 5, kind: 'sea.anchorage' }); used(); navToMark(); } });
+      onAnchorage: (a) => { const m = world.sailMark?.(); if (!m) return; m.set(a.x, a.z); hint.flash?.(`${a.name}: the mark is set. NAV takes her there.`, { secs: 5, kind: 'sea.anchorage' }); used(); navToMark(); },
+      ...(dialsV2 ? { shoreWarn: Object.assign((h, x, z) => shoreArcs(h, x, z), { reach: DIALS_V2.shoreReachM }), cogOn: () => pro, poi: () => {   // the mini map: the nearest place
+        const s = phys.state; if (!s) return null;
+        const list = [], tg = world.navTarget?.(), mk = world.sailMark?.()?.mark;
+        if (tg && !tg.arrived) list.push({ kind: tg.kind === 'race' ? 'race' : 'mark', name: tg.name ?? '', x: tg.x, z: tg.z });   // the beacon's target: a pin, the race's next mark, the set mark
+        else if (mk) list.push({ kind: 'mark', name: '', x: mk.x, z: mk.z });
+        if (!world.raceOn?.()) {
+          for (const r of services.get('birthplace')?.list?.() ?? []) list.push({ kind: 'birthplace', name: r.name, x: r.x, z: r.z });
+          for (const a of sea?.anchorages ?? []) list.push({ kind: 'anchorage', name: '', x: a.x, z: a.z });
+        }
+        return poiRow(nearestPoi(s, list), pro);
+      } } : {}) });
     // the live chart (Phase 2b; on by default, ?livechart=0 keeps today's card and enlarged chart for one release): the map
     // behind the card at the voyage start and in the menu (v2/ui/chart/mapScreen.js). N and the bar's Chart open the menu, the same screen
     const liveSync = liveChartOn() ? mountLiveChart({ cp, track, courseTool, planLoad, getPlan: () => plan }) : null;
@@ -576,8 +603,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   views.onChange(() => viewSwitch.used?.());
   // the key legend (v1's shell.js): the sailor's few keys on the right edge while the cockpit is up, desktop only
   const keyLegend = createKeyLegend({ services, settings, getMode: () => mode, words: { tack: 'tack · gybe · free' }, six: true, always: true });   // owner, 2026-11-20: learned rows dim, never all hidden   // Space is the assist key (ui/assist.js) services.provide('keyLegend', keyLegend);
-  // the nav column (v1's shell.js): the passage service, then the column on the left edge (ui/nav.js)
-  const navColumn = mountNav({ services, settings, getMode: () => mode });
+  if (!services.get('passage')) services.provide('passage', createPassage({ services }));   // the nav column went (the Pro instruments panel, ui/proHud.js); the passage service stays
 
   // the keys this page owns beside the boat's (main.js: A/D ←/→, W/S ↑/↓): C and Space (H is the Calm HUD's own; the lean set)
   addEventListener('keydown', (e) => {
@@ -637,8 +663,8 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   }
   // the chart's grid needs the whole terrain: mounted when the stream is done (a capture: at once)
   const ui = {
-    services, views, station, calm, hint, viewSwitch, captain, panel, throttle, tackBtn, proRecess, trimPanel, skills, words, pads, dayClock, keyLegend, navColumn, voice, grounding, music, seaUi,
-    get cockpitUp() { return ckUp; },   // ui/cockpitUp.js: the performance stats panel's rule (main.js), the nav column's on a desktop cockpit
+    services, views, station, calm, hint, viewSwitch, captain, panel, throttle, tackBtn, proRecess, trimPanel, skills, words, pads, dayClock, keyLegend, proHud, voice, grounding, music, seaUi,
+    get cockpitUp() { return ckUp; },   // ui/cockpitUp.js: the performance stats panel's rule (main.js), the Pro instruments panel's (ui/proHud.js)
     get chart() { return chart; }, get course() { return sailCourse; }, get assist() { return assist; }, get status() { return statusNow; }, chartEsc: () => !!chart?.chart?.toggle?.pinned,   // U8: the card's Esc waits while the enlarged chart is pinned (the card listens in the capture phase, the chart's own Esc unpins after it)
     mountChart, setLevel, setPro, get pro() { return pro; }, weather,
     get mode() { return mode; }, setMode(m) { mode = m === 'cruise' ? 'cruise' : 'sail'; if (mode === 'cruise') { assist?.cancel(); B.station({ free: null }); } H.dataset.lkPlay = mode; /* data-lk-play: Cruise's autopilot sails, so the Tack pill stands down (tackButton.js CSS; owner 2026-11-15) */ services.provide('modeOptions', { hud: 'calm' }); chart?.setMode(mode); if (mode === 'cruise' && sailCourse) { sailCourse.clear(); sailCourse.update(0); } },   // U15: Cruise has no practice marks (v1's Cruise chart has no course tool)   // v2/cruise
@@ -650,13 +676,13 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
       // clean layout never forces one
       calm.update(Math.min(0.1, dt));
       dialModules?.update();
-      // the cockpit up (ui/cockpitUp.js): the performance stats panel reads it (main.js), and the Pro nav column and the key legend
-      // follow it while a desktop cockpit sails (2026-11-25: folded, Clear, Instruments, Tessie take them; the helm view keeps the
-      // column, the legend's own rule takes it there). Cruise, a tablet and a phone (no drawn cockpit) keep their own rules
+      // the cockpit up (ui/cockpitUp.js): the performance stats panel reads it (main.js), the Pro instruments panel (ui/proHud.js) and
+      // the key legend follow it while a desktop cockpit sails (2026-11-25: folded, Clear, Instruments, Tessie take them; the helm view
+      // keeps the panels, the legend's own rule takes it there). Cruise, a tablet and a phone (no drawn cockpit) keep their own rules
       ckUp = cockpitUp({ form: station?.form ?? null, stationShown: !!station?.shown, fold: !!calm.fold, preset: calm.mode, modeDials: showsDials(world.modeId?.() ?? homeId()), played: !!services.get('played')?.played });
-      navColumn.hidden = keyLegend.hidden = station?.form === 'cockpit' && sailing() && !ckUp;   // the key legend too (its own rules stay: key hints, the helm view)
+      keyLegend.hidden = station?.form === 'cockpit' && sailing() && !ckUp;   // the key legend too (its own rules stay: key hints, the helm view)
       dayClock.step(dt);   // a time pick's fade and its cut, in every mode (Cruise's sheet picks too), before the frame draws
-      if (!sailing()) { thumb?.update(dt, null); flat?.update(dt); keyLegend.update(); navColumn.update(); chart?.update(dt); return; }   // Cruise: the Calm HUD, the edges (they hide by mode), the chart
+      if (!sailing()) { thumb?.update(dt, null); flat?.update(dt); keyLegend.update(); proHud?.update(dt); chart?.update(dt); return; }   // Cruise: the Calm HUD, the edges (they hide by mode), the chart
       thumb?.update(dt, hands);   // the upright phone's steer zone and rope into this frame's hands (before the boat's step)
       flat?.update(dt);   // a phone's flat controls: the arcs' helm and holds go in below
       const helmHeld = station?.steer != null || !!thumb?.steering || !!flat?.steering;
@@ -689,7 +715,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
       dayClock.update(dt);   // v1's night-sky line in the bar
       keyLegend.update();    // v1's shell.js: each frame (it writes the DOM only when its lines change)
       if (navPulseWait && !dashHidden()) { navPulseWait = false; apHead?.pulse?.(); flat?.pulse?.(); }   // NAV's one calm pulse once the cockpit is in view
-      navColumn.update();    // v1's shell.js: after the legend (readings at 4 Hz, the passage at 1 Hz, on its own clock)
+      proHud?.update(dt);
       captain?.update(dt, { sinceUse: t - lastUse, hands: B.hand.crew ? 'crew' : null, trend: null, nogo: false, cue: hint.current === 'pull' || hint.current === 'ease' ? 'sails' : null });
       pageWatch();   // the chart page and the logbook: one at a time
       chart?.update(dt);
@@ -712,3 +738,4 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   else if (feature('flatControls').on) { try { mountFlat(); } catch (e) { console.error(e); } }
   return ui;
 }
+

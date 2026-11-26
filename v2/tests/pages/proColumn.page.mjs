@@ -3,8 +3,8 @@
 //   - the pro trim panel (src/stations/sloop/trimPanel.js, .lk-tp): when shown (.in) its box intersects none of the top bar
 //     (.lk-view), the helm strip (#hands), the instruments (.lk-cv, the cockpit's .lk-inst) or the diag panel (#diag); upright
 //     it is not shown at all (v1 never places it on an upright phone either: its layout has no trim rect)
-//   - the nav column (v2/ui/nav.js, .lk-nav, COG · TWS · TWA | VMG · HEEL · RUD): when on, its box clears the top bar, the helm
-//     strip and the instruments, and stays inside the safe screen (the left inset)
+//   - no left-edge column on a phone (the nav column went on 2026-11-25) and no Pro instruments panel (a desktop only, even with
+//     ?prohud=1: v2/ui/proHud.js)
 //   - since a phone has the flat controls (no station, no trim panel, no nav column): Pro's own panel in the ⋯ drawer
 //     is on screen and clear of the top bar
 // Run by `npm run test:pages:v2` (LAKESHORE_BASE set), or node v2/tests/pages/proColumn.page.mjs --base http://127.0.0.1:<port>
@@ -26,19 +26,19 @@ try {
     const page = await ctx.newPage();
     const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
     await page.addInitScript((s) => { try { localStorage.setItem('lakeshore.settings.v1', JSON.stringify(s)); } catch { /* blocked */ } }, SEEN);
-    await page.goto(`${BASE}/?start=1200,-1050&heading=251&mode=sail&hour=13&seed=1&once=0&noload=1&fv=1&quality=1&diag=1&pro=1`, { waitUntil: 'load' });
+    await page.goto(`${BASE}/?start=1200,-1050&heading=251&mode=sail&hour=13&seed=1&once=0&noload=1&fv=1&quality=1&diag=1&pro=1&prohud=1`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.__velia?.ready && (window.__velia.m4?.ui?.station || window.__velia.m4?.ui?.flat?.shown) && window.__velia.boat?.sim?.t > 1, null, { timeout: 240000 });   // a phone has the flat controls, no station
     await page.waitForTimeout(2500);
     const L = await page.evaluate(() => {
       const seen = (e) => { if (!e || e.hidden) return false; const cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity < 0.05) return false; const b = e.getBoundingClientRect(); return b.width > 0 && b.height > 0; };
       const box = (e) => { const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; };
       const all = (sel) => [...document.querySelectorAll(sel)].filter(seen).map((e) => ({ sel, ...box(e) }));
-      const tp = document.querySelector('.lk-tp'), nav = document.querySelector('.lk-nav');
+      const tp = document.querySelector('.lk-tp');
       return {
         pro: !!window.__velia.m4.ui.pro,
         upright: innerHeight > innerWidth,
         tp: tp && tp.classList.contains('in') && seen(tp) ? box(tp) : null,
-        nav: nav && nav.classList.contains('on') && seen(nav) ? box(nav) : null,
+        nav: !!document.querySelector('.lk-nav'), proi: [...document.querySelectorAll('.lk-proi')].some(seen),
         bar: all('.lk-view'), hands: all('#hands'), inst: all('.lk-cv, .lk-inst'), diag: all('#diag'),
         sal: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--lk-sal')) || 0, iw: innerWidth, ih: innerHeight,
       };
@@ -52,11 +52,7 @@ try {
       const h1 = hits(L.tp, [...L.bar, ...L.hands, ...L.inst, ...L.diag]);
       check(h1.length === 0, `${name}: the pro trim panel clears the top bar, helm strip, instruments and diag (${h1.join(', ') || 'clear'})`);
     }
-    if (L.nav) {
-      const h2 = hits(L.nav, [...L.bar, ...L.hands, ...L.inst]);
-      check(h2.length === 0, `${name}: the nav column clears the top bar, helm strip and instruments (${h2.join(', ') || 'clear'})`);
-      check(L.nav.x >= L.sal && L.nav.x + L.nav.w <= L.iw && L.nav.y >= 0 && L.nav.y + L.nav.h <= L.ih, `${name}: the nav column is inside the safe screen`);
-    }
+    check(!L.nav && !L.proi, `${name}: no left-edge column and no Pro instruments panel on a phone (nav ${L.nav}, panel ${L.proi})`);
     // a phone's flat controls (v2/ui/flat.js): Pro's own panel opens from ⋯, inside the screen and clear of the top bar
     const fp = await page.evaluate(() => {
       const f = window.__velia.m4.ui.flat; if (!f?.on) return null;

@@ -48,7 +48,7 @@ const ALLOW = {
   'sim/boat.js': 2, 'sim/kayak-stroke.js': 2, 'sim/solids.js': 1, 'sim/tessieHits.js': 1, 'sim/tessieRevenge.js': 3,
   'sim/waymark.js': 2, 'sim/wind.js': 4, 'ui/autoReef.js': 1, 'ui/chart/chartModel.js': 1, 'ui/chart/liveChart.js': 3,
   'ui/chart/mapScreen.js': 1, 'ui/cinematicIntro.js': 2, 'ui/engagement.js': 1, 'ui/firstSail.js': 1, 'ui/flat.js': 13,
-  'ui/front.js': 3, 'ui/install.js': 2, 'ui/keyMap.js': 11, 'ui/metrics.js': 1, 'ui/nav.js': 1, 'ui/plan.js': 9,
+  'ui/front.js': 3, 'ui/install.js': 2, 'ui/keyMap.js': 11, 'ui/metrics.js': 1, 'ui/plan.js': 9,
   'ui/sail.js': 14, 'ui/setup.js': 2, 'ui/tessieMark.js': 1, 'ui/thumb.js': 2, 'ui/topBar.js': 3,
 };
 const files = (d) => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? (n === 'node_modules' ? [] : files(p)) : p.endsWith('.js') ? [p] : []; });

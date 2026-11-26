@@ -198,9 +198,9 @@ try {
     await page.waitForFunction(() => window.__velia.regatta?.r?.on, null, { timeout: 60000 });
     const sample = () => page.evaluate(() => {
       const vis = (e) => { const cs = getComputedStyle(e); const r = e.getBoundingClientRect(); return cs.display !== 'none' && cs.visibility !== 'hidden' && +cs.opacity > 0.05 && r.width > 0 && r.height > 0 ? { c: e.className, x: r.x, y: r.y, w: r.width, h: r.height } : null; };
-      const sail = [...document.querySelectorAll('.lk-nav, .lk-keys, .lk-hint, .lk-calm-mark, .lk-guide, .lk-ntag, .lk-chart .pane, .lk-inst, .lk-hudc')].map(vis).filter(Boolean);
+      const sail = [...document.querySelectorAll('.lk-proi, .lk-keys, .lk-hint, .lk-calm-mark, .lk-guide, .lk-ntag, .lk-chart .pane, .lk-inst, .lk-hudc')].map(vis).filter(Boolean);
       const race = [...document.querySelectorAll('#rg .watch, #rg .fleet, #rg .coach:not(.off), #rg .tag:not([hidden]), #rg .edge:not([hidden]), #rg .pick:not([hidden])')].map(vis).filter(Boolean);
-      const nav = document.querySelector('.lk-nav'); return { sail, race, navShown: !!nav && vis(nav) !== null, route: window.__velia.m4.ui.services.get('chart')?.plan?.route?.length ?? null };
+      const nav = document.querySelector('.lk-proi'); return { sail, race, navShown: !!nav && vis(nav) !== null, route: window.__velia.m4.ui.services.get('chart')?.plan?.route?.length ?? null };
     });
     let clash = null, navShown = false;
     for (const wait of [1500, 6000, 6000]) {
@@ -208,7 +208,7 @@ try {
       const o = await sample(); navShown ||= o.navShown;
       for (const a of o.sail) for (const b of o.race) if (overlap(a, b)) clash ??= `${a.c} / ${b.c}`;
     }
-    check(planned === 'ok' && !navShown && !clash, `${vp.width} × ${vp.height}: a plan laid, then the race: the nav column hidden, no Sail HUD piece under a race one (${planned}; ${clash ?? 'ok'})`);
+    check(planned === 'ok' && !navShown && !clash, `${vp.width} × ${vp.height}: a plan laid, then the race: no left-edge column (the Pro panel off by default), no Sail HUD piece under a race one (${planned}; ${clash ?? 'ok'})`);
     // leaving the race gives Sail its HUD and its plan back
     await page.evaluate(() => window.__velia.mode.go('sail')); await page.waitForTimeout(2500);
     const back = await page.evaluate(() => { const c = window.__velia.m4.ui.services.get('chart')?.course, p = window.__velia.m4.ui.services.get('passage'); return { active: !!c?.active, target: !!(p?.sync?.() ?? p)?.target }; });

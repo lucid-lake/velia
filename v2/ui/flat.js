@@ -428,7 +428,7 @@ export function createFlat({ active = () => false, hidden = () => false, mode = 
       + quarter('r tack', 'Tack', 'tack', 'Tack')
       + quarter('r stop gone', 'Stop: the engine to neutral', 'stop', 'Stop')
       + `<button type="button" class="b more fl-plate" aria-label="more controls" aria-expanded="false">${svg('more')}</button>`
-      + '<button type="button" class="b dl fl-plate" data-k="chart" aria-label="chart: open the big chart"></button><button type="button" class="b dl fl-plate" data-k="wind" aria-label="wind dial: raise it" aria-expanded="false"></button>'
+      + '<button type="button" class="b dl fl-plate" data-k="chart" aria-label="chart: open the big chart"></button><button type="button" class="b dl fl-plate" data-k="wind" aria-label="Coach: raise it" aria-expanded="false"></button>'
       + '<div class="ro race fl-plate" aria-live="off"></div><button type="button" class="b help fl-plate" hidden>Helper</button>'
       + '<div class="clk" hidden></div><div class="mk" hidden></div>'
       + `<button type="button" class="b rc fl-plate off" aria-label="Recentre view" tabindex="-1">${svg('recentre')}</button>`

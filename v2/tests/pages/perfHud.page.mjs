@@ -1,5 +1,5 @@
 // The performance stats panel on the live v2 page (v2/ui/perfHud.js, wired in v2/main.js) and the cockpit-up rule it shares with the Pro
-// nav column and the key legend (v2/ui/cockpitUp.js, v2/ui/sail.js):
+// instruments panel (v2/ui/proHud.js, top-left; 'nav' below: it replaced the nav column) and the key legend (v2/ui/cockpitUp.js, v2/ui/sail.js):
 //   - a desktop in Sail with the cockpit up: the glass plate top-right, six lines, clear of the top bar, the skipper's line, the wind
 //     module, the key legend and the nav column at 1280 x 720 and 1920 x 1080; its text 2-4 times a second; its own cost
 //   - folded (H), Clear, Tessie played (the played seam), Cruise: the panel, the nav column (Pro on) and the key legend go; raised, they
@@ -25,19 +25,20 @@ const browser = await chromium.launch({ executablePath: process.env.LAKESHORE_CH
 const ready = (page) => page.waitForFunction(() => window.__velia?.ready && window.__velia.m4?.ui?.station?.shown && window.__velia.m4.ui.cockpitUp, null, { timeout: 240000 });
 const vis = (page) => page.evaluate(() => {
   const on = (q) => [...document.querySelectorAll(q)].some((e) => { const cs = getComputedStyle(e); return e.getClientRects().length && cs.display !== 'none' && cs.visibility !== 'hidden' && +cs.opacity > 0.05; });
-  return { perf: on('.lk-perf'), nav: on('.lk-nav.on'), keys: on('.lk-keys.on'), up: window.__velia.m4.ui.cockpitUp };
+  return { perf: on('.lk-perf'), nav: on('.lk-proi'), keys: on('.lk-keys.on'), up: window.__velia.m4.ui.cockpitUp };
 });
 const boxes = (page) => page.evaluate(() => {
   const r = (q) => { const e = [...document.querySelectorAll(q)].find((n) => { const cs = getComputedStyle(n); return n.getClientRects().length && cs.visibility !== 'hidden' && +cs.opacity > 0.05; }); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height, r: b.right, b: b.bottom }; };
   const keys = [...document.querySelectorAll('.lk-keys.on .r:not(.off), .lk-keys.on > *:not(.off)')].map((n) => n.getBoundingClientRect()).filter((b) => b.width > 0);
   const kb = keys.length ? { x: Math.min(...keys.map((b) => b.x)), y: Math.min(...keys.map((b) => b.y)), r: Math.max(...keys.map((b) => b.right)), b: Math.max(...keys.map((b) => b.bottom)) } : null;
-  return { perf: r('.lk-perf'), bar: r('.nb .isl'), skipper: r('.lk-hint .row.in'), wind: r('.lk-cv'), nav: r('.lk-nav.on'), keys: kb ? { ...kb, w: kb.r - kb.x, h: kb.b - kb.y } : null, vw: innerWidth, vh: innerHeight };
+  return { perf: r('.lk-perf'), bar: r('.nb .isl'), skipper: r('.lk-hint .row.in'), wind: r('.lk-cv'), nav: r('.lk-proi'), keys: kb ? { ...kb, w: kb.r - kb.x, h: kb.b - kb.y } : null, vw: innerWidth, vh: innerHeight };
 });
 const hit = (a, b) => !!a && !!b && a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b;
 const fmt = (b) => (b ? `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.w)}x${Math.round(b.h)}` : 'none');
 const open = async (url, { person = true, viewport = { width: 1280, height: 720 }, keep = null } = {}) => {
   const ctx = await browser.newContext({ viewport });
   await ctx.addInitScript(seen, SEEN); if (person) await ctx.addInitScript(PERSON);
+  await ctx.addInitScript(() => { try { localStorage.setItem('lakeshore.v2.prohud', JSON.stringify({ on: true })); } catch {} });   // the Pro instruments panel on (the nav column's place: it follows the same rule)
   if (keep) await ctx.addInitScript(keep.fn, keep.arg);
   const page = await ctx.newPage(); const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto(`${BASE}/?${url}`, { waitUntil: 'load' });
