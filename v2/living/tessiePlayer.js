@@ -278,9 +278,11 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
 <div class="tp-aim" hidden aria-hidden="true"><i></i><i></i><i></i><i></i><b></b></div>
 <div class="tp-touch" hidden><div class="tp-look"></div><div class="tp-zone"></div><div class="tp-stick" hidden><i class="knob"></i></div><button class="tp-lunge" type="button" aria-pressed="false">Bite</button><button class="tp-ud tp-up" type="button" aria-pressed="false" aria-label="Up">▲ Up</button><button class="tp-ud tp-dn" type="button" aria-pressed="false" aria-label="Down">▼ Down</button></div>`;
     if (bounty) {   // phase 3: the world's marks (the ping's rings under the hulls, their tails, the lure's ring), projected onto the water
-      el.insertAdjacentHTML('afterbegin', `<svg class="tp-world" hidden aria-hidden="true">${'<ellipse class="mk" visibility="hidden"/>'.repeat(SONAR.max)}${'<line class="tl" visibility="hidden"/>'.repeat(SONAR.max)}<path class="lr" fill="none" visibility="hidden"/></svg>`);
+      // the marks are world: they sit beneath every HUD piece (the legend, the slots, the dials, the top bar, the skipper's line), whose
+      // boxes are cut out of the layer's mask (the legend has no plate, so a ring would show between its letters)
+      el.insertAdjacentHTML('afterbegin', `<svg class="tp-world" hidden aria-hidden="true"><defs><mask id="tp-wm" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%"><rect width="100%" height="100%" fill="#fff"/><g class="cut"></g></mask></defs><g mask="url(#tp-wm)">${'<ellipse class="mk" visibility="hidden"/>'.repeat(SONAR.max)}${'<line class="tl" visibility="hidden"/>'.repeat(SONAR.max)}<path class="lr" fill="none" visibility="hidden"/></g></svg>`);
       const w = el.querySelector('.tp-world');
-      world = { el: w, mk: [...w.querySelectorAll('.mk')], tl: [...w.querySelectorAll('.tl')], lr: w.querySelector('.lr'), on: new Uint8Array(SONAR.max * 2 + 1) };
+      world = { el: w, mk: [...w.querySelectorAll('.mk')], tl: [...w.querySelectorAll('.tl')], lr: w.querySelector('.lr'), cut: w.querySelector('.cut'), cutT: -1, on: new Uint8Array(SONAR.max * 2 + 1) };
     }
     doc.body.appendChild(el);
     //: the sonar, the skills row (a tablet taps DASH to dash), her keys on the right edge
@@ -866,8 +868,19 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     e.setAttribute('cx', p[0].toFixed(1)); e.setAttribute('cy', p[1].toFixed(1)); e.setAttribute('rx', rx.toFixed(1)); e.setAttribute('ry', ry.toFixed(1));
     return true;
   }
+  // the HUD's boxes cut out of the marks' mask, read twice a second while a mark shows (a few rects; the HUD moves only on a resize)
+  const HUD_BOXES = '#lk-tplay .tp-keys:not([hidden]) .kl, #lk-tplay .tp-sonar, #lk-tplay .tp-dial, #lk-tplay .tp-skills .tp-slot, #lk-tplay .tp-skills .nm, .lk-view, .lk-hint .row.in';
+  function cutHud() {
+    if (clock - world.cutT < 0.5 && world.cutT >= 0) return;
+    world.cutT = clock;
+    let h = '';
+    for (const e of doc.querySelectorAll(HUD_BOXES)) { const r = e.getBoundingClientRect(); if (r.width > 0 && r.height > 0) h += `<rect x="${(r.left - 4).toFixed(0)}" y="${(r.top - 4).toFixed(0)}" width="${(r.width + 8).toFixed(0)}" height="${(r.height + 8).toFixed(0)}" rx="6" fill="#000"/>`; }
+    if (world.cut.innerHTML !== h) world.cut.innerHTML = h;
+    world.el.dataset.cuts = String(world.cut.childElementCount);
+  }
   function paintWorld(list) {
     if (!world || !project) return;
+    if (ping || lureFx) cutHud(); else world.cutT = -1;
     let i = 0;
     if (ping) for (const b of list) {
       if (i >= SONAR.max) break;

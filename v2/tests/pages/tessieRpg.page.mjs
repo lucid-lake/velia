@@ -267,6 +267,15 @@ try {
     check(p1.rim === n3 && p1.ticks === n3, `the SONAR dial's rim: a tick per marked boat (${p1.ticks} of ${n3})`);
     check(/^(300 M|HIDDEN)$/.test(p1.word), `the dial's word reads the ping's range (${p1.word})`);
     check(p1.marks >= 1 && p1.shown === p1.marks, `the marks in the world: a ring under each hull in view (${p1.marks} drawn)`);
+    // the marks are world: every HUD box (each legend line, the two dials, the slots) lies inside a cut of the marks' mask
+    const under = await page.evaluate(() => {
+      const cuts = [...document.querySelectorAll('#lk-tplay .tp-world .cut rect')].map((r) => ({ x: +r.getAttribute('x'), y: +r.getAttribute('y'), w: +r.getAttribute('width'), h: +r.getAttribute('height') }));
+      const masked = document.querySelector('#lk-tplay .tp-world .mk')?.closest('[mask]')?.getAttribute('mask');
+      const boxes = [...document.querySelectorAll('#lk-tplay .tp-keys .kl, #lk-tplay .tp-sonar, #lk-tplay .tp-dial, #lk-tplay .tp-skills .tp-slot')].filter((e) => getComputedStyle(e).display !== 'none' && !e.closest('[hidden]')).map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0);
+      const inside = (b) => cuts.some((c) => b.left >= c.x && b.top >= c.y && b.right <= c.x + c.w && b.bottom <= c.y + c.h);
+      return { masked, cuts: cuts.length, boxes: boxes.length, uncovered: boxes.filter((b) => !inside(b)).map((b) => [Math.round(b.left), Math.round(b.top)]) };
+    });
+    check(under.masked === 'url(#tp-wm)' && under.boxes >= 10 && under.uncovered.length === 0, `no world ring paints over the legend, the dials or the slots: each box is cut from the marks' mask (${JSON.stringify(under)})`);
     const r3 = await slot('sonar');
     check(r3.ink === 'amber' && r3.ring < r3.full, `the Sonar slot's ring runs amber while the marks last (${JSON.stringify(r3)})`);
     const so = await page.evaluate(() => { const r = document.querySelector('#lk-tplay .tp-slot[data-skill=sonar]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
