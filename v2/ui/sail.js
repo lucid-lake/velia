@@ -159,7 +159,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   const dock = createToolDock({ ready: () => true, hidden: () => true }); services.provide('dock', dock);
   let pro = flags.pro === '1';
   let sailCourse = null;   // U15: the practice marks (ui/course.js), once the chart has fetched them
-  let chart = null, tessieMark = null;   // the small chart (mountChart, below): Pro's switch reaches it (v1's attachChart: cp.setPro on a change)
+  let chart = null;   // the small chart (mountChart, below): Pro's switch reaches it (v1's attachChart: cp.setPro on a change)
   // Pro on and off (v1's controllers/sail.js setPro): the boat knows it (DRV-3: the let-fly hand-off, the pilot's course); off hands
   // the four controls back to the crew (DRV-4, U5: null); the H list redraws (hint.setPro); a player's own switch (the dock's pro,
   // the PRO recess, the TRIM button: user) tells the page, which saves Setup's proMode (lk-pro, front.js; CAP-2, U6)
@@ -251,23 +251,12 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
     };
     // U10: v1's night palette (the sun's elevation, src/sail/chart.js), hidden under the logbook and the menu (cards over its
     // corner), the kayakers' marks
-    // Tessie's mark (owner 2026-11-17: "a Tessie logo … to draw the user's attention to visit that area"): her water's glyph on both
-    // charts, a faint ring until the first visit, a tap sets her water as the chart's target and the skipper says one line.
-    // Desktop only (feature('tessie'): its own small chunk, never fetched on a phone or a tablet); none in a race
-    if (feature('tessie').on) {
-      Promise.all([import('./tessieMark.js'), import('../stage/areas.js')]).then(([{ createTessieMark }, { areaOf }]) => {
-        let store = null; try { store = globalThis.localStorage ?? null; } catch { /* blocked */ }
-        tessieMark = createTessieMark({ on: () => feature('tessie').on, area: areaOf('tessieWaters'), boat: () => phys.state, store,
-          reduced: () => reducedNow(),
-          mode: () => (world.raceOn?.() ? 'race' : mode), say: (text) => hint.flash?.(text, { secs: 5, kind: 'tessie.mark' }) });   // flavour: the lean skipper drops it
-        services.provide('tessieMark', tessieMark);
-      }).catch((e) => console.error(e));
-    }
+    // no Tessie mark on the cockpit's chart dial: Off Fannette's pin carries her tiny logo on the map (ui/chart/tessieGlyph.js)
     // the tea house's name on the enlarged chart (owner, 2026-11-18: desktop only, as the ruin itself: feature('teaHouse'))
     const places = feature('teaHouse').on ? { teahouse: { x: TEA_HOUSE.x, z: TEA_HOUSE.z, name: TEA_HOUSE.chartName } } : {};
-    const cp = createChartplotter({ terrain: terrainShim, places, boat: () => phys.state, track, targets: () => [], kayaks: () => world.kayakMarks?.() ?? [], areas: () => tessieMark?.areas() ?? [],
+    const cp = createChartplotter({ terrain: terrainShim, places, boat: () => phys.state, track, targets: () => [], kayaks: () => world.kayakMarks?.() ?? [], areas: () => [],
       sunElevDeg: () => sun(), hidden: () => logOpen() || !!services.get('menu')?.isOpen, pro, course: courseTool,
-      onPick: (p) => { planLoad().then(() => { const r = plan?.pick(p); if (p?.area) tessieMark?.picked(p); return r; }); }, plan: true,   // v1's: every tap and button of the plan to the planner (the planner loads on the first pick or opening)
+      onPick: (p) => { planLoad().then(() => { return plan?.pick(p); }); }, plan: true,   // v1's: every tap and button of the plan to the planner (the planner loads on the first pick or opening)
       windAt: windField?.sample ? (x, z, t) => windField.sample(x, z, t) : null, time: () => clock?.t ?? 0,   // the barbs: the wind field's 60 s mean
       lake: { bounds: LAKE_CHART, keep: LAKE_BOX, gridM: 40, baseM: 30 },   // the whole lake: two far zooms over its coarse base (the planner charts it all)
       mark: () => world.sailMark?.()?.mark ?? null,   // Sail's double-tap mark on the chart (main.js: the beacon's)
@@ -294,7 +283,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
     // the live chart (Phase 2b; on by default, ?livechart=0 keeps today's card and enlarged chart for one release): the map
     // behind the card at the voyage start and in the menu (v2/ui/chart/mapScreen.js). N and the bar's Chart open the menu, the same screen
     const liveSync = liveChartOn() ? mountLiveChart({ cp, track, courseTool, planLoad, getPlan: () => plan }) : null;
-    chart = { chart: cp, update: (dt) => { if (!planP && cp.toggle?.big && !liveSync) planLoad(); plan?.update(dt); tessieMark?.update(); cp.update(dt); liveSync?.(); }, course: courseTool, courseReady: courseP, get state() { return cp.state; },   // state: v1's chart service's (src/sail/chart.js), the passage's mark (Sail Pro's waypoint)
+    chart = { chart: cp, update: (dt) => { if (!planP && cp.toggle?.big && !liveSync) planLoad(); plan?.update(dt); cp.update(dt); liveSync?.(); }, course: courseTool, courseReady: courseP, get state() { return cp.state; },   // state: v1's chart service's (src/sail/chart.js), the passage's mark (Sail Pro's waypoint)
       get plan() { return cp.plan; }, get planner() { return plan?.planner ?? null; }, get course() { return plan?.course ?? null; }, get planReady() { return planLoad(); }, get planLoaded() { return !!planP; }, setMode: (m) => plan?.setMode(m) };   // v1's chart service's plan and planner (tools/probe_chart.mjs)
     services.provide('chart', chart);
     // U15: the course tool is Sail's (v1's Cruise chart has none): hidden while Cruise has the page (cruise/index.js sets lk-m-cruise)

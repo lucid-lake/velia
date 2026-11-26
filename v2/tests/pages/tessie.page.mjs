@@ -78,17 +78,12 @@ try {
   check(Object.values(pv).every((v) => v.bad === 0 && v.peak > 0.001 && v.peak < 0.9), `desktop: her played voices render finite, audible, under 0.9 (${JSON.stringify(pv)})`);
   check(d.errors.length === 0, `desktop: no page errors (${d.errors.slice(0, 2).join(' | ')})`);
   await d.ctx.close();
-  // her mark on the chart: from 200 m east of her water (the ring), the small chart draws it; on the live map her
-  // water is a point whose card sets the mark and lights the beacon; then the boat inside her water: the ring stops
+  // no mark on the cockpit's chart dial (owner, 2026-11-26: Off Fannette's pin on the map carries her tiny logo): from 200 m east of
+  // her water the small chart draws no glyph and no ring
   const c = await open(`?${CHART_Q}&start=700,-160&heading=265`, { viewport: { width: 1280, height: 720 }, seen: true });
   await c.page.waitForFunction(() => window.__velia.m4?.ui?.chart?.chart && window.__velia.beacon && window.__velia.boat?.sim?.t > 1, null, { timeout: 240000 });
-  const areas = () => c.page.evaluate(() => window.__velia.m4.ui.chart.chart.state.areas);
-  const small = await c.page.waitForFunction(() => window.__velia.m4.ui.chart.chart.state.areas.small.some((a) => a.glyph), null, { timeout: 60000 }).then(() => true, () => false);
-  const a0 = await areas();
-  // the size rule: smaller than Fannette Island (162 m) drawn at the same scale, at each chart's default zoom; floors and caps
-  const ISLAND_M = 162;
-  const sc = await c.page.evaluate(() => { const st = window.__velia.m4.ui.chart.chart.state, s = document.querySelector('.lk-chart .small canvas').clientWidth;   /* its layout size (the cockpit's dial shows it scaled) */ return { small: 1000 / (s / 2), zoom: st.zoom, rangeM: st.rangeM }; });
-  check(small && a0.small[0]?.id === 'tessieWaters' && a0.small[0].ring && a0.small[0].w >= 12 && a0.small[0].w <= 20 && a0.small[0].w < ISLAND_M / sc.small, `chart: the small chart (the dial's map) draws her glyph, ${a0.small[0]?.w?.toFixed(1)} px, under the island's ${(ISLAND_M / sc.small).toFixed(1)} px, with its ring`);
+  const a0 = await c.page.evaluate(() => window.__velia.m4.ui.chart.chart.state.areas);
+  check(a0.small.length === 0 && a0.big.length === 0, `chart: the small chart (the dial's map) draws no Tessie mark or ring (${JSON.stringify(a0)})`);
   // the live map (Phase 2b: the menu's screen, opened by Menu, Esc or N): her water is no longer a point of its own (owner, 2026-11-25:
   // Off Fannette carries her tiny logo); the pin's card is hers too: Sail from here, and Be Tessie where she can be played
   await openMap(c.page);
@@ -99,9 +94,6 @@ try {
   const card = await c.page.evaluate(() => ({ st: window.__velia.m4.ui.services.get('liveChart').state.card, more: [...document.querySelectorAll('.lk-livechart .lkc-card [data-act]')].map((b) => b.dataset.act) }));
   check(card.st?.name === 'Off Fannette' && card.st.action === 'Sail from here' && card.more.includes('beTessie'), `live map: the pin's card offers Sail from here and Be Tessie (${JSON.stringify(card)})`);
   await closeMap(c.page);
-  await c.page.evaluate(() => { const b = window.__velia.boat; b.state.x = 330; b.state.z = -120; if (b.phys?.state) { b.phys.state.x = 330; b.phys.state.z = -120; } });
-  const visited = await c.page.waitForFunction(() => window.__velia.m4.ui.chart.chart.state.areas.small.every((a) => !a.ring) && localStorage.getItem('lakeshore.tessieWaters.v1') === '1', null, { timeout: 8000 }).then(() => true, () => false);
-  check(visited, `chart: inside her water the ring stops on the small chart, kept on the device (${JSON.stringify((await areas()).small)})`);
   check(c.errors.length === 0, `chart: no page errors (${c.errors.slice(0, 2).join(' | ')})`);
   await c.ctx.close();
   // TK, her revenge: a scripted charge on the live page (she is put up 50 m ahead of the boat, which sails at
