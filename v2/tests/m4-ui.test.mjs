@@ -5,7 +5,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { keyAction, UI_KEYS } from '../ui/keys.js';
-import { createViews, STEADY } from '../ui/views.js';
+import { createViews } from '../ui/views.js';
+import { HORIZON } from '../sim/steadyCamera.js';
 import { KEYMAP } from '../../src/sail/keys.js';
 import { createBoatSim, waterFor, START } from '../sim/boat.js';
 import { steadyWind } from '../../src/sim/boat.js';
@@ -42,7 +43,7 @@ test('views: the helm view puts the eye in the cockpit (v1\'s helm camera), the 
   const d = Math.hypot(p.pos[0] - boat.x, p.pos[2] - boat.z);
   assert.ok(d < 4, `the eye is on the boat (${d.toFixed(2)} m from its origin)`);
   assert.ok(Math.abs(p.fov - HELM_CAM.fov) < 1e-9 && p.up, 'the helm camera\'s field and its tilted up vector');
-  assert.equal(V.helmCam.steady, STEADY);
+  assert.equal(V.helmCam.horizon, HORIZON, 'the steady horizon');
   V.toggle(); assert.equal(V.view, 'follow');
 });
 

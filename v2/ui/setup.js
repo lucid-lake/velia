@@ -48,7 +48,7 @@ export const REMOVED_ROWS = Object.freeze([
   { set: 'autoReef', key: 'autoReef', other: "the reef selector A 0 1 2: the cockpit's REEF, the phone's Pro drawer (ui/autoReef.js)" },
   { set: 'edgeInstruments', key: 'edgeInstruments', other: 'the cockpit\'s PRO switch: the nav column follows Pro' },
   // owner 2026-11-19: no setting where the best behaviour can be fixed ("set the best experience for the customer and not let them set it")
-  { set: 'steady', key: 'steadyHorizon', other: 'none: the Helm view steadies itself with the sea, always on (sim/steadyCamera.js); Reduce Motion holds the calm values' },
+  { set: 'steady', key: 'steadyHorizon', other: 'none: the Helm view holds the horizon steady, always on (sim/steadyCamera.js HORIZON); Reduce Motion holds it steadier (HORIZON_REDUCED)' },
   // owner 2026-11-19: both were disabled "(soon)" rows for v1 features v2 does not have; v1 (/classic/) keeps them
   { set: 'kayakCam', key: 'kayakCam', other: 'none: v2 has no kayak camera notice (v1 only, at /classic/)' },
   { set: 'windlines', key: 'windLines', other: 'none: v2 has no wind lines (v1 only, at /classic/)' },
