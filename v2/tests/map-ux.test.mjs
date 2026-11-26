@@ -1,7 +1,8 @@
 // the map's crosshair, layers and wake (v2/ui/chart/mapUx.js; ?mapux=0 none): the eased follow, the magnet, the reading, the layers, the wake store.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { easeToward, snapTo, readout, distWords, dmLine, layerOf, LAYERS, RACES_LAYER, createWakeStore, UX } from '../ui/chart/mapUx.js';
+import { easeToward, snapTo, readout, distWords, dmLine, layerOf, LAYERS, RACES_LAYER, barLayers, nearestOf, createWakeStore, UX } from '../ui/chart/mapUx.js';
+import { buildPois, poiShown, hitTest } from '../ui/chart/chartModel.js';
 import { parseV2Flags } from '../engine/flags.js';
 
 test('the flag: on by default (owner, 2026-11-18), ?mapux=0 turns it off for one release', () => {
@@ -33,11 +34,50 @@ test('the reading: bearing true and distance from the boat; the position without
   assert.equal(dmLine(-120.0, 'E', 'W'), '120°00.00′ W');
 });
 
-test('the layers: every point kind belongs to one; the bay\'s geography to none', () => {
-  for (const k of ['birthplace', 'place', 'anchorage', 'buoy', 'channel', 'raceMark', 'barge', 'area']) assert.ok(LAYERS.some((l) => l.id === layerOf(k)), k);
-  // the Races layer is not one of the base five (Sail's and Cruise's bar): it joins the bar in Regatta only (owner 2026-11-19)
-  assert.equal(layerOf('racePin'), RACES_LAYER.id); assert.ok(!LAYERS.some((l) => l.id === RACES_LAYER.id));
-  assert.equal(layerOf('n-bay'), null);
+test('the bar by mode: exactly Birthplaces · Anchorages in Sail and Cruise; Regatta adds Races; no All, no Marks (owner 2026-11-25)', () => {
+  assert.deepEqual(barLayers(false).map((l) => l.word), ['Birthplaces', 'Anchorages']);
+  assert.deepEqual(barLayers(true).map((l) => l.word), ['Birthplaces', 'Anchorages', 'Races']);
+  assert.deepEqual(LAYERS.map((l) => l.id), ['birthplaces', 'anchorages']);
+  for (const w of [...barLayers(true)].map((l) => l.word.toLowerCase())) assert.ok(!/^(all|marks|places|wildlife|your wake)$/.test(w), w);
+});
+
+test('only birthplaces, anchorages and the race pins are in a chip; every other kind keeps drawing by the zoom rules', () => {
+  assert.equal(layerOf('birthplace'), 'birthplaces');
+  assert.equal(layerOf('anchorage'), 'anchorages');
+  assert.equal(layerOf('racePin'), RACES_LAYER.id);
+  for (const k of ['place', 'corner', 'area', 'buoy', 'channel', 'raceMark', 'barge', 'wake']) assert.equal(layerOf(k), null, k);
+  const rows = buildPois({ birthplaces: [{ id: 'a', name: 'A', x: 0, z: 0 }], places: [{ id: 'p', name: 'P', x: 9, z: 9 }], aids: [{ id: 'b', x: 5, z: 5, number: '1' }],
+    areas: [{ id: 't', name: 'T', x: 50, z: 50, r: 10 }], barges: [{ x: 1, z: 1 }], corners: [{ id: 'c', name: 'C', x: 2, z: 2 }] }, { mode: 'play' });
+  assert.deepEqual(rows.map((r) => r.kind).sort(), ['area', 'barge', 'birthplace', 'buoy', 'corner', 'place'], 'nothing is removed from the chart');
+  const pl = rows.find((r) => r.kind === 'place');
+  assert.ok(!poiShown(pl, 25, 'C') && poiShown(pl, 3, 'C'), 'a place still appears only as you zoom in');
+});
+
+test('birthplaces and anchorages show at every zoom, and a tap at the overview takes them', () => {
+  const src = { birthplaces: [{ id: 'a', name: 'A', x: 0, z: 0 }], anchorages: [{ x: 500, z: 100, name: 'Shallows by Fannette', depth: 8 }] };
+  for (const mode of ['play', 'entrance']) {
+    const rows = buildPois(src, { mode });
+    for (const r of rows) for (const mpp of [3, 6, 12, 25]) for (const mc of ['B', 'C']) assert.ok(poiShown(r, mpp, mc), `${r.kind} at ${mpp} m/px (max ${mc})`);
+    const toPx = (x, z, o) => { o[0] = x / 25; o[1] = z / 25; };
+    assert.equal(hitTest(rows, toPx, 20, 4, 16, 25, 'B')?.kind, 'anchorage', 'a tap at the overview takes the anchorage');
+    assert.equal(hitTest(rows, toPx, 0, 0, 16, 25, 'B')?.kind, 'birthplace');
+  }
+});
+
+test('where to: the nearest place or anchorage to the boat, the next on a second tap, the one she is at left out', () => {
+  const rows = [
+    { id: 'an-far', kind: 'anchorage', x: 900, z: 0 }, { id: 'an-near', kind: 'anchorage', x: 200, z: 0 }, { id: 'an-here', kind: 'anchorage', x: 5, z: 0, lit: true },
+    { id: 'pl-a', kind: 'birthplace', x: 0, z: -400 }, { id: 'pl-b', kind: 'birthplace', x: 0, z: 100 }, { id: 'bp-far', kind: 'birthplace', x: 0, z: 50, far: true },
+    { id: 'cn-1', kind: 'corner', x: 0, z: 10 }, { id: 'ar-t', kind: 'area', x: 0, z: 3 }, { id: 'bu-1', kind: 'buoy', x: 0, z: 1 },
+  ];
+  const boat = { x: 0, z: 0 }, A = LAYERS[1].kinds, P = LAYERS[0].kinds;
+  assert.equal(nearestOf(rows, A, boat, 0).id, 'an-near');
+  assert.equal(nearestOf(rows, A, boat, 1).id, 'an-far', 'the second tap: the next nearest');
+  assert.equal(nearestOf(rows, A, boat, 2).id, 'an-near', 'and round again');
+  assert.equal(nearestOf(rows, P, boat, 0).id, 'pl-b', 'a far pin, a hunts corner and Tessie\'s water are not where to');
+  assert.equal(nearestOf(rows, P, boat, 1).id, 'pl-a');
+  assert.equal(nearestOf(rows, P, { x: 0, z: -390 }, 0).id, 'pl-a', 'from the start or the map centre when there is no boat');
+  assert.equal(nearestOf([], A, boat), null);
 });
 
 const memStore = (init = {}) => { const mem = new Map(Object.entries(init)); return { mem, getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, v), removeItem: (k) => mem.delete(k) }; };

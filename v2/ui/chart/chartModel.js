@@ -140,7 +140,8 @@ export const namesFor = (birthplaces = []) => { const bp = new Set(birthplaces.m
 // ---- the points of interest: one list from what the page has ----
 // kind → its zoom class and its line when the source gives none
 const KINDS = Object.freeze({
-  birthplace: { cls: 'A' }, anchorage: { cls: 'B' }, place: { cls: 'B' }, area: { cls: 'B' }, channel: { cls: 'B' },
+  birthplace: { cls: 'A' }, anchorage: { cls: 'A' },   // anchorage: its glyph shows at every zoom (owner 2026-11-25); its name stays class B (drops when the view is wide)
+  place: { cls: 'B' }, area: { cls: 'B' }, channel: { cls: 'B' },
   buoy: { cls: 'C' }, barge: { cls: 'A' }, raceMark: { cls: 'A' }, racePin: { cls: 'A' }, corner: { cls: 'B' },
 });
 // the one action each kind offers, by where the chart is open: 'entrance' (the first card: no lake yet), 'play' (Sail, Cruise), 'hub'

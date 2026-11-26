@@ -4,10 +4,11 @@
 //             settles on the pointer and snaps to a point within 22 px
 //   wake      a short sail leaves a wake; Setup › Sail › your wake › forget clears it; reload voyages: only the last 3 are kept and drawn
 //             (newest full, then 60 %, 30 %), a 4th reload drops the oldest
-//   layers    each toggle from All shows its own kinds alone; All brings every one back
+//   where to  the bar is All · Places · Anchorages; a chip shows its kind alone and opens the nearest card, Sail here first; a second tap the next
+//             nearest; All restores and closes; the wake needs no chip
 //   water     a click on open water opens its card (Set as target, Add waypoint) and the menu stays open; Set as target sets Sail's
 //             mark and NAV sails to it; two waypoints draw the route; on land both refuse in plain words; ?mapux=0: no crosshair or layers
-//   phone     the box's Layers button opens the 2 x 3 grid; a toggle works
+//   phone     the box's Layers button opens the grid of the same chips; a chip works
 // Run by `npm run test:pages:v2 -- mapUx`, or node v2/tests/pages/mapUx.page.mjs --base http://127.0.0.1:<port> [--shots <dir>]
 import { chromium } from 'playwright-core';
 import { pickMode } from './pick.mjs';
@@ -115,21 +116,56 @@ const auto = async (page) => { const r = await page.evaluate(() => { const h = w
   await shot(page, '04-crosshair-snap');
   await page.mouse.move(160, 450); await wait(page, 200);
 
-  // the layers: each one alone from All, then All
-  const LAYER_KINDS = { places: ['birthplace', 'place', 'corner'], anchorages: ['anchorage'], marks: ['buoy', 'channel', 'raceMark', 'barge'], wildlife: ['area'], wake: [] };
-  let n = 5;
-  for (const [id, kinds] of Object.entries(LAYER_KINDS)) {
-    await page.click('.lkc-layers button[data-layer=all]'); await wait(page, 200);
-    await page.click(`.lkc-layers button[data-layer=${id}]`); await wait(page, 500);
-    s = await lc(page);
-    const off = s.pois.filter((p) => !kinds.includes(p.kind)).map((p) => p.kind);
-    if (!kinds.includes('birthplace')) { const i = off.indexOf('birthplace'); if (i >= 0) off.splice(i, 1); }   // the chosen pin is lit: it always shows
-    check(s.ux.layers.length === 1 && s.ux.layers[0] === id && off.length === 0, `layers: ${id} alone (${s.pois.map((p) => p.kind).join(', ') || 'no points'})`);
-    await shot(page, `0${n++}-layer-${id}`);
-  }
-  await page.click('.lkc-layers button[data-layer=all]'); await wait(page, 400);
+  // "where to?" (owner 2026-11-25): the bar is exactly Birthplaces · Anchorages; a chip shows its kind alone AND opens the nearest one's card,
+  // Sail here first; a second tap the next nearest; the normal view returns when the card closes
+  const barWords = () => page.evaluate(() => [...document.querySelectorAll('.lk-livechart .lkc-layers button')].map((b) => b.dataset.layer).join());
+  check(await barWords() === 'birthplaces,anchorages', `bar: exactly Birthplaces and Anchorages; no All, no Marks, no Wildlife, no Your wake (${await barWords()})`);
+  // the overview (owner: "anchorages are not visible unless I zoom in"): at the widest zoom every birthplace pin and anchorage glyph shows, and is tappable
+  await page.evaluate(() => { const c = window.__velia.m4.ui.services.get('liveChart'); c.setView({ mpp: c.state.zoom.max, animate: false }); });
+  await wait(page, 900);
   s = await lc(page);
-  check(s.ux.layers.length === 5 && s.pois.some((p) => p.kind === 'anchorage') && s.pois.some((p) => p.kind === 'birthplace'), 'layers: All brings every layer back');
+  const ans = s.pois.filter((p) => p.kind === 'anchorage'), bps = s.pois.filter((p) => p.kind === 'birthplace');
+  check(ans.length >= 1 && bps.length >= 1 && s.view.mpp >= s.zoom.max - 0.01, `overview: pins and anchorage glyphs show at the widest zoom (${bps.length} birthplaces, ${ans.length} anchorages at ${s.view.mpp.toFixed(1)} m/px)`);
+  await page.mouse.move(160, 450);
+  await shot(page, '07-overview-anchorages');
+  if (ans.length) {
+    const a = ans[0], cr = await page.evaluate(() => document.querySelector('.lk-livechart canvas').getBoundingClientRect().toJSON());
+    await page.mouse.click(cr.left + a.px, cr.top + a.py); await wait(page, 700);
+    check((await lc(page)).selected === a.id, `overview: a tap on an anchorage glyph opens its card (${(await lc(page)).selected})`);
+    await page.keyboard.press('Escape'); await wait(page, 300);
+  }
+  await page.evaluate(() => { const c = window.__velia.m4.ui.services.get('liveChart'); c.setView({ mpp: 3.2, animate: false }); c.recentre(); }); await wait(page, 600);
+  const where = (id) => page.evaluate(([id]) => { const c = window.__velia.m4.ui.services.get('liveChart'), b = window.__velia.boat.state, st = c.state;
+    const at = (pid) => { const m = /^an-(-?\d+)-(-?\d+)$/.exec(pid); return m ? Math.hypot(+m[1] - b.x, +m[2] - b.z) : null; };
+    return { sel: st.selected, card: st.card, layers: c.ux.layers, wake: c.ux.wakeOn(), kinds: [...new Set(st.pois.map((p) => p.kind))], dist: at(st.selected), shown: st.pois.filter((p) => p.id.startsWith('an-')).map((p) => at(p.id)),
+      pressed: [...document.querySelectorAll('.lkc-layers button[aria-pressed=true]')].map((x) => x.dataset.layer) }; }, [id]);
+  const PREFIX = { birthplaces: /^bp-/, anchorages: /^an-/ };
+  for (const id of ['birthplaces', 'anchorages']) {
+    s = await where(id);
+    const normal = s.kinds.length;
+    await page.click(`.lkc-layers button[data-layer=${id}]`); await wait(page, 900);
+    s = await where(id);
+    const ok = s.layers.length === 1 && s.layers[0] === id && PREFIX[id].test(s.sel ?? '') && s.card?.action === 'Sail here' && s.pressed.join() === id;
+    check(ok && s.kinds.every((k) => k === (id === 'anchorages' ? 'anchorage' : 'birthplace') || k === 'birthplace'), `where to: ${id} shows its kind alone, lit, and opens the nearest card with Sail here first (${s.sel}, ${JSON.stringify(s.card)}, kinds ${s.kinds})`);
+    check(s.wake === true, `where to: the wake is drawn with ${id} lit (no chip for it)`);
+    if (id === 'anchorages') check(s.dist != null && s.shown.every((d) => d == null || d >= s.dist - 0.5), `where to: it is the nearest anchorage (${s.dist?.toFixed(0)} m; in view ${s.shown.map((d) => Math.round(d))})`);
+    await shot(page, `0${id === 'birthplaces' ? 5 : 6}-where-to-${id}`);
+    const first = s.sel;
+    await page.click(`.lkc-layers button[data-layer=${id}]`); await wait(page, 900);
+    const s2 = await where(id);
+    check(s2.sel !== first && PREFIX[id].test(s2.sel ?? '') && s2.card?.action === 'Sail here', `where to: a second tap on ${id} goes to the next nearest (${first} → ${s2.sel})`);
+    await page.keyboard.press('Escape'); await wait(page, 600);   // the card's close: Esc
+    s = await where(id);
+    check(s.card === null && s.layers.length === 2 && s.pressed.length === 0 && s.kinds.length >= normal, `where to: Esc closes the card and the normal view returns, no chip lit (${s.kinds}; lit ${s.pressed})`);
+  }
+  // a tap on open water closes the card too, and the view returns
+  await page.click('.lkc-layers button[data-layer=anchorages]'); await wait(page, 900);
+  const wspot = await spot(page, { dist: 330, lo: 8 });
+  if (wspot) {
+    const q = await toClient(page, wspot.x, wspot.z); await page.mouse.move(q.x, q.y); await page.mouse.down(); await page.mouse.up(); await wait(page, 700);
+    s = await where('x');
+    check(s.card === null && s.layers.length === 2, `where to: a tap on the water closes the card and the normal view returns (${JSON.stringify(s.card)}; lit ${s.pressed})`);
+  }
 
   // the water's card: Set as target, then NAV sails there; the menu stays open on a click on the water
   await page.evaluate(() => window.__velia.beacon?.mark?.clear?.());
@@ -256,11 +292,14 @@ const auto = async (page) => { const r = await page.evaluate(() => { const h = w
   if (b) await page.touchscreen.tap(b.x, b.y);
   await wait(page, 300);
   const grid = await page.evaluate(() => { const g = document.querySelector('.lk-livechart .lkc-layers'); const bs = [...g.querySelectorAll('button')].map((x) => x.getBoundingClientRect()); return { shown: !g.hidden, minH: Math.min(...bs.map((r) => r.height)) }; });
-  check(grid.shown && grid.minH >= 44, `phone: the grid opens, every toggle 44 px (${JSON.stringify(grid)})`);
+  check(grid.shown && grid.minH >= 44, `phone: the grid opens, every chip 44 px (${JSON.stringify(grid)})`);
   await shot(page, '16-phone-layers-grid');
   const t = await page.evaluate(() => { const r = document.querySelector('.lkc-layers button[data-layer=anchorages]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   await page.touchscreen.tap(t.x, t.y); await wait(page, 400);
-  check((await lc(page)).ux.layers.join() === 'anchorages', 'phone: a toggle works (Anchorages alone)');
+  check((await lc(page)).ux.layers.join() === 'anchorages', 'phone: a chip works (Anchorages alone)');
+  check(await page.evaluate(() => [...document.querySelectorAll('.lk-livechart .lkc-layers button')].map((b) => b.dataset.layer).join() === 'birthplaces,anchorages'), 'phone: the grid holds the same two chips (Birthplaces, Anchorages)');
+  const pc = await lc(page);
+  check(/^an-/.test(pc.selected ?? '') && pc.card?.action != null, `phone: a chip tap opens the nearest card too (${pc.selected}, ${JSON.stringify(pc.card)})`);
   check(errors.length === 0, `phone: no page errors (${errors.slice(0, 3).join(' | ')})`);
   await ctx.close();
 }

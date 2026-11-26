@@ -1,5 +1,29 @@
 # v2 notes: Plan (the chart's routing)
 
+## "Where to?" (2026-11-25: ui/chart/mapUx.js, ui/chart/liveChart.js `whereTo`, `closeCard`)
+
+The map's top bar is the way to pick a destination, with no new element or words. Owner, 2026-11-25: "the bar only keeps these two ...
+a sailor should always be able to find the birthplace to explore, and anchorages to rest"; "on the map you can show other stuff when zoomed
+in; no need to remove them".
+
+**Always visible:** birthplaces and anchorages draw at every zoom, the overview and the home card's chart too (`KINDS.anchorage` is zoom
+class A like the pin: the glyph and its tap never drop; the anchorage's name stays class B and drops when the view is wide or crowded).
+Every other point (named places, hunts' corners, buoys, channel, barges, Tessie's water) is unchanged: it appears as you zoom in.
+
+**The bar is exactly Birthplaces · Anchorages** (Regatta adds Races; no All, no Marks, no Wildlife, no Your wake chip). A tap on a chip shows
+that kind alone (it lights) AND opens the EXISTING card of the nearest point, **Sail here** first (`nearestOf`: nearest to the boat; on the
+start screen the current start; else the map's centre; the point she is at and a pin past the paper are left out; a point out of view is
+glided to). One more tap on Sail here sails there. A second tap on the same chip is the next nearest (wraps). **The normal view returns when
+the card closes** (Esc, a tap on the water, the card's own close, Sail here): `closeCard` calls `uxApi.cardClosed()`. At the start screen
+and in Cruise the card keeps its own first action (Set as target / Anchor here), as Sail here is Sail's only; Races opens a race pin's own
+card (Race here). The phone keeps its round Layers button; it opens the same two chips (two chips do not fit inline beside the zoom buttons
+and the Coach's tooltip).
+
+The wake is always drawn; Setup › Sail › Your wake › Forget still clears it.
+Tests: `v2/tests/map-ux.test.mjs` (the bar by mode, only three kinds in a chip, no point removed, pin and glyph shown and hit at every zoom,
+`nearestOf`), `v2/tests/pages/mapUx.page.mjs` (the chips, the overview, the card, the cycle, the close by Esc and by the water, the wake,
+the phone), `mapCard.page.mjs` (the Regatta bar; the view returns after the card).
+
 ## Sail here from the chart (2026-11-25: ui/chart/liveChart.js, ui/sail.js, ui/chart/mapBoat.js, ui/chart/panelDock.js)
 
 Plan is not a mode and adds no UI: it is the live map's routing in Sail, in the chart page's own design (its base map and engraved
