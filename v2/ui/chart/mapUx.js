@@ -3,8 +3,8 @@
 //   cursor   a thin full-width crosshair that eases after the pointer (an exponential follow, tau 0.1 s, frame-rate independent;
 //            none under reduced motion), snaps to a shown point within 22 px (the ring tightens, the point lifts), and reads the
 //            spot under it: bearing (true) and distance from the boat, else latitude and longitude. A mouse only: a finger has no hover.
-//   where to?  the bar at the map's top edge, All · Places · Anchorages (owner 2026-11-25; Regatta adds Races and Marks). A chip shows its
-//            kind alone (the bay's own names, the chart's geography, always stay). A tap on Places or Anchorages also opens the card of
+//   where to?  the bar at the map's top edge, All · Birthplaces · Anchorages (owner 2026-11-25; Regatta adds Races and Marks). A chip shows its
+//            kind alone (the bay's own names, the chart's geography, always stay). A tap on Birthplaces or Anchorages also opens the card of
 //            the one nearest the boat (the start screen: the current start; else the map's centre), Sail here first: one more tap
 //            sails there. A second tap on the same chip goes to the next nearest. All shows everything and closes the card. A phone's
 //            box: one round Layers button (44 px) opens the same chips as a grid.
@@ -16,10 +16,10 @@
 import { worldToLonLat } from '../../../src/sim/geo.js';
 
 export const UX = Object.freeze({ tauS: 0.1, snapPx: 22, settlePx: 0.3, wakeStepM: 12, wakeJumpM: 90, wakeMaxPts: 8000, wakeSaveEvery: 20, wakeVoyages: 3, wakeFade: [1, 0.6, 0.3] });
-// the bar's own chips (owner 2026-11-25): Places and Anchorages. 'area' (Tessie's water, the one such point: a dashed ring and a card with
-// Be Tessie) is a place now that Wildlife is gone; the hunts' corners are places too. Your wake has no chip: it is always drawn.
+// the bar's own chips (owner 2026-11-25): Birthplaces and Anchorages, the only points a sailor's chart draws in Sail and Cruise (the named
+// places, the hunts' corners, Tessie's water are no longer drawn there). Your wake has no chip: it is always drawn.
 export const LAYERS = Object.freeze([
-  { id: 'places', word: 'Places', kinds: ['birthplace', 'place', 'corner', 'area'] },
+  { id: 'birthplaces', word: 'Birthplaces', kinds: ['birthplace'] },
   { id: 'anchorages', word: 'Anchorages', kinds: ['anchorage'] },
 ]);
 // the Races and Marks chips (owner 2026-11-19, 2026-11-25: only in Regatta): each place race's pin, and the buoys, the channel, the show
@@ -29,10 +29,10 @@ export const RACES_LAYER = Object.freeze({ id: 'races', word: 'Races', kinds: ['
 export const MARKS_LAYER = Object.freeze({ id: 'marks', word: 'Marks', kinds: ['buoy', 'channel', 'raceMark', 'barge'] });
 const KIND_LAYER = Object.fromEntries([...LAYERS, RACES_LAYER, MARKS_LAYER].flatMap((l) => l.kinds.map((k) => [k, l.id])));
 export const layerOf = (kind) => KIND_LAYER[kind] ?? null;
-// the chips in the bar, by mode: Sail and Cruise Places · Anchorages; Regatta Places · Races · Anchorages · Marks
+// the chips in the bar, by mode: Sail and Cruise Birthplaces · Anchorages; Regatta Birthplaces · Races · Anchorages · Marks
 export const barLayers = (regatta = false) => (regatta ? [LAYERS[0], RACES_LAYER, LAYERS[1], MARKS_LAYER] : [...LAYERS]);
 // "where to?": a tap on these chips also opens the nearest point's card
-export const WHERE_TO = Object.freeze(['places', 'anchorages']);
+export const WHERE_TO = Object.freeze(['birthplaces', 'anchorages']);
 // the nth nearest point of these kinds to ref (the boat, else the current start, else the map's centre): rows are the chart's, n wraps
 // round (the second tap on a chip is the next one). Left out: the one she is at (lit), a place past the paper (far), the hunts' corners
 // (a card only, nowhere to sail) and Tessie's water (a Place on the bar, never the first suggestion), and any row without a position.
@@ -155,7 +155,7 @@ const LYR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" style="fill:none;wi
 export function mountMapUx(ctx, { wake = null, layers = true, cursor = true, compact = false } = {}) {   // compact: a phone's box (one Layers button opens the chips as a grid)
   const { el } = ctx;
   if (!document.getElementById('lk-mapux-css')) { const s = document.createElement('style'); s.id = 'lk-mapux-css'; s.textContent = CSS; document.head.appendChild(s); }
-  let active = barLayers(false);   // the chips in the bar now: Places, Anchorages; Regatta adds Races and Marks
+  let active = barLayers(false);   // the chips in the bar now: Birthplaces, Anchorages; Regatta adds Races and Marks
   let only = null;   // null: All; else the one chip's id (a layer alone); n: how many times that chip was tapped in a row (the nearest, the next nearest)
   let n = 0;
   // ---- the layers ----
@@ -257,7 +257,7 @@ export function mountMapUx(ctx, { wake = null, layers = true, cursor = true, com
     get layers() { return only ? [only] : active.map((l) => l.id); },   // the kinds shown now: one chip's, or all of them
     get bar() { return active.map((l) => l.id); },
     setLayers(ids) { only = ids?.length === 1 ? ids[0] : null; n = 0; syncBar(); ctx.redraw(); },
-    // Regatta only: Races and Marks join the bar (Places · Races · Anchorages · Marks); out of Regatta they leave, and a view of one of them ends
+    // Regatta only: Races and Marks join the bar (Birthplaces · Races · Anchorages · Marks); out of Regatta they leave, and a view of one of them ends
     setRaces(yes) {
       yes = !!yes; if (yes === active.includes(RACES_LAYER)) return;
       active = barLayers(yes);

@@ -1,20 +1,29 @@
 # v2 notes: Plan (the chart's routing)
 
-## "Where to?" (2026-11-25: ui/chart/mapUx.js, ui/chart/liveChart.js `whereTo`)
+## "Where to?" (2026-11-25: ui/chart/mapUx.js, ui/chart/liveChart.js `whereTo`, `refreshRows`)
 
-The map's top bar is now the way to pick a destination, with no new element or words. Chips: **All · Places · Anchorages** (Regatta adds
-Races and Marks: Places · Races · Anchorages · Marks). A chip shows its kind alone (single choice, no multi-toggle). A tap on **Places** or
-**Anchorages** also opens the EXISTING card of the nearest point, **Sail here** first (`nearestOf`: nearest to the boat; on the start
-screen the current start; else the map's centre; the point she is at, a pin past the paper, the hunts' corners and Tessie's water are left out; a point
-out of view is glided to). One more tap on Sail here sails there. A second tap on the same chip is the next nearest (wraps). **All**
-shows everything and closes the card. At the start screen and in Cruise the card keeps its own first action (Set as target / Anchor
-here), as Sail here is Sail's only. The phone's round Layers button opens the same chips.
+A sailor's chart (owner, 2026-11-25: "as a sailor I only care about birthplaces and anchorages; anything else is a distraction"): in Sail and
+Cruise the map's points are **birthplaces and anchorages only** (plus the boat, the target, the route line and the chart's own geography
+names). Not drawn there any more: the named places, the hunts' corners, the buoys, the channel, the barges and Tessie's-water ring (the data
+stays in `sail.js`; its "Be Tessie" moves to the Off Fannette pin in another branch, TODO in `refreshRows`; the two Tessie page tests that
+used the ring are switched off with a TODO). Regatta (the page has race pins) keeps its pins, marks, buoys, channel and barges.
 
-Removed: **Wildlife** (its chip; the only `area` point is Tessie's water, a dashed ring with a card and Be Tessie, so it stays drawn and
-is a Place now) and the **Your wake** chip (the wake is always drawn; Setup › Sail › Your wake › Forget still clears it). Outside Regatta
-Marks is not a chip: the buoys, the channel and the barges draw with All as before, and hide only when a chip shows its own kind.
-Tests: `v2/tests/map-ux.test.mjs` (bar by mode, no Wildlife or wake chip, `nearestOf`), `v2/tests/pages/mapUx.page.mjs` (the chips, the
-card, the cycle, All, the wake, the phone), `mapCard.page.mjs` (the Regatta bar).
+**Anchorages show at every zoom** (`KINDS.anchorage` is zoom class A: the glyph and its tap never drop; the name stays class B and drops
+when the view is wide or crowded), at the whole-lake overview and the home card's chart too.
+
+The top bar is the way to pick a destination, with no new element or words: **All · Birthplaces · Anchorages** (Regatta adds Races and Marks:
+Birthplaces · Races · Anchorages · Marks). A chip shows its kind alone (single choice). A tap on **Birthplaces** or **Anchorages** also opens
+the EXISTING card of the nearest point, **Sail here** first (`nearestOf`: nearest to the boat; on the start screen the current start; else the
+map's centre; the point she is at and a pin past the paper are left out; a point out of view is glided to). One more tap on Sail here
+sails there. A second tap on the same chip is the next nearest (wraps). **All** shows both kinds and closes the card. At the start screen and
+in Cruise the card keeps its own first action (Set as target / Anchor here), as Sail here is Sail's only. The phone's round Layers button
+opens the same chips.
+
+Removed: the **Wildlife** chip, **Places** (now **Birthplaces**), and the **Your wake** chip (the wake is always drawn; Setup › Sail › Your
+wake › Forget still clears it). Marks is a chip in Regatta only.
+Tests: `v2/tests/map-ux.test.mjs` (bar by mode, no other chips, anchorage shown and hit at the overview, `nearestOf`),
+`v2/tests/pages/mapUx.page.mjs` (the chips, only the two kinds drawn, the overview, the card, the cycle, All, the wake, the phone),
+`mapCard.page.mjs` (the Regatta bar).
 
 ## Sail here from the chart (2026-11-25: ui/chart/liveChart.js, ui/sail.js, ui/chart/mapBoat.js, ui/chart/panelDock.js)
 

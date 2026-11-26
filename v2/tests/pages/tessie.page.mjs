@@ -93,6 +93,7 @@ try {
   // an area point (a dashed ring when lifted, no glyph, no skipper's flash: the card carries her line), so what is tested there is
   // that the point exists, its card's Set as target puts Sail's mark at her edge toward the boat, and the beacon lights on it
   await openMap(c.page);
+  if (false) {   // TODO: Sail's chart draws only birthplaces and anchorages (2026-11-25); her water's card returns on the Off Fannette pin (another branch), then re-enable this block
   const pt = await c.page.evaluate(() => (window.__velia.m4.ui.services.get('liveChart').state.pois ?? []).find((p) => p.id === 'ar-tessieWaters') ?? null);
   check(pt?.kind === 'area', `live map: her water is a point on the map (${pt?.id})`);
   await c.page.evaluate(() => { window.__velia.beacon?.mark?.clear?.(); window.__velia.m4.ui.services.get('liveChart').focus('ar-tessieWaters'); });
@@ -106,6 +107,7 @@ try {
   const wp = tap.mark ?? {}, inW = Math.hypot(wp.x - 300, wp.z + 130);
   check(routed && inW > 150 && inW <= 210, `live map: Set as target puts the mark at her edge toward the boat (${JSON.stringify(tap.mark)}, ${inW.toFixed(0)} m from her centre)`);
   check((tap.beacon.phase === 'in' || tap.beacon.phase === 'on') && Math.hypot(tap.beacon.x - wp.x, tap.beacon.z - wp.z) < 30, `live map: the beacon lights on her water (${JSON.stringify(tap.beacon)})`);
+  }
   await closeMap(c.page);
   await c.page.evaluate(() => { const b = window.__velia.boat; b.state.x = 330; b.state.z = -120; if (b.phys?.state) { b.phys.state.x = 330; b.phys.state.z = -120; } });
   const visited = await c.page.waitForFunction(() => window.__velia.m4.ui.chart.chart.state.areas.small.every((a) => !a.ring) && localStorage.getItem('lakeshore.tessieWaters.v1') === '1', null, { timeout: 8000 }).then(() => true, () => false);

@@ -290,8 +290,13 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   function refreshRows() {
     const bp = services?.get?.('birthplace');
     const list = bp ? bp.list().filter((r) => !r.locked) : [];
-    rows = buildPois({ birthplaces: list, current: bp?.current ?? null, anchorages: src('anchorages', []), aids: src('aids', []), places: src('places', []),
-      areas: src('areas', []), channel: src('channel', null), barges: src('barges', []), raceMarks: src('raceMarks', []), racePins: src('racePins', []), corners: curMode === 'entrance' ? [] : src('corners', []) }, { mode: curMode });   // the hunts' corners in play and the hub, not at the entrance (no lake yet)
+    // a sailor's chart (owner 2026-11-25: "as a sailor I only care about birthplaces and anchorages"): in Sail and Cruise only the birthplaces
+    // and the anchorages are points; the named places, the hunts' corners, the buoys, the channel, the barges and Tessie's ring are not drawn.
+    // Regatta (the page has race pins) keeps its pins, its marks, the buoys, the channel and the barges as before.
+    // TODO: Tessie's water (src 'areas', its "Be Tessie" card) moves to the Off Fannette pin in another branch; the data stays in sail.js.
+    const regatta = src('racePins', []).length > 0;
+    rows = buildPois({ birthplaces: list, current: bp?.current ?? null, anchorages: src('anchorages', []), racePins: src('racePins', []),
+      ...(regatta ? { aids: src('aids', []), channel: src('channel', null), barges: src('barges', []), raceMarks: src('raceMarks', []) } : {}) }, { mode: curMode });   // the hunts' corners in play and the hub, not at the entrance (no lake yet)
     uxApi?.setRaces?.(rows.some((r) => r.kind === 'racePin'));   //: the Races layer is in the bar only while the page has pins (Regatta)
     if (uxApi) rows = rows.filter((r) => r.lit || uxApi.visible(r));   // the layers (?mapux=1); a lit point (the chosen pin, the cue) always shows
   }

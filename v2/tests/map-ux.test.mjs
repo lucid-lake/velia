@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { easeToward, snapTo, readout, distWords, dmLine, layerOf, LAYERS, RACES_LAYER, MARKS_LAYER, barLayers, nearestOf, createWakeStore, UX } from '../ui/chart/mapUx.js';
+import { buildPois, poiShown, hitTest } from '../ui/chart/chartModel.js';
 import { parseV2Flags } from '../engine/flags.js';
 
 test('the flag: on by default (owner, 2026-11-18), ?mapux=0 turns it off for one release', () => {
@@ -33,29 +34,37 @@ test('the reading: bearing true and distance from the boat; the position without
   assert.equal(dmLine(-120.0, 'E', 'W'), '120°00.00′ W');
 });
 
-test('the bar by mode: Sail and Cruise Places · Anchorages; Regatta Places · Races · Anchorages · Marks (owner 2026-11-25)', () => {
-  assert.deepEqual(barLayers(false).map((l) => l.word), ['Places', 'Anchorages']);
-  assert.deepEqual(barLayers(true).map((l) => l.word), ['Places', 'Races', 'Anchorages', 'Marks']);
-  assert.deepEqual(LAYERS.map((l) => l.id), ['places', 'anchorages']);
+test('the bar by mode: Sail and Cruise Birthplaces · Anchorages; Regatta Birthplaces · Races · Anchorages · Marks (owner 2026-11-25)', () => {
+  assert.deepEqual(barLayers(false).map((l) => l.word), ['Birthplaces', 'Anchorages']);
+  assert.deepEqual(barLayers(true).map((l) => l.word), ['Birthplaces', 'Races', 'Anchorages', 'Marks']);
+  assert.deepEqual(LAYERS.map((l) => l.id), ['birthplaces', 'anchorages']);
   assert.deepEqual([MARKS_LAYER.id, RACES_LAYER.id], ['marks', 'races']);
 });
 
-test('Wildlife and Your wake are not chips: Tessie\'s water is a place, the wake has no layer', () => {
+test('Wildlife, Places and Your wake are not chips; only birthplaces and anchorages are a sailor\'s points', () => {
   const words = [...barLayers(true), ...LAYERS].map((l) => l.word.toLowerCase());
-  assert.ok(!words.some((w) => /wildlife|wake/.test(w)));
-  assert.equal(layerOf('area'), 'places');
-  assert.equal(layerOf('wake'), null);
-  for (const k of ['birthplace', 'place', 'corner', 'area']) assert.equal(layerOf(k), 'places', k);
+  assert.ok(!words.some((w) => /wildlife|wake|^places$/.test(w)));
+  assert.equal(layerOf('birthplace'), 'birthplaces');
   assert.equal(layerOf('anchorage'), 'anchorages');
+  for (const k of ['place', 'corner', 'area', 'wake']) assert.equal(layerOf(k), null, k);
   for (const k of ['buoy', 'channel', 'raceMark', 'barge']) assert.equal(layerOf(k), MARKS_LAYER.id, k);
   assert.equal(layerOf('racePin'), RACES_LAYER.id);
-  assert.equal(layerOf('n-bay'), null, "the bay's geography is in no layer");
+});
+
+test('an anchorage shows at the whole-lake zoom and a tap there takes it; its name stays a class B name', () => {
+  const src = { birthplaces: [{ id: 'a', name: 'A', x: 0, z: 0 }], anchorages: [{ x: 500, z: 100, name: 'Shallows by Fannette', depth: 8 }] };
+  for (const mode of ['play', 'entrance']) {
+    const rows = buildPois(src, { mode });
+    const an = rows.find((r) => r.kind === 'anchorage');
+    for (const mpp of [3, 6, 12, 25]) assert.ok(poiShown(an, mpp, 'C') && poiShown(an, mpp, 'B'), `the glyph at ${mpp} m/px`);
+    assert.equal(hitTest(rows, (x, z, o) => { o[0] = x / 25; o[1] = z / 25; }, 20, 4, 16, 25, 'B')?.kind, 'anchorage', 'a tap at the overview takes it');
+  }
 });
 
 test('where to: the nearest place or anchorage to the boat, the next on a second tap, the one she is at left out', () => {
   const rows = [
     { id: 'an-far', kind: 'anchorage', x: 900, z: 0 }, { id: 'an-near', kind: 'anchorage', x: 200, z: 0 }, { id: 'an-here', kind: 'anchorage', x: 5, z: 0, lit: true },
-    { id: 'pl-a', kind: 'place', x: 0, z: -400 }, { id: 'pl-b', kind: 'place', x: 0, z: 100 }, { id: 'bp-far', kind: 'birthplace', x: 0, z: 50, far: true },
+    { id: 'pl-a', kind: 'birthplace', x: 0, z: -400 }, { id: 'pl-b', kind: 'birthplace', x: 0, z: 100 }, { id: 'bp-far', kind: 'birthplace', x: 0, z: 50, far: true },
     { id: 'cn-1', kind: 'corner', x: 0, z: 10 }, { id: 'ar-t', kind: 'area', x: 0, z: 3 }, { id: 'bu-1', kind: 'buoy', x: 0, z: 1 },
   ];
   const boat = { x: 0, z: 0 }, A = LAYERS[1].kinds, P = LAYERS[0].kinds;
