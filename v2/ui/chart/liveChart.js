@@ -25,7 +25,7 @@
 //                              it, the shipped WebP (the phones; every device's first paint)
 //     insets: { left, right, top, bottom },   px the owner covers (2b's panel: left 320): re-centring keeps the boat in what is left
 //     touch: () => bool, reduced: () => bool,  a finger device (44 px targets, hit radius 24 px, names A and B); reduced motion (no glides)
-//     hint: { seen(): bool, done(): void },   the one-time line near the zoom buttons ("Scroll to zoom · drag to move"; "Pinch…" on a finger): shown on the first
+//     hint: { seen(): bool, done(): void, sailSeen(): bool, sailDone() },   sailSeen/sailDone: the in-play line teaching Sail here, once;   the one-time line near the zoom buttons ("Scroll to zoom · drag to move"; "Pinch…" on a finger): shown on the first
 //                              open while !seen(), marked done at once, fades after 4 s or on the first zoom or drag
 //     view: { center: { x, z }, mpp },        the first view (default: the boat, else the whole bay)
 //     ux: null | { wake, layers, cursor },'s mock behind ?mapux=1 (mapUx.js): the eased crosshair, the layer toggles, your
@@ -631,7 +631,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     const [x, z] = visView().toWorld(px, py), d = ct.depth?.(x, z), rt = src('route', null);
     const land = Number.isFinite(d) && d <= 0, shoal = Number.isFinite(d) && d > 0 && d < 2;
     const acts = ['waterTarget'];   // Cruise: its navigator's one mark (no route)
-    if (sailHereOn()) acts.unshift('sailHere');   // Sail: Sail here first (the target and the pilot on it)
+    if (sailHereOn()) { acts.unshift('sailHere'); if (touch()) acts.splice(acts.indexOf('waterTarget'), 1); }   // Sail: Sail here first (the target and the pilot on it); a finger's small box keeps the card's old size (Sail here in place of Set as target)
     if (ct.mode?.() !== 'cruise') { acts.push('waypoint'); if (rt?.pts?.length) { if (!rt.active) acts.push('setCourse'); acts.push('clearRoute'); } }
     waterRow = { id: 'water', kind: 'water', x, z, name: land ? 'The shore' : shoal ? 'Shallows' : 'Open water',
       line: !Number.isFinite(d) ? '' : land ? 'Dry land.' : `${d < 10 ? d.toFixed(1) : Math.round(d)} m of water.`, actions: acts };
@@ -786,9 +786,13 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   let hintT = 0;
   function hideHint() { clearTimeout(hintT); hintEl.removeAttribute('data-on'); }
   function showHint() {
-    if (!hint || hint.seen?.()) return;
-    hintEl.textContent = touch() ? 'Tap the water to sail there \u00b7 pinch to zoom' : 'Click the water to sail there \u00b7 scroll to zoom';   // the chart's routing, taught in the hint it already had (2026-11-25)
-    hint.done?.(); hintEl.setAttribute('data-on', ''); clearTimeout(hintT); hintT = setTimeout(hideHint, 4000);
+    if (!hint) return;
+    // in play, once: the chart's routing taught in the same line (2026-11-25: Sail here); elsewhere the zoom line, once, as before
+    const sail = curMode === 'play' && sailHereOn() && hint.sailSeen && !hint.sailSeen();
+    if (!sail && (curMode === 'play' && sailHereOn() ? true : hint.seen?.())) return;
+    if (sail) { hintEl.textContent = touch() ? 'Tap the water to sail there \u00b7 pinch to zoom' : 'Click the water to sail there \u00b7 scroll to zoom'; hint.sailDone?.(); hint.done?.(); }
+    else { hintEl.textContent = touch() ? 'Pinch to zoom \u00b7 drag to move' : 'Scroll to zoom \u00b7 drag to move'; hint.done?.(); }
+    hintEl.setAttribute('data-on', ''); clearTimeout(hintT); hintT = setTimeout(hideHint, 4000);
   }
   const stepZoom = (f) => { hideHint(); const base = anim?.to ?? view, cx = (W + ins.left - ins.right) / 2; glide(zoomAbout({ ...base, w: W, h: H }, cx, H / 2, base.mpp * f)); };
   zin.addEventListener('click', (e) => { e.stopPropagation(); stepZoom(1 / 1.5); });

@@ -29,7 +29,7 @@ export const SETTINGS = {
   proMode: false,     // Pro mode on at start (the profile "I race", or the pro prompt's one tap; the P key and the Settings row follow it)
   profile: 'new',     // the first-visit profile (src/ui/profile.js): new | sail | race
   welcomed: false,    // the first-visit welcome was answered (or skipped); "show the welcome again" clears it
-  introShown: false, mapHintSeen: false, goalDone: false, proOffered: false, cruiseOffered: false,   // first-visit lines, each once
+  introShown: false, mapHintSeen: false, sailHereSeen: false, goalDone: false, proOffered: false, cruiseOffered: false,   // first-visit lines, each once
   waters: 'tahoe-emerald',   // the chosen waters (src/waters/); ?waters= wins at the start of a page
   lang: 'en',                // the language (LANGS; the picker is the chip on the loading card, src/ui/loading.js setLang; P2: Chinese)
   vessel: 'halcyon',         // the chosen vessel (src/vessels/); ?vessel= wins

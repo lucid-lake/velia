@@ -391,7 +391,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
         { id: 'falls', name: 'Eagle Falls', x: -896, z: 173, line: 'The creek from Eagle Lake falls into the head of the bay.' },
         ...(feature('teaHouse').on ? [{ id: 'teahouse', name: 'Tea house', x: TEA_HOUSE.x, z: TEA_HOUSE.z, zoomClass: 'C', line: 'A 16 ft square stone ruin from 1929.' }] : []),
       ];
-      screen = mountMapScreen({ host, services, ux: wakeStore ? { wake: wakeStore, layers: true, cursor: true } : null, mapHint: { seen: () => !!settings?.get('mapHintSeen'), done: () => settings?.set('mapHintSeen', true) }, box: feature('phoneCard').on, glass: feature('chartGlass').on,
+      screen = mountMapScreen({ host, services, ux: wakeStore ? { wake: wakeStore, layers: true, cursor: true } : null, mapHint: { seen: () => !!settings?.get('mapHintSeen'), done: () => settings?.set('mapHintSeen', true), sailSeen: () => !!settings?.get('sailHereSeen'), sailDone: () => settings?.set('sailHereSeen', true) }, box: feature('phoneCard').on, glass: feature('chartGlass').on,
         sources: { boat: () => phys.state, track, night: () => nightOf(sun()), mark: () => (mode === 'cruise' ? cruiseDest : world.sailMark?.()?.mark ?? null),
           route: () => { const c = mode === 'cruise' ? null : getPlan()?.course; return c && c.route.length ? { pts: c.route, active: !!c.active, leg: c.leg ?? 0 } : null; },
           anchorages: () => { if (world.raceOn?.()) return []; const L = sea?.anchorages ?? [], c = sea?.cue?.spot; return c ? L.map((a) => (a === c ? { ...a, lit: true } : a)) : L; }, aids: () => world.navAids?.() ?? [], places: () => places,

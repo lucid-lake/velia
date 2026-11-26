@@ -97,7 +97,7 @@ const ledger = (page) => page.evaluate(() => [...document.querySelectorAll('#lk-
   check(fx2.text === 'Fannette Island is the only island in Lake Tahoe.' && !fx2.sel, `desk: a tap shows the next fact and selects nothing on the map (${JSON.stringify(fx2)})`);
 
   // the owner's help for a map you may not know moves: the + / − pair, the crosshair cursor, the one-time hint
-  check(await page.evaluate(() => document.querySelector('.lkc-hint').textContent === 'Click the water to sail there · scroll to zoom'), 'help: the hint reads "Click the water to sail there · scroll to zoom" on a desktop');
+  check(await page.evaluate(() => document.querySelector('.lkc-hint').textContent === 'Scroll to zoom · drag to move'), 'help: the hint reads "Scroll to zoom · drag to move" on a desktop');
   check(await page.evaluate(() => window.__velia.m4.front.home && !!document.querySelector('.lkc-ctl .lkc-zb[aria-label="Zoom in"]') && !!document.querySelector('.lkc-ctl .lkc-zb[aria-label="Zoom out"]')), 'help: the + and − buttons stand over the recentre chip');
   const m0 = (await chartState(page)).view.mpp;
   await page.click('.lkc-zb[aria-label="Zoom in"]'); await page.waitForTimeout(500);
@@ -396,7 +396,7 @@ for (const [w, h] of [[844, 390], [667, 375]]) {
     return !vis(c.querySelector(':scope > .lk-art-n')) && !vis(c.querySelector(':scope > .lk-art')) && getComputedStyle(c, '::before').display === 'none' && getComputedStyle(c, '::after').display === 'none'; }), `${w}×${h}: one chart on the card (no engraved art or neatlines behind the map)`);
   const zr = await rect(page, '.lkc-zb[aria-label="Zoom in"]');
   check(zr && zr.w >= 44 && zr.h >= 44, `${w}×${h}: the + and − buttons are thumb size (${zr?.w | 0}×${zr?.h | 0})`);
-  check(await page.evaluate(() => document.querySelector('.lkc-hint').textContent === 'Tap the water to sail there · pinch to zoom'), `${w}×${h}: the hint says "Tap the water to sail there · pinch to zoom"`);
+  check(await page.evaluate(() => document.querySelector('.lkc-hint').textContent === 'Pinch to zoom · drag to move'), `${w}×${h}: the hint says "Pinch to zoom · drag to move"`);
   const sp = await rect(page, '.lk-livechart .lkc-surprise');
   check(sp && sp.h >= 44 && sp.l >= box.l && sp.r <= box.r, `${w}×${h}: Surprise me is a 44 px target inside the map (${sp?.h})`);
   // the day's lake fact: the chart's caption under the box, one line, on the card, clear of the thumb column

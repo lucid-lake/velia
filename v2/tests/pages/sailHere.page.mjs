@@ -1,4 +1,5 @@
 // The chart's routing (2026-11-25) on the real v2 page, 1280 × 720, a mouse:
+//   the hint       the map's own one-time line, in play, once: "Click the water to sail there · scroll to zoom"
 //   one tap        Sail on the card starts sailing at once (no other mode, no extra step); no rail, panel or plate of Plan's exists
 //   Sail here      in play, Esc opens the live map; a click on open water opens the map's own card with "Sail here" first (Set as target
 //                  after it); a press sets the target and NAV takes her there with the map still open: the boat closes on it under it
@@ -43,6 +44,8 @@ try {
   await page.keyboard.press('Escape');
   await page.waitForFunction((s) => eval(s).isOpen, `${S('menu')}`, { timeout: 8000 });
   await page.waitForTimeout(900);
+  const hintT = await page.evaluate(() => document.querySelector('.lk-livechart .lkc-hint[data-on]')?.textContent ?? '');
+  check(hintT === 'Click the water to sail there · scroll to zoom', `the map's one-time hint teaches it in play ("${hintT}")`);
   const T = [2900, -2000], q = await toClient(...T);
   await page.mouse.click(q.x, q.y); await page.waitForTimeout(700);
   const card = await page.evaluate(() => ({ st: window.__velia.m4.ui.services.get('liveChart').state.card, more: [...document.querySelectorAll('.lk-livechart .lkc-card .more button')].map((b) => b.textContent) }));

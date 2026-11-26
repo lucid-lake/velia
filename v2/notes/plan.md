@@ -4,7 +4,7 @@
 
 Plan is not a mode and adds no UI: it is the live map's routing in Sail, in the chart page's own design (its base map and engraved
 style, its card, its controls, the panel's navy, cream and amber). A click on open water, or on a place, opens the map's existing
-one-action card with **Sail here** first (Set as target after it): it sets Sail's mark and puts NAV on it (`chartTarget.sailHere`:
+one-action card with **Sail here** first (Set as target after it; on a finger device Sail here takes Set as target's place on the water's card, so the card fits the phone's box): it sets Sail's mark and puts NAV on it (`chartTarget.sailHere`:
 the mark's 2 m rule, then `navToMark`), and the boat sails there under the open map, routed by NAV's own pilot (`sim/autoNav.js`:
 the navigator on the whole-lake chart, off land and shoal). A double-click on the map's water is its shortcut. Esc or Resume returns
 to the lake at once with NAV still on; a hand on the helm takes over, as NAV does. The chart's one-time hint now teaches it
