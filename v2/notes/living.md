@@ -136,10 +136,51 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
   navy-and-cream stern flag and a dark-red stern wheel turned in the vertex shader by her speed (about 15.7 rpm at 8 kn).
 - One pipeline (`paddle-solid`, boat effects' group) and one draw a frame. LODs by distance: near within 330 m (10,368 triangles), mid to
   1.5 km (2,104), far to 7 km (592). The lite tier (L2-L3, a phone) never takes near and stops at 3.5 km.
-- Off in play until her routes come (`src/core/features.js` paddleWheeler). `?paddle=x,z,heading[,kn]` places her under way at a set
-  speed along the heading (8 kn by default); she eases to a stop short of water under 3.2 m within 80 m of her bow.
-- She rides the drawn water (the mean of four points, a share of its slope), her nav lights are glow records, and her wake is an
-  emitter in the vessels' map (render/vesselWake.js, full tier): she yields that one map to the glass boat while the glass boat's is live.
+- Her route (phase C) is the south-lake region's `traffic` row of kind `paddle` (src/waters/tahoe-emerald.json; sim/regions.js
+  trafficOf): Ski Run's pier → north-east round the deep water off Stateline → west along the shore 275 m north of the Off Ski Run pin →
+  a slow 4 kn turn 2 km off Emerald Bay's mouth (she does not enter: the entrance channel is 2–4 m on our chart and its lane is 36 m
+  for a 46 m hull) → east 400–550 m south of the pin → a 90 s stop 75 m off the pier head. 21.3 km, about 99 minutes a round (8 kn in
+  open water). Every leg in 4 m and 80 m off the shore (busy-lake.test.mjs), 25 m or more off every pier over a whole round.
+- Where she is: the glass boat's timetable maths (sim/tourBoat.js tourPhase) on the clock of day and the seed, so ?hour and ?seed lay
+  her the same. A first birth in her region (Ski Run) shifts her timetable once (paddleBirthTau): she starts 300 m off or more and comes
+  within 400 m of the player's reach at 2, 3.25 and 4.5 m/s inside 120 s (cheat on when, never on motion). Moves as a 300 t boat:
+  0.055 m/s² up, 0.05 down (0.15 with the wheel backed), 2.6°/s at most, braking into the stop.
+- Right of way: the lake's sailboats keep clear of her (busyLake BUSY.avoid.paddleM 70 m from her middle), the glass boat yields to
+  her, the runabouts and the jet ski give way (powerTraffic POWER.avoid.paddleM 75 m). She keeps clear of the player only: the glass
+  boat's yield scaled to her size (a 230 m box ahead, a stop 58 m from her middle, her course bent 45–110 m away, never into water under
+  3.7 m or within 35 m of a pier), and the player meets a solid hull (seven 45 t circles, channelMarks createMarkBodies).
+- On every start where her route lies within the draw distance (the far LOD from 1.5 km, 592 triangles; built by code, nothing fetched),
+  so a bay start sees her off the mouth when her timetable brings her (the busy bay's paddle-wheeler item, one model). `?paddle=0` off;
+  `?paddle=x,z,heading[,kn]` still places her straight for review.
+- She rides the drawn water (the mean of four points, a share of its slope), her nav lights are glow records, and the vessels' map
+  (render/vesselWake.js, full tier) follows the nearest vessel to the eye: her, or a South Lake runabout nearer; it yields to the glass
+  boat while the glass boat's is live.
+- Tessie: kind `paddle` (sim/tessieHits.js HIT_RULE): a target, splashed only (a 46 m hull is never knocked down).
+
+## South Lake's power traffic (living/powerTraffic.js, living/powerBoats.js, living/powerBoats-sound.js, render/smallCraft.js, render/smallCraftMesh.js)
+
+- Two runabouts out of the Tahoe Keys and a jet ski off Ski Run, the south-lake region's `traffic` rows of kind `power` and `jetski`.
+  Generic, by code: a 6.6 m bowrider (hull colour and one stripe from the row, a windscreen, console, seats, outboard, a skipper at the
+  helm) and a 3.2 m sit-down ski with its rider in an orange buoyancy aid. No names or liveries.
+- The runabouts idle out of the Keys' no-wake water at 5 kn (a `slow` leg), open up, rise over the hump (bow up about 7° near 11 kn)
+  and plane at the lap's seeded speed (15–25 kn), banking into turns (11° at most), slowing to 12 kn for a corner sharper than 55°.
+  The jet ski weaves ±22 m either side of her loop every 150 m at 22–30 kn, banking to 20°; her loop with the weave stays 80 m off
+  the shore in 4 m of water (busy-lake.test.mjs).
+- Made only for a start in South Lake (ctx.levelKey 'south-lake'): a bay start makes no sim, no pipeline. Where each is: a seeded
+  offset run at her mean speed since midnight (?hour and ?seed). A first birth at Ski Run shifts the jet ski and the runabout past
+  Ski Run once so each passes within 450 m in the first 90 s.
+- Power gives way: to the player (60 m), the paddle-wheeler (75 m), the sailboats (40 m; rule 18), the kayakers (45 m) and the boat
+  earlier in the list: busyLake.js evadeHeading with no no-go cone (starboard first), plus a slow-down when a pass would still be close;
+  never into water under 3 m or within 30 m of a pier. A soft hull for the player (two circles each). Out in the day (BUSY.day), none
+  in a race.
+- Drawn: one pipeline (`craft-solid`, boat effects' group), an instanced draw per kind and LOD in use (at most 4). Near within 300 m
+  (runabout, 751 triangles) and 200 m (jet ski, 659); far (227 and 243) to 4 km and 2.5 km (lite: half). Their wakes in the vessels'
+  map (prop wash, the V, its arms heavier over the hump), their own map only when the paddle-wheeler has none. One engine voice on the
+  nearest boat (synthesised, as the glass boat's outboards), silent past 600 m.
+- Tiers (`src/core/features.js` powerBoats, `?power=`): full 3 (desktop, tablet L0-L1), lite 2 (the jet ski and the runabout past Ski
+  Run; L2-L3), phone 1 (the jet ski), no wake map off the full tier.
+- Tessie: kinds `power` (a knockdown: heeled to 38°, the engine cut, righted in 3.5 s, idling 6 s) and `jetski` (splashed only: the
+  rider ducks, she slows; nobody goes in the water).
 
 ## South Lake's paddlers (the region rows' `kayaks` and `sups`; living/sup.js, sim/sup.js, sim/supPose.js, render/sup.js, render/supMesh.js)
 

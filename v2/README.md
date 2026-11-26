@@ -63,7 +63,7 @@ A new mode (School) in 4 steps, 3 files before its first line (the audit counted
 
 ### The plug-in list (refactor round 3 C2, 2026-11-23: engine/plugins.js, living/lakePlugins.js)
 
-The living lake's features are rows of one list: kayaks, the glass boat, the paddle-wheeler, the birds, the boats at anchor, the busy lake. A row is
+The living lake's features are rows of one list: kayaks, the glass boat, the paddle-wheeler, South Lake's power boats, the birds, the boats at anchor, the busy lake. A row is
 `{ id, on(ctx), group, fetch?, load?, create(ctx, mods), createAt, at: { [anchor]: fn }, prime?, statsAt, stats, hook }`
 (engine/plugins.js has the contract). `ctx` is the bag `boot()` builds once (`plugCtx`: device, layouts, flags, P, feature,
 inGroup, terrain, water, and getters for what boot makes later: B, regatta, eye, clock …); `ctx.plugins.get(id)` is how one row
@@ -121,12 +121,12 @@ is not played); 3. only if it needs them: a vessel row in the menu's Boat plate,
 One row per region of the lake, in the lake profile (`CURRENT_WATERS.regions`), holds everything keyed by region: `id`, `name`,
 `centre` + `radiusM` (the traffic's circle: the region the player is in), `area` (the cup's boxes `[x0, x1, z0, z1]`, null an open
 side; `null` = the rest of the lake), `neighbours`, `keepOut`, `label` (the chart's name), `birthplaces`, `kayaks` (lanes),
-`launchSpots`, `boats` (its traffic: the count is their number), `cup` (`id`, `name`, `line`, `races`, `hunt`, `huntName`),
+`launchSpots`, `boats` (its cruising sailboats: the count is their number), `traffic` (its power-driven boats: the paddle-wheeler, runabouts, a jet ski; `living/powerTraffic.js`), `cup` (`id`, `name`, `line`, `races`, `hunt`, `huntName`),
 `names` (more chart names: its towns and marinas) and `level` (its own detail level: `{ dir, full, phone, photo }`, the folder
 under `terrain/` and its manifests; `terrain/region.js`).
 Today: `emerald-bay` (4 birthplaces, 5 lanes, 4 put-ins, 5 boats, the Emerald Bay cup), `tahoe-west` (named Lake Tahoe: 1
 birthplace, 3 lanes, 3 put-ins, 3 boats, The Mouth) and `south-lake` (South Lake Tahoe: 1 birthplace, Off Ski Run; its level
-`terrain/south/`, 4 m on a desktop and 8 m on a phone; no traffic yet).
+`terrain/south/`, 4 m on a desktop and 8 m on a phone; its traffic: the paddle-wheeler, two runabouts and a jet ski).
 
 **A region's detail loads only on selection (owner, 2026-11-24).** A region's `level` is fetched only when the page starts at
 one of its birthplaces (`?birth=`, the saved pick, a pin on the home card: a pick on another level reloads the page). It fills
