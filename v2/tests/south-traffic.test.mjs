@@ -319,7 +319,7 @@ test('the rooster tail: droplets thrown aft and up off the jet ski\'s pump, more
   assert.ok(fast.length > mid.length && mid.length > 10, `${mid.length} at 14 kn, ${fast.length} at 25 kn in 1 s`);
   const mean = (a, k) => a.reduce((m, d) => m + d[k], 0) / a.length;
   assert.ok(mean(fast, 'vy') > mean(mid, 'vy'), 'higher at speed');
-  assert.ok(fast.every((d) => d.z > 1.4 && d.vz > 0 && d.vy > 0), 'from the stern (heading north: aft is +z), thrown aft and up');
+  assert.ok(fast.every((d) => d.z > 1.4 && d.vz + 25 * KN > 5 && d.vy > 0), 'from the stern (heading north: aft is +z), thrown aft of her (relative to her way) and up');
   assert.deepEqual(run(20), run(20));
 });
 
