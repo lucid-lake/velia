@@ -31,7 +31,7 @@
 //     ux: null | { wake, layers, cursor },'s mock behind ?mapux=1 (mapUx.js): the eased crosshair, the layer toggles, your
 //                              wake (a createWakeStore); null (the default) leaves the chart exactly as it was
 //   });
-//   chart.on('select' | 'action' | 'hover' | 'view' | 'close' | 'mark', fn) → off()
+//   chart.on('select' | 'action' | 'hover' | 'view' | 'close' | 'mark' | 'boat', fn) → off()
 //       water: a single tap on empty water with no card open (the menu closes on it); select: the row (or null when the card closes); action: { row, action, result }; hover: the row or null; view: { cx, cz, mpp,
 //       following }; close: Esc with no card open (the owner closes the chart); mark: { x, z } (a double-tap on the water: Sail's mark)
 //   chart.focus(id)                 glide to a point (a row id, e.g. 'bp-tessie', or a birthplace id) and open its card
@@ -645,6 +645,8 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
   // ---- input ----
   const hitR = () => (touch() ? HIT_PX.touch : uxApi ? UX.snapPx : HIT_PX.mouse);   // ?mapux=1: a click takes the point the crosshair snapped to
   const local = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  // the boat on the play map: a press on her resumes sailing from where she is (the page's close, as Esc); a pointer cursor over her
+  const boatHit = (px, py) => { const b = curMode === 'play' ? boat() : null; if (!b || !Number.isFinite(b.x)) return false; const q = visView().toPx(b.x, b.z, [0, 0]); return Math.hypot(q[0] - px, q[1] - py) <= (touch() ? 34 : 26); };
   const hitAt = (px, py) => hitTest(rows, (x, z, o) => visView().toPx(x, z, o), px, py, hitR(), view.mpp, maxClass());
   function setHover(r) { const id = r?.id ?? null; if (id === hover) return; hover = id; cv.style.cursor = id ? 'pointer' : ''; dirty = true; emit('hover', r ?? null); }
   const fingers = new Map();
@@ -675,7 +677,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       if (press.moved) setViewNow(panBy(press.v0, e.clientX - press.cx, e.clientY - press.cy), { user: true });
       return;
     }
-    if (e.pointerType !== 'touch') { const [px, py] = local(e); setHover(hitAt(px, py)); }
+    if (e.pointerType !== 'touch') { const [px, py] = local(e), onBoat = boatHit(px, py); setHover(onBoat ? null : hitAt(px, py)); if (onBoat) cv.style.cursor = 'pointer'; }
   }
   function onUp(e) {
     fingers.delete(e.pointerId); el.removeAttribute('data-drag');
@@ -683,6 +685,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     if (!press || e.pointerId !== press.id) return;
     const p = press; press = null;
     if (p.moved) return;
+    if (boatHit(p.px, p.py)) { lastTap = null; lastPin = null; emit('boat', null); return; }   // her own press: resume from where she is
     const r = hitAt(p.px, p.py);
     if (r) {
       // a double click or double tap on a pin that offers Sail from here is that action; a single one selects and opens the card (owner, 2026-11-19)

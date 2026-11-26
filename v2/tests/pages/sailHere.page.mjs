@@ -6,6 +6,8 @@
 //   double-click   a double-click on the map's water is Sail here's shortcut (the target moves there, NAV stays on)
 //   the boat       the map draws the Coach's boat (the cockpit's drawing) at her trim in place of the sloop glyph
 //   the dock       the left panel slides out 3 s after the pointer went to the map; the pointer at the left edge brings it back
+//   the boat       a click on the map's boat closes the map and she sails on from where she is (NAV kept); a click near but not on her still
+//                  opens the water's card
 //   Esc            closes the map: she sails on with NAV, the steering keys take over as NAV does today
 // Run by `node tools/test_pages.mjs --app v2 sailHere` (LAKESHORE_BASE set), or node v2/tests/pages/sailHere.page.mjs --base http://127.0.0.1:<port>
 //   [--shots <dir>]: the three stills (the card with Sail here; the boat sailing to the target with the map open; the panel hidden)
@@ -78,6 +80,27 @@ try {
   const a2 = await pilot();
   check(a2.mode === 'to' && a2.target && Math.hypot(a2.target.x - T2[0], a2.target.z - T2[1]) < 10, `double-click: the target moves there, NAV on (${a2.mode})`);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/p1-chart-boat-sailing-to-target-1280x720.png` });
+  await page.evaluate((T) => window.__velia.m4.ui.services.get('chartTarget').sailHere({ x: T[0], z: T[1] }), T2); await page.waitForTimeout(900);
+  // a click near but not on the boat opens the water's card; a click on the boat resumes
+  const bq = await page.evaluate(() => { const c = window.__velia.m4.ui.services.get('liveChart'), b = window.__velia.boat.state, q = c.toClient(b.x, b.z); return { x: q.x, y: q.y }; });
+  await page.mouse.click(bq.x + 70, bq.y); await page.waitForTimeout(700);
+  const near = await page.evaluate(() => ({ card: window.__velia.m4.ui.services.get('liveChart').state.card?.name ?? null, menu: window.__velia.m4.ui.services.get('menu').isOpen }));
+  check(near.menu && near.card === 'Open water', `a click near the boat (70 px) opens the water card (${JSON.stringify(near)})`);
+  await page.mouse.click(bq.x + 70, bq.y); await page.waitForTimeout(500);   // closes the card
+  const bq2 = await page.evaluate(() => { const c = window.__velia.m4.ui.services.get('liveChart'), b = window.__velia.boat.state, q = c.toClient(b.x, b.z); return { x: q.x, y: q.y }; });
+  await page.mouse.move(bq2.x, bq2.y); await page.waitForTimeout(150);
+  const cur = await page.evaluate(() => document.querySelector('.lk-livechart canvas').style.cursor);
+  check(cur === 'pointer', `the boat has a pointer cursor (${cur})`);
+  const t0 = await page.evaluate(() => window.__velia.boat.state.t ?? performance.now());
+  await page.mouse.click(bq2.x, bq2.y); await page.waitForTimeout(900);
+  const r1 = await page.evaluate(() => ({ menu: window.__velia.m4.ui.services.get('menu').isOpen, mode: window.__velia.m4.ui.services.get('pilot').mode, card: window.__velia.m4.ui.services.get('liveChart').state.card?.name ?? null }));
+  check(!r1.menu && r1.mode === 'to', `a click on the boat closes the map, NAV kept (${JSON.stringify(r1)})`);
+  const p0 = await page.evaluate(() => ({ x: window.__velia.boat.state.x, z: window.__velia.boat.state.z }));
+  await page.waitForTimeout(2000);
+  const p1 = await page.evaluate(() => ({ x: window.__velia.boat.state.x, z: window.__velia.boat.state.z }));
+  check(Math.hypot(p1.x - p0.x, p1.z - p0.z) > 1, `play continues from where she is (${Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(1)} m in 2 s)`);
+  void t0;
+  await page.keyboard.press('Escape'); await page.waitForFunction((s) => eval(s).isOpen, `${S('menu')}`, { timeout: 8000 }); await page.waitForTimeout(600);
   // Esc: back to the lake, NAV still on
   await page.keyboard.press('Escape'); await page.waitForTimeout(800);
   const e1 = await page.evaluate(() => ({ menu: window.__velia.m4.ui.services.get('menu').isOpen, mode: window.__velia.m4.ui.services.get('pilot').mode }));
