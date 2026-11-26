@@ -95,7 +95,7 @@ test('the channel: a boat on her way out keeps to its starboard side and never s
   // the channel run alone, laid at the bay end; the wind from the lake (the channel's line dead to windward outbound)
   const regions = [{ id: 'emerald-bay', centre: [300, -400], radiusM: 1500, neighbours: [], boats: [{ id: 'ch', prio: 0, tint: '#ffffff', route: [[1000, -800], [1260, -930], [1690, -1350], [2250, -1700], [1690, -1350], [1260, -930]] }] }];
   const L = lake({ regions, seed: 3, windAt: steadyWind(5, 45) }), b = L.boats[0];
-  const eye = { eye: [460, 2, -50], hour: 13 }, far = still(460, -50);   // the player still at Tessie's water (the regions follow her boat)
+  const eye = { eye: [460, 2, -50], hour: 13 }, far = still(460, -50);   // the player still at the lake's old first spot (the regions follow her boat)
   L.post(far, 1 / 60, 0, eye);
   b.phys.state.x = 1180; b.phys.state.z = -890; b.sk.leg = 1;   // at the bay end, heading in
   let inCh = 0, starboard = 0, motoring = 0, bare = 0, minOff = Infinity;
@@ -145,8 +145,10 @@ test('the player is kept clear of: a boat sailing at her bears away well before;
   // a bump: the player's real hull driven into a boat lying still
   const L = lake({ seed: 1 }), bp = BIRTHPLACES[0];
   let bumps = 0;
-  const L2 = createBusyLake({ seed: 1, birthplaces: BIRTHPLACES, depthAt, windAt: steadyWind(0.01, 225), tier: 'full', onBump: () => bumps++ });
-  L2.post(still(bp.x, bp.z), 1 / 60, 0, at(bp));
+  // the bump scene is laid at (460, -50) (the lake's old first birthplace: a boat lies still near it with this seed; the bump is the test, not the place)
+  const BP2 = [{ ...BIRTHPLACES[0], x: 460, z: -50 }, ...BIRTHPLACES.slice(1)], bp2 = BP2[0];
+  const L2 = createBusyLake({ seed: 1, birthplaces: BP2, depthAt, windAt: steadyWind(0.01, 225), tier: 'full', onBump: () => bumps++ });
+  L2.post(still(bp2.x, bp2.z), 1 / 60, 0, at(bp2));
   const t0 = L2.liveBoats[0], q0 = t0.phys.state;
   const P = new BoatPhysics({ x: q0.x - 20 * Math.cos(q0.heading), z: q0.z - 20 * Math.sin(q0.heading), heading: q0.heading + Math.PI / 2, speed: 1.5 });
   let minGap = Infinity;

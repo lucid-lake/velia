@@ -23,7 +23,8 @@ export const BOATS = Object.freeze([
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const group = (cap, label, cls, inner) => `<div class="grp"><div class="cap" aria-hidden="true">${esc(cap)}</div><div class="${cls}" role="radiogroup" aria-label="${esc(label)}">${inner}</div></div>`;
-const cell = (key, name, { line = '', disabled = false } = {}) => `<button type="button" role="radio" data-pc="${esc(key)}" aria-checked="false"${disabled ? ' disabled aria-disabled="true"' : ''}><span class="nm">${esc(name)}</span>${line ? `<span class="ln">${esc(line)}</span>` : ''}</button>`;
+import { tessieGlyphSvg } from './tessieGlyph.js';
+const cell = (key, name, { line = '', disabled = false, mark = '' } = {}) => `<button type="button" role="radio" data-pc="${esc(key)}" aria-checked="false"${disabled ? ' disabled aria-disabled="true"' : ''}><span class="nm">${esc(name)}${mark ? ` ${tessieGlyphSvg('tg')}` : ''}</span>${line ? `<span class="ln">${esc(line)}</span>` : ''}</button>`;
 const seg = (kind, label, rows) => group(CAPTIONS[kind], label, 'seg', rows.map((r) => `<button type="button" role="radio" data-pc="${kind}:${esc(r.id)}" aria-checked="false">${esc(r.name)}</button>`).join(''));
 
 // the boats shown: the Tessie cell only where `tessie` is on
@@ -33,7 +34,7 @@ export const boatsShown = ({ tessie = false } = {}) => BOATS.filter((b) => !b.ga
 export function plateHtml(kind, d = {}) {
   if (kind === 'waters') return group(CAPTIONS.waters, 'Waters', 'cells', WATERS_CELLS.map((w) => cell(`waters:${w.id}`, w.name, { disabled: w.disabled })).join(''));
   if (kind === 'start') {
-    return group(CAPTIONS.start, 'Where she starts', 'grid', (d.births ?? []).map((r) => cell(`start:${r.id}`, r.name, { disabled: !!r.disabled })).join(''));   // disabled: a shallow pin while Tessie is picked
+    return group(CAPTIONS.start, 'Where she starts', 'grid', (d.births ?? []).map((r) => cell(`start:${r.id}`, r.name, { disabled: !!r.disabled, mark: r.mark ?? '' })).join(''));   // disabled: a shallow pin while Tessie is picked
   }
   if (kind === 'cond') {
     return (d.times?.length ? seg('time', 'Time of day', d.times) : '') + (d.weather?.length ? seg('weather', 'Weather', d.weather) : '') + (d.levels?.length ? seg('wind', 'Wind', d.levels) : '');
@@ -48,6 +49,7 @@ export const PLATES_CSS = `#lk-load .lk-cond[data-kind=boat],#lk-load .lk-cond[d
 #lk-load .lk-cond .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 #lk-load .lk-cond .cells button,#lk-load .lk-cond .grid button{all:unset;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:5px;min-height:40px;padding:9px 12px;cursor:pointer;border:1px solid rgb(var(--lk-cream) / .4);border-radius:10px;color:var(--lk-ink);font:400 15px/1.2 var(--lk-ui)}
 #lk-load .lk-cond .grid button{align-items:center;text-align:center;padding:8px 6px;font-size:14px}
+#lk-load .lk-cond .grid .tg{display:inline-block;vertical-align:-1px;margin-left:.2em;opacity:.8}
 #lk-load .lk-cond .cells .ln{font-size:13px;line-height:1.3;opacity:.72}
 #lk-load .lk-cond .cells button:hover,#lk-load .lk-cond .grid button:hover{background:rgb(var(--lk-cream) / .1)}
 #lk-load .lk-cond .cells button:focus-visible,#lk-load .lk-cond .grid button:focus-visible{outline:2px solid rgb(var(--lk-cream));outline-offset:-3px}

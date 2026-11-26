@@ -157,6 +157,7 @@ export function actionFor(kind, mode = 'play') {
   }
 }
 // src: { birthplaces: [{ id, name, x, z, why }], current, anchorages: [{ x, z, name, depth }], places: [{ id, name, x, z, line }],
+// beTessie: true where she can be played (desktop and tablet, never in a race): the flagged pin's card (Off Fannette) adds "Be Tessie" in play
 // areas: [{ id, name, x, z, r, line }], aids: [{ id, x, z, number, lightText, colour }], channel: { pts, line } | null,
 // barges: [{ x, z, line, at: { x, z } }], raceMarks: [{ id, x, z, line }], racePins: [{ id, name, x, z, no, line }],
 // corners: [{ id, hunt, name, x, z, found, line }] (the cups' hunts, v2/regatta/hunts.js: ◇ until found, filled after; a card only) }
@@ -165,7 +166,7 @@ export function buildPois(src = {}, { mode = 'play' } = {}) {
   const add = (r) => rows.push({ ...r, zoomClass: r.zoomClass ?? KINDS[r.kind].cls, action: actionFor(r.kind, mode) });
   // a birthplace past the chart's paper (a region its sheets do not cover yet; South Lake's is on the paper) stands at the paper's edge
   // toward it, its name with the continuation mark; a tap picks it as any pin (the service moves her to the real place)
-  for (const b of src.birthplaces ?? []) { const e = edgePoint(b.x, b.z, PAPER); add({ id: `bp-${b.id}`, ref: b.id, kind: 'birthplace', x: e.x, z: e.z, name: e.far ? farName(b.name) : b.name, line: e.far ? farLine(b.why, e) : b.why ?? '', lit: b.id === src.current, ...(e.far ? { far: true, at: [b.x, b.z] } : {}) }); }
+  for (const b of src.birthplaces ?? []) { const e = edgePoint(b.x, b.z, PAPER); add({ id: `bp-${b.id}`, ref: b.id, kind: 'birthplace', x: e.x, z: e.z, name: e.far ? farName(b.name) : b.name, line: e.far ? farLine(b.why, e) : b.why ?? '', ...(b.mark ? { mark: b.mark } : {}), ...(b.mark && src.beTessie && mode === 'play' ? { actions: [actionFor('birthplace', mode), 'beTessie'] } : {}), lit: b.id === src.current, ...(e.far ? { far: true, at: [b.x, b.z] } : {}) }); }
   for (const a of src.anchorages ?? []) add({ id: `an-${Math.round(a.x)}-${Math.round(a.z)}`, kind: 'anchorage', x: a.x, z: a.z, name: a.name,
     line: a.depth != null ? `${Math.round(a.depth)} m of water, good holding.` : 'Good holding.', lit: !!a.lit });   // lit: the boat is inside it (the anchorage cue)
   for (const p of src.places ?? []) add({ id: `pl-${p.id}`, ref: p.id, kind: 'place', x: p.x, z: p.z, name: p.name, line: p.line ?? '', zoomClass: p.zoomClass });

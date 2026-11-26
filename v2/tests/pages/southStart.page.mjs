@@ -1,6 +1,6 @@
 // A region's detail level loads only on selection (v2/terrain/region.js; owner, 2026-11-24: every birthplace outside the bay loads when
 // it is selected). The page's own network requests, recorded:
-//   desktop, Emerald Bay start (Tessie's water)   0 bytes of terrain/south/; the bay's level (bay-h, bay-c, bay-d, its photo) fetched
+//   desktop, Emerald Bay start (Off Fannette)   0 bytes of terrain/south/; the bay's level (bay-h, bay-c, bay-d, its photo) fetched
 //   desktop, ?birth=ski-run                       only the south files of the region levels (south.json, the photo manifest, south-h,
 //                                                 south-c, south-d, the 4 m photo tiles), about 2.26 MB; none of the bay's detail; the
 //                                                 live sampler reads 22.85 m at the pin, its finest level 4 m; she starts there
@@ -48,7 +48,7 @@ async function load(device, query) {
 const Q = 'mode=sail&hour=15&seed=1&attract=0&music=0&headless=1';
 try {
   {
-    const r = await load(DESK, `?${Q}&birth=tessie`);
+    const r = await load(DESK, `?${Q}&birth=fannette`);
     check(r.south.length === 0 && r.southBytes === 0, `bay start: 0 bytes of terrain/south/ (${r.south.length} files)`);
     check(JSON.stringify(r.breaks) === '["shore.vsf.gz"]' && r.info.rocks === 'bay' && r.info.forest?.[0] === -4608, `bay start: the bay's shore-break field alone, the bay's rocks box and forest region (${JSON.stringify(r.breaks)}, ${r.info.rocks}, ${JSON.stringify(r.info.forest)})`);
     check(['terrain/bay-h.lsh', 'terrain/bay-c.lsh', 'terrain/bay-d.lsh'].every((f) => r.files.includes(f)) && r.bay.some((f) => f.startsWith('photo/full/bay/')), `bay start: the bay's level and photo fetched (${(r.bayBytes / 1e6).toFixed(2)} MB)`);

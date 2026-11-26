@@ -382,7 +382,6 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
         wakeStore = uxMod.createWakeStore({ storage: ls }); services.provide('mapWake', wakeStore);
         import('./wakeRow.js').then(({ mountWakeRow }) => { wakeRow = mountWakeRow(document.getElementById('lk-load'), { wake: wakeStore }); }).catch((e) => console.error(e));   // Setup › Sail › your wake: Forget
       }
-      const tessie = areaOf('tessieWaters');
       const places = [
         { id: 'fannette', name: 'Fannette Island', x: 0, z: 0, line: 'The only island in Lake Tahoe. A stone tea house on its summit.' },
         { id: 'vikingsholm', name: 'Vikingsholm', x: -549, z: 217, line: 'A 1929 house in the old Scandinavian style, at the head of the bay.' },
@@ -394,7 +393,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
           navLine: () => { const pl = services.get('pilot'), m = world.sailMark?.()?.mark; return m && pl?.engaged ? pl.nav?.line ?? null : null; },   // the pilot's routed line to the target (NAV on): the planner's legs round land
           route: () => { const c = mode === 'cruise' ? null : getPlan()?.course; return c && c.route.length ? { pts: c.route, active: !!c.active, leg: c.leg ?? 0 } : null; },
           anchorages: () => { if (world.raceOn?.()) return []; const L = sea?.anchorages ?? [], c = sea?.cue?.spot; return c ? L.map((a) => (a === c ? { ...a, lit: true } : a)) : L; }, aids: () => world.navAids?.() ?? [], places: () => places,
-          areas: () => (tessie ? [{ ...tessie, line: 'Deep water under the north wall. Give her room.', ...(feature('playTessie').on && !world.raceOn?.() ? { actions: ['beTessie'] } : {}) }] : []),   // Be Tessie: desktop and tablet, never in a race
+          beTessie: () => feature('playTessie').on && !world.raceOn?.(),   // Be Tessie on Off Fannette's card (her water's pin): desktop and tablet, never in a race
           channel: () => ({ pts: CHANNEL.pts }), raceMarks: () => (courseTool.laid ? courseTool.marks() : []),
           racePins: () => { if (!world.raceOn?.()) return []; let st = null; try { st = globalThis.localStorage; } catch { /* blocked */ } return modelMod.racePins(placesMod.listCups({ store: st, has: placesMod.hasFrom(feature) })); },
           corners: () => services.get('hunts')?.chart?.() ?? [] },   //: the cups' hunts' corners (◇, filled once found), in every mode   //: the place races' pins (Races layer), only while Regatta is the mode (owner 2026-11-19); Tessie's Deep only where she can go

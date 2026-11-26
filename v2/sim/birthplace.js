@@ -5,7 +5,7 @@
 // check tool fails on). A 55° turn either way from 105° off is still sailing: never in irons on the first touch. The fireworks
 // evening faces the show instead, turned out to BIRTH.showIronsDeg (50°) off the wind when the show lies closer to it.
 // Pure: no DOM, no GPU, no Math.random, no wall clock.
-//   listBirthplaces(waters, { unlocked, all })  → [{ id, name, x, z, look: [x, z], region, unlock, why, locked }]
+//   listBirthplaces(waters, { unlocked, all })  → [{ id, name, x, z, look: [x, z], region, unlock, why, mark, locked }]   (mark: the flag that the pin carries Tessie's tiny logo, Off Fannette; camOffDeg: a row's own glance threshold)
 //   chooseBirthplace(rows, pick)              → a row: the id's, else the first
 //   birthPose(row, { windDeg, depthAt, showDeg, speed }) → { id, x, z, headingDeg, speed, tack, offWindDeg, blocked, camYawDeg, rule }
 //   resolveStart({ flags, settings, waters, seed }) → { id, pick, source: 'url' | 'flag' | 'saved' | 'first' } | null (null: the
@@ -27,7 +27,7 @@ export const BIRTH = Object.freeze({
   camHoldS: 3,        // s of sim the camera holds on the hero before its chase brings it back behind her (followCamera.js FOLLOW.chaseRate)
   showIronsDeg: 50,   // the fireworks evening's heading never closer to the wind than this
   speed: 2.75,        // m/s: she has way on (today's start)
-  first: 'tessie',    // the first visit's row (owner, 2026-11-18)
+  first: 'fannette',   // the first visit's row (owner, 2026-11-25: Off Fannette; Tessie's water joined it, her small mark on the pin)
   quietS: 15,         // the stage's quiet after a move (v2/stage/director.js quiet)
   // the move's veil: the time pick's (v2/ui/dayClock.js FADE; v2/tests/birthplace.test.mjs holds them equal), real s
   veil: Object.freeze({ outS: 0.35, holdS: 0.05, inS: 0.45 }),
@@ -41,7 +41,7 @@ export function listBirthplaces(waters, { unlocked = ['always'], all = false } =
   const rows = birthplaceRows(waters);
   return rows.map((r) => {
     const unlock = r.unlock ?? 'always', locked = !unlocked.includes(unlock);
-    return { id: r.id, name: r.name, x: r.x, z: r.z, look: r.look ? [r.look[0], r.look[1]] : null, region: r.region ?? null, unlock, why: r.why ?? '', locked };
+    return { id: r.id, name: r.name, x: r.x, z: r.z, look: r.look ? [r.look[0], r.look[1]] : null, region: r.region ?? null, unlock, why: r.why ?? '', ...(r.mark ? { mark: r.mark } : {}), ...(r.camOffDeg != null ? { camOffDeg: r.camOffDeg } : {}), locked };
   }).filter((r) => all || !r.locked);
 }
 
@@ -88,7 +88,7 @@ export function birthPose(bp, { windDeg, depthAt = null, showDeg = null, speed =
     if (clear) [tack, headingDeg] = clear; else { [tack, headingDeg] = order[0]; blocked = true; }
   }
   let camYawDeg = 0;
-  if (toLook != null) { const d = wrap180(toLook - headingDeg); if (Math.abs(d) > S.camOffDeg) camYawDeg = Math.max(-S.camMaxDeg, Math.min(S.camMaxDeg, d)); }
+  if (toLook != null) { const d = wrap180(toLook - headingDeg); if (Math.abs(d) > (bp.camOffDeg ?? S.camOffDeg)) camYawDeg = Math.max(-S.camMaxDeg, Math.min(S.camMaxDeg, d)); }
   return { id: bp.id, x: bp.x, z: bp.z, headingDeg, speed, tack, offWindDeg: Math.abs(wrap180(headingDeg - W)), blocked, camYawDeg, rule };
 }
 

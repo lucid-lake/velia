@@ -81,8 +81,7 @@
       "id": "emerald-bay", "name": "Emerald Bay", "centre": [300, -400], "radiusM": 1500, "area": null, "neighbours": ["tahoe-west"], "keepOut": [[-12, 25, 120]],
       "label": { "id": "n-bay", "text": "Emerald Bay", "x": 560, "z": -360, "cls": "A", "kind": "water", "angle": -33.5, "alt": [[740, -560], [380, -170]] },
       "birthplaces": [
-        { "id": "tessie", "name": "Tessie's water", "x": 460, "z": -50, "look": [0, 0], "why": "Deep water, 60 m, in her own water. Fannette Island and the tea house 460 m off." },
-        { "id": "fannette", "name": "Off Fannette", "x": 210, "z": 50, "look": [2, 0], "why": "The tea house 200 m off the bow. Vikingsholm and the falls beyond." },
+        { "id": "fannette", "name": "Off Fannette", "x": 210, "z": 50, "look": [2, 0], "mark": "Tessie", "camOffDeg": 10, "why": "The tea house 200 m off the bow, over 60 m of Tessie's deep water. Vikingsholm and the falls beyond." },
         { "id": "vikingsholm", "name": "Vikingsholm", "x": -220, "z": 220, "look": [-549, 217], "why": "Off the charted anchorage. The castle, the beach and the falls ahead." },
         { "id": "narrows", "name": "The narrows", "x": 800, "z": -910, "look": [1495, -1281], "why": "The inner end of the narrows. The channel buoys and the mouth ahead." }
       ],

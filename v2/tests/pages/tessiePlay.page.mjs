@@ -303,9 +303,9 @@ try {
     const { ctx, page, errors } = await open(`${Q}&tessie=1&start=700,-160&heading=265`);
     await page.waitForFunction(() => window.__velia.tessie?.render?.ready && window.__velia.m4?.ui?.services?.get?.('tessiePlay'), null, { timeout: 180000 }).catch(() => {});
     await openMap(page);
-    await page.evaluate(() => window.__velia.m4.ui.services.get('liveChart').focus('ar-tessieWaters'));
+    await page.evaluate(() => window.__velia.m4.ui.services.get('liveChart').focus('bp-fannette'));
     const more = await page.waitForFunction(() => !!document.querySelector('.lk-livechart .lkc-card [data-act=beTessie]'), null, { timeout: 8000 }).then(() => true, () => false);
-    check(more, 'her mark: the card on her water offers Be Tessie');
+    check(more, 'her mark: the card on Off Fannette offers Be Tessie');
     if (more) await page.click('.lk-livechart .lkc-card [data-act=beTessie]');
     const inT = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie', null, { timeout: 20000 }).then(() => true, () => false);
     const s = await stats(page);

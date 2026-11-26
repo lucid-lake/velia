@@ -53,11 +53,11 @@ test('every birthplace pin of the region table is on water inside the window, wi
   }
 });
 
-test('the pins keep their real places: Off Fannette and Tessie\'s water east of the island, Vikingsholm at the bay\'s head', () => {
+test('the pins keep their real places: Off Fannette east of the island, Vikingsholm at the bay\'s head', () => {
   const by = Object.fromEntries(BIRTHPLACES.map((r) => [r.id, r]));
-  assert.ok(by.fannette.x > 0 && by.tessie.x > by.fannette.x, 'east of the island, Tessie\'s further');
+  assert.ok(by.fannette.x > 0, 'east of the island');
   assert.ok(by.vikingsholm.x < 0 && by.vikingsholm.x < by.fannette.x, 'Vikingsholm west, at the head');
-  assert.ok(by.narrows.z < by.tessie.z && by.lake.z < by.narrows.z, 'north is up: the narrows, then the open lake, out toward the mouth');
+  assert.ok(by.narrows.z < by.fannette.z && by.lake.z < by.narrows.z, 'north is up: the narrows, then the open lake, out toward the mouth');
 });
 
 test('the window frames every birthplace of any region table: a region added (a north-shore pin) widens it', async () => {

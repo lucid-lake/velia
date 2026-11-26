@@ -40,7 +40,7 @@ function landed(list, s) {
 const freePart = (s) => ({ l: (s.insets.left ?? 0) + 8, r: s.w - (s.card ? 56 : 8), t: 8, b: s.h - 8 });
 
 test('the first view frames every birthplace of the region table, on the paper, at every landscape size', () => {
-  assert.equal(BIRTHS.length, 6, 'the bay\'s five and Off Ski Run');
+  assert.equal(BIRTHS.length, 5, 'the bay\'s three (Off Fannette, Vikingsholm, the narrows), Open lake and Off Ski Run');
   for (const s of [...PANEL, ...BOX]) {
     const { v, rows } = landed(BIRTHS, s), F = freePart(s);
     for (const r of rows) assert.ok(r.px[0] >= F.l && r.px[0] <= F.r && r.px[1] >= F.t && r.px[1] <= F.b, `${s.name}: ${r.ref} at ${r.px.map((q) => q.toFixed(0))} inside ${JSON.stringify(F)} (${v.mpp.toFixed(1)} m/px)`);
@@ -54,7 +54,7 @@ test('the first view frames every birthplace of the region table, on the paper, 
 test('a fake extra region row is framed too: a cove inside the paper at every size; a place past the paper at its edge, beside the panel', () => {
   const add = (...rows) => birthplaceRows({ ...WATERS, regions: [...WATERS.regions, ...rows.map((b) => ({ id: b.region, name: b.name, centre: [b.x, b.z], radiusM: 500, birthplaces: [b] }))] });
   const cove = add(FAKE);
-  assert.equal(cove.length, 7);
+  assert.equal(cove.length, 6);
   for (const s of [...PANEL, ...BOX]) {
     const { v, rows } = landed(cove, s), F = freePart(s);
     for (const r of rows) assert.ok(r.px[0] >= F.l && r.px[0] <= F.r && r.px[1] >= F.t && r.px[1] <= F.b, `${s.name}: ${r.ref} at ${r.px.map((q) => q.toFixed(0))} inside ${JSON.stringify(F)} (${v.mpp.toFixed(1)} m/px)`);

@@ -107,7 +107,7 @@ export const CHAPTERS = [
 
   { id: 'cockpit', title: 'The cockpit', fig: COCKPIT_FIG, figFirst: true, lines: [
     { k: 'The cockpit along the bottom of the screen is your control panel. Click its controls, or use their keys.', t: 'The cockpit along the bottom of the screen is your control panel. Tap its controls.', f: 'On a phone the controls are flat glass at the edges of the screen. Drag the rings, tap the corners.' },
-    'The Coach shows your boat from above. Its arrow points from where the wind comes, as she feels it; the shaded wedge is the no-go zone. A sail that needs trimming turns amber.',
+    'The Coach shows your boat from above. Its arrow points from where the wind comes, as she feels it; the shaded wedge is the no-go zone. When something needs doing, it says so on the boat: pull in, ease out, bear away.',
     'The Chart is your compass and map: the heading on top, a line to the nearest place, amber on the ring where the shore is close.',
     { k: 'The round key and {nav} sit on the wheel’s hub. Chapters 4 and 5 put them to work.', t: 'The round key and {nav} sit on the wheel’s hub. Chapters 4 and 5 put them to work.', f: '{nav} and the turn key sit in the bottom corners. Chapters 4 and 5 put them to work.' },
     { k: 'Fold the cockpit away for the view: a hide tab, or {key:fold}. Again brings it back.', t: 'Fold the cockpit away for the view: tap a hide tab. Tap it again to bring it back.', f: 'Drag the open water to look round. The view comes back behind her by itself.' },
@@ -158,8 +158,8 @@ export const CHAPTERS = [
   ], try: { k: 'Press {key:chart}, click Anchorage off Vikingsholm, then Anchor here: {nav} sails her there. When she arrives, press {key:anchor}.', t: 'Tap Menu, tap Anchorage off Vikingsholm, then Anchor here: {nav} sails her there. When she arrives, drop the anchor.' } },
 
   { id: 'start', title: 'Where to start', lines: [
-    'Every sail starts at a named place, a pin on the map: Tessie’s water, Off Fannette, Vikingsholm, The narrows and Open lake.',
-    'Your first sail starts in Tessie’s water, near Fannette Island.',
+    'Every sail starts at a named place, a pin on the map: Off Fannette, Vikingsholm, The narrows and Open lake.',
+    'Your first sail starts Off Fannette, the tea house 200 m off the bow, over the deep water Tessie calls home (the pin carries her name).',
     { k: 'On the first screen, click a pin, then <b>Sail from here</b>: she starts there.', t: 'On the first screen, tap a pin, then <b>Sail from here</b>: she starts there.' },
     { k: 'While you sail, open the menu ({key:menu}), click a pin, then Sail from here. A short fade, and she is there.', t: 'While you sail, tap Menu, tap a pin, then Sail from here. A short fade, and she is there.' },
     'She always starts with the wind on her side (a reach), never stuck head to wind. Velia remembers your pick.',
@@ -181,7 +181,7 @@ export const CHAPTERS = [
     'Come within about 22 m and she dives. Give her room and she may swim beside you.',
     '<b>Never charge her.</b> Head straight at her, fast, inside 40 m, and she dives… then comes after you. Keep 25 m away for 30 s, or leave her water. If she catches you, she rolls you over: “Tessie said no.”',
     'On a computer or a tablet you can <b>be her</b>: pick Tessie in the Boat row, or answer the skipper’s “Tessie’s up.” when she shows herself. Look where she should go: look down and she dives, look up and she rises, run upward at the surface and she leaps. Her controls show on the screen while you are her. Not on a phone.',
-  ], try: { k: 'Press {key:menu}, click Tessie’s water, Sail from here. Sail slowly and watch the water off the bow.', t: 'On a computer: Menu, Tessie’s water, Sail from here. Then sail slowly and watch the water off the bow.' } },
+  ], try: { k: 'Press {key:menu}, click Off Fannette, Sail from here. Sail slowly and watch the water off the bow.', t: 'On a computer: Menu, Off Fannette, Sail from here. Then sail slowly and watch the water off the bow.' } },
 
   { id: 'race', title: 'Racing', lines: [
     { k: 'Pick <b>Regatta</b> on the menu (on the first screen, then <b>Set sail</b>). Choose a race, or <b>Race now</b>.', t: 'Pick <b>Regatta</b> on the menu (on the first screen, then <b>Set sail</b>). Choose a race, or <b>Race now</b>.', f: 'Tap <b>Regatta</b> on the menu. Choose a race, or <b>Race now</b>.' },

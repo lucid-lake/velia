@@ -1,6 +1,6 @@
 // The birthplaces (v2/sim/birthplace.js, 73 § 2; owner, 2026-11-18): the waters file's rows pass the depth and
 // shore check; the reach rule is never in irons in any wind at any row; the land probe flips the tack; a tie is starboard; the
-// fireworks evening faces the show out of irons; the first visit is Tessie's water within 600 m of Fannette; the saved pick,
+// fireworks evening faces the show out of irons; the first visit is Off Fannette (Tessie's mark on its pin); a stored or flagged 'tessie' falls back to it; the saved pick,
 // ?birth= and the URL pin; the move under the veil, refused in a race or a knockdown; the fan-out's
 // pieces (the first gust relaid, the stage quiet, the passage's leg).
 import test from 'node:test';
@@ -21,7 +21,7 @@ const store = (init = {}) => { const v = { ...init }; return { get: (k) => v[k],
 const { depthAt } = bakedDepth();
 
 test('the rows: 4 in the bay, Open lake and Off Ski Run (South Lake, on its own level), all playable; each passes the depth and shore check (tools/birthplace-check.mjs)', async () => {
-  assert.deepEqual(ROWS.map((r) => r.id), ['tessie', 'fannette', 'vikingsholm', 'narrows', 'lake', 'ski-run']);
+  assert.deepEqual(ROWS.map((r) => r.id), ['fannette', 'vikingsholm', 'narrows', 'lake', 'ski-run']);
   for (const r of ROWS) { assert.ok(r.name && r.why && r.look && r.region, `${r.id}: name, why, look, region`); assert.equal(r.locked, false); }
   assert.equal(W.start.x, 1200); assert.equal(W.start.headingDeg, 251, 'the waters file\'s start is untouched (v1, ?start=)');
   const rows = checkRows(W, bakedDepth(), await regionDepths());
@@ -69,19 +69,42 @@ test('the tack: the hero nearest the bow; a tie is starboard; land in 400 m flip
 
 test('the fireworks evening faces the show; a show within 50° of the wind turns out to 50° on its side', () => {
   const r = ROWS[0];
-  assert.equal(birthPose(r, { windDeg: 195, showDeg: 128 }).headingDeg, 128, 'Tessie\'s water to the barges, 67° off: as is');
+  assert.equal(birthPose(r, { windDeg: 195, showDeg: 128 }).headingDeg, 128, 'Off Fannette to the barges, 67° off: as is');
   assert.equal(birthPose(r, { windDeg: 195, showDeg: 170 }).headingDeg, 145, '25° off on the left: 50° off on the left');
   assert.equal(birthPose(r, { windDeg: 195, showDeg: 210 }).headingDeg, 245);
   assert.equal(birthPose(r, { windDeg: 195, showDeg: 210 }).rule, 'show');
 });
 
-test('the first visit: Tessie\'s water, within 600 m of Fannette; the saved pick; ?birth= wins once; ?start= / ?heading= pin today\'s pose', () => {
+test('Off Fannette carries Tessie\'s small mark and the tea house line; the old \'tessie\' id falls back to it (stored, ?birth=) without an error', () => {
+  const f = ROWS.find((r) => r.id === 'fannette');
+  assert.equal(f.mark, 'Tessie'); assert.match(f.why, /tea house 200 m/); assert.equal(ROWS.filter((r) => r.mark).length, 1, 'one mark, on one pin');
+  assert.equal(BIRTH.first, 'fannette');
+  assert.equal(resolveStart({ waters: W, settings: store({ birthplace: 'tessie' }) }).id, 'fannette', 'a stored tessie: Off Fannette');
+  assert.equal(resolveStart({ waters: W, settings: store(), flags: parseV2Flags('?birth=tessie') }).id, 'fannette', '?birth=tessie: Off Fannette');
+  const bp = createBirthplaces({ waters: W, settings: store({ birthplace: 'tessie' }), windAt: () => 200, depthAt, place: () => {} });
+  assert.equal(bp.chosen, 'fannette'); assert.equal(bp.pick('tessie'), null, 'no row, no pick');
+  assert.ok(depthAt(f.x, f.z) >= 10, `Tessie (the vessel) starts there: ${depthAt(f.x, f.z).toFixed(1)} m of water, her pins need 10 m`);
+});
+
+test('the opening camera faces Fannette Island: heading plus the glance lands on the island within 1 degree in every wind (already within 10 degrees of it: no glance); the heading stays the wind rule\'s', () => {
+  const f = ROWS.find((r) => r.id === 'fannette'), toIsland = (Math.atan2(f.look[0] - f.x, -(f.look[1] - f.z)) * 180 / Math.PI + 360) % 360;
+  for (const windDeg of [0, 45, 90, 135, 180, 195, 200, 225, 270, 315]) {
+    const p = birthPose(f, { windDeg, depthAt });
+    assert.ok(Math.abs(Math.abs(((p.headingDeg - windDeg + 540) % 360) - 180) - 105) < 1e-6 || p.rule !== 'reach', `wind ${windDeg}: still the reach rule (${p.headingDeg})`);
+    const faced = (p.headingDeg + p.camYawDeg + 360) % 360, miss = Math.abs(((faced - toIsland + 540) % 360) - 180);
+    assert.ok(miss < 1 || (p.camYawDeg === 0 && miss <= f.camOffDeg) || Math.abs(p.camYawDeg) === BIRTH.camMaxDeg, `wind ${windDeg}: camera ${faced.toFixed(1)} deg vs island ${toIsland.toFixed(1)} (${miss.toFixed(1)} off)`);
+  }
+  const p = birthPose(f, { windDeg: 195, depthAt });
+  assert.ok(Math.abs(p.camYawDeg) > 10, `the 195 deg wind: the camera turns ${p.camYawDeg.toFixed(1)} deg to the island, it was 34 deg short of the old 35 deg rule`);
+});
+
+test('the first visit: Off Fannette, within 600 m of the island; the saved pick; ?birth= wins once; ?start= / ?heading= pin today\'s pose', () => {
   const first = resolveStart({ waters: W, settings: store() });
-  assert.deepEqual(first, { id: 'tessie', pick: 'tessie', source: 'first' });
-  const t = ROWS.find((r) => r.id === 'tessie');
+  assert.deepEqual(first, { id: 'fannette', pick: 'fannette', source: 'first' });
+  const t = ROWS.find((r) => r.id === 'fannette');
   assert.ok(Math.hypot(t.x, t.z) <= 600, `${Math.hypot(t.x, t.z).toFixed(0)} m from Fannette`);
   assert.equal(resolveStart({ waters: W, settings: store({ birthplace: 'vikingsholm' }) }).id, 'vikingsholm');
-  assert.equal(resolveStart({ waters: W, settings: store({ birthplace: 'gone' }) }).id, 'tessie', 'an unknown saved id: the first row');
+  assert.equal(resolveStart({ waters: W, settings: store({ birthplace: 'gone' }) }).id, 'fannette', 'an unknown saved id: the first row');
   const s = store({ birthplace: 'vikingsholm' });
   assert.equal(resolveStart({ waters: W, settings: s, flags: parseV2Flags('?birth=lake') }).id, 'lake');
   assert.equal(s.v.birthplace, 'vikingsholm', '?birth= is never saved');
@@ -107,7 +130,7 @@ test('the dayClock veil and the move\'s are the same (0.35 s out, 0.05 s held, 0
 
 function service(o = {}) {
   const placed = [], veils = [], moved = [], settings = store();
-  const bp = createBirthplaces({ waters: W, settings, seed: 1, current: 'tessie', windAt: () => 200, depthAt, place: (p) => placed.push(p),
+  const bp = createBirthplaces({ waters: W, settings, seed: 1, current: 'fannette', windAt: () => 200, depthAt, place: (p) => placed.push(p),
     veil: (op, s) => veils.push([op, s]), ...o });
   bp.on('moved', (e) => moved.push(e));
   return { bp, placed, veils, moved, settings };
@@ -115,7 +138,7 @@ function service(o = {}) {
 
 test('moveTo: the veil out, the place at 0.40 s, one frame dark, the veil in; remembered; the moved event; one move at a time', async () => {
   const { bp, placed, veils, moved, settings } = service();
-  assert.equal(bp.list().length, 6); assert.equal(bp.current, 'tessie');
+  assert.equal(bp.list().length, 5); assert.equal(bp.current, 'fannette');
   const p = bp.moveTo('vikingsholm');
   assert.deepEqual(veils, [[1, 0.35]]); assert.equal(placed.length, 0); assert.equal(bp.moving, true);
   assert.deepEqual(await bp.moveTo('lake'), { ok: false, why: 'moving' });
@@ -126,7 +149,7 @@ test('moveTo: the veil out, the place at 0.40 s, one frame dark, the veil in; re
   bp.step(0.5); assert.equal(bp.moving, false);
   const r = await p;
   assert.equal(r.ok, true); assert.equal(r.id, 'vikingsholm'); assert.equal(bp.current, 'vikingsholm');
-  assert.equal(moved.length, 1); assert.equal(moved[0].from, 'tessie'); assert.equal(moved[0].name, 'Vikingsholm');
+  assert.equal(moved.length, 1); assert.equal(moved[0].from, 'fannette'); assert.equal(moved[0].name, 'Vikingsholm');
   assert.equal(settings.v.birthplace, 'vikingsholm', 'the last pick is remembered');
 });
 

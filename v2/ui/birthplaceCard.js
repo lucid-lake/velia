@@ -11,12 +11,13 @@
 // The desktop card (no phoneCard; owner 2026-11-18): the box is the card's mini chart, larger, in the sheet's own column between the studio line
 // and the voyage line (its caption). The chart is the real shoreline of the bay (v2/ui/miniChartData.js, baked by tools/v2-minichart-bake.mjs
 // from the planner's grid) drawn in the engraved manner, in the world's metres: each pin stands at its birthplace's x, z, so Fannette Island
-// is the island at (0, 0) with Off Fannette and Tessie's water east of it and Vikingsholm at the head. A short frame falls back to the row.
+// is the island at (0, 0) with Off Fannette (Tessie's tiny logo on its pin) east of it and Vikingsholm at the head. A short frame falls back to the row.
 //   const m = mountBirthplaceCard(root, { service, home, touch: () => bool }); m.paint(); m.dispose()
 
 import { edgePoint, farName } from './chart/edge.js';   // a pin past the mini chart's window at its edge (none of today's table)
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
 import { birthplaceRows } from '../sim/regions.js';
+import { tessieGlyphSvg } from './chart/tessieGlyph.js';   // Tessie's tiny logo on a pin that carries her flag (Off Fannette)
 
 export const REFUSALS = Object.freeze({
   race: 'Not during a race. Finish or leave it first.',
@@ -38,10 +39,10 @@ export function miniBoxOf(rows) {
 }
 export const MINI_BOX = miniBoxOf(birthplaceRows(CURRENT_WATERS));
 // where a pin's name sits on the desktop chart (r right, l left, br below and to the right), clear of its neighbours at the chart's scale
-const DESK_SIDE = { vikingsholm: 'l', fannette: 'br', tessie: 'r', narrows: 'r', lake: 'r', 'ski-run': 'l' };   // Off Ski Run: near the east edge, its name inward
+const DESK_SIDE = { vikingsholm: 'l', fannette: 'br', narrows: 'r', lake: 'r', 'ski-run': 'l' };   // Off Ski Run: near the east edge, its name inward
 // the pins' places in the box, percent of its width and height: a loose chart of the bay (west left, north up), not a survey
 const SPOT = {
-  vikingsholm: [9, 74, 'r'], fannette: [27, 52, 'r'], tessie: [47, 62, 'r'], narrows: [64, 30, 'r'], lake: [50, 8, 'r'],
+  vikingsholm: [9, 74, 'r'], fannette: [34, 56, 'r'], narrows: [64, 30, 'r'], lake: [50, 8, 'r'],
 };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -67,6 +68,8 @@ const CSS = `#lk-load .lk-bp{position:absolute;z-index:3;left:1.6em;right:1.6em;
 #lk-load .lk-bp-pin:hover .ring,#lk-load .lk-bp-pin:focus-visible .ring{r:8;opacity:1}
 #lk-load .lk-bp-pin:focus-visible{outline:2px solid var(--navy);outline-offset:-4px;border-radius:50%}
 #lk-load .lk-bp-pin .n{position:absolute;top:50%;transform:translateY(-50%);white-space:nowrap;font:italic var(--lk-book) max(.82em,12px)/1 var(--lk-font);letter-spacing:.04em;color:var(--navy);opacity:.66;transition:opacity .2s;text-shadow:0 0 .5em var(--paper),0 0 .2em var(--paper)}
+#lk-load .lk-bp-pin .n .tg{display:inline-block;vertical-align:-1px;margin-left:.5em;opacity:.8}
+#lk-load .lk-bp.row .lk-bp-pin .n .tg{display:block;margin:2px auto 0}
 #lk-load .lk-bp-pin[data-side=r] .n{left:calc(50% + 11px)}
 #lk-load .lk-bp-pin[data-side=l] .n{right:calc(50% + 11px)}
 #lk-load .lk-bp-pin:hover .n,#lk-load .lk-bp-pin:focus-visible .n{opacity:.94}
@@ -109,7 +112,7 @@ export function mountBirthplaceCard(root, { service, home = null, touch = () => 
   if (!card || !service || card.querySelector('.lk-bp')) return null;
   if (!doc.getElementById('lk-bp-css')) { const s = doc.createElement('style'); s.id = 'lk-bp-css'; s.textContent = CSS; doc.head.appendChild(s); }
   const win = doc.defaultView ?? globalThis;
-  // the voyage line: "Emerald Bay · Halcyon 28 ft · Tessie's water ›" (src/ui/home.js voyage option adds the words; the span is here)
+  // the voyage line: "Emerald Bay · Halcyon 28 ft · Off Fannette ›" (src/ui/home.js voyage option adds the words; the span is here)
   const sum = card.querySelector('.lk-sum');
   const vessel = sum?.querySelector('[data-v=vessel]');
   if (vessel && !sum.querySelector('[data-v=place]')) {
@@ -129,7 +132,7 @@ export function mountBirthplaceCard(root, { service, home = null, touch = () => 
   const nameOf = (r) => (desk && edge(r).far ? farName(r.name) : r.name);
   const lbl = (cls, text, x, z) => `<span class="lk-bp-lbl ${cls}" aria-hidden="true" style="--ux:${(x - bx) / bw};--uy:${(z - bz) / bh}">${text}</span>`;
   box.innerHTML = (desk ? '<div class="lk-bp-plate" aria-hidden="true"></div>' + lbl('isl', 'Fannette Island', 0, -70) : '')
-    + rows.map((r, i) => { const u = unit(r, i); return `<button class="lk-bp-pin" type="button" data-id="${esc(r.id)}" data-side="${desk ? DESK_SIDE[r.id] ?? spots[i][2] : spots[i][2]}" style="--x:${spots[i][0]}%;--y:${spots[i][1]}%;--ux:${u[0].toFixed(4)};--uy:${u[1].toFixed(4)}" aria-pressed="false" aria-label="${esc(r.name)}. ${esc(r.why)}">${GLYPH}<span class="n">${esc(nameOf(r))}</span></button>`; }).join('')
+    + rows.map((r, i) => { const u = unit(r, i); return `<button class="lk-bp-pin" type="button" data-id="${esc(r.id)}" data-side="${desk ? DESK_SIDE[r.id] ?? spots[i][2] : spots[i][2]}" style="--x:${spots[i][0]}%;--y:${spots[i][1]}%;--ux:${u[0].toFixed(4)};--uy:${u[1].toFixed(4)}" aria-pressed="false" aria-label="${esc(r.name)}${r.mark ? ", Tessie's water" : ''}. ${esc(r.why)}">${GLYPH}<span class="n">${esc(nameOf(r))}${r.mark ? tessieGlyphSvg('tg') : ''}</span></button>`; }).join('')
     + '<p class="lk-bp-say" role="status" aria-live="polite"></p>';
   if (desk) { box.classList.add('flow'); const sheet = card.querySelector('.lk-sheet'); sheet.insertBefore(box, sheet.querySelector('.lk-plan')); } else card.appendChild(box);
   const plate = box.querySelector('.lk-bp-plate');

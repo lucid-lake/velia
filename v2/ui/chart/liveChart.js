@@ -46,6 +46,7 @@ import { GROUND, SHEETS, GROUND_PALETTES, groundSteps, groundSize } from './grou
 import { GROUND_BAKE } from './groundData.js';
 import { SHEET_BAKE } from './sheetData.js';
 import { REFUSALS } from '../birthplaceCard.js';
+import { drawTessieGlyph, tessieGlyphWidth } from './tessieGlyph.js';
 import { SIZES, BOOKMARKS, INK, NIGHT_INK, HIT_PX, ACTION_WORDS, namesFor, chartView, zoomAbout, panBy, clampView, zoomRange, centreFor, classVisible,
   fadeTo, buildPois, aimOf, poiShown, hitTest, walkOrder, layoutLabels, ease, sheetWanted } from './chartModel.js';
 import { mountMapUx, drawWake, nearestOf, UX } from './mapUx.js';   // ?mapux=1 only ('s mock): the eased crosshair, the layers, your wake
@@ -147,7 +148,7 @@ export function chartActions(services, mode = () => 'play') {
 
 // a name drawn once into a sprite in the engraved manner: small caps (each word's first letter full height, the rest at 0.78), letter-
 // spaced 0.14 em, italic on the water; the sprite carries full ink, the frame draws it at the name's alpha
-function nameSprite(text, { fs, italic, ink, dpr, halo = null }) {
+function nameSprite(text, { fs, italic, ink, dpr, halo = null, mark = '' }) {
   const sc = 0.78, track = 0.14 * fs, font = (s) => `${italic ? 'italic ' : ''}400 ${s}px ${FONT}`;
   const meas = canvas2d(1, 1).getContext('2d');
   const glyphs = [];
@@ -162,6 +163,9 @@ function nameSprite(text, { fs, italic, ink, dpr, halo = null }) {
     });
   }
   w = Math.max(1, w - track);
+  // a pin that carries Tessie's flag: her tiny logo after the name, about 0.8 of the name's size tall (11 to 14 px), a gap before it
+  const gh = Math.round(fs * 0.8), gx = mark ? w + fs * 0.5 : 0;
+  if (mark) w = gx + tessieGlyphWidth(gh);
   const h = Math.ceil(fs * 1.4), cv = canvas2d(Math.ceil((w + 4) * dpr), Math.ceil(h * dpr)), g = cv.getContext('2d');
   g.scale(dpr, dpr); g.textBaseline = 'alphabetic'; g.fillStyle = rgba(ink, 1);
   if (halo) { g.shadowColor = rgba(halo, NIGHT_INK.haloA); g.shadowBlur = Math.max(2, fs * 0.22); }   // the night's soft halo: the name reads on the bright sand
@@ -171,6 +175,7 @@ function nameSprite(text, { fs, italic, ink, dpr, halo = null }) {
     g.shadowBlur = 0;
   }
   for (const q of glyphs) { g.font = font(q.s); g.fillText(q.c, 2 + q.x, fs * 1.05); }
+  if (mark) drawTessieGlyph(g, 2 + gx, fs * 1.05, gh, rgba(ink, 0.82));
   return { cv, w: w + 4, h };
 }
 
@@ -291,7 +296,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     const bp = services?.get?.('birthplace');
     const list = bp ? bp.list().filter((r) => !r.locked) : [];
     rows = buildPois({ birthplaces: list, current: bp?.current ?? null, anchorages: src('anchorages', []), aids: src('aids', []), places: src('places', []),
-      areas: src('areas', []), channel: src('channel', null), barges: src('barges', []), raceMarks: src('raceMarks', []), racePins: src('racePins', []), corners: curMode === 'entrance' ? [] : src('corners', []) }, { mode: curMode });   // the hunts' corners in play and the hub, not at the entrance (no lake yet)
+      areas: src('areas', []), beTessie: !!src('beTessie', false), channel: src('channel', null), barges: src('barges', []), raceMarks: src('raceMarks', []), racePins: src('racePins', []), corners: curMode === 'entrance' ? [] : src('corners', []) }, { mode: curMode });   // the hunts' corners in play and the hub, not at the entrance (no lake yet)
     uxApi?.setRaces?.(rows.some((r) => r.kind === 'racePin'));   //: the Races layer is in the bar only while the page has pins (Regatta)
     if (uxApi) rows = rows.filter((r) => r.lit || uxApi.visible(r));   // the layers (?mapux=1); a lit point (the chosen pin, the cue) always shows
   }
@@ -307,7 +312,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       if (LABEL_OF[r.id]) continue;
       // a pin's name: class A at the entrance (the pins are what the first view is for: every birthplace, so the far zoom keeps them), the
       // lit one first; in play and the hub class B but the lit one
-      if (r.kind === 'birthplace') out.push({ id: `n-${r.id}`, text: r.name, x: r.x, z: r.z, cls: r.lit || curMode === 'entrance' ? 'A' : 'B', pri: r.lit ? -2 : curMode === 'entrance' ? -1.5 : 0, kind: 'water', dx: 13, dy: 0, align: 'left', poi: r.id, altPx: [[0, 19, 'center'], [0, -19, 'center'], [13, 19, 'left'], [13, -19, 'left'], [-13, 0, 'right']] });   // a pin's name: right, else below, above, left before it yields (hover or focus always shows it)
+      if (r.kind === 'birthplace') out.push({ id: `n-${r.id}`, text: r.name, mark: r.mark ?? '', x: r.x, z: r.z, cls: r.lit || curMode === 'entrance' ? 'A' : 'B', pri: r.lit ? -2 : curMode === 'entrance' ? -1.5 : 0, kind: 'water', dx: 13, dy: 0, align: 'left', poi: r.id, altPx: [[0, 19, 'center'], [0, -19, 'center'], [13, 19, 'left'], [13, -19, 'left'], [-13, 0, 'right']] });   // a pin's name: right, else below, above, left before it yields (hover or focus always shows it)
       else if (r.kind === 'anchorage') out.push({ id: `n-${r.id}`, text: r.name, x: r.x, z: r.z, cls: 'B', kind: 'water', dx: 11, dy: 0, align: 'left', poi: r.id });
       else if (r.kind === 'racePin') out.push({ id: `n-${r.id}`, text: r.name, x: r.x, z: r.z, cls: 'A', kind: 'water', dx: 14, dy: 0, align: 'left', poi: r.id, altPx: [[0, 20, 'center'], [0, -20, 'center'], [-14, 0, 'right']] });
       else if (r.kind === 'place') out.push({ id: `n-${r.id}`, text: r.name, x: r.x, z: r.z, cls: r.zoomClass, kind: 'land', dx: 9, dy: 0, align: 'left', poi: r.id });
@@ -328,9 +333,9 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
     return n.cls === 'A' ? (t ? 17 : 15) : n.cls === 'B' ? (t ? 15 : 13) : (t ? 15 : 12);
   }
   function spriteOf(n, ink) {
-    const key = `${n.id}|${n.text}|${dpr}|${ink.join(',')}|${touch() ? 1 : 0}|${nightNow > 0.5 ? 1 : 0}`;
+    const key = `${n.id}|${n.text}|${n.mark ?? ''}|${dpr}|${ink.join(',')}|${touch() ? 1 : 0}|${nightNow > 0.5 ? 1 : 0}`;
     let s = sprites.get(key);
-    if (!s) { s = nameSprite(n.text, { fs: fontSize(n), italic: n.kind === 'water', ink, dpr, halo: nightNow > 0.5 ? NIGHT_INK.halo : null }); sprites.set(key, s); if (sprites.size > 200) sprites.delete(sprites.keys().next().value); }
+    if (!s) { s = nameSprite(n.text, { fs: fontSize(n), mark: n.mark ?? '', italic: n.kind === 'water', ink, dpr, halo: nightNow > 0.5 ? NIGHT_INK.halo : null }); sprites.set(key, s); if (sprites.size > 200) sprites.delete(sprites.keys().next().value); }
     return s;
   }
   function drawGround(g, v, night) {
@@ -483,7 +488,7 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
       if (!poiShown(r, mpp, mc) || !inView(r.x, r.z)) continue;
       const x = P[0], y = P[1];
       drawPoi(g, r, x, y, I, A, bg, hot(r.id));
-      pois.push({ id: r.id, kind: r.kind, px: +x.toFixed(1), py: +y.toFixed(1) });
+      pois.push({ id: r.id, kind: r.kind, px: +x.toFixed(1), py: +y.toFixed(1), ...(r.mark ? { mark: r.mark } : {}) });
       const kr = { birthplace: 8, anchorage: 6, place: 4, buoy: 5, raceMark: 5, barge: 6, racePin: 10, corner: 5 }[r.kind];   // a point's own mark, kept clear of names
       if (kr && !LABEL_OF[r.id]) keep.push([x - kr, y - kr, x + kr, y + kr]);   // a place with its own name nearby (the island): its name may pass close
     }

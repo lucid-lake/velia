@@ -29,7 +29,7 @@ const { polyline } = await import('../../src/sim/kayaks/routes.js');
 test('region table: an extra region row reaches every reader', () => {
   const bps = listBirthplaces(CURRENT_WATERS);
   assert.deepEqual(bps.at(-1), { id: 'city-pier', name: 'Off the pier', x: -6000, z: 100, look: [-6200, 100], region: 'tahoe-city', unlock: 'always', why: 'A fixture.', locked: false }, 'its birthplace, with its region');
-  assert.equal(bps.length, 7);
+  assert.equal(bps.length, 6);
   assert.deepEqual(REGIONS.map((r) => r.id), ['emerald-bay', 'tahoe-west', 'south-lake', 'tahoe-city'], 'the busy lake has its row');
   assert.deepEqual(regionsWithBirthplaces(REGIONS, bps).map((r) => r.id), ['emerald-bay', 'tahoe-west', 'south-lake', 'tahoe-city'], 'live: it has a birthplace');
   assert.deepEqual([...activeRegions(REGIONS, -6000, 0)], ['tahoe-city'], 'the player inside it');

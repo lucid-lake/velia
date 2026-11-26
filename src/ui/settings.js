@@ -34,7 +34,7 @@ export const SETTINGS = {
   lang: 'en',                // the language (LANGS; the picker is the chip on the loading card, src/ui/loading.js setLang; P2: Chinese)
   vessel: 'halcyon',         // the chosen vessel (src/vessels/); ?vessel= wins
   lastMode: '',              // v2's panel (modeSelects): the mode last entered (cruise | sail | regatta), lit first on the entrance; '' none yet (Sail)
-  birthplace: '',            // where a sail starts (v2/sim/birthplace.js): '' none picked yet (the first visit's row, Tessie's water), or a row id of the waters' birthplaces (an old 'random' reads as the first); ?birth= wins for one load
+  birthplace: '',            // where a sail starts (v2/sim/birthplace.js): '' none picked yet (the first visit's row, Off Fannette; an old 'tessie' reads as it), or a row id of the waters' birthplaces (an old 'random' reads as the first); ?birth= wins for one load
 };
 const PROFILE_IDS = ['new', 'sail', 'race'];
 export const LANGS = ['en'];   // 'zh' joins when the P2 Chinese work lands
