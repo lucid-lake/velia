@@ -52,8 +52,8 @@ try {
     // start moved off the general start's 1–3 m shelf, where the shoal assist bore her away from the show within 10 s, to
     // SHOW_START (825, −825; 16.6 m or more for 500 m ahead): the show off keeps the general start (1200, −1050)
     const dh = Math.abs(Math.atan2(Math.sin(a.h - b.h), Math.cos(a.h - b.h)));
-    // since the birthplaces (2026-11-18) the show off starts at the first visit's birthplace, Tessie's water (460, −50)
-    check(a.fw && !b.fw && Math.abs(a.x - 825) < 0.01 && Math.abs(a.z + 825) < 0.01 && Math.abs(b.x - 460) < 0.01 && Math.abs(b.z + 50) < 0.01, `Sail: in the show she starts at the show's deep-water spot, the show off at the first visit's birthplace (${JSON.stringify({ on: a, off: b })})`);
+    // since the birthplaces (2026-11-18) the show off starts at the first visit's birthplace, Off Fannette (210, 50)
+    check(a.fw && !b.fw && Math.abs(a.x - 825) < 0.01 && Math.abs(a.z + 825) < 0.01 && Math.abs(b.x - 210) < 0.01 && Math.abs(b.z - 50) < 0.01, `Sail: in the show she starts at the show's deep-water spot, the show off at the first visit's birthplace (${JSON.stringify({ on: a, off: b })})`);
     check(Math.abs(a.h * 180 / Math.PI - 77.4) < 3 && dh > 0.1, `Sail: in the show she starts 18° off the barges past the mouth, the show beside the mast (heading ${(a.h * 180 / Math.PI).toFixed(1)}°)`);
     await on.page.waitForTimeout(3000);
     const s = await S(on.page), t = await S(offP.page);

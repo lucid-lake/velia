@@ -1,6 +1,6 @@
 // The birthplaces' UI on the real v2 page (Phase 1b, on the live map since Phase 2b; v2/ui/chart/mapScreen.js, liveChart.js, phoneCard.js):
-//   1280 × 720, mouse   the live map behind the panel: six pins (the bay's five and South Lake's Off Ski Run, all on the paper) and no Surprise me, the first visit's Tessie's water lit, the voyage line "Emerald
-//                       Bay · Halcyon 28 ft · Tessie's water"; hover lifts the name; a click picks Off Fannette (the voyage line updates, she is
+//   1280 × 720, mouse   the live map behind the panel: five pins (the bay's three, Open lake and South Lake's Off Ski Run, all on the paper) and no Surprise me, the first visit's Off Fannette lit with Tessie's small mark, the voyage line "Emerald
+//                       Bay · Halcyon 28 ft · Off Fannette"; hover lifts the name; a click picks Off Fannette (the voyage line updates, she is
 //                       there at once) and opens its card, Sail enters and she starts at that birthplace
 //   in play             Esc: the same screen: the pins, a click opens the small card, "Sail from here" moves her under the veil, the menu
 //                       closes, the logbook has "Moved to Vikingsholm"; Esc closes the card first
@@ -51,9 +51,10 @@ const showPin = (page, id, mpp = 3.5) => page.evaluate(({ id, mpp }) => { const 
   const s0 = await chartState(page);
   const pins = s0.pois.filter((p) => p.kind === 'birthplace');   // every birthplace in the first view
   const sur = await page.evaluate(() => document.querySelectorAll('.lk-livechart .lkc-surprise, .lk-bp [data-id=random]').length + ([...document.querySelectorAll('#lk-load button')].filter((b) => /surprise/i.test(b.textContent + b.getAttribute('aria-label'))).length));
-  check(pins.length === 6 && sur === 0, `desk: six pins on the map and no Surprise me (${pins.map((p) => p.id).join(', ')}; ${sur})`);
-  check(await page.evaluate(() => window.__velia.birthplaces.current === 'tessie'), `desk: the first visit's Tessie's water is the lit pin`);
-  check(await startRow(page) === "Tessie's water", `desk: the float plan's start row (${await startRow(page)})`);
+  check(pins.length === 5 && sur === 0, `desk: five pins on the map and no Surprise me (${pins.map((p) => p.id).join(', ')}; ${sur})`);
+  check(await page.evaluate(() => window.__velia.birthplaces.current === 'fannette'), `desk: the first visit's Off Fannette is the lit pin`);
+  check(await startRow(page) === 'Off Fannette', `desk: the float plan's start row (${await startRow(page)})`);
+  check(pins.filter((p) => p.mark).map((p) => `${p.id}:${p.mark}`).join() === 'bp-fannette:Tessie', `desk: Tessie's small mark rides on the Off Fannette pin alone (${pins.filter((p) => p.mark).map((p) => p.id + ':' + p.mark)})`);
   const at = await pinAt(page, 'fannette');
   await page.mouse.move(at.x, at.y); await page.waitForTimeout(450);
   const hs = await chartState(page), nm = hs.labels.find((l) => l.id === 'n-bp-fannette');
@@ -134,7 +135,7 @@ const showPin = (page, id, mpp = 3.5) => page.evaluate(({ id, mpp }) => { const 
   });
   const s0 = await chartState(page);
   check(m.phone === 'on', 'phone: the phone card is on (feature phoneCard)');
-  check(s0.pois.filter((p) => p.kind === 'birthplace').length === 6 && m.sur === 0, `phone: six pins on the map and no Surprise me (${m.sur})`);
+  check(s0.pois.filter((p) => p.kind === 'birthplace').length === 5 && m.sur === 0, `phone: five pins on the map and no Surprise me (${m.sur})`);
   check(m.modes.every(([, w, h, ins]) => w >= 44 && h >= 44 && ins) && m.modes.find((r) => r[0] === 'sail')[2] >= 44 && m.modes.every(([, , h]) => h <= 56), `phone: the modes are compact pills (44 to 56 px; owner 2026-11-19: too big), Sail the tallest (${JSON.stringify(m.modes)})`);
   const links = await page.evaluate(() => getComputedStyle(document.querySelector('#lk-load .lk-links')).display);
   check(links === 'none', 'phone: Chart, Log, Controls, Setup, About and Support are folded away');
@@ -154,16 +155,16 @@ const showPin = (page, id, mpp = 3.5) => page.evaluate(({ id, mpp }) => { const 
   check(Math.hypot((await boat(page)).x - 800, (await boat(page)).z + 910) < 90, `phone: Sail (the second tap) starts at The narrows (${JSON.stringify(await boat(page))})`);
   // in play: a pin shows its card, then "Sail from here" moves her
   await page.evaluate(() => window.__velia.m4.front.home.open()); await page.waitForTimeout(900);
-  await showPin(page, 'tessie', 4);
+  await showPin(page, 'fannette', 4);
   await page.waitForTimeout(300);
-  const tt = await pinAt(page, 'tessie');
+  const tt = await pinAt(page, 'fannette');
   await page.touchscreen.tap(tt.x, tt.y); await page.waitForTimeout(400);
   const go = await page.evaluate(() => { const b = document.querySelector('.lk-livechart .lkc-card .go'); const r = b?.getBoundingClientRect(); return b && r.width ? { l: r.left, t: r.top, w: r.width, h: r.height } : null; });
   check(await page.evaluate(() => window.__velia.birthplaces.current === 'narrows') && !!go && go.h >= 44, `phone: in play the first tap shows the place and offers "Sail from here" (44 px: ${go?.h})`);
   await page.touchscreen.tap(go.l + go.w / 2, go.t + go.h / 2);
-  await page.waitForFunction(() => window.__velia.birthplaces.current === 'tessie', null, { timeout: 15000 });
+  await page.waitForFunction(() => window.__velia.birthplaces.current === 'fannette', null, { timeout: 15000 });
   await page.waitForTimeout(1500);
-  check(Math.hypot((await boat(page)).x - 460, (await boat(page)).z + 50) < 120, `phone: "Sail from here" moves her to Tessie's water (${JSON.stringify(await boat(page))})`);
+  check(Math.hypot((await boat(page)).x - 210, (await boat(page)).z - 50) < 120, `phone: "Sail from here" moves her Off Fannette (${JSON.stringify(await boat(page))})`);
   check(errors.length === 0, `phone: no page errors (${errors.slice(0, 2).join(' | ')})`);
   await ctx.close();
 }

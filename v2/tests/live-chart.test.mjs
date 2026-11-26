@@ -50,7 +50,7 @@ test('the projection: Fannette Island and every pin sit at their world places on
   // the view: the world point at the centre of a view centred on it, and back
   const v = chartView({ cx: 0, cz: 0, mpp: 2, w: 1280, h: 720 });
   assert.deepEqual(v.toPx(0, 0), [640, 360]);
-  const t = pins.find((p) => p.id === 'tessie'), q = v.toPx(t.x, t.z);
+  const t = pins.find((p) => p.id === 'fannette'), q = v.toPx(t.x, t.z);
   assert.deepEqual(q, [640 + t.x / 2, 360 + t.z / 2], 'east is right, south is down, north up');
   const back = v.toWorld(q[0], q[1]);
   assert.ok(Math.abs(back[0] - t.x) < 1e-9 && Math.abs(back[1] - t.z) < 1e-9);
@@ -102,7 +102,7 @@ test('the names\' layout: each class shows at its zoom; a lower class waits behi
 });
 
 const SRC = {
-  birthplaces: pins.map((p) => ({ id: p.id, name: p.name, x: p.x, z: p.z, why: p.why })), current: 'tessie',
+  birthplaces: pins.map((p) => ({ id: p.id, name: p.name, x: p.x, z: p.z, why: p.why, mark: p.mark })), current: 'fannette',
   anchorages: [{ x: -400, z: 0, name: 'Anchorage off Vikingsholm', depth: 13.7 }],
   places: [{ id: 'fannette', name: 'Fannette Island', x: 0, z: 0 }, { id: 'teahouse', name: 'Tea house', x: 2, z: 0, zoomClass: 'C' }],
   areas: [{ id: 'tessieWaters', name: "Tessie's water", x: 300, z: -130, r: 200 }],
@@ -113,7 +113,8 @@ const SRC = {
 
 test('the points: one action each, by where the chart is open (72 § 4)', () => {
   const rows = buildPois(SRC, { mode: 'play' }), by = (id) => rows.find((r) => r.id === id);
-  assert.equal(by('bp-tessie').action, 'sail'); assert.equal(by('bp-tessie').lit, true); assert.equal(by('bp-narrows').lit, false);
+  assert.equal(by('bp-fannette').action, 'sail'); assert.equal(by('bp-fannette').lit, true); assert.equal(by('bp-narrows').lit, false);
+  assert.equal(by('bp-fannette').mark, 'Tessie', 'Off Fannette carries Tessie\'s small mark into the chart\'s row'); assert.equal(rows.filter((r) => r.mark).length, 1);
   assert.equal(by('an--400-0').action, 'anchor');
   assert.equal(by('pl-fannette').action, 'target'); assert.equal(by('ar-tessieWaters').action, 'target'); assert.equal(by('ch-mouth').action, 'target');
   assert.equal(by('bu-g1').action, null, 'a buoy: a card only'); assert.equal(by('bu-g1').line, '"1" Fl G 4s');
@@ -130,10 +131,10 @@ test('the points: one action each, by where the chart is open (72 § 4)', () => 
 test('hit-testing: the nearest shown point within the radius; hidden classes never hit; the Tab walk nearest-first', () => {
   const rows = buildPois(SRC, { mode: 'play' });
   const v = chartView({ cx: 0, cz: 0, mpp: 2, w: 1280, h: 720 }), toPx = (x, z, o) => v.toPx(x, z, o);
-  const t = rows.find((r) => r.id === 'bp-tessie'), [px, py] = v.toPx(t.x, t.z);
-  assert.equal(hitTest(rows, toPx, px + 5, py - 4, HIT_PX.mouse, 2)?.id, 'bp-tessie', 'hover a pin');
+  const t = rows.find((r) => r.id === 'bp-fannette'), [px, py] = v.toPx(t.x, t.z);
+  assert.equal(hitTest(rows, toPx, px + 5, py - 4, HIT_PX.mouse, 2)?.id, 'bp-fannette', 'hover a pin');
   assert.equal(hitTest(rows, toPx, px + 30, py, HIT_PX.mouse, 2), null, 'off it');
-  assert.equal(hitTest(rows, toPx, px + 20, py, HIT_PX.touch, 2)?.id, 'bp-tessie', 'a finger reaches further');
+  assert.equal(hitTest(rows, toPx, px + 20, py, HIT_PX.touch, 2)?.id, 'bp-fannette', 'a finger reaches further');
   const [tx, ty] = v.toPx(2, 0);
   assert.equal(hitTest(rows, toPx, tx, ty, HIT_PX.mouse, 4)?.id, 'pl-fannette', 'the tea house (class C) hides at 4 m/px: the island answers');
   assert.equal(hitTest(rows, toPx, tx, ty, HIT_PX.mouse, 2)?.id, 'pl-teahouse', 'and shows at 2');
@@ -161,7 +162,7 @@ test('the actions call the right services: Sail from here (pick at the entrance,
   assert.deepEqual(calls, [['pick', 'vikingsholm'], ['moveTo', 'narrows'], ['moveTo', 'lake'], ['set', { x: 0, z: 0, name: 'Fannette Island' }],
     ['anchor', { x: -400, z: 0, name: 'Anchorage off Vikingsholm' }], ['lay', 'windward-leeward']]);
   const none = chartActions({ get: () => null });
-  assert.deepEqual(await none.sail(by('bp-tessie')), { ok: false, why: 'unknown' }, 'no service: a plain refusal, never a throw');
+  assert.deepEqual(await none.sail(by('bp-fannette')), { ok: false, why: 'unknown' }, 'no service: a plain refusal, never a throw');
 });
 
 test('the whole bay keeps "Fannette Island": the island\'s name before the pins\' labels, clear of the pins and the boat round it', async () => {

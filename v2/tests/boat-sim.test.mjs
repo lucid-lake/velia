@@ -17,7 +17,7 @@ const flat = waterFor(() => 0);
 const deep = () => -40;
 
 test('starts at the first visit\'s birthplace on the reach rule and sails: under way, heeled, the sails drawing, the pilot holding the reach', () => {
-  // the page's default start (v2/sim/birthplace.js): Tessie's water, 105° off the live wind, the island on the bow
+  // the page's default start (v2/sim/birthplace.js): Off Fannette, 105° off the live wind, the island on the bow
   // side; the wind from 200° (the afternoon's). The waters file's `start` (1200, −1050, 251°) stays the URL pin and v1's
   const row = listBirthplaces(CURRENT_WATERS).find((r) => r.id === BIRTH.first);
   const pose = birthPose(row, { windDeg: 200 });
