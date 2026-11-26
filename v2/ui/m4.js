@@ -61,9 +61,12 @@ export function createM4({ flags, P, errors = [], cockpit = null }) {
       // the logbook (v1's src/sail/logbook.js on v2: ui/logbook.js): its own chunk once Sail's UI is up; the card's LOG and the
       // Menu's LOG open it (front.js), L toggles it (its own key, as v1's). Not on a ?filmui=1 page (the goldens' hud frames, v1's
       // rule that captures never build it): its chunk landing mid-film moved the boat's readback timing (v2-hud-calm 0.29 %)
-      logReady = uiReady.then((u) => (u && flags.filmui !== true ? import('./logbook.js') : null)).then((m) => {
-        if (!m) return null;
-        log = m.createV2Logbook({ ui, B, terrain, clock, windField, tessieRpg: flags.tessierpg === true && feature('playTessie').on, view: () => (lastPose ? { pos: lastPose.pos, target: lastPose.target, fov: lastPose.fov, aspect } : null), sun: () => lastSun });
+      // the Tessie RPG's page (?tessierpg=1 where she is playable): its own small chunk, never fetched otherwise (a phone never)
+      const rpg = flags.tessierpg === true && feature('playTessie').on;
+      logReady = uiReady.then((u) => (u && flags.filmui !== true ? Promise.all([import('./logbook.js'), rpg ? import('./tessieLog.js') : null]) : null)).then((mm) => {
+        if (!mm) return null;
+        const [m, tl] = mm;
+        log = m.createV2Logbook({ ui, B, terrain, clock, windField, tessie: tl ? tl.tessiePage({ bounty: tl.createTessieBounty({ storage: (() => { try { return globalThis.localStorage ?? null; } catch { return null; } })() }) }) : null, view: () => (lastPose ? { pos: lastPose.pos, target: lastPose.target, fov: lastPose.fov, aspect } : null), sun: () => lastSun });
         front?.home?.paint?.();   // LOG lit on the card
         return log;
       }).catch((e) => { errors.push(`logbook: ${e?.stack ?? e}`); console.error(e); return null; });

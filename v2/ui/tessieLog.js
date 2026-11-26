@@ -6,6 +6,7 @@
 //   const src = tessiePage({ bounty: createTessieBounty({ storage }) });   createLogbook({ …, tessie: src })
 import { TYPES, SKILL_ORDER, SKILL_NAMES, BOUNTY, legendOf, canSpend } from '../sim/tessieBounty.js';
 import { tessieMarkSvg } from './tessieMark.js';
+export { createTessieBounty } from '../sim/tessieBounty.js';   // m4.js makes the page's store from this chunk
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 // "Level 4 · 40 / 45 XP · 1 point to spend" (cumulative XP over the next level's start); at 20 her title

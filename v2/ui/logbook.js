@@ -22,8 +22,6 @@ import { attachLogbook } from '../../src/sail/logbook.js';
 import { CURRENT_WATERS } from '../../src/sim/waters/current.js';
 import { FLAGS } from '../../src/sim/core/flags.js';
 import WORLD from './logbookWorld.json' with { type: 'json' };
-import { createTessieBounty } from '../sim/tessieBounty.js';   // the Tessie RPG's page (tessieRpg: ?tessierpg=1 where she is playable)
-import { tessiePage } from './tessieLog.js';
 
 export { WORLD };
 
@@ -74,7 +72,7 @@ function sideCss(doc = globalThis.document) {
 
 // ui: Sail's UI (sail.js: services, hint, skills, words); B: the boat (v2/sim/boat.js); view(): the camera now { pos, target, fov,
 // aspect }; sun(): { elevDeg }
-export function createV2Logbook({ ui, B, terrain, clock, windField = null, view = () => null, sun = () => null, flags = FLAGS, world = WORLD, now = () => performance.now(), tessieRpg = false, storage = (() => { try { return globalThis.localStorage ?? null; } catch { return null; } })() }) {
+export function createV2Logbook({ ui, B, terrain, clock, windField = null, view = () => null, sun = () => null, flags = FLAGS, world = WORLD, now = () => performance.now(), tessie = null }) {
   const frames = [];   // core.afterFrame's callbacks, run with the canvas after the next frame
   const quat = { x: 0, y: 0, z: 0, w: 1 }, pos = { x: 0, y: 0, z: 0 }, fwd = [0, 0, -1];
   const camera = {
@@ -102,8 +100,8 @@ export function createV2Logbook({ ui, B, terrain, clock, windField = null, view 
     get simT() { return B.t; }, get level() { return windField?.level ?? null; }, get pro() { return ui.pro; },
     // the cups' hunts: the Logbook's corners page, read from the page's 'hunts' service when shown
     corners: { pages: () => ui.services.get('hunts')?.pages?.() ?? [] },
-    // the Tessie RPG (phase 1): a fifth page, her bounty, level and skills, read from her save each time it is shown
-    tessie: tessieRpg ? tessiePage({ bounty: createTessieBounty({ storage }) }) : null,
+    // the Tessie RPG (phase 1, ?tessierpg=1): a fifth page, her bounty, level and skills (ui/tessieLog.js tessiePage, made by m4.js)
+    tessie,
   };
   const att = attachLogbook(core, { phys: B.phys, sfx: null }, controls, { key: false });   // no L key on v2: Menu › Logbook, the wind dial
   sideCss();   // after v1's own CSS (its card rules), so the side card's win at the same weight
