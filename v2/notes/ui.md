@@ -142,6 +142,8 @@ default (`?dials=cockpit`: the old dials in the coaming's ends with their raised
   the true wind for a New player only (the bow's sector brighter). v1 keeps its wedge about the true wind (the options are off there).
 - Tests: `v2/tests/dials.test.mjs`, `v2/tests/pages/dialModules.page.mjs`.
 
+**The Coach's boat, shared (2026-11-25):** `src/ui/captainView.js coachBoat({ svg, scale, coach, wedge, luffDeg, rows })` draws the boat group (the wedge, the plan, the arrow, the words) into any 100-unit SVG; the cockpit's dial mounts it inside its ring and adds its own hit strokes; the live map lays the same group turned to her heading (`v2/ui/chart/mapBoat.js`, `v2/notes/plan.md`). The plan's size is per drawing (the dial's three sizes, the map's own).
+
 ## The day clock and the key legend (2026-11-13: engine/clock.js, engine/flags.js clockParams, ui/dayClock.js, ui/sail.js)
 The owner, 2026-11-13: "clock + legend" (v1's first-sail hint lines are not wanted in v2). BACKLOG-v2 #10 and #3.
 

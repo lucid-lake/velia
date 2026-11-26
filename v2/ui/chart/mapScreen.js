@@ -17,6 +17,7 @@ import { createChart, CHART_TIMING } from './liveChart.js';
 import { centreFor, zoomRange, frameBirthplaces } from './chartModel.js';
 import { mountPanelPlan } from './panelPlan.js';
 import { mountChartFact } from './chartFact.js';
+import { mountPanelDock } from './panelDock.js';
 
 const PANEL_W = 'clamp(300px,26vw,360px)';
 const ZOOM_IN_S = 0.9;       // the entrance's zoom into the pin
@@ -119,6 +120,7 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
   host.hidden = true;
   // the panel's float plan: the ledger rows, the conditions plate, the art (desktop and tablet; the phone card keeps layout A)
   const plan = box ? null : mountPanelPlan({ root, services, chart, showTessie, deepAt });   // showTessie: feature('playTessie').on; deepAt: her deep pins
+  const dock = box ? null : mountPanelDock({ root, chart, touch, active: () => !entrance });   // the panel hides like a dock in the menu (2026-11-25); a phone's card keeps its box
 
   // Surprise me: a small italic link on the water (a seeded pick among the five); the entrance picks, the menu moves her
   const surprise = doc.createElement('button'); surprise.type = 'button'; surprise.className = 'lkc-surprise'; surprise.textContent = 'Surprise me';
@@ -210,9 +212,9 @@ export function mountMapScreen({ host, root = globalThis.document?.getElementByI
       if (host.hidden) return;
       if (entrance) { const v = fitPins(); if (v) chart.setView({ ...v, animate: true, duration: CHART_TIMING.glideS }); } else centreOnBoat(true);
     },
-    plan, fact,
+    plan, fact, dock,
     insideHost: (t) => host.contains(t) || !!plan?.contains(t),
-    destroy() { plan?.dispose(); fact?.dispose(); mo?.disconnect(); ro?.disconnect(); offSel(); offAct(); offView(); chart.destroy(); lake(false); host.remove(); delete html.dataset.mapCard; },
+    destroy() { dock?.dispose(); plan?.dispose(); fact?.dispose(); mo?.disconnect(); ro?.disconnect(); offSel(); offAct(); offView(); chart.destroy(); lake(false); host.remove(); delete html.dataset.mapCard; },
   };
   return api;
 }
