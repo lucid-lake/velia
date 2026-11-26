@@ -140,3 +140,39 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
   speed along the heading (8 kn by default); she eases to a stop short of water under 3.2 m within 80 m of her bow.
 - She rides the drawn water (the mean of four points, a share of its slope), her nav lights are glow records, and her wake is an
   emitter in the vessels' map (render/vesselWake.js, full tier): she yields that one map to the glass boat while the glass boat's is live.
+
+## South Lake's paddlers (the region rows' `kayaks` and `sups`; living/sup.js, sim/sup.js, sim/supPose.js, render/sup.js, render/supMesh.js)
+
+- **The region rule.** A region row with a `level` of its own (South Lake) owns its kayakers, put-ins and paddleboards only on a page started
+  in it (`busyLake.js regionLoaded(row, loaded)`; `loaded` is main.js's `levelKey`: `'bay'` or the region's id, passed through the plug-in
+  context). A start in the bay makes no South Lake kayaker, no board, no pipeline and no launch spot; a row without a level lives always.
+  The south region's circle is 4,800 m (it was 2,500) so Pope Beach's put-in lies in it.
+- **The kayaks.** Three pairs, the existing system unchanged: `kayak-ski-run-timber` (Ski Run to Timber Cove, 1.2 km loop, 90 m or more off
+  the beach, 95 m off the piers), `kayak-el-dorado` (along El Dorado Beach) and `kayak-pope` (off Pope Beach), with put-ins `timber-cove`,
+  `lakeview-commons` and `pope-beach` (`launchSpots`, 7 to 15 m off the chart's shore). Lanes are checked against the south level's bed
+  (4 m or more of water, 80 m off the beach, 50 m off every OSM pier, 150 m off the Ski Run start) and, past its edge (Pope), the lake chart:
+  `tests/south-paddlers.test.mjs`. The bay's life rules (glass boat, boats round the start, the first pair in a minute) skip a region with a
+  level of its own (`tests/busy-lake.test.mjs LIFE`).
+- **The boards.** Two lanes of two off the Ski Run beach (`sups`: `sup-ski-run-beach`, 65 m or more off the beach; `sup-ski-run-marina`,
+  clear of the marina pier by 50 m), `residentSups` places them by the day's clock like the kayakers (a row's `mate` a second board 9 m behind).
+  Out 08:30 to 19:00, home in a storm. `sim/sup.js` walks each board along its lane at 0.85 m/s (a stroke every 3.1 s, the blade's side
+  swapped each stroke, a balance sway of 2.3 degrees, the heading smoothed) and `sim/supPose.js` is the figure: hips, a leaning torso, legs and
+  arms by two-bone IK (the hands stay on the 2.05 m paddle to 4 cm), the blade in the water at the pull and carried forward over it at the
+  recovery. Tier (`features paddleboards`, `?sup=0|1|lite`): 4 boards on a desktop or a tablet at L0-L1, 2 at L2-L3, none on a phone.
+- **The drawing.** `render/sup.js`: one pipeline `sup-solid` (the kayaks' lighting), five instanced draws (board, torsos, heads, 8 limb rods
+  a board, paddles), each part a 3 x 4 world matrix built on the CPU from the joints on the board's pose on the drawn water; about 1.1 k
+  triangles a board. Nothing under the waterline for the board and the blade. The blades splash through the kayaks' droplets: the system
+  pushes its catches and exits into the kayak fleet's `splash` and `tips` lists before `kayaks-splash.js` steps.
+- **The busy lake** keeps clear of the boards as of the kayakers (`lakePlugins.js` BUSY_LAKE: the boards' marks join `others`, `kayakM`).
+- **Tessie.** A board is splashed only: `tessieHits.js` kind `'sup'` (like a kayak: `splash`, `fall` and `contact` list its id in `spooked`,
+  never a target, never a hit; `holdOff` keeps her spine out of it; `SPOOKABLE` names the kinds) so the coming bounty can count it. A
+  breach, a surfacing or a fall within 20 m (`HITS.spookM`; her sim's events or the played Tessie's, `tessiePlayer.js spookAt`) makes a board's
+  paddler wobble for 1 s (roll up to 0.3 rad, capped at 0.42), drop to kneel over 0.8 s with the paddle across the lap, hold 3.5 to 5.5 s
+  and stand over 1.4 s. Nobody falls in: the feet, knees and hips stay on the deck (`tests/south-paddlers.test.mjs`). The sonar blip and the
+  hull sound treat it as a kayak (no new UI).
+- **Budget** (2026-11-25, M5 Pro Mac, headless Chrome, load average about 3 from other helpers, `__velia.kayaks.sup.on` A/B, 32
+  alternating blocks of 8 frames, the scene pass's median over 96 frames each side). Desktop 1280 x 720, 4 boards drawn at 20 to 150 m:
+  scene 2.255 ms on, 2.240 ms off (+0.015 ms; a second run 2.248 against 2.238, +0.010), the whole frame 7.11 against 7.07 (inside the
+  noise); the CPU (the fleet's step and the records' fill, 4 boards) 0.017 ms a frame; 4,344 triangles, 5 draws. The phone's shape
+  (1170 x 2532, `terrain=phone`, boards forced on with `?sup=1`): scene 3.227 on, 3.222 off (+0.005 ms). The phone's policy makes no board,
+  no pipeline: 0 ms. The budget is 0.2 ms on a desktop.

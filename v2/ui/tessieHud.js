@@ -177,7 +177,7 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
       const R = 54, g = sonar.querySelector('.bls');
       g.innerHTML = sonarBlips(her, boats, { targetId, lockId, seen }).map((b) => {
         const x = 66 + b.u * R, y = 66 - b.v * R, r = (b.rot / DEG).toFixed(0), tg = b.target ? ' data-t=""' : '';
-        const shape = b.kind === 'kayak' ? `<circle class="bl o"${tg} cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3"/>`
+        const shape = b.kind === 'kayak' || b.kind === 'sup' ? `<circle class="bl o"${tg} cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3"/>`
           : b.kind === 'glass' ? `<rect class="bl"${tg} x="-2" y="-5" width="4" height="10" rx="2" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${r})"/>`
           : `<path class="bl${b.kind === 'halcyon' ? ' o' : ''}"${tg} d="M0 -6L4 5H-4Z" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${r})"/>`;
         const tick = b.seen ? `<path d="M0 7v3" stroke-width="1.2" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${r})" style="stroke:rgb(var(--lk-cream) / .8)"/>` : '';

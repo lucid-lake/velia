@@ -77,7 +77,7 @@ export function nearestHull(boats, her, rangeM = 20) {
   if (!her) return null;
   let best = null;
   for (const b of boats ?? []) {
-    if (b.kind === 'kayak') continue;
+    if (b.kind === 'kayak' || b.kind === 'sup') continue;
     const d = Math.hypot(b.x - her.x, b.z - her.z);
     if (d < rangeM && (!best || d < best.d)) best = { id: b.id, d, x: b.x, z: b.z };
   }
@@ -91,7 +91,7 @@ export function surgeLevel(L) {
 }
 
 // the hull's material for a knock: the Halcyon's wood, a glass boat's and a sailboat's fibreglass, a kayak's plastic shell
-export const hullOf = (kind) => (kind === 'halcyon' ? 'wood' : kind === 'kayak' ? 'shell' : 'glass');
+export const hullOf = (kind) => (kind === 'halcyon' ? 'wood' : kind === 'kayak' || kind === 'sup' ? 'shell' : 'glass');
 
 // the one-shots (each fires once): feed one frame at a time, get the cues { type, ... } to play this frame.
 //   frame { events (the controller's: dash, ...), knocks ([{ kind, hit, x, z, where, mult }]: the player's contact results),

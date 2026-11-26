@@ -23,7 +23,9 @@
 //   H.holdOff(spine, L, list) → pushes her spine's frames out of the kayaks and the glass boat (horizontally, only where she is near the
 //                                surface): she never passes through them (the Halcyon and the lake's sailboats have the sim's own hold)
 //   H.rollK(P, side) → the roll moment (N·m) her weight on the rail gives a BoatPhysics boat (B.shove's maths: rollK × mass × g × GM)
-// list: [{ id, kind: 'sail' | 'glass' | 'halcyon' | 'kayak' | 'still', x, z, heading, L, B, u (m/s ahead), bite (a kayak: a target) }]
+// list: [{ id, kind: 'sail' | 'glass' | 'halcyon' | 'kayak' | 'sup' | 'still', x, z, heading, L, B, u (m/s ahead), bite (a kayak: a target) }]
+// ('sup': a stand-up paddleboard, South Lake's: splashed and spooked like a kayak, never a target and never knocked: its paddler wobbles and kneels, v2/sim/sup.js;
+// the spooked lists name it by id, so the coming bounty can count each kind)
 // ('still': at anchor or moored: never a target; a kayak without bite: the glass boat's, or one capsized already)
 export const HITS = Object.freeze({
   aimM: 60, coneDeg: 20,     // the corners: a boat within 60 m in a 40° cone ahead
@@ -34,8 +36,8 @@ export const HITS = Object.freeze({
   spookM: 20,                // m: a breach, a fall or a surfacing this near a kayak splashes and spooks it
   rollK: 1.3,                // × the boat's displacement × GM (the revenge's tail sweep, REVENGE.rollK)
   holdS: 12,                 // s the knocked sailboat's crew lets the sheets fly and the helm go (Regatta's holdControls)
-  kayakR: Object.freeze([2.4, 1.1]), glassR: Object.freeze([6.6, 2.4]),   // m: her clearance ellipses' half-axes (the hull plus her margin)
-  underY: Object.freeze({ kayak: -1.2, glass: -1.6 }),   // m: frames deeper than this pass under them
+  kayakR: Object.freeze([2.4, 1.1]), supR: Object.freeze([2.1, 0.8]), glassR: Object.freeze([6.6, 2.4]),   // m: her clearance ellipses' half-axes (the hull plus her margin)
+  underY: Object.freeze({ kayak: -1.2, sup: -1.0, glass: -1.6 }),   // m: frames deeper than this pass under them
   //, 2026-11-20, the numbers approved): the corners' hysteresis and the lock-on
   keep: Object.freeze({ m: 70, deg: 30, s: 0.5 }),
   lock: Object.freeze({ surfaceM: 10, underM: 13, aboveM: 15, tabletM: 2, touchM: 2.0, hitM: 3.0, footM: 3.5, coneDeg: 35, breakDeg: 50, breakSurfaceM: 16, breakUnderM: 19,
@@ -44,6 +46,9 @@ export const HITS = Object.freeze({
 });
 const DEG = Math.PI / 180;
 import { wrap } from '../../src/sim/core/math.js';
+// what a breach, a fall or a surfacing near it only splashes and spooks (never a hit): the kayaks and the stand-up paddleboards
+export const SPOOKABLE = Object.freeze(['kayak', 'sup']);
+const spookable = (b) => b.kind === 'kayak' || b.kind === 'sup';
 const isTarget = (k) => k === 'sail' || k === 'glass' || k === 'halcyon';
 // a boat she may lock on and bite: the sailboats, the glass boat, the Halcyon, and the lake's kayaks (bite: true)
 const targetable = (b) => isTarget(b.kind) || (b.kind === 'kayak' && !!b.bite);
@@ -131,6 +136,7 @@ export function createTessieHits({ K = HITS } = {}) {
       const L = K.lock, spooked = [];
       let hit = null, best = Infinity;
       for (const b of list) {
+        if (b.kind === 'sup') { if (Math.hypot(b.x - h.x, b.z - h.z) <= K.spookM * 0.5) spooked.push(b.id); continue; }
         if (b.kind === 'kayak' && (!b.bite || inGrace(b.id, t))) { if (Math.hypot(b.x - h.x, b.z - h.z) <= K.spookM * 0.5) spooked.push(b.id); continue; }
         if (b.kind === 'kayak' && Math.hypot(b.x - h.x, b.z - h.z) <= K.spookM * 0.5) spooked.push(b.id);
         if (!targetable(b) || inGrace(b.id, t)) continue;
@@ -151,7 +157,7 @@ export function createTessieHits({ K = HITS } = {}) {
       let hit = null, best = Infinity;
       const spooked = [];
       for (const b of list) {
-        if (b.kind === 'kayak') { if (Math.hypot(b.x - f.x, b.z - f.z) <= K.spookM) spooked.push(b.id); continue; }
+        if (spookable(b)) { if (Math.hypot(b.x - f.x, b.z - f.z) <= K.spookM) spooked.push(b.id); continue; }
         if (!isTarget(b.kind) || inGrace(b.id, t)) continue;
         // the footprint: her front 9 m about the fall's middle, sampled along her heading
         let d = Infinity;
@@ -164,12 +170,12 @@ export function createTessieHits({ K = HITS } = {}) {
       grace.set(hit.id, t + K.graceS); count++;
       return { hit, side, spooked, d: +best.toFixed(2) };
     },
-    splash(x, z, list) { const out = []; for (const b of list) if (b.kind === 'kayak' && Math.hypot(b.x - x, b.z - z) <= K.spookM) out.push(b.id); return out; },
+    splash(x, z, list) { const out = []; for (const b of list) if (spookable(b) && Math.hypot(b.x - x, b.z - z) <= K.spookM) out.push(b.id); return out; },
     holdOff(spine, L, list, reach = () => 1) {
       const N = spine.length / 8, ds = L / (N - 1);
       let most = 0;
       for (const b of list) {
-        const R = b.kind === 'kayak' ? K.kayakR : b.kind === 'glass' ? K.glassR : null; if (!R) continue;
+        const R = b.kind === 'kayak' ? K.kayakR : b.kind === 'sup' ? K.supR : b.kind === 'glass' ? K.glassR : null; if (!R) continue;
         const under = K.underY[b.kind], fx = Math.sin(b.heading ?? 0), fz = -Math.cos(b.heading ?? 0);
         for (let i = 0; i < N; i++) {
           const o = i * 8, r = reach(i * ds);
