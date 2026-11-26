@@ -379,9 +379,9 @@ export function createChart({ hint = null, el, size = 'play', mode = 'play', ser
         break;
       }
       case 'anchorage': {   // a chart's anchorage symbol, in the ink; lit (the anchorage cue): a size up with a fine amber ring
-        const s = r.lit ? 6.8 : 5.2;
+        const s = r.lit ? 6.8 : visView().mpp > 6 ? 6.6 : 5.2;   // a size up at the overview, where the glyph is the only mark (owner 2026-11-25)
         if (r.lit) { g.beginPath(); g.arc(x, y, s * 1.25 + 2.5, 0, Math.PI * 2); g.lineWidth = 1.2; g.strokeStyle = A(0.9); g.stroke(); }
-        g.strokeStyle = I(0.85); g.lineWidth = 1.1; g.beginPath();
+        g.strokeStyle = I(0.95); g.lineWidth = s > 6 ? 1.3 : 1.1; g.beginPath();
         g.arc(x, y - s * 0.74, s * 0.2, 0, Math.PI * 2); g.moveTo(x, y - s * 0.54); g.lineTo(x, y + s * 0.74);
         g.moveTo(x - s * 0.42, y - s * 0.3); g.lineTo(x + s * 0.42, y - s * 0.3);
         g.moveTo(x - s * 0.68, y + s * 0.18); g.quadraticCurveTo(x - s * 0.52, y + s * 0.84, x, y + s * 0.74); g.quadraticCurveTo(x + s * 0.52, y + s * 0.84, x + s * 0.68, y + s * 0.18);
