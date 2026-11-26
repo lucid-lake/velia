@@ -35,9 +35,9 @@ test('the dock: the panel goes 3 s after the pointer left it for the map, never 
   D.step(0.1, { active: false }); assert.equal(D.hidden, false, 'the menu closed (or the entrance): the panel is back for next time');
 });
 
-test('the map\'s boat: 70–130 px by zoom (smaller than the mock), words at 11 px; one replaceable drawing', () => {
+test('the map\'s boat: 70–130 px by zoom, the rig from 90 px, words at 10 px; one replaceable drawing', () => {
   assert.equal(mapBoatPx(0.01), MAP_BOAT.minPx); assert.equal(mapBoatPx(5), MAP_BOAT.maxPx);
-  assert.deepEqual([MAP_BOAT.minPx, MAP_BOAT.maxPx, MAP_BOAT.wordPx], [70, 130, 11]);
+  assert.deepEqual([MAP_BOAT.minPx, MAP_BOAT.maxPx, MAP_BOAT.detailPx, MAP_BOAT.wordPx], [70, 130, 90, 10]);
   let made = null; setMapBoat((o) => (made = o, { el: null, place() {}, update() {}, destroy() {} }));
   mountMapBoat({ root: 'r', state: () => null }); assert.equal(made.root, 'r'); setMapBoat(null);
 });
