@@ -579,7 +579,7 @@ fn glintOf(n: vec3f, v: vec3f, l: vec3f, s2: f32) -> f32 {
   // --- the wind on the water (render/windWater.js, audit W1–W3): the local wind, the lanes, the gust patch ---
   let wl = windLocal(v.world.xz); let wv = wl.xy; let localU = length(wv); let aroundU = wl.z;
   let fpV = v1Footprint(toEye);
-  // off by default, owner 2026-11-26 (?lanes=on restores): the lane stripes and the aged-foam streaks below stay in the code (render/windWater.js lanesMode)
+  // off by default, 2026-11-26 (?lanes=on restores): the lane stripes and the aged-foam streaks below stay in the code (render/windWater.js lanesMode)
   var lane = 0.0;   // W3: v1's wind lanes as drawn (signed: rough lanes, smooth slicks), along the local wind
   var lanePos = 0.0;   // its positive part (the lanes' darkening, the roughening and the spume read it)
   if (localU > ${STREAK_ONSET[0]}.0) {

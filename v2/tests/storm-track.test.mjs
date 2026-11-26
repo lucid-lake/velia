@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createStorm, cellMask, stormFromParams, STORM_TRACK, turnToward } from '../sim/storm.js';
 import { steerFlow, towardOf, WEATHER_WIND } from '../sim/weatherWind.js';
-import { MIST, mistWeight, mistDrift, mistLevel, mistDir } from '../sim/mist.js';
+import { MIST, mistWeight, mistDrift, mistLevel, mistDir, mistFlagOf } from '../sim/mist.js';
 import { createFrameUniforms, wgslStruct } from '../engine/uniforms.js';
 import { LEVELS } from '../engine/quality.js';
 import { WATER_DRAW_WGSL } from '../render/water.js';
@@ -150,4 +150,12 @@ test('the mist\'s level: the quality ladder (lighter at L2, off at L3), off unde
   const water = WATER_DRAW_WGSL(wgslStruct(), null, false);
   assert.match(water, /if \(F\.mist\.x > 0\.0\)/, 'off at 0: every pixel skips it');
   assert.match(water, new RegExp(`MI_ON = vec2f\\(${MIST.onset[0].toFixed(6)}, ${MIST.onset[1].toFixed(6)}\\)`), 'the WGSL takes the JS onset');
+});
+
+test('the spray mist is off by default; ?spray=1 restores the level\'s amount at once, ?spraymist= still works', () => {
+  assert.equal(mistLevel({ rung: 1, flag: mistFlagOf(undefined, undefined) }), 0);
+  assert.equal(mistLevel({ rung: 1, flag: mistFlagOf(null, null) }), 0);
+  assert.equal(mistLevel({ rung: 0.5, flag: mistFlagOf('1', undefined) }), 1);
+  assert.equal(mistLevel({ rung: 1, flag: mistFlagOf('0', '1') }), 0, '?spray wins');
+  assert.equal(mistLevel({ rung: 0, flag: mistFlagOf(undefined, '1') }), 1);
 });

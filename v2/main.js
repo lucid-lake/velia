@@ -68,7 +68,7 @@ import { setStreamMusic } from '../src/audioFormat.js';   // music: every piece 
 import { visitSeed } from '../src/visitSeed.js';   // music: a seed per visit for the pieces' order (v1's)
 import { weatherMenu } from '../src/sim/weather/weatherMenu.js';
 import { createWeatherWind, steerFlow } from './sim/weatherWind.js';   // the one wind every weather effect reads (the rain, the clouds' drift, the gulls' calls, the storm's track)
-import { mistDrift, mistLevel } from './sim/mist.js';   // storm round 2: the spray mist's drift and level
+import { mistDrift, mistLevel, mistFlagOf } from './sim/mist.js';   // storm round 2: the spray mist's drift and level
 import { createWeatherLook, createLensWater, fillLookRecord } from './sim/weatherLook.js';   // a look per weather; the lens's water
 import { createWeatherLookBuffer } from './render/weatherLook.js';
 import { createBoatSim, waterFor, START, FOLLOW, DESK_TRIM } from './sim/boat.js';
@@ -773,7 +773,7 @@ async function boot() {
   // audit W1–W3: the water's wind texture (sim/windTex.js): a worker's fills on a live page, in place on the sim's steps in a capture
   // (?headless=1 and a ?filmui=1 film: the worker's results land on the wall clock, a different film frame each run)
   const windTex = createWindTex({ field: windField, live: windTexLive({ headless: P.headless, filmui: flags.filmui }), makeWorker: () => { lmPoint('worker.wind'); return new Worker(new URL('./sim/wind-worker.js', import.meta.url), { type: 'module', name: 'velia-wind' }); }, terrain, seed: P.seed });
-  const mistFlag = flags.spray != null ? flags.spray : flags.spraymist;   // ?mist= (the A/B) over ?spraymist=
+  const mistFlag = mistFlagOf(flags.spray, flags.spraymist);   // ?mist= (the A/B) over ?spraymist=
   const windFx = { tex: true, gust: true, ...lanesMode(flags.lanes), caps: true };   // the in-page A/B (hook.setWindFx); the wind lanes and the aged foam's streaks: off by default (render/windWater.js lanesMode)
   // Tahoe's day follows the light while the clock runs on its own (v1's core: wind.setClock(clock.hourAt), unwrapped hours); a
   // frozen capture keeps the wind's own day, as before
