@@ -1,5 +1,6 @@
 // Play as Tessie, the level-up moment (the Tessie RPG, phase 2; behind ?tessierpg=1). Pure: no DOM, no clock of its own (the caller
-// steps it), no Math.random. Everything lives on surfaces that exist: the skipper's line says "Level N: pick one skill to grow.", the
+// steps it), no Math.random. Everything lives on surfaces that exist: the skipper's line says "Level N: pick one skill to grow: [1] or [2]." (the
+// glowing slots' keys; a tablet: "tap a glowing skill"), the
 // slots that can take a point carry a soft amber halo, and a press on a glowing slot while the line is up spends the point there.
 //   the line     asked at once when a level is reached; while a point waits, asked again once she has been still stillS (2 s), at
 //                most every everyS (60 s), with no cap. The lean skipper still decides when it shows (v2/ui/leanSkipper.js
@@ -8,7 +9,7 @@
 //                point is left
 //   the halo     the skills a point can go to now (v2/sim/tessieBounty.js canSpend), whenever a point waits, line or no line
 //   a press      on a glowing slot inside the window spends the point ('pick'); any other press is the skill's own ('fire')
-//   const U = createLevelUp({ bounty });   U.levelUp(); U.step(dt, { still, say, lineUp }); U.press(id) → { pick, rank?, why? }
+//   const U = createLevelUp({ bounty, touch });   U.levelUp(); U.step(dt, { still, say, lineUp }); U.press(id) → { pick, rank?, why? }
 //   U.halo() → [ids];  U.open → bool;  U.state → { open, lineAt, lastLine, stillT, want, shown }
 import { SKILL_ORDER, canSpend } from './tessieBounty.js';
 
@@ -18,12 +19,16 @@ export const LEVEL_UP = Object.freeze({
   stillS: 2,                  // s she must be still before a waiting point's line comes back
   everyS: 60,                 // s at least between two showings of a waiting point's line (no cap on how many)
   askS: 1,                    // s between two asks while the lean skipper refuses
-  line: (level) => `Level ${level}: pick one skill to grow.`,
+  // the line names the way to pick (a new player saw "pick one skill" and no key): the glowing slots' number keys as key caps
+  // ("Level 2: pick one skill to grow: [1] or [2]."), on a tablet the tap
+  line: (level, keys = [], touch = false) => (touch ? `Level ${level}: tap a glowing skill to grow it.`
+    : keys.length ? `Level ${level}: pick one skill to grow: ${keys.length > 1 ? `${keys.slice(0, -1).map((k) => `[${k}]`).join(', ')} or [${keys.at(-1)}]` : `[${keys[0]}]`}.`
+      : `Level ${level}: pick one skill to grow.`),
 });
 // the skills a point can go to now (the halo), in the slots' order
 export const pickable = (s) => (s && s.points > 0 ? SKILL_ORDER.filter((id) => canSpend(s, id) == null) : []);
 
-export function createLevelUp({ bounty, P = LEVEL_UP } = {}) {
+export function createLevelUp({ bounty, touch = null, P = LEVEL_UP } = {}) {   // touch() → true on a tablet (the line says tap)
   let t = 0, want = false, lineAt = null, lastLine = -Infinity, stillT = 0, wait = 0, shown = 0;
   const read = () => { try { return bounty?.state?.() ?? null; } catch { return null; } };
   const close = () => { lineAt = null; };
@@ -41,7 +46,7 @@ export function createLevelUp({ bounty, P = LEVEL_UP } = {}) {
       const due = want || (stillT >= P.stillS && t - lastLine >= P.everyS);
       if (!due || lineAt != null || wait > 0 || typeof say !== 'function') return;
       wait = P.askS;
-      if (say(P.line(s.level))) { lineAt = t; lastLine = t; want = false; shown++; }
+      if (say(P.line(s.level, pickable(s).map((id) => SKILL_ORDER.indexOf(id) + 1), !!touch?.()))) { lineAt = t; lastLine = t; want = false; shown++; }
     },
     get open() { return lineAt != null; },
     halo: () => pickable(read()),

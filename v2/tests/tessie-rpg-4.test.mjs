@@ -85,11 +85,12 @@ test('the pure rules: heel by distance, the one-boat knock rule, Light wind, the
   assert.equal(surgeHeel(41, r1), 0, 'none outside the ring');
   assert.equal(surgeHeel(60, r4), 45 * (1 - (1 - SURGE.edgeK) * (60 - 18) / (64 - 18)), 'rank 4 reaches 64 m');
   const her = { x: 0, z: 0 }, strong = 11, light = 2.8;
-  // two boats heeled past 12° inside the knock radius: the nearer goes over, the other heels; one at 10° heels; one at 25° outside it heels
+  // two boats heeled past 12° inside the knock radius: the nearer goes over, the other heels; one at 10° 9 m off (outside the 7.2 m
+  // point-blank radius) heels; one at 25° outside it heels
   const list = [
     { id: 'a', kind: 'sail', x: 10, z: 0, heading: 0, heelDeg: -24, twsMs: strong },
     { id: 'b', kind: 'sail', x: 0, z: 8, heading: 0, heelDeg: 22, twsMs: strong },
-    { id: 'c', kind: 'sail', x: -6, z: 0, heading: 0, heelDeg: 10, twsMs: strong },
+    { id: 'c', kind: 'sail', x: -9, z: 0, heading: 0, heelDeg: 10, twsMs: strong },
     { id: 'd', kind: 'sail', x: 0, z: -20, heading: 0, heelDeg: 25, twsMs: strong },
     { id: 'g', kind: 'glass', x: 0, z: 30, heading: 0 },
     { id: 'p', kind: 'power', x: 15, z: 15, heading: 0 },
@@ -109,6 +110,24 @@ test('the pure rules: heel by distance, the one-boat knock rule, Light wind, the
   assert.equal(pl.knock, null, 'Light wind: nothing goes over'); assert.equal(pl.light, true);
   assert.equal(pl.heels.length, 5, 'all of them only heel (the four sailboats and the glass boat)');
   assert.ok(lightWind(7 * KN) && !lightWind(8 * KN));
+});
+
+test('point-blank: an upright boat within 0.6 of the knock radius of her body goes over (never in Light wind); farther it only heels and says why', () => {
+  const r1 = SURGE_RANKS[1], r4 = SURGE_RANKS[4], her = { x: 0, z: 0 }, strong = 7.7, light = 2.8;
+  const up = (x, tws = strong) => [{ id: 'u', kind: 'sail', x, z: 0, heading: 0, heelDeg: 2, twsMs: tws }];
+  assert.equal(SURGE.closeK, 0.6);
+  assert.equal(surgeResolve(her, up(7), r1).knock?.id, 'u', 'upright at 7 m (inside 7.2 m): over');
+  const far = surgeResolve(her, up(9), r1);
+  assert.equal(far.knock, null, 'upright at 9 m: it only heels'); assert.equal(far.upright, true, 'the reason: too upright, not close enough');
+  assert.equal(surgeResolve(her, up(10), r4).knock?.id, 'u', 'rank 4 reaches 10.8 m point-blank');
+  const lt = surgeResolve(her, up(5, light), r1);
+  assert.equal(lt.knock, null, 'Light wind: never over'); assert.equal(lt.light, true); assert.equal(lt.upright, false);
+  // the knock radius counts from her body: a boat 14.5 m from the ring's centre but 5 m past her nose goes over
+  const nose = { x: 0, z: -9.5 }, b = [{ id: 'n', kind: 'sail', x: 0, z: -14.5, heading: 0, heelDeg: 1, twsMs: strong }];
+  assert.equal(surgeResolve(her, b, r1).knock, null, 'from the centre alone: 14.5 m, out of reach');
+  assert.equal(surgeResolve(her, b, r1, { bodyD: (o) => Math.hypot(o.x - nose.x, o.z - nose.z) }).knock?.id, 'n', 'from her body: 5 m past her nose: over');
+  // a knocked boat clears the reason
+  assert.equal(surgeResolve(her, [...up(9), { id: 'k', kind: 'sail', x: 0, z: 6, heading: 0, heelDeg: 1, twsMs: strong }], r1).upright, false);
 });
 
 // as her in a steady wind: the boats placed round her just before the slap (their heel kept), the peaks read over the wave
@@ -178,6 +197,21 @@ test('Strong wind (24 kn): the boat within the knock radius heeled past 12° goe
   const got = r.P.bounty.state().xp - r.xp0;
   assert.ok(got >= 3, `XP for a lake sailboat (${got})`);
   checkHeels(r, 'Strong');
+});
+
+test('as her (Medium, 10 kn): an upright boat 4 m off her side goes over; one upright 10 m off only heels and the skipper\'s line says why', () => {
+  for (const [d, over] of [[4, true], [10, false]]) {
+    const world = lake(WINDS.medium), L = world.L;
+    const { P, sim, step } = rig({ storage: save({ surge: 1 }), world });
+    step(0.2);
+    assert.equal(P.pressSlot('surge'), 'fire');
+    step(1.0);
+    const b = L.liveBoats[0]; place(b, sim, d + 1.5, 90 * DEG); b.phys.state.heel = 0; b.phys.p = 0;   // abeam of her middle, upright (her body's half-width ~1.5 m)
+    step(4);
+    const slap = P.stats().log.surge.slap;
+    assert.equal(!!b.knock?.capsized, over, `${d} m: ${over ? 'over' : 'only heeled'} (${JSON.stringify(slap)})`);
+    assert.equal(P.stats().tipsWant.includes('tip.tessie.surge.upright'), !over, `${d} m: the reason line ${over ? 'not ' : ''}asked`);
+  }
 });
 
 test('the rank sets the ring: a boat 44 m off heels at rank 2 (48 m), not at rank 1 (40 m); rank 4 heels 45° inside 18 m', () => {

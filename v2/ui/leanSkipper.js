@@ -52,7 +52,7 @@ export const LEAN_CLASS = Object.freeze({
   'tip.tessie.swim': TIP, 'tip.tessie.dive': TIP, 'tip.tessie.dash': TIP, 'tip.tessie.look': TIP,
   // "Tessie's up. [T] to be her." (tessiePlayer.js createBeLine): a TIP that may come back (LEAN_REPEAT), retired for good by the first swap
   'tip.tessie.be': TIP,
-  // the Tessie RPG's level-up (v2/sim/tessieLevelUp.js, ?tessierpg=1): "Level N: pick one skill to grow.", a TIP that comes back while a
+  // the Tessie RPG's level-up (v2/sim/tessieLevelUp.js, ?tessierpg=1): "Level N: pick one skill to grow: [1] or [2].", a TIP that comes back while a
   // point waits (its own cadence: still 2 s, at most every 60 s); the gap and busy rules hold
   'tip.tessie.level': TIP,
   // the Tessie RPG, phase 6 (v2/sim/tessieBounty.js SETS, v2/sim/tessieWary.js CHATTER): a set's legend line and the lookout's two
@@ -62,6 +62,10 @@ export const LEAN_CLASS = Object.freeze({
   // last; once ever each
   'tip.tessie.try.lure': TIP, 'tip.tessie.try.sonar': TIP, 'tip.tessie.try.surge': TIP, 'tip.tessie.try.breach': TIP,
   'tip.tessie.tried.lure': TIP, 'tip.tessie.tried.sonar': TIP, 'tip.tessie.tried.surge': TIP, 'tip.tessie.tried.breach': TIP,
+  // the RPG's reasons for a skill that did nothing (v2/living/tessiePlayer.js SURGE_LINES, SKILL_LINES), once ever each
+  'tip.tessie.surge.upright': TIP, 'tip.tessie.surge.light': TIP,
+  'tip.tessie.repeat': TIP,
+  'tip.tessie.breach.none': TIP, 'tip.tessie.breach.seen': TIP, 'tip.tessie.locked': TIP,   // the same boat wrecked again within 2 min pays half (v2/sim/tessieBounty.js repeatS)
   // a press or a tap refused, with the way out (the planner, the double-tap mark, the pilot)
   'mark.set': MUST,   // "Mark set. Click NAV to sail there.": the answer to a double-click; said at once
   'refuse.plan': MUST, 'refuse.mark': MUST, 'refuse.pilot': MUST, 'refuse.dest': MUST, 'refuse.course': MUST,

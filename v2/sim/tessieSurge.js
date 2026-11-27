@@ -2,13 +2,16 @@
 // A 1.2 s wind-up (she coils, her tail lifts), then a tail slap: a ring wave runs out from her body's middle to the rank's ring
 // radius over SURGE.waveS. Every boat inside heels away from her as it passes, toward the rank's heel angle by distance (the full
 // angle inside the knock radius, easing to SURGE.edgeK of it at the ring). One boat within the knock radius that is already heeled
-// past SURGE.overDeg (the wind helps) goes over: a knockdown, scored as wrecked; in Light wind (under SURGE.lightKn at that boat)
-// nothing goes over, it only heels. The kayaks within SURGE.kayakM are splashed (scored). The slap reveals her to the boats inside.
+// past SURGE.overDeg (the wind helps) goes over: a knockdown, scored as wrecked; so does one slapped point-blank (within SURGE.closeK of
+// the knock radius) whatever its lean; in Light wind (under SURGE.lightKn at that boat) nothing goes over, it only heels. The kayaks within SURGE.kayakM are splashed (scored). The slap reveals her to the boats inside.
 //   surgeHeel(d, row) → the heel (deg) the wave gives a boat d m from her (0 outside the ring)
 //   awaySide(b { x, z, heading }, at { x, z }) → the side a wave from her heels the boat to (+1 starboard down: away from her)
 //   surgeResolve(at { x, z }, list [{ id, kind, x, z, heading, heelDeg (now, + starboard down), twsMs }], row, { grace })
-//     (grace(id) → true: a boat knocked down within the last 45 s, sim/tessieHits.js grace: it only heels, never goes over again)
-//     → { heels: [{ id, kind, d, lean, heelDeg, side, atS }], knock: { id, kind, d, lean, side, atS } | null, kayaks: [ids], seen: [ids], light }
+//     (grace(id) → true: a boat knocked down within the last 45 s, sim/tessieHits.js grace: it only heels, never goes over again;
+//     bodyD(b) → m from the boat to the nearest part of her body: the knock radius counts from her whole 19 m body, not only its middle,
+//     so a boat beside her nose is in it; absent, the distance from the ring's centre)
+//     → { heels: [{ id, kind, d, lean, heelDeg, side, atS }], knock: { id, kind, d, lean, side, atS } | null, kayaks: [ids], seen: [ids], light,
+//         upright (a boat inside the knock radius stayed up: too upright and not close enough; the reason the player is told) }
 //       (lean: its heel when the slap lands, deg)
 //       (side: +1 starboard down; a heel goes away from her, the knock over the way the boat already leans; atS: s after the slap
 //       the wave reaches it)
@@ -22,6 +25,8 @@ export const SURGE = Object.freeze({
   edgeK: 0.3,          // the heel at the ring's edge, a share of the rank's heel angle (the full angle inside the knock radius)
   overDeg: 12,         // a boat already heeled past this (the wind helps) inside the knock radius goes over: 12° so a boat on the
                        // wind at the default 15 kn (about 20°) and in Medium (10–12 kn: 14–18°) can go over; Light never (lightKn)
+  closeK: 0.6,         // a boat within this share of the knock radius (rank 1: 7.2 m) goes over whatever its lean: the boats that see her
+                       // bear away and sit upright (about 2° at 15 kn), so the lean rule alone knocked 0 of 28 slaps from the surface
   lightKn: 7.5,        // kn: under this at the boat (the Light band, 4–7 kn) nothing goes over, only heels
   kayakM: 20,          // m: the kayaks within this are splashed (scored)
   heelKinds: Object.freeze(['sail', 'halcyon', 'glass']),   // what the wave heels (the powerboats and the paddle-wheeler: not by a ring wave)
@@ -45,8 +50,8 @@ export function awaySide(b, at) {
   return dot > 0 ? -1 : 1;
 }
 
-export function surgeResolve(at, list = [], row, { grace = null } = {}) {
-  const out = { heels: [], knock: null, kayaks: [], seen: [], light: false };
+export function surgeResolve(at, list = [], row, { grace = null, bodyD = null } = {}) {
+  const out = { heels: [], knock: null, kayaks: [], seen: [], light: false, upright: false };
   if (!at || !row) return out;
   const speed = row.ringM / SURGE.waveS;
   let best = null;
@@ -57,13 +62,16 @@ export function surgeResolve(at, list = [], row, { grace = null } = {}) {
     out.seen.push(b.id);
     if (!SURGE.heelKinds.includes(b.kind)) continue;
     const lean = Number.isFinite(b.heelDeg) ? b.heelDeg : 0;
-    if (SURGE.knockKinds.includes(b.kind) && d <= row.knockM && Math.abs(lean) > SURGE.overDeg && !grace?.(b.id)) {
-      if (lightWind(b.twsMs)) out.light = true;
-      else if (!best || d < best.d) best = { id: b.id, kind: b.kind, d, lean, side: lean >= 0 ? 1 : -1, atS: d / speed };
+    const near = Math.min(d, bodyD?.(b) ?? Infinity);
+    if (SURGE.knockKinds.includes(b.kind) && near <= row.knockM && !grace?.(b.id)) {
+      const leans = Math.abs(lean) > SURGE.overDeg, close = near <= row.knockM * SURGE.closeK;
+      if (!leans && !close) out.upright = true;
+      else if (lightWind(b.twsMs)) out.light = true;
+      else if (!best || near < best.near) best = { id: b.id, kind: b.kind, d, near, lean, side: leans ? (lean >= 0 ? 1 : -1) : awaySide(b, at), atS: d / speed };
     }
     out.heels.push({ id: b.id, kind: b.kind, d, lean, heelDeg: surgeHeel(d, row), side: awaySide(b, at), atS: d / speed });
   }
-  if (best) { out.knock = best; out.heels = out.heels.filter((h) => h.id !== best.id); }
+  if (best) { delete best.near; out.knock = best; out.upright = false; out.heels = out.heels.filter((h) => h.id !== best.id); }
   out.heels.sort((a, b) => a.d - b.d);
   return out;
 }

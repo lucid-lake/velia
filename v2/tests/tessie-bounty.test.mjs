@@ -37,6 +37,17 @@ test('XP per wreck: the table, × 1.5 from HIDDEN, × 1.5 seen, × 3 the first o
   r = scoreInto(s, { kind: 'kayak', splash: true }); assert.equal(r.set, null, 'a set pays once'); assert.equal(r.xp, 1);
 });
 
+test('the same boat again within 120 s: × 0.5 a time, never under 1 XP; a first of a type never halves', () => {
+  const s = blankSave();
+  assert.equal(BOUNTY.repeatS, 120); assert.equal(BOUNTY.repeatK, 0.5);
+  assert.equal(scoreInto(s, { kind: 'halcyon', seen: true, repeat: 3 }).xp, 18, 'the first Halcyon: × 3, the repeat ignored');
+  assert.equal(scoreInto(s, { kind: 'halcyon', seen: true }).xp, 6, 'a fresh one: 4 × 1.5');
+  let r = scoreInto(s, { kind: 'halcyon', seen: true, repeat: 1 }); assert.equal(r.xp, 3, 'once before: half'); assert.equal(r.repeat, 1);
+  assert.equal(scoreInto(s, { kind: 'halcyon', seen: true, repeat: 2 }).xp, 2, 'twice before: a quarter (1.5, rounded)');
+  assert.equal(scoreInto(s, { kind: 'halcyon', seen: true, repeat: 6 }).xp, 1, 'never under 1 XP');
+  assert.equal(scoreInto(s, { kind: 'halcyon', seen: true, repeat: 'x' }).repeat, 0, 'a junk count is none');
+});
+
 test('levels and points: one point a level, reported as the levels crossed; the level 20 cap', () => {
   const s = blankSave();
   const r = scoreInto(s, { kind: 'glass', depthM: 9, seen: true });   // 6 × 1.5 × 1.5 × 3 = 40.5 → 41 XP: level 3 (25), not 4 (45)

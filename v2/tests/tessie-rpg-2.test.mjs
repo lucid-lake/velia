@@ -19,11 +19,21 @@ test('a level reached: the line asks at once, "Level N: pick one skill to grow."
   const T = createTessieBounty({ storage: seeded() }), U = createLevelUp({ bounty: T }), S = sayer();
   assert.deepEqual(U.halo(), ['dash', 'lure'], 'Dash can grow, Lure can unlock; Sonar waits for Lure');
   U.levelUp(); U.step(0.1, { say: S.say });
-  assert.deepEqual(S.said, ['Level 4: pick one skill to grow.']);
+  assert.deepEqual(S.said, ['Level 4: pick one skill to grow: [1] or [2].'], 'the glowing slots\' keys: Dash 1, Lure 2');
   assert.equal(U.open, true);
   assert.equal(LEVEL_UP.lineS, 7);
   assert.equal(classOf(LEVEL_UP.kind), TIP, 'a TIP on the lean skipper: the 20 s gap and the busy rule still hold');
   assert.ok(LEAN_REPEAT[LEVEL_UP.kind] && LEAN_REPEAT[LEVEL_UP.kind].max === Infinity, 'it may come back with no cap');
+});
+
+test('the line names the way to pick: the glowing slots\' keys (one, two, three), a tablet\'s tap; none glowing, the bare line', () => {
+  assert.equal(LEVEL_UP.line(2, [2]), 'Level 2: pick one skill to grow: [2].');
+  assert.equal(LEVEL_UP.line(6, [1, 3, 4]), 'Level 6: pick one skill to grow: [1], [3] or [4].');
+  assert.equal(LEVEL_UP.line(3, [1, 2], true), 'Level 3: tap a glowing skill to grow it.');
+  assert.equal(LEVEL_UP.line(5), 'Level 5: pick one skill to grow.');
+  const T = createTessieBounty({ storage: seeded() }), U = createLevelUp({ bounty: T, touch: () => true }), S = sayer();
+  U.levelUp(); U.step(0.1, { say: S.say });
+  assert.deepEqual(S.said, ['Level 4: tap a glowing skill to grow it.']);
 });
 
 test('a press on a glowing slot within the line picks; outside the halo, or after the line, it is the skill own press', () => {

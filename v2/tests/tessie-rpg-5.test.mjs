@@ -275,12 +275,25 @@ test('the run-up is seen: a crew within 25 m sees the V and bears away; held on,
         assert.ok(aims.length > 10 && aims.every((p) => Math.hypot(p[0] - b.seenAt.x, p[1] - b.seenAt.z) < 0.08), 'from the reaction on she runs at where it was (told no more of it)');
         assert.ok(Math.hypot(f.x - b.seenAt.x, f.z - b.seenAt.z) < Math.hypot(f.x - q.x, f.z - q.z), `she landed nearer where it was than where it got to (${JSON.stringify(f)})`);
       } else assert.equal(f.hit, boat.id, `seen under ${BREACH.reactS} s before her launch: the crew had no time, she lands on it (${JSON.stringify(f)})`);
+      assert.equal(P.stats().tipsWant.includes('tip.tessie.breach.seen'), b.seen != null && !f.ok, `a miss on a crew that saw it coming says why once (seen ${b.seen}, ok ${f.ok})`);
     } else {
+      assert.ok(!P.stats().tipsWant.includes('tip.tessie.breach.seen'), 'a hit says nothing');
       assert.equal(b.launch.why, 'release');
       assert.equal(f.hit, boat.id, `let go ${lateS} s after the amber: on its rail (${JSON.stringify(f)})`);
       assert.equal(P.bounty.state().byType.sail.wrecked, wrecked0 + 1);
     }
   }
+});
+
+test('from the surface, held on at a boat crossing 45 m ahead: its crew sees her at 60 m, bears away, she lands behind it, and the line says why once', () => {
+  const world = lake(); const { P, sim, step } = rig({ storage: save({ breach: 1 }), world });
+  step(1);
+  const boat = [...world.L.liveBoats][0]; place(boat, sim, 45); boat.phys.state.heading = sim.state.nose.psi + 90 * DEG;
+  assert.equal(P.pressSlot('breach'), 'fire');
+  step(14, () => !!fallOf(P));
+  const b = P.stats().log.breach;
+  assert.ok(b.seen != null && b.fall && !b.fall.ok, `seen, a miss (${JSON.stringify(b)})`);
+  assert.ok(P.stats().tipsWant.includes('tip.tessie.breach.seen'), '"They saw you coming. Start the Breach deeper." asked of the skipper\'s line');
 });
 
 test('from HIDDEN a boat over water under 20 m cannot be reached (nothing spent); over deep water it can', () => {
