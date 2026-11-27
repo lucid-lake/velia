@@ -93,9 +93,11 @@ export const SURGE_LINES = Object.freeze({
   upright: Object.freeze({ kind: 'tip.tessie.surge.upright', text: 'It only heeled. Slap closer, or a boat leaning in the wind.' }),
   light: Object.freeze({ kind: 'tip.tessie.surge.light', text: 'Light wind: the wave only heels them.' }),
 });
-// a slot press that did nothing, and why (the RPG; once ever each): Breach with no boat to run at, a locked skill with no free try left
+// a slot press that did nothing, and why (the RPG; once ever each): Breach with no boat to run at, a Breach that missed a crew that saw
+// it coming, a locked skill with no free try left
 export const SKILL_LINES = Object.freeze({
   breachNone: Object.freeze({ kind: 'tip.tessie.breach.none', text: 'Breach needs a boat ahead, within 60 m.' }),
+  breachSeen: Object.freeze({ kind: 'tip.tessie.breach.seen', text: 'They saw you coming. Start the Breach deeper.' }),   // a miss on a crew that saw the run
   locked: Object.freeze({ kind: 'tip.tessie.locked', text: (name) => `${name} is locked. Level up to pick it.` }),
 });
 // the first wreck of a boat wrecked within BOUNTY.repeatS before (the RPG; once ever): why the bounty paid less
@@ -814,6 +816,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     spookAt(land.x, land.z, row.spookM); scoreSplash(land.x, land.z, list, row.spookM);
     const fl = { x: +land.x.toFixed(1), z: +land.z.toFixed(1), moved: +land.moved.toFixed(2), hit: r.hit?.id ?? null, d: r.d ?? null, beside: beside ? { id: beside.id, d: +beside.d.toFixed(1), heelDeg: beside.heelDeg, side: beside.side, knock: beside.knock, lean: +beside.lean.toFixed(1) } : null, ok, at: +clock.toFixed(1) };
     if (fx) { fx.fall = fl; fx.launch = 'done'; }
+    if (!ok && fx?.seen) tip(SKILL_LINES.breachSeen.kind, SKILL_LINES.breachSeen.text);   // why it missed: the crew saw the V and bore away (from 9 m down every run of 9 landed; from the surface 5 of 9)
     if (log.breach) log.breach.fall = fl;
     log.lastFall = { x: fl.x, z: fl.z, hit: fl.hit, d: fl.d, at: fl.at };
     C.result(ok);
