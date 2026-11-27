@@ -9,6 +9,9 @@
 //                 t (s into the phase), level, key, buffered }
 //   S.active(id)  true while it runs
 //   S.list()      the skills in SKILLS order ({ id, key, level, … }): the HUD draws one slot each, the key legend one line each
+//   S.free(on)    the cheat mode (v2/sim/tessieCheat.js): no cooldown (a skill is ready the moment its active phase ends; one cooling
+//                 now is ready at the next step), and a skill whose rank row says refire (the Sonar: a new ping replaces the marks)
+//                 fires again while still active; S.free() reads it
 // The dash: Shift, a press; 1.8 s at the dash speed counted from the press, then 4.5 s of cooldown from the burst's end
 // (a full cycle 6.3 s); a press in the last 0.3 s is buffered.
 import { SURGE_RANKS } from './tessieSurge.js';   // the RPG's Tail Surge ranks (Tessie's own chunk: nothing on a phone reads this file)
@@ -41,7 +44,7 @@ export const growthOf = (level = 1, G = GROWTH) => 1 + Math.min(G.cruiseMax, G.c
 // (amber while they last), every 25 s (rank 4: 15 s); rank 3 adds a heading tail to each mark
 export const LURE_CAST_S = 2;   // s: the tail's flicks (the slot amber while she casts)
 const lureRank = (rangeM, curiousS, halcyon = false) => Object.freeze({ rangeM, curiousS, everyS: 20, halcyon, activeS: LURE_CAST_S, cooldownS: 20 - LURE_CAST_S });
-const sonarRank = (rangeM, markS, everyS, tail = false) => Object.freeze({ rangeM, markS, everyS, tail, activeS: markS, cooldownS: everyS - markS });
+const sonarRank = (rangeM, markS, everyS, tail = false) => Object.freeze({ rangeM, markS, everyS, tail, activeS: markS, cooldownS: everyS - markS, refire: true });   // refire: the cheat's re-ping
 export const LURE_RANKS = Object.freeze([null, lureRank(120, 12), lureRank(150, 15), lureRank(180, 18), lureRank(210, 21, true)]);
 export const SONAR_RANKS = Object.freeze([null, sonarRank(300, 8, 25), sonarRank(360, 10, 25), sonarRank(420, 12, 25, true), sonarRank(480, 14, 15, true)]);
 // Tail Surge's four ranks (the RPG, phase 4; v2/sim/tessieSurge.js): ring 40 → 48 → 56 → 64 m, knock radius 12 → 14 → 16 → 18 m,
@@ -67,10 +70,11 @@ export function createSkills(table = SKILLS) {
   const rows = Object.values(table).map((r) => ({ ...r, phase: 'ready', t: 0, buffered: false }));
   const by = new Map(rows.map((r) => [r.id, r]));
   const fire = (r) => { r.phase = 'active'; r.t = 0; r.buffered = false; r.count = (r.count ?? 0) + 1; };
+  let free = false;   // the cheat mode: no cooldowns
   return {
     press(id) {
       const r = by.get(id); if (!r) return false;
-      if (r.phase === 'ready') { fire(r); return true; }
+      if (r.phase === 'ready' || (free && (r.phase === 'cool' || (r.phase === 'active' && r.refire)))) { fire(r); return true; }
       if (r.phase === 'cool' && r.cooldownS - r.t <= r.bufferS) { r.buffered = true; return true; }
       return false;
     },
@@ -81,6 +85,7 @@ export function createSkills(table = SKILLS) {
         if (r.phase === 'ready') continue;
         r.t += dt;
         if (r.phase === 'active' && r.t >= r.activeS) { r.phase = 'cool'; r.t -= r.activeS; }
+        if (free && r.phase === 'cool') { r.phase = 'ready'; r.t = 0; if (r.buffered) { fire(r); fired.push(r.id); } continue; }
         if (r.phase === 'cool' && r.t >= r.cooldownS) {
           const over = r.t - r.cooldownS;
           r.phase = 'ready'; r.t = 0;
@@ -102,6 +107,7 @@ export function createSkills(table = SKILLS) {
       Object.assign(r, row, { level: n });
       return true;
     },
+    free(on) { if (on !== undefined) free = !!on; return free; },
     reset() { for (const r of rows) { r.phase = 'ready'; r.t = 0; r.buffered = false; } },
     list: () => rows.map(({ phase, t, buffered, ...r }) => r),
   };

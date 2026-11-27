@@ -70,7 +70,8 @@ export const LEAN_CLASS = Object.freeze({
   'tip.tessie.marked': TIP,   // a boat Sonar marked or Lure called pays half again (v2/sim/tessieBounty.js marked), once ever
   'tip.tessie.breach.none': TIP, 'tip.tessie.breach.seen': TIP, 'tip.tessie.locked': TIP,   // the same boat wrecked again within 2 min pays half (v2/sim/tessieBounty.js repeatS)
   // a press or a tap refused, with the way out (the planner, the double-tap mark, the pilot)
-  'mark.set': MUST,   // "Mark set. Click NAV to sail there.": the answer to a double-click; said at once
+  'mark.set': MUST,
+  'tessie.cheat': MUST,   // Tessie's cheat mode on or off (v2/sim/tessieCheat.js): the answer to the code the player typed   // "Mark set. Click NAV to sail there.": the answer to a double-click; said at once
   'refuse.plan': MUST, 'refuse.mark': MUST, 'refuse.pilot': MUST, 'refuse.dest': MUST, 'refuse.course': MUST,
   // NAV's own beat (ui/autopilot.js tip 'beat', once per device by sail.js): it says why the boat tacks by itself, so it shows at once
   'nav.beat': MUST,

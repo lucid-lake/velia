@@ -18,7 +18,13 @@
 //     behaviour spends none; a real use (a stub behaviour) spends one and at 0 the slot returns to the locked look
 // Phase 3 (Lure and Sonar, v2/sim/tessieLure.js, tessieSonar.js): 2 fires the Lure (a busy-lake sailboat laid 90 m ahead of her,
 //     crossing, turns toward her; the slot's ring amber then cooling; the lure's ring on the water); 3 pings (the marks under the
-//     hulls in the world, ticks on the SONAR dial's rim, its word "300 M"; the ring); a click on the Sonar slot while it cools does nothing
+//     hulls in the world; the SONAR dial rescaled to 300 m, a type-coded blip per marked boat at its true bearing and range, the half
+//     ring and the rim labelled; the ring); a click on the Sonar slot while it cools does nothing
+// The icons (the RTS pass): every slot's name under its tile (locked ones dimmed) at 1280, 1180 and 1100, the names apart; a
+//     cooling slot's wipe over its tile
+// The cheat (?tessiecheat=1, or G R U F F typed while she is played): "Cheat on: every skill, no cooldown." on the skipper's line,
+//     every slot at rank 4, the Sonar pinging twice in a row, the Dash again the moment its burst ends; the save byte for byte as
+//     seeded; the code again: "Cheat off.", the save's ranks back
 // Phase 4 (Tail Surge, v2/sim/tessieSurge.js): 4 winds up 1.2 s (the slot amber), then the slap: the wave's cream ring on the water
 //     runs out to 40 m, a busy-lake sailboat laid 20 m abeam heels away from her; a click on the slot while it cools does nothing; in a
 //     strong wind (?wind=4, the fleet out 25 s, then a gust laying one past 22°) a boat leaning past 20° moved 9 m off her just before the slap goes over (scored as wrecked)
@@ -461,6 +467,47 @@ try {
     const again = await page.evaluate(() => window.__velia.tessiePlay.stats().log.breach.at);
     check(again === r1.b.at, `${tag}: 5 while it cools does nothing`);
     check(errors.length === 0, `${tag}: no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await ctx.close();
+  }
+  // ---- the cheat: ?tessiecheat=1, then the typed code ----
+  {
+    const SAVEC = { ...SAVE, _v: 2, xp: 30, ranks: { dash: 1, lure: 1, sonar: 0, surge: 0, breach: 0 }, trials: { lure: 5, sonar: 2, surge: 0, breach: 5 } };
+    const { ctx, page, errors } = await open(`${Q}&tessiecheat=1`, SAVEC);
+    const raw0 = await page.evaluate(() => localStorage.getItem('lakeshore.tessie.bounty.v1'));
+    await page.evaluate(() => window.__velia.tessiePlay.become('menu'));
+    const inT = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie' && !document.querySelector('#lk-tplay .tp-sonar')?.hidden && window.__velia.tessie.sim.state.nose, null, { timeout: 30000 }).then(() => true, () => false);
+    check(inT, 'cheat: you are her');
+    const line = (src) => page.waitForFunction((re) => [...document.querySelectorAll('.lk-hint .row.in')].some((r) => new RegExp(re).test(r.textContent.trim())), src, { timeout: 8000 }).then(() => true, () => false);
+    check(await line('Cheat on: every skill, no cooldown\\.'), 'cheat (?tessiecheat=1): the skipper\'s line says "Cheat on: every skill, no cooldown."');
+    const ranks = () => page.evaluate(() => [...document.querySelectorAll('#lk-tplay .tp-skills .tp-slot')].map((s) => `${s.dataset.skill}:${s.classList.contains('locked') ? 'L' : s.querySelectorAll('.pp b.on').length}`).join());
+    check((await ranks()) === 'dash:4,lure:4,sonar:4,surge:4,breach:4' && (await page.evaluate(() => window.__velia.tessiePlay.stats().rpg.cheat)), `cheat: every slot unlocked at rank 4 (${await ranks()})`);
+    await page.keyboard.press('Digit3'); await page.waitForTimeout(600);
+    const s1 = await page.evaluate(() => window.__velia.tessiePlay.stats().log.sonar);
+    await page.keyboard.press('Digit3'); await page.waitForTimeout(600);
+    const s2 = await page.evaluate(() => window.__velia.tessiePlay.stats().log.sonar);
+    check(s1?.rank === 4 && s1.rangeM === 480 && s2?.at > s1.at, `cheat: the Sonar at rank 4 (480 m) pings again 0.6 s later, no cooldown (${s1?.at} -> ${s2?.at})`);
+    await page.keyboard.press('ShiftLeft'); await page.waitForTimeout(3900);   // rank 4: a 3.6 s burst
+    const d1 = await page.evaluate(() => window.__velia.tessiePlay.stats().rpg.dash);
+    check(d1.phase === 'ready' && d1.count >= 1, `cheat: the Dash is ready the moment its burst ends (${JSON.stringify(d1)})`);
+    check((await page.evaluate(() => localStorage.getItem('lakeshore.tessie.bounty.v1'))) === raw0, 'cheat: the save byte for byte as seeded');
+    for (const k of ['KeyG', 'KeyR', 'KeyU', 'KeyF', 'KeyF']) await page.keyboard.press(k);
+    check(await line('^Cheat off\\.$'), 'the code again: "Cheat off."');
+    await page.waitForTimeout(400);
+    check((await ranks()) === 'dash:1,lure:1,sonar:L,surge:L,breach:L' && !(await page.evaluate(() => window.__velia.tessiePlay.stats().rpg.cheat)), `cheat off: the save's ranks back (${await ranks()})`);
+    check((await page.evaluate(() => localStorage.getItem('lakeshore.tessie.bounty.v1'))) === raw0, 'cheat off: the save still as seeded');
+    check(errors.length === 0, `cheat: no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await ctx.close();
+  }
+  {
+    const { ctx, page, errors } = await open(Q, SAVE2);
+    await page.evaluate(() => window.__velia.tessiePlay.become('menu'));
+    await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie' && !document.querySelector('#lk-tplay .tp-sonar')?.hidden, null, { timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    for (const k of ['KeyG', 'KeyR', 'KeyU', 'KeyF', 'KeyF']) await page.keyboard.press(k);
+    await page.waitForTimeout(400);
+    const c = await page.evaluate(() => ({ on: window.__velia.tessiePlay.stats().rpg.cheat, line: [...document.querySelectorAll('.lk-hint .row.in')].map((r) => r.textContent.trim()).join(' | '), as: window.__velia.tessiePlay.as }));
+    check(c.on && /Cheat on: every skill, no cooldown\./.test(c.line) && c.as === 'tessie', `typed G R U F F while she is played: the cheat on, said on the skipper's line, still her (${JSON.stringify(c)})`);
+    check(errors.length === 0, `typed code: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }
   // ---- the flag off: nothing of it ----

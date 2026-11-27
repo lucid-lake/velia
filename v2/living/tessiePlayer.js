@@ -78,6 +78,7 @@ import { Press } from '../../src/ui/pointer.js';
 import { createTessieBounty, BOUNTY, BOUNTY_KIND, SKILL_ORDER, SKILL_NAMES, SETS, splashType } from '../sim/tessieBounty.js';
 import { waryOf, WARY, chatterLine } from '../sim/tessieWary.js';   // phase 6: the lake grows wary by her level
 import { createLevelUp, LEVEL_UP } from '../sim/tessieLevelUp.js';
+import { CHEAT, createCheatCode, cheatBounty } from '../sim/tessieCheat.js';   // the cheat mode (?tessiecheat=1 or the typed code): every skill, no cooldown, the save untouched
 import { useSkill, SKILL_EMPTY } from '../sim/tessieTrials.js';   // the RPG: a slot's own press, the free trials of a locked skill   // the RPG, phase 2: the level-up line, the halo, the pick   // the Tessie RPG (rpg, ?tessierpg=1): each wreck scored into her bounty and level   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
 
 const DEG = Math.PI / 180;
@@ -279,7 +280,7 @@ export function createClickBite({ on = () => true, bite = () => {}, now = () => 
 export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, sups = () => null, traffic = () => [], anchored = () => null, rivals = () => null, chatter = () => true, birthplaces = null, veil = null,
   project = null, focal = () => 600, canvas = null, mode = () => 'sail', race = () => false, knocked = () => false, reduced = () => false,
   services = () => null, touch = () => false, headless = false, storage = (() => { try { return globalThis.localStorage ?? null; } catch { return null; } })(),
-  waterAt = null, floorAt = null, underOn = true, settings = null, keyHints = () => true, rpg = false, slowBreach = () => true, day = () => { try { return new Date().toLocaleDateString('en-CA'); } catch { return null; } } } = {}) {
+  waterAt = null, floorAt = null, underOn = true, settings = null, keyHints = () => true, rpg = false, cheat = false, slowBreach = () => true, day = () => { try { return new Date().toLocaleDateString('en-CA'); } catch { return null; } } } = {}) {
   const sim = plugin.sim;
   const C = createTessiePlay({ sim, depthAt }), H = createTessieHits(), W = createSwap(), cam = createTessieCam(), glide = createGlide();
   let flee = null, fleeOn = false, view = 'third', clock = 0, entryT = 0, reachDone = true, holdCamUntil = -1, veilT = null, lastPose = null, lastBoatPose = null;
@@ -290,7 +291,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const prefs = settings ?? tessieSettings(storage);   // phase 2a: Invert up/down, Camera follows her
   let surfaceT = 0, tapDive = 0, dashPulse = false;
   const log = { knocks: [], spooks: 0, falls: 0, hits: 0, lastFall: null, swaps: [], tips: [], bounty: [] };
-  const bounty = rpg ? createTessieBounty({ storage }) : null;
+  const cheatOn = { v: !!rpg && !!cheat, said: false }, cheatCode = createCheatCode();
+  const bounty = rpg ? cheatBounty(createTessieBounty({ storage }), { on: () => cheatOn.v, storage }) : null;   // the cheat reads a memory copy
   const levelUp = bounty ? createLevelUp({ bounty, touch }) : null;   // phase 2: the level-up moment on the skipper's line and the slots
   let rpgReadT = 0, rpgRanks = null, rpgHalo = '';
   let rpgLevel = bounty ? bounty.state().level : 1;   // phase 6: her level as last read (the wary band)
@@ -301,6 +303,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const SKILL_RUN = {};
   // phase 3: Lure's and Sonar's rings (their own skills table; the Dash keeps C.skills), the lure under way, the ping's marks
   const R = bounty ? createSkills(RPG_SKILLS_TABLE) : null;
+  if (R && cheatOn.v) { C.skills.free(true); R.free(true); }
   const marks = new Map();   // id → until (s, her clock): the boats the last ping marked
   const skillAt = new Map();   // id → { t, until } (s, her clock): the last Sonar ping that marked the boat or Lure that lured it (the fastest record)
   const sinceSkill = (id) => { const k = skillAt.get(id); return k && clock <= k.until ? clock - k.t : undefined; };
@@ -413,6 +416,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       return;
     }
     if (cardUp()) return;
+    if (bounty && !e.repeat && cheatCode.feed(e.code)) setCheat(!cheatOn.v);   // the typed code (its letters are inert below)
     if (bounty && RPG.slotCodes[e.code]) {   // the RPG: the five slots' number keys (a pick during the level-up line, else the skill)
       e.preventDefault(); e.stopImmediatePropagation();
       if (e.repeat) return;
@@ -606,6 +610,14 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const halo = levelUp.halo().join();
     if (halo !== rpgHalo) { rpgHalo = halo; hud?.halo(levelUp.halo()); }
   }
+  // the cheat on or off: no cooldowns, every skill at rank 4 (the bounty's memory copy), said on the skipper's line
+  function setCheat(on, say = true) {
+    if (!bounty) return false;
+    cheatOn.v = !!on; C.skills.free(cheatOn.v); R?.free(cheatOn.v); rpgRanks = null; rpgSync(true);
+    if (say) { cheatOn.said = true; hintSvc()?.note?.(cheatOn.v ? CHEAT.on : CHEAT.off, '', null, { kind: CHEAT.kind }); }
+    log.cheat = [...(log.cheat ?? []), { on: cheatOn.v, at: +clock.toFixed(1) }].slice(-8);
+    return cheatOn.v;
+  }
   // a slot pressed (its number key, a click, a tap): a pick while the level-up line is up and the slot glows; else the skill itself
   function pressSlot(id) {
     const p = levelUp?.press(id);
@@ -633,6 +645,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   // each step while she is played: the level-up line (asked through the lean skipper), the halo, the ranks
   function rpgStep(dt) {
     if (!levelUp) return;
+    if (cheatOn.v && !cheatOn.said && clock - entryT > 1) setCheat(true);   // ?tessiecheat=1: said once she is played
     const moving = has('KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight') || Math.hypot(touchIn.x, touchIn.y) > 0.25;
     const still = !moving && !C.state.dash && !C.state.bite && !C.state.lunge && C.state.speed <= PLAY.drift + RPG.stillV;
     const h = hintSvc(), st = levelUp.state;
@@ -878,7 +891,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     get knocks() { return knockTotal; },
     get bounty() { return bounty; },   // the RPG's (null without ?tessierpg=1)
     get levelUp() { return levelUp; },   // the RPG's level-up moment (null without ?tessierpg=1)
-    pressSlot: (id) => (bounty ? pressSlot(id) : null),   // the RPG: a slot pressed as its key or a tap would
+    pressSlot: (id) => (bounty ? pressSlot(id) : null),
+    cheat: (on) => (bounty ? setCheat(on == null ? !cheatOn.v : on) : false),   // the cheat mode toggled as the typed code would   // the RPG: a slot pressed as its key or a tap would
     releaseSlot: (id) => (bounty ? releaseSlot(id) : null),   // the RPG: a slot let go (the Breach launches)
     skillRun: SKILL_RUN,   // the RPG: the skills' behaviours by id (phases 3–5; the page test registers a stub)
     // the door: the Logbook on its Tessie page (the dials' click; the RPG only)
@@ -1067,7 +1081,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     stats() {
       return { as: W.as, entry: W.entry, pill: W.pill, view, viewK: cam.state.viewK, fleeOn, knocks: knockTotal, under: lastUnder ? { ...lastUnder } : null, look: +cam.look.toFixed(4), eye: lastPose?.pos ? lastPose.pos.map((v) => +v.toFixed(2)) : null, ctl: { ...C.state, lunge: C.state.lunge ? { phase: C.state.lunge.phase, kind: C.state.lunge.kind, t: +C.state.lunge.t.toFixed(2), target: C.state.lunge.target?.id ?? null } : null, bite: C.state.bite ? { kind: C.state.bite.kind, t: +C.state.bite.t.toFixed(2), target: C.state.bite.target?.id ?? null, locked: C.state.bite.locked, hit: C.state.bite.hit } : null, strike: C.state.strike }, lock: lastLock ? { ...lastLock, k: +lastLock.k.toFixed(2) } : null, bite: sim.biteState ? { kind: sim.biteState.kind, phase: sim.biteState.phase, t: +sim.biteState.t.toFixed(2), gape: +(sim.state.gape ?? 0).toFixed(3) } : null,
         log: { ...log, knocks: log.knocks.slice(-8), swaps: log.swaps.slice(-8) }, tipsWant: tips.waiting, beLine: { waiting: beLine.waiting, shown: beLine.shown }, glide: glide.active, aim: lastAim,
-        rpg: levelUp ? { ...levelUp.state, halo: levelUp.halo(), level: rpgLevel, wary: { ...wary() }, waiting: tips.waiting, dash: C.skills.state('dash'), lure: R.state('lure'), sonar: R.state('sonar'), surge: R.state('surge'), breach: R.state('breach'), slowK,
+        rpg: levelUp ? { ...levelUp.state, halo: levelUp.halo(), level: rpgLevel, cheat: cheatOn.v, wary: { ...wary() }, waiting: tips.waiting, dash: C.skills.state('dash'), lure: R.state('lure'), sonar: R.state('sonar'), surge: R.state('surge'), breach: R.state('breach'), slowK,
           breachFx: breachFx ? { rank: breachFx.rank, phase: C.state.lunge?.kind === 'skill' ? C.state.lunge.phase : 'done', t: +(clock - breachFx.t0).toFixed(2), target: breachFx.targetId, seen: !!breachFx.seen, near: !!C.state.lunge?.near, launch: breachFx.launch, windowM: breachFx.row.windowM } : null,
           surgeFx: surgeFx ? { phase: surgeFx.slapAt == null ? 'windup' : 'wave', t: +(clock - surgeFx.t0).toFixed(2), ringM: surgeFx.row.ringM, due: surgeFx.due.length } : null,
           marks: [...marks.keys()], ping: ping ? { rangeM: ping.rangeM, left: +(ping.until - clock).toFixed(2), tail: ping.tail } : null, lureRing: !!lureFx, halcyonLure: !!halcyonLure } : null };
