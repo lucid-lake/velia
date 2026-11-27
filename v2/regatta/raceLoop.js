@@ -4,8 +4,7 @@
 import { loadCourse, snapCourse } from '../../src/sim/race/course.js';
 import { isPlace, placeCourse, placeHand } from '../sim/racePlaces.js';
 import { STORM_RUN } from './stormRun.js';
-import { createTessieDeep, actsOf } from './tessieDeep.js';
-import { readRanks } from '../sim/tessieBounty.js';
+import { createTessieDeep } from './tessieDeep.js';
 import { areaOf } from '../stage/areas.js';
 import { createOfficer } from '../../src/sim/race/officer.js';
 import { Rival } from '../../src/sim/race/rival.js';
@@ -92,6 +91,13 @@ export function installRaceLoop(R) {
     if ('pattern' in windField || R.pattern) windField.pattern = R.pattern;
     stats.shifts = R.pattern?.id ?? null;
   }
+  // the Tessie RPG (?tessierpg=1): her acts from your ranks, its module fetched only here (a phone, where she is never hooked, loads
+  // none of it); set on this race's Tessie when it lands (milliseconds, long before her first attack at DEEP.firstS)
+  function deepActs(D) {
+    if (!D || R.flags.tessierpg !== true) return;
+    R.rpgP ??= import('./tessieDeepRpg.js');
+    R.deepReady = R.rpgP.then((m) => { if (R.deep === D && D.state.n === 0) D.setActs(m.actsFrom(R.store)); }).catch(() => { /* the race runs as today's */ });
+  }
   // what every new race starts with (R and a level change too)
   function fresh() {
     R.stopDeep();   // a hunt in progress does not carry into the new race (Restart, Next race, a level change)
@@ -103,7 +109,7 @@ export function installRaceLoop(R) {
     R.lastClock = null; R.finishAt = null; R.result = null; R.resultT = 0; R.lastSign = 0; R.knocked = null;
     R.salute = null; stats.salute = null; stats.knocks = []; stats.deep = null; R.endHold();
     R.phase2Fresh();
-    R.deep = hooked('tessie') && tessie() ? createTessieDeep({ area: areaOf('tessieWaters'), depthAt, pace: R.aids.pace ?? R.hand?.pace ?? 2, seed: R.hand?.raceSeed ?? seed, acts: R.flags.tessierpg === true ? actsOf(readRanks(R.store)) : null }) : null; stats.attacks = []; delete stats.heels; R.camK = 1; R.linesT = 1; R.lastKey = ''; R.shiftSaid = { intro: false, at: -1e9 }; stats.shiftLines = [];
+    R.deep = hooked('tessie') && tessie() ? createTessieDeep({ area: areaOf('tessieWaters'), depthAt, pace: R.aids.pace ?? R.hand?.pace ?? 2, seed: R.hand?.raceSeed ?? seed }) : null; deepActs(R.deep); stats.attacks = []; delete stats.heels; R.camK = 1; R.linesT = 1; R.lastKey = ''; R.shiftSaid = { intro: false, at: -1e9 }; stats.shiftLines = [];
     stats.start = null; stats.result = null; stats.calls.length = 0; stats.coach = R.coach.log; stats.clock = R.S.race.clock; stats.status = 'prestart'; stats.helper = R.S.helper; stats.line = null;
     pic.ghost = R.S.ghost; pic.ghostHeading = R.S.me0.heading; pic.aids = R.aids;
     R.ui?.results(null); R.ui?.level(R.aids); R.ui?.helperButton(false); R.ui?.line(null);

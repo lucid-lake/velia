@@ -6,7 +6,6 @@ import { createChaseWatch, washAt } from './glassChase.js';
 import { rivalKnockDue, stormPlan } from './stormRun.js';
 import { DEEP, avoidAdvice } from './tessieDeep.js';
 import { KNOCK, holdControls } from './knocks.js';
-import { REVENGE } from '../sim/tessieRevenge.js';
 import { RESULTS } from './tuning.js';
 
 /** @param {object} R the Regatta's shared state (index.js createRegatta) */
@@ -32,7 +31,7 @@ export function installPlaceEvents(R) {
   function endHold() { if (!R.held) return; R.held = false; if (B.ctl) B.ctl.jibFree = false; if (B.driven) B.drive(null); if (R.auto || (R.S?.helper && R.aids.helper)) B.drive(R.driveHelper); }
   const holdDrive = () => { if (B.ctl) holdControls(B.ctl); };
   // a knockdown of the player in a place race: the first holds her 12 s (she rights, sheets flying, and sails on), the second is a DNF
-  // (the results card: Knocked down · DNF). cause 'tessie': her tail sweep rolls the boat (B.shove, as her revenge's strike)
+  // (the results card: Knocked down · DNF). cause 'tessie': her tail sweep rolls the boat (B.shove, as her revenge's strike: DEEP.rollK)
   function knockMe(cause = 'knockdown') {
     if (!R.S?.place || R.result != null) return null;
     const v = R.S.race.view('me');
@@ -40,7 +39,7 @@ export function installPlaceEvents(R) {
     const k = R.S.knock('me', cause);
     if (!k) return 'same';
     stats.knocks.push({ cause, kind: k.kind, at: +R.S.race.clock.toFixed(1) });
-    if (cause === 'tessie') { const Pp = B.phys?.P; if (Pp && B.shove) B.shove({ K: REVENGE.rollK * Pp.mass * 9.81 * Pp.gm }); }
+    if (cause === 'tessie') { const Pp = B.phys?.P; if (Pp && B.shove) B.shove({ K: DEEP.rollK * Pp.mass * 9.81 * Pp.gm }); }
     if (k.kind === 'hold') {
       R.held = true; if (B.driven) B.drive(null); B.drive(holdDrive);
       R.coach?.note(cause === 'tessie' ? 'Tessie rolled you! 12 s to right her. Once more and you are out.' : KNOCK.line, 6, 'knockHold', true);
@@ -94,7 +93,7 @@ export function installPlaceEvents(R) {
         // her tail slaps: the slap's splash and the rings on the water where she lies (the wave's front: v2/sim/tessieSurge.js)
         if (st) { sim?.play('flick', st.t); sim?.play('arc', st.t); } sim?.emit?.('slap', 'tail', 1.6); sim?.ring?.(e.at[0], e.at[1], 1); T?.raceCue?.(0.8);
       } else if (e.type === 'strike' && e.act === 'breach') { sim?.ring?.(e.at[0], e.at[1], 1); T?.raceCue?.(0.8); }   // her fall's splash and its ring
-      else if (e.type === 'heel') { if (e.id === 'me') B.wave?.({ heel: e.side * e.heelDeg * Math.PI / 180 }); stats.heels = [...(stats.heels ?? []), { id: e.id, n: e.n, heelDeg: +e.heelDeg.toFixed(1), side: e.side, d: +e.d.toFixed(1), at: +r.clock.toFixed(1) }]; }   // the wave heels you away from her (sim/waveRoll.js); the rivals sail on
+      else if (e.type === 'heel') { const heel = e.side * e.heelDeg * Math.PI / 180; if (e.id === 'me') B.wave?.({ heel }); else R.S.wave?.(e.id, heel); stats.heels = [...(stats.heels ?? []), { id: e.id, n: e.n, heelDeg: +e.heelDeg.toFixed(1), side: e.side, d: +e.d.toFixed(1), at: +r.clock.toFixed(1) }]; }   // the wave heels each boat it reaches away from her (sim/waveRoll.js: yours on the page's boat, a rival's in the session)
       else if (e.type === 'strike') { if (st) sim?.play('arc', st.t + 2.6); T?.raceCue?.(0.8); }   // after the breach her neck stays up while the ring is live
       else if (e.type === 'turn') sim?.swimTo(e.x, e.z, 2);   // slower than a boat sailing away: a turn still escapes
       else if (e.type === 'catch') { if (e.id === 'me') knockMe('tessie'); else { const k = R.S.knock(e.id, 'tessie'); if (k) R.coach?.moment(`Tessie rolled ${NAMES[e.id] ?? 'a rival'}!`, 4, 'tessieRival'); } }
