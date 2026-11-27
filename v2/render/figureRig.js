@@ -15,6 +15,9 @@
 //     headLevel (0–1)     how far the head is held level (1: its up is the world's)      armReach (≥ 1) the arm bones' stretch along themselves
 //                         (more, up to armMax, where a wrist's target is beyond it)
 //     footTurn            each foot's turn out (rad, about the deck's up)
+//     headYaw, headPitch  the head's turn (rad; + to its right, + the chin up; both 0 by default)
+//     pelvisUp            the pelvis's own up (the spine then bends over three segments: pelvis, spine_01 halfway, the chest on up)
+//     headUp              the up the head is drawn toward by headLevel (default the craft's +y)
 //   rig.joints(sex) → the bind joints (the tests)
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -92,7 +95,8 @@ export function createFigureRig(json, clips = null) {
     figs[sex] = {
       J, sc,
       torso: ['root', 'pelvis', 'spine_01', 'spine_02', 'spine_03', 'clavicle_l', 'clavicle_r'].map(bi),
-      neck: bi('neck_01'), head: bi('Head'), pelvis: bi('pelvis'),
+      neck: bi('neck_01'), head: bi('Head'), pelvis: bi('pelvis'), spine1: bi('spine_01'), spine2: bi('spine_02'),
+      pelvisLevel: new Set(['root', 'pelvis', 'thigh_l', 'thigh_r'].map(bi)),
       arms: [{ ...limb('upperarm_l', 'lowerarm_l', 'hand_l'), ...hand('l'), side: 1 }, { ...limb('upperarm_r', 'lowerarm_r', 'hand_r'), ...hand('r'), side: -1 }],
       legs: [{ ...limb('thigh_l', 'calf_l', 'foot_l'), toes: [bi('ball_l'), bi('ball_leaf_l')] }, { ...limb('thigh_r', 'calf_r', 'foot_r'), toes: [bi('ball_r'), bi('ball_leaf_r')] }],
     };
@@ -107,11 +111,24 @@ export function createFigureRig(json, clips = null) {
     const up = unit(T.up ?? [0, 1, 0]); const right = unit(sub(T.across ?? [1, 0, 0], scl(up, dot(T.across ?? [1, 0, 0], up)))); const fwd = crs(up, right);
     const Rt = turn([right, up, fwd], BIND);
     const hip = T.hip, Jp = J[f.pelvis];
-    const torsoAt = (j) => add(hip, scl(mulM(Rt, sub(J[j], Jp)), s));
-    for (const b of f.torso) put(out, o + b * 12, Rt, s, Jp, hip);
-    put(out, o + f.neck * 12, Rt, s, Jp, hip);
-    // the head: its up drawn toward the world's (a paddler looks at the horizon, not along the spine's lean)
-    const hl = T.headLevel ?? 0.6, hu = unit(add(scl(up, 1 - hl), [0, hl, 0])), hr = unit(sub(right, scl(hu, dot(right, hu))));
+    // the spine in three segments (T.pelvisUp: the pelvis's own up; the chest takes T.up, spine_01 halfway): a back that bends.
+    // Without pelvisUp the torso is one rigid frame, as before
+    const frameOf = (u) => { const uu = unit(u), rr = unit(sub(T.across ?? [1, 0, 0], scl(uu, dot(T.across ?? [1, 0, 0], uu)))); return turn([rr, uu, crs(uu, rr)], BIND); };
+    const Rp = T.pelvisUp ? frameOf(T.pelvisUp) : Rt, Rm = T.pelvisUp ? frameOf(add(unit(T.pelvisUp), up)) : Rt;
+    const S1 = f.spine1, S2 = f.spine2;
+    const P1 = add(hip, scl(mulM(Rp, sub(J[S1], Jp)), s)), P2 = add(P1, scl(mulM(Rm, sub(J[S2], J[S1])), s));
+    const lvl = (j) => (f.pelvisLevel.has(j) ? 0 : j === S1 ? 1 : 2);
+    const torsoAt = (j) => { const L = lvl(j); return L === 0 ? add(hip, scl(mulM(Rp, sub(J[j], Jp)), s)) : L === 1 ? add(P1, scl(mulM(Rm, sub(J[j], J[S1])), s)) : add(P2, scl(mulM(Rt, sub(J[j], J[S2])), s)); };
+    for (const b of [...f.torso, f.neck]) {
+      const L = lvl(b);
+      if (L === 0) put(out, o + b * 12, Rp, s, Jp, hip); else if (L === 1) put(out, o + b * 12, Rm, s, J[S1], P1); else put(out, o + b * 12, Rt, s, J[S2], P2);
+    }
+    // the head: its up drawn toward the world's (a paddler looks at the horizon, not along the spine's lean); T.headUp: the world's up in
+    // the craft's frame when the craft heels (a sailor's head holds the horizon), else the craft's own up
+    const hl = T.headLevel ?? 0.6; let hu = unit(add(scl(up, 1 - hl), scl(T.headUp ? unit(T.headUp) : [0, 1, 0], hl))), hr = unit(sub(right, scl(hu, dot(right, hu))));
+    // a turn of the head (headYaw: + to its right, about its up; headPitch: + the chin up, about its right): a helmsman's glance at the sails
+    if (T.headYaw) { const c = Math.cos(T.headYaw), sn = Math.sin(T.headYaw); hr = unit(sub(scl(hr, c), scl(crs(hu, hr), sn))); }
+    if (T.headPitch) { const c = Math.cos(T.headPitch), sn = Math.sin(T.headPitch); hu = unit(add(scl(hu, c), scl(crs(hr, hu), sn))); }
     put(out, o + f.head * 12, turn([hr, hu, crs(hu, hr)], BIND), s, J[f.head], torsoAt(f.head));
     // the arms: shoulder → elbow → wrist on the figure's own lengths (a stretch along the bones by armReach)
     for (let i = 0; i < 2; i++) {

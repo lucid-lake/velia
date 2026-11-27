@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import { parseGlb } from '../engine/gltf.js';
 import { buildLifeRing, ORANGE } from '../render/boat/lifeRing.js';
-import { buildBoatModels, v1Material, KIND, MAT_FLOATS, RANGES, faded, hexLinear, whiteData, hullSkin, sheerFn } from '../render/boat/models.js';
+import { buildBoatModels, v1Material, KIND, MAT_FLOATS, RANGES, faded, hexLinear, whiteData, hullSkin, sheerFn, rimSleevePrim, WHEEL_MARK } from '../render/boat/models.js';
 import { packGlb, BOAT_MODELS } from '../../tools/build/glb-pack.mjs';
 import { DEFAULT_DIMS } from '../../src/sim/boat/dims.js';
 import CANVAS from '../../src/boat/canvas.json' with { type: 'json' };
@@ -24,12 +24,14 @@ const SET = build(raw);
 const STAND_IN = 12 + 2 * 8 + 2 * 6 * 8;   // the throttle's pod (a box), lever (an 8-sided prism) and knob (8 × 6 sphere)
 // the life ring (render/boat/lifeRing.js): hardware.glb's white ring (448 gelcoat triangles) and its 320 strip triangles are dropped, the orange one added
 const RING_OLD = 448 + 320, RING_NEW = buildLifeRing(DEFAULT_DIMS.HULL.freeboard).reduce((a, o) => a + o.prim.indices.array.length / 3, 0);
+// the wheel's king-spoke sleeve (boat/models.js WHEEL_MARK), in the wheel's own range
+const MARK = rimSleevePrim(WHEEL_MARK).I.length / 3;
 
 test('every triangle of v1 four GLBs lands once (models/boat/*.json counts) plus the throttle stand-in, the life ring swapped', () => {
   const T = SET.triangles, sum = RANGES.reduce((a, r) => a + T[r], 0);
   const want = info('hull').triangles + info('hardware').triangles + info('cockpit').triangles.cockpit + info('cockpit').triangles.wheel;
-  assert.equal(sum, want + STAND_IN - RING_OLD + RING_NEW);
-  assert.equal(T.wheel, info('cockpit').triangles.wheel);
+  assert.equal(sum, want + STAND_IN - RING_OLD + RING_NEW + MARK);
+  assert.equal(T.wheel, info('cockpit').triangles.wheel + MARK);
   assert.equal(T.far, info('cockpit').triangles.cockpit_far_only);
   assert.equal(T.near + T.cabin + T.portal, info('cockpit').triangles.cockpit_near_only);
   assert.ok(T.glass > 1000 && T.detail > 1000 && T.traveller > 100, JSON.stringify(T));
@@ -147,4 +149,17 @@ test('the race livery: the hull skin is its own material under the sheer, the de
   assert.equal(hullSkin([0.3, 0.5, 4.5], [0, 0.3, 0.95], sheer), true, 'the transom');
   assert.equal(hullSkin([0, 0.7, 1.4], [0, 0.2, 0.98], sheer), false, 'the companionway face');
   assert.throws(() => buildBoatModels(Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, parseGlb(v)])), { dims: { HULL: { freeboard: 0.95, anchorPin: [0, 1, -4], throttle: null } }, canvas }), /loa/);
+});
+
+test('the wheel\'s king-spoke whipping: tan leather over the rim\'s top, matte, in the wheel\'s own frame (it turns with the wheel)', () => {
+  const g = rimSleevePrim(WHEEL_MARK), R = WHEEL_MARK.R, t = WHEEL_MARK.tube;
+  for (let i = 0; i < g.P.length; i += 3) {
+    const x = g.P[i], y = g.P[i + 1], z = g.P[i + 2], r = Math.hypot(x, y);
+    assert.ok(Math.abs(z) <= t + 1e-6 && r <= R + t + 1e-6 && r >= R - t - 1e-6, 'round the rim');
+    assert.ok(y > 0 && Math.abs(Math.atan2(x, y)) <= WHEEL_MARK.half * Math.PI / 180 + 1e-6, 'over the top');
+  }
+  assert.ok(WHEEL_MARK.R + WHEEL_MARK.tube > 0.409, 'proud of the leather (0.409 m)');
+  const L = hexLinear(WHEEL_MARK.hex), lum = 0.2126 * L[0] + 0.7152 * L[1] + 0.0722 * L[2];
+  assert.ok(lum > 0.1 && lum < 0.3 && L[0] > L[2] * 1.5, `a tan leather tone, lighter than the black rim but not a cream (${lum.toFixed(3)})`);
+  assert.ok(WHEEL_MARK.rough >= 0.8 && WHEEL_MARK.half <= 7, 'matte and narrow');
 });

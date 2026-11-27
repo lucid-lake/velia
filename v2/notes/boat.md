@@ -112,7 +112,7 @@ v2 after: 18:45 follow 196,186,178 / 219,218,214 / 197,186,164; 21 kn jib 170,17
 top to foot, +26 +14 +10 +7 +5 before, +17 +6 +3 +2 −1 after); 21 kn main (shade side) 163,173,183 / 157,166,179 / 153,162,175; follow 13:00 (sunlit) 225,220,216 /
 211,210,208 / 211,210,208. No exposure or grade change; no cost (one `pow` a cloth pixel).
 
-**Still different from v1's boat:** v1's helmsman (`src/boat/crew.js`, seen past 25 m) is not drawn; the burgee, telltales and nav
+**Still different from v1's boat:** v1's helmsman (`src/boat/crew.js`, seen past 25 m) is not drawn (v2 has its own crew: § The crew); the burgee, telltales and nav
 lights (`details-mesh.js`), the bulkhead and the binoculars are not ported; the canvas's sheen lobe, the wheel's anisotropy and three's environment map are approximated by the
 sky's mirror and a GGX lobe; v1's teak "trodden" and stainless noise read the hardware's own frame (v2 reads the hull frame: a
 0.95 m shift in a random pattern); the rudder and keel are M3's foils (v1's are box stand-ins; both under the water, never drawn).
@@ -190,6 +190,73 @@ filling the frame: noise), −0.0025 ms on the phone path (L2, 390 × 844 at 3×
 moved −0.07 to +0.11 ms between runs, other passes' noise on a shared GPU. All under the 0.05 ms budget.
 Stills and the clip: `tools/v2-vhf-shots.mjs`, `tools/v2-vhf-clip.mjs` (renders/v2-vhf-set/). **Not ported:** v1's helmPick
 click on the set (it asks for the forecast; v2 has no helm pick yet: O and the Pro panel do it).
+
+## The crew (2026-11-26: render/boat/crew.js, render/boatCrew.js, living/crew.js)
+
+A helmsman and one crew on the player's boat, the kayakers' figure (render/figureRig.js) on their skin pipeline: two indexed draws,
+posed in the HULL frame and carried by the hull's matrix (`boat.crewFrame`), so they heel, pitch and heave with her. Every mode the
+boat sails (Sail, Cruise, Regatta); the rivals and the lake's boats have none.
+- **Balance is dynamic** (round 2, 2026-11-27): each chest is an actively balanced pendulum on its hips. Its lean in the world,
+  across and fore-and-aft, is a spring-damper (`BAL`: helmsman ω 4.6 rad/s, ζ 0.42; crew ω 3.8, ζ 0.5) toward the share of the heel
+  and pitch a sailor takes out (helmsman 78 % / 60 %, seated crew 50 % / 40 %), pushed by what the hips feel: the roll's
+  acceleration, a turn's lateral pull (u × yaw rate), the surge. So the chest lags a roll, catches up, overshoots a little and
+  settles. The pelvis takes a share of the chest's lean against the boat (helmsman 45 %, seated 15 %: her hips ride the seat) and
+  the spine bends over three segments between (render/figureRig.js `pelvisUp`); the head holds the horizon on a faster, better
+  damped loop (ω 8, ζ 0.75; `headUp`); a standing helmsman's knees take the heave (ω 7). Idle life: breathing (1.1° at 4.3 s), a
+  weight shift every 4.7–5.9 s, a glance at the sails or under the boom. All deterministic (`createBoatCrew({ idle: false })` for
+  clean steps in tests).
+- **The helmsman** stands behind the wheel, stance wide (±0.22 m), knees flexed, his weight on the low foot (the hips 7 cm to
+  leeward at 20° of heel), his hands on the rim where the wheel's turn (4 × the rudder) carries them; a hand that has followed it 40°
+  lets go and grips again 18° short (0.32 s, one hand at a time; past 52° the rim slips through the holding hand). When she rolls
+  (≥ 4–18°/s) he firms on the wheel: pulled in 4 cm, lower, elbows out, leaning to it.
+- **The crew** sits on the windward seat facing inboard and leans out over the coaming past 12–22° of windward heel (the aft hand on
+  its top). She works (round 3): her stations are the rail (the windward seat) and the winch (the aft end of a seat, turned to that
+  side's primary winch, `COCKPIT.winch`: the working jib sheet's on the leeward side, as the lines are led). When the player trims
+  (the sheets' angle moving over 3°/s for 0.6 s; not in her first 5 s back on the rail, nor heeled past 18° or rolling) she goes to the leeward winch, cranks the handle round the drum's top (≈ 1 turn a
+  second) and tails the sheet hand over hand while the trim goes on, rests a hand on it 2.5 s, then back to the rail. In a tack
+  (the drawn boom across ± 4°) she slides aft on her own seat to the new leeward winch (the side she was on), tails the new sheet
+  1.8 s, then scrambles to the new windward rail; caught at the old leeward winch she lets the old sheet fly first (0.5 s). The
+  scramble (2.4 s, Catmull-Rom through its keys: no stop at a key): the trailing hand on a real handhold as she rises (the sprayhood's
+  aft frame low on its side, `cockpit.glb dodger_trim`, 1.62 m up, under the boom; from the winch, the seat's edge), the body pitched
+  forward low under the boom with the weight leading, forward of the wheel's pedestal first when it starts or ends at a winch, the
+  lead hand to the new seat's edge, then the new side's frame as she sits, two long steps and a settling one (each foot lifted in its
+  own window, along while it is up, set down in place; never both up, never dragged), and a small bounce on landing.
+- **The kit** (round 3: to be found at the Boat view's 36 m): a foul-weather top in a muted signal colour (him orange-red #B8492C, her
+  mustard #C99A2C; the buoyancy aid and the shirt a shade apart), dark shorts and dark navy caps for value contrast on the white
+  deck. No pure red or green (port and starboard). The figure's arms and legs are bare in its mesh: a long-sleeved jacket and
+  trousers need new geometry.
+- **Hold on:** past 30° of heel, or a roll faster than 30°/s past 12° (a strike), both grip with effort: the crew's hands on the
+  coaming top drawn in, elbows bent and out, her hips pulled toward it and the chest hunched to the grip, harder as she rolls; both
+  take less of the heel out (they ride the boat's frame), then let go over 1.4 s once she is up.
+- **Clocks:** the people move on the living clock (the kayakers' rule: real time live, not Sail's 2 ×); what they answer (the boom,
+  the heel, the wheel) is the boat's. The first 1.5 s puts them straight on the right side (a start, a capture).
+- **Hidden** in the Helm view (its blend past half), from an eye within 10 m of the hull (nearer than the Boat view's closest zoom, 1.5
+  hull lengths: no faces up close), and past 160 m (lite: 90 m). Policy:
+  `src/core/features.js crew` (full at L0–L1, the core LOD only at L2–L3, none on a phone; `?crew=0|1|lite`).
+- **Cost** (M5 Pro, headless, the Boat view at 13:00): +40,238 triangles and +2 draws at full detail; GPU within the run-to-run noise
+  (ABBA ×2 under a load average of 7–9); CPU ≈ 16 µs a frame (the balance, the choreography and two rig poses, node).
+- **Checks:** `tests/boat-crew.test.mjs` (a roll step: the chest lags, overshoots ≤ 15 % of the roll and settles; the seated crew
+  compensates 35–65 % of the heel, the helmsman 65–92 %; the side after a tack and a gybe, no joint through the boom, wheel, coaming, sole or hull,
+  the two apart, feet stepped, hands on the turning rim, the hold, the hike, hidden in the Helm view, deterministic).
+
+## The helm seen, and the lights at night (2026-11-26: boat/models.js, sim/wake.js, sim/night.js, render/night.js)
+
+- **The wheel's turn:** the king spoke's whipping (`WHEEL_MARK`: matte tan leather #8E6A44 over 12° of the black leather rim's top
+  (8 cm), a 20.5 mm tube just proud of the 18 mm leather; 176 triangles in the wheel's own range) turns with the wheel (4 × the
+  rudder): a Turk's-head tone in the Helm view, not a cream glare; from the Boat view the helmsman's hands carry the turn (§ The crew).
+- **The rudder:** M3's foil under the hull at `HULL.rudderZ`, turned about its stock (it was already drawn); a spade rudder 0.8 m
+  forward of the transom, so from astern and above the hull hides it and from the quarter it shows through the water. No stock
+  shows above the water on this hull (it rises inside her), so none is drawn.
+- **The helm on the wake:** `WAKE.helmM` (1.2 m × sin(rudder) × the stamp's speed share) moves the transom's point now across the track
+  toward the rudder's trailing edge (+ rudder: to port), so the strip's first metre bends with the helm (25°: ≈ 0.5 m); the older
+  points never move and the Kelvin impulses are unchanged (point 0 carries none). `tests/wake-helm.test.mjs`.
+- **The nav lights:** COLREGs' sectors as before (each sidelight 112.5° from dead ahead, the sternlight the 135° astern, a 2° fade)
+  and on from sunset (`navLevel`); a fifth slot, the masthead (steaming) light on the mast's forward face 5.4 m above the step,
+  white over the forward 225°, lit only while the engine drives her (`navMode`: on, in gear, turning; rule 25(e)); at anchor the
+  all-round white alone. The halo (mode 1) keeps its hot core (smaller: r² × 400) and adds the lens' own colour in a soft ring
+  (`NAV_HALO`: 0.09 HDR at full on, the hue squared, r² × 2.5) at a level the tone curve keeps: the red read pink and the green
+  mint, both now read red and green. The glass boat's lights, the race marks and the riding lights share the halo. The lights'
+  streaks on the water are the glows' own (`GLOW_STREAK.navGain`). `tests/nav-lights-sectors.test.mjs`.
 
 ## Parity with v1: the helm view's look, the game speed, the wind and the sea (2026-11-13)
 The owner, playing local v2 beside v1: "In helm view, unlike v1, I can no longer use mouse to update view" and "under the

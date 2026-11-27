@@ -33,6 +33,9 @@ export const WAKE = Object.freeze({
   core: 0.27, roughCore: 0.35, edgeM: 0.2,
   // a segment longer than this is a jump (a reset, a teleport), not a track
   maxSegM: 12,
+  // the helm's term: the rudder's wash bends the strip's first metre toward the side its trailing edge points (the transom's
+  // point now moved helmM × sin(rudder) across the track, scaled by the stamp's speed; 25° of helm ≈ 0.5 m)
+  helmM: 1.2,
 });
 // sizes (texels): the desktop's Kelvin map at 0.5 m (the transverse waves at 6 kn are 5.8 m, the divergent ones past
 // the hull's cutoff ≥ 2.5 m: 5 texels a wave) and the foam map at 0.5 m (v1's); the phone's at 0.67 m
@@ -58,7 +61,7 @@ export function createWakeTrack({ length = 7.26, beam = 3.15, trailN = TRAIL_N, 
   const pa = new Float32Array(trailN), pfx = new Float32Array(trailN), pfz = new Float32Array(trailN).fill(-1), pu = new Float32Array(trailN);
   const pp = new Float32Array(trailN), paft = new Float32Array(trailN);   // #14 prop wash: the churn and its offset at each point
   let head = 0, clock = 0, tNow = 0, live = false, count = 0;
-  const boat = { x: 0, z: 0, fx: 0, fz: -1, speed: 0, heel: 0, prop: 0, aft: PROP.ahead };
+  const boat = { x: 0, z: 0, fx: 0, fz: -1, speed: 0, heel: 0, prop: 0, aft: PROP.ahead, rudder: 0 };
   function push(x, z, fx, fz, speed) {
     px[head] = x - fx * length * 0.5; pz[head] = z - fz * length * 0.5; pt[head] = tNow;
     pa[head] = impulseAmp(speed); pfx[head] = fx; pfz[head] = fz; pu[head] = speed; pp[head] = boat.prop; paft[head] = boat.aft;
@@ -74,14 +77,16 @@ export function createWakeTrack({ length = 7.26, beam = 3.15, trailN = TRAIL_N, 
       const pw = propChurn(state); boat.prop = pw.prop; boat.aft = pw.aft;   // #14 prop wash
       tNow += sdt; clock += sdt;
       if (clock >= dt) { clock -= dt; push(state.x, state.z, fx, fz, speed); }
-      boat.x = state.x; boat.z = state.z; boat.fx = fx; boat.fz = fz; boat.speed = speed; boat.heel = state.heel ?? 0; live = true;
+      boat.x = state.x; boat.z = state.z; boat.fx = fx; boat.fz = fz; boat.speed = speed; boat.heel = state.heel ?? 0; boat.rudder = state.rudderAngle ?? 0; live = true;
     },
     reset() { pt.fill(-1e9); pa.fill(0); pp.fill(0); head = 0; clock = 0; count = 0; live = false; },
     // the GPU's points into `out` (Float32Array, ≥ (trailN + 1) × 8): point 0 is the transom now (age 0), then the
     // impulses newest first; positions relative to (ox, oz) (the boat: f32 keeps millimetres); → the point count and
     // the strip's box (relative, padded by the widest profile) into box[0..3]
     pack(out, ox = boat.x, oz = boat.z, box = null) {
-      const sx = boat.x - boat.fx * length * 0.5, sz = boat.z - boat.fz * length * 0.5;
+      // the transom now, moved across by the rudder's wash (+ rudder turns her to starboard: its trailing edge, and the wash, to port)
+      const wash = -WAKE.helmM * Math.sin(boat.rudder) * stampGo(boat.speed);
+      const sx = boat.x - boat.fx * length * 0.5 - boat.fz * wash, sz = boat.z - boat.fz * length * 0.5 + boat.fx * wash;
       let n = 0, x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
       let px0 = Infinity, pz0 = Infinity, px1 = -Infinity, pz1 = -Infinity;   // #14: the prop's discs' box
       const put = (x, z, age, amp, fx, fz, U, prop = 0, aft = 0) => {
