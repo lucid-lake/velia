@@ -84,7 +84,7 @@ test('a refused line asks again every second until the lean takes it; nothing as
   assert.deepEqual(N.said, [], 'level 1, no point: no line'); assert.deepEqual(none.halo(), []);
 });
 
-test('the point waits: the line comes back once she is still 2 s, at most every 60 s, with no cap', () => {
+test('the point waits: the line comes back once she is still 2 s, at most every 60 s, at most 3 times a session; a new level resets the count', () => {
   const T = createTessieBounty({ storage: seeded() }), U = createLevelUp({ bounty: T }), S = sayer();
   run(U, 1.9, { still: true, say: S.say });
   assert.equal(S.said.length, 0, 'still under 2 s: no line yet');
@@ -98,9 +98,19 @@ test('the point waits: the line comes back once she is still 2 s, at most every 
   assert.equal(S.said.length, 1, 'still 1.5 s: not yet');
   run(U, 0.6, { still: true, say: S.say });
   assert.equal(S.said.length, 2, 'still 2 s, 70 s after the last: again');
+  run(U, 61, { still: true, say: S.say });
+  assert.equal(S.said.length, 3, 'the third reminder, 61 s on');
+  assert.equal(U.state.reminders, 3);
   for (let i = 0; i < 5; i++) run(U, 61, { still: true, say: S.say });
-  assert.equal(S.said.length, 7, 'no cap: once every 60 s while she rests');
+  assert.equal(S.said.length, 3, 'capped: no fourth reminder in the session, however long she rests');
   assert.equal(T.state().points, 3, 'the points never expire');
+  assert.deepEqual(U.halo(), ['dash', 'lure'], 'the halo stays: the slots still show the waiting point');
+  // a new level: its own line at once, and the reminders start again (3 more)
+  U.levelUp(); U.step(0.1, { say: S.say });
+  assert.equal(S.said.length, 4, 'the new level\'s line at once');
+  assert.equal(U.state.reminders, 0, 'the count is reset');
+  for (let i = 0; i < 6; i++) run(U, 61, { still: true, say: S.say });
+  assert.equal(S.said.length, 7, 'three reminders after the new level, then quiet again');
 });
 
 test('spent elsewhere (the Logbook tab): the halo clears when no point is left; the line stops', () => {
