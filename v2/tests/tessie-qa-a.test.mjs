@@ -221,3 +221,80 @@ test('free trials: a Lure, a Sonar ping or a Tail Surge with nothing in range fi
   const { P, step } = rig({ storage: save({ lure: 1 }) }); step(0.2);
   assert.equal(P.pressSlot('lure'), 'fire');
 });
+
+// ---- 8: the swap back mid-skill; the level-up pick on the Breach slot ----
+test('swapped back mid-Breach run: the run and the slow clock end, nothing launches; the cooldown waits and resumes on her return', () => {
+  const world = lake();
+  const { P, sim, step, plugin } = rig({ storage: save({ breach: 1 }), world });
+  step(0.3);
+  const boat = world.L.liveBoats[0]; alone(world, boat); place(boat, sim, 55);
+  assert.equal(P.pressSlot('breach'), 'fire');
+  step(1.5);
+  assert.equal(P.stats().ctl.lunge?.phase, 'run', 'mid-run');
+  const t0 = P.stats().rpg.breach.t;
+  assert.equal(P.back({ cut: true }), true);
+  assert.equal(P.stats().rpg.breachFx, null, 'the run cleared');
+  assert.equal(P.stats().ctl.lunge, null, 'her lunge ended');
+  assert.equal(plugin.playK, 1, 'her clock at 1x');
+  assert.equal(P.releaseSlot('breach'), false, 'a key-up after the swap launches nothing');
+  for (let i = 0; i < 10 / DT; i++) P.step(DT);
+  assert.ok(Math.abs(P.stats().rpg.breach.t - t0) < 1e-6, 'the slot\'s clock waits while she is not played');
+  P.swap.step(DT, { on: true, shown: true, distM: 50 });
+  assert.ok(P.become('swap').ok);
+  step(0.5);
+  assert.equal(P.stats().log.breach.fall, null, 'no fall from the old run');
+  assert.equal(P.stats().ctl.lunge, null, 'no run resumed');
+  assert.equal(P.pressSlot('breach'), 'idle', 'still cooling on her return');
+  const left = BREACH_RANKS[1].everyS - P.stats().rpg.breach.t - (P.stats().rpg.breach.phase === 'cool' ? BREACH_RANKS[1].activeS : 0);
+  step(BREACH_RANKS[1].everyS - t0 - 0.5 - 0.6);
+  assert.notEqual(P.stats().rpg.breach.phase, 'ready', `the cooldown resumed where it was (${left.toFixed(1)} s left at the return)`);
+  step(1.0);
+  assert.equal(P.stats().rpg.breach.phase, 'ready', 'ready once the rest of it ran in play');
+});
+
+test('swapped back mid-Surge wind-up: no slap ever lands, no boat heels; the cooldown waits and resumes on her return', () => {
+  const world = lake(24 * KN);
+  const { P, sim, step } = rig({ storage: save({ surge: 1 }), world });
+  step(0.1);
+  const boat = world.L.liveBoats[0]; alone(world, boat);
+  const c = sim.state.centre, q = boat.phys.state; q.x = c[0] + 9; q.z = c[1];
+  assert.equal(P.pressSlot('surge'), 'fire');
+  step(0.6);
+  assert.equal(P.stats().rpg.surgeFx?.phase, 'windup');
+  const t0 = P.stats().rpg.surge.t;
+  P.back({ cut: true });
+  assert.equal(P.stats().rpg.surgeFx, null, 'the wind-up cleared');
+  for (let i = 0; i < 3 / DT; i++) { world.L.post(world.S, DT, world.t, { hour: 13 }); world.t += DT; P.step(DT); }
+  assert.equal(P.stats().log.surge.slap, null, 'no slap while she is not played');
+  assert.equal(P.stats().log.knocks.length, 0, 'nothing knocked');
+  assert.ok(Math.abs(P.stats().rpg.surge.t - t0) < 1e-6, 'the slot\'s clock waits');
+  P.swap.step(DT, { on: true, shown: true, distM: 50 });
+  assert.ok(P.become('swap').ok);
+  step(2);
+  assert.equal(P.stats().log.surge.slap, null, 'nor after her return');
+  assert.equal(P.pressSlot('surge'), 'idle', 'still cooling');
+  step(30 - t0 - 2 - 0.4);
+  assert.equal(P.pressSlot('surge'), 'idle', 'the cooldown resumed where it was');
+  step(0.6);
+  assert.equal(P.pressSlot('surge'), 'fire', 'ready once the rest of it ran in play');
+});
+
+test('a Breach-slot press while the level-up line is up picks (a point to Breach); its key-up launches nothing', () => {
+  const hint = { current: 'note', notes: [], note(text, k, sp, o) { this.notes.push(o?.kind); return true; }, drop() {} };
+  const services = () => ({ get: (k) => (k === 'hint' ? hint : null), provide() {} });
+  const world = lake();
+  const { P, sim, step } = rig({ storage: save({ breach: 0 }, { lure: 5, sonar: 5, surge: 5, breach: 5 }, 100), world, services });
+  step(0.3);
+  const boat = world.L.liveBoats[0]; alone(world, boat); place(boat, sim, 40);
+  P.levelUp.levelUp(); step(0.2);
+  assert.ok(P.levelUp.open, `the line is up (${JSON.stringify(hint.notes)})`);
+  assert.ok(P.levelUp.halo().includes('breach'), 'Breach glows');
+  assert.equal(P.pressSlot('breach'), 'pick');
+  assert.equal(P.bounty.state().ranks.breach, 1, 'the point spent on Breach');
+  assert.equal(P.bounty.state().trials.breach, 5, 'no trial spent');
+  assert.equal(P.releaseSlot('breach'), false, 'the key-up: nothing to launch');
+  step(1);
+  assert.equal(P.stats().rpg.breachFx, null, 'no run');
+  assert.equal(P.stats().ctl.lunge, null);
+  assert.equal(P.stats().rpg.breach.phase, 'ready', 'the slot never fired');
+});
