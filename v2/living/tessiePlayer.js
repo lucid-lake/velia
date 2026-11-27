@@ -75,7 +75,7 @@ import { SONAR, sonarPing, rimMarks, markRing } from '../sim/tessieSonar.js';   
 import { SURGE, SURGE_RANKS, surgeResolve, awaySide as surgeAway } from '../sim/tessieSurge.js';
 import { BREACH, BREACH_RANKS, breachTarget, breachSlowK, breachLanding, breachBeside } from '../sim/tessieBreach.js';   // phase 5: the Breach
 import { Press } from '../../src/ui/pointer.js';
-import { createTessieBounty, BOUNTY_KIND, SKILL_ORDER, SETS, splashType } from '../sim/tessieBounty.js';
+import { createTessieBounty, BOUNTY, BOUNTY_KIND, SKILL_ORDER, SETS, splashType } from '../sim/tessieBounty.js';
 import { waryOf, WARY, chatterLine } from '../sim/tessieWary.js';   // phase 6: the lake grows wary by her level
 import { createLevelUp, LEVEL_UP } from '../sim/tessieLevelUp.js';
 import { useSkill, SKILL_EMPTY } from '../sim/tessieTrials.js';   // the RPG: a slot's own press, the free trials of a locked skill   // the RPG, phase 2: the level-up line, the halo, the pick   // the Tessie RPG (rpg, ?tessierpg=1): each wreck scored into her bounty and level   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
@@ -93,6 +93,8 @@ export const SURGE_LINES = Object.freeze({
   upright: Object.freeze({ kind: 'tip.tessie.surge.upright', text: 'It only heeled. Slap closer, or a boat leaning in the wind.' }),
   light: Object.freeze({ kind: 'tip.tessie.surge.light', text: 'Light wind: the wave only heels them.' }),
 });
+// the first wreck of a boat wrecked within BOUNTY.repeatS before (the RPG; once ever): why the bounty paid less
+export const REPEAT_LINE = Object.freeze({ kind: 'tip.tessie.repeat', text: 'Same boat again: half the bounty. Find a fresh one.' });
 const HALCYON = { L: 8.5, B: 3.0 }, BUSY_HULL = { L: 8.5, B: 3.0 }, GLASS = { L: 12.2, B: 3.8 };
 export const PLAYER = Object.freeze({ offM: 150, veilOut: 0.22, veilIn: 0.4, reachDelayS: 2, reachM: [100, 90, 115, 80, 125], reachConeDeg: 20, holdNearM: 30, dialM: 20, arrowV: 0.2, lookUpM: 6, fastS: 3, chevV: Object.freeze([1.5, 6.5, 15]), dashLineS: 2 });   // dashLineS: a boat in her corners out of reach this long, once ever: the dash's line   //: the fast line after 3 s swimming at the surface; the speed chevrons lit past 1.5, 6.5 and 15 m/s   // phase 2a: the dial's 0–20 m, its ▲/▼ past 0.2 m/s, the first dive's line, the first time past 6 m
 
@@ -299,6 +301,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   // phase 4: the Tail Surge under way { rank, row, t0, slapAt (null: the wind-up), x, z (the ring's centre), due: [the boats the wave has yet
   // to reach], ctx (the strike's record for the bounty), stir (the wind-up's rings laid) }
   let surgeFx = null;
+  const wreckAt = new Map();   // the RPG: each boat's wrecks within BOUNTY.repeatS (s, her clock): the same boat again pays less
   const sawAt = new Map(), splashAt = new Map();   // the RPG: when each boat last saw her; when each kayak was last splashed (s, her clock)
   let strike = null, biteWas = null, lungeWas = null;   // the RPG: the strike under way ({ at, depthM, hidden, seen: Set, skill })
   let knockTotal = 0; try { knockTotal = +(storage?.getItem(COUNT_KEY) ?? 0) || 0; } catch { /* */ }
@@ -553,8 +556,10 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const kind = bounty ? RPG.kinds[b.kind] ?? null : null; if (!kind) return null;
     const st = ctx ?? strike ?? { depthM: C.state.nose, hidden: !!C.state.hidden, seen: null, skill: null };
     const splash = splashType(kind);   // the jet ski's rider and the paddle-wheeler's decks are splashed, never wrecked
-    const r = bounty.score({ kind, depthM: st.depthM, hidden: st.hidden, seen: !!st.seen?.has(b.id), skill: st.skill, splash, sinceS: sinceSkill(b.id) }, { day: day() });
-    if (r) { log.bounty.push({ kind, ...(splash ? { splash } : {}), xp: r.xp, first: r.first, levels: r.levels, at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); leveled(r); }
+    const times = (wreckAt.get(b.id) ?? []).filter((t) => clock - t < BOUNTY.repeatS); times.push(clock); wreckAt.set(b.id, times);   // the same boat again
+    const r = bounty.score({ kind, depthM: st.depthM, hidden: st.hidden, seen: !!st.seen?.has(b.id), skill: st.skill, splash, sinceS: sinceSkill(b.id), repeat: times.length - 1 }, { day: day() });
+    if (r?.repeat) tip(REPEAT_LINE.kind, REPEAT_LINE.text);   // the first time the same boat pays less: why (once ever)
+    if (r) { log.bounty.push({ kind, ...(splash ? { splash } : {}), xp: r.xp, first: r.first, levels: r.levels, ...(r.repeat ? { repeat: r.repeat } : {}), at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); leveled(r); }
     return r;
   }
   // ---- the RPG, phase 2: the level-up moment, the five slots, the Dash's rank ----
