@@ -2,7 +2,7 @@
 // caller passes the day as a string), no Math.random. One localStorage key per device, like every Velia save.
 //   the bounty   how many of each boat type she has wrecked (a knockdown) or splashed (a kayak pair), the first day, and three
 //                records: the deepest strike start (m under when it began), the unseen wrecks (struck from HIDDEN, deeper than 8 m),
-//                the fastest (s from a Sonar ping or a Lure to the hit; the skills come later, so null until then)
+//                the fastest (s from the Sonar ping that marked the boat or the Lure that lured it to the hit, while the mark or the lure lasts)
 //   the XP       per wreck by type (BOUNTY.xp), × 1.5 from HIDDEN, × 1.5 on a boat that had seen her, × 3 the first of a type; a set
 //                (every type of a region) + 25 once
 //   the level    1 to 20; level L → L + 1 needs 5L + 5 XP (level 2 at 10, level 5 at 70, level 10 at 270, level 20 at 1,045)
@@ -14,7 +14,8 @@
 //                (BOUNTY.knocksKey) moves into sail.wrecked on the first read (no XP: a count only); a _v 1 save gains 5 trials a skill
 //   the trials   every skill but the Dash (rank 1 free) has BOUNTY.trials (5) free uses while it is locked, in any order (the unlock
 //                order binds only a point); a trial use acts as rank 1; only a real use spends one (T.trial(id)), never below 0
-//   const T = createTessieBounty({ storage });   every call reads the store afresh and writes it back (two holders never fight)
+//   const T = createTessieBounty({ storage });   every call reads the store afresh and writes it back (two holders never fight); with no
+//                store, or one that throws, every holder of it shares one save in memory; a save of an unknown (newer) _v is never written
 //   T.score({ kind, depthM, seen, hidden, skill, sinceS, splash }, { day }) → { xp, base, mult, first, set, levels, state } or null
 //   T.spend(id) → { ok, why, state };  T.trial(id) → { ok, why, left, first, last, state };  T.can(id) → null | why;  T.state() → the save with its derived level, points, toNext
 //   T.legend() → { level, k (share inside this level, 0…1), xp, at, next }
@@ -110,10 +111,17 @@ export function normalise(raw) {
   s.points = s.level - 1 - spent(s.ranks);
   return s;
 }
-// the first read: the save, or a new one carrying the old knock total into sail.wrecked
+// the first read: the save, or a new one carrying the old knock total into sail.wrecked. frozen: a save of a _v this build does not
+// know (a newer build's): read as well as it can be (normalise), never written over (the holder keeps the session's play in memory)
+const PLAUSIBLE = ['xp', 'byType', 'ranks', 'trials'];   // a save with no _v but one of these is an early save: migrated, everything kept
 export function migrate(rawBounty, rawKnocks) {
-  if (rawBounty != null) { try { const j = typeof rawBounty === 'string' ? JSON.parse(rawBounty) : rawBounty; if (j && j._v === BOUNTY.v) return { save: normalise(j), migrated: false };
-    if (j && j._v === 1) return { save: normalise(j), migrated: true };   // _v 1 → 2: everything kept, 5 free trials a skill
+  if (rawBounty != null) { try { const j = typeof rawBounty === 'string' ? JSON.parse(rawBounty) : rawBounty;
+    if (j && typeof j === 'object' && !Array.isArray(j)) {
+      if (j._v === BOUNTY.v) return { save: normalise(j), migrated: false };
+      if (j._v === 1) return { save: normalise(j), migrated: true };   // _v 1 → 2: everything kept, 5 free trials a skill
+      if (j._v == null) { if (PLAUSIBLE.some((k) => k in j)) return { save: normalise(j), migrated: true }; }   // no _v: kept as a _v 1 save
+      else return { save: normalise(j), migrated: false, frozen: true };   // an unknown (newer) _v: never written over
+    }
   } catch { /* a corrupt save: start again (below) */ } }
   const s = blankSave();
   const n = nat(rawKnocks);
@@ -181,16 +189,23 @@ export function readRanks(storage) {
   return { ...migrate(raw, null).save.ranks };
 }
 
+// the page's memory of the save when the store cannot hold it, one per store (null: no store) and shared by every holder of that store
+// (the player's and the Logbook's): no store, a store that throws (a private window), or a frozen save (a newer _v) live here
+const MEMORY = new WeakMap(), NO_STORE = {};
+const memoryOf = (storage) => { const k = storage && typeof storage === 'object' ? storage : NO_STORE; let m = MEMORY.get(k); if (!m) MEMORY.set(k, (m = { save: null, broken: false, frozen: false })); return m; };
+
 export function createTessieBounty({ storage = null } = {}) {
-  let mem = null, broken = false;   // no store, or one that throws (a private window): the page's life
+  const mem = memoryOf(storage);   // no store, one that throws, or a newer save: the page's life, shared with every other holder
+  const inMemory = () => !storage || mem.broken || mem.frozen;
   const get = (k) => { try { return storage?.getItem(k) ?? null; } catch { return null; } };
   const read = () => {
-    if (!storage || broken) return mem ?? (mem = blankSave());
-    const { save, migrated } = migrate(get(BOUNTY.key), get(BOUNTY.knocksKey));
+    if (inMemory()) return mem.save ?? (mem.save = blankSave());
+    const { save, migrated, frozen } = migrate(get(BOUNTY.key), get(BOUNTY.knocksKey));
+    if (frozen) { mem.frozen = true; mem.save = save; return save; }   // the stored save stays as it is
     if (migrated) write(save);
     return save;
   };
-  const write = (s) => { if (!storage || broken) { mem = s; return; } try { storage.setItem(BOUNTY.key, JSON.stringify(s)); } catch { broken = true; mem = s; } };
+  const write = (s) => { if (inMemory()) { mem.save = s; return; } try { storage.setItem(BOUNTY.key, JSON.stringify(s)); } catch { mem.broken = true; mem.save = s; } };
   return {
     state: () => read(),
     legend: () => legendOf(read()),

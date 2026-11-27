@@ -244,11 +244,15 @@ test('as her, a Sonar ping marks every boat within range and none beyond; the ra
   r4.step(1.3); assert.equal(r4.P.pressSlot('sonar'), 'fire', 'ready again 15 s from the press');
 });
 
-test('a free Sonar trial: spent on a real ping only (not while cooling); at 0 the slot is locked and the press does nothing', () => {
+test('a free Sonar trial: spent on a real ping only (not while cooling, not on a ping that marks nothing); at 0 the slot is locked and the press does nothing', () => {
   const her = { x: 2000, z: 2000 };
   const st = save({ lure: 1, sonar: 0 }, { lure: 5, sonar: 2, surge: 5, breach: 5 });
-  const { P, step } = rig({ storage: st, at: her, world: lake() });
+  let near = false;   // a runabout 100 m off her, or nothing within the ping's 300 m
+  const traffic = () => (near ? [{ targets: () => [{ id: 'p0', kind: 'power', x: her.x + 100, z: her.z, heading: 0, L: 6.6, B: 2.4 }], hit: () => false }] : []);
+  const { P, step } = rig({ storage: st, at: her, traffic, world: lake() });
   step(0.1);
+  assert.equal(P.pressSlot('sonar'), 'fire', 'a ping with nothing in range still fires (and cools)'); assert.equal(P.bounty.state().trials.sonar, 2, 'nothing marked: none spent');
+  step(25.1); near = true;
   assert.equal(P.pressSlot('sonar'), 'fire'); assert.equal(P.bounty.state().trials.sonar, 1);
   assert.equal(P.pressSlot('sonar'), 'idle'); assert.equal(P.bounty.state().trials.sonar, 1, 'cooling: none spent');
   step(25.1);

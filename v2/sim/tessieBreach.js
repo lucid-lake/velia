@@ -8,10 +8,12 @@
 // lands BREACH.kayakOffM off it, a splash only. From HIDDEN the dive is shallow: a boat over water under BREACH.hiddenWaterM cannot be
 // reached. Her play clock runs at BREACH.slow.k for BREACH.slow.s (real) about the arc's apex (a dt scale on her own step; never in a
 // race, never under ?slowbreach=0).
-//   breachTarget(her { x, z, psi }, list, { lockId, hidden, depthAt }) → the target entry or null
+//   breachTarget(her { x, z, psi }, list, { lockId, hidden, depthAt, grace }) → the target entry or null (grace(id) → true: a boat
+//                knocked down within 45 s, sim/tessieHits.js grace: never a target)
 //   breachSlowK(lunge, { race, off }) → the dt scale for her step now (1, or BREACH.slow.k about the apex)
 //   breachLanding(fall { x, z, psi }, list) → the fall moved so its footprint keeps BREACH.kayakOffM off every kayak ({ ...fall, moved })
-//   breachBeside(fall, list, row) → the boat the fall lands beside ({ id, kind, d, side, heelDeg, lean, knock }) or null
+//   breachBeside(fall, list, row, { grace }) → the boat the fall lands beside ({ id, kind, d, side, heelDeg, lean, knock }) or null
+//                (a graced boat only heels: never knocked again)
 //   footDist(fall, b) → m from the fall's footprint (her front 9 m along psi) to the boat's hull
 import { HITS, hullDist } from './tessieHits.js';
 import { SURGE } from './tessieSurge.js';
@@ -48,11 +50,11 @@ export const BREACH_RANKS = Object.freeze([null, breachRank(60, 3, HITS.spookM, 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const TARGET = new Set(['sail', 'glass', 'halcyon', 'power', 'jetski', 'paddle', 'anchored', 'rival', 'kayak']);   // the lock's (a kayak: she lands off it)
 
-export function breachTarget(her, list = [], { lockId = null, hidden = false, depthAt = null, K = BREACH } = {}) {
+export function breachTarget(her, list = [], { lockId = null, hidden = false, depthAt = null, grace = null, K = BREACH } = {}) {
   if (!her) return null;
   let best = null, bd = Infinity;
   for (const b of list) {
-    if (!TARGET.has(b.kind)) continue;
+    if (!TARGET.has(b.kind) || grace?.(b.id)) continue;   // knocked down within 45 s: no target
     const d = Math.hypot(b.x - her.x, b.z - her.z);
     if (!(d <= K.rangeM)) continue;
     if (Math.abs(wrap(Math.atan2(b.x - her.x, -(b.z - her.z)) - her.psi)) > K.coneDeg * DEG && d > (b.L ?? 8) * 0.6) continue;
@@ -93,7 +95,7 @@ export function breachLanding(f, list = [], { K = BREACH } = {}) {
 // +1 when she lies on the boat's port side (her wave heels it to starboard), -1 on its starboard side (as the Tail Surge's)
 function awaySide(b, at) { const h = b.heading ?? 0; return (at.x - b.x) * Math.cos(h) + (at.z - b.z) * Math.sin(h) > 0 ? -1 : 1; }
 
-export function breachBeside(f, list = [], row = BREACH_RANKS[1], { K = BREACH } = {}) {
+export function breachBeside(f, list = [], row = BREACH_RANKS[1], { grace = null, K = BREACH } = {}) {
   let best = null;
   for (const b of list) {
     if (!SURGE.heelKinds.includes(b.kind)) continue;
@@ -103,6 +105,6 @@ export function breachBeside(f, list = [], row = BREACH_RANKS[1], { K = BREACH }
   }
   if (!best) return null;
   const b = best.b, lean = Number.isFinite(b.heelDeg) ? b.heelDeg : 0;
-  const knock = !!row.besideKnock && SURGE.knockKinds.includes(b.kind) && Math.abs(lean) > SURGE.overDeg;
+  const knock = !!row.besideKnock && SURGE.knockKinds.includes(b.kind) && Math.abs(lean) > SURGE.overDeg && !grace?.(b.id);
   return { id: b.id, kind: b.kind, d: best.d, lean, heelDeg: K.heelDeg, side: knock ? (lean >= 0 ? 1 : -1) : awaySide(b, f), knock };
 }

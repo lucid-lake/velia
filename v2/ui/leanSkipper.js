@@ -8,7 +8,7 @@
 //   CREW  the crew's own call on a change the player did not make (round 2: "Gennaker up!", "Gennaker down."): shown
 //         when no MUST holds the row, quietly (it stamps no clock, so it never delays a tip or a MUST); a phone: once each a session
 //   CHAT  narration, status, call-outs, repeats, flavour: never shown (a kind not in the table is CHAT)
-// Between two lines at least gapS (20 s), MUST excepted; nothing but MUST while busy() (a tack, a gybe, FREE or REFLOAT running,
+// Between two lines at least gapS (20 s), MUST and LEAN_JUMP excepted; nothing but MUST while busy() (a LEAN_JUMP line: at most 3 s) (a tack, a gybe, FREE or REFLOAT running,
 // the bow turning through the wind, the anchor or the sails working, a knockdown, a mark rounding). The phone's quiet skipper
 // (src/ui/phoneQuiet.js) still applies on top: a line it drops stays dropped. The voice reads only what shows.
 // v1 (/classic/) never builds this: its lines are unchanged.
@@ -88,7 +88,11 @@ export const LEAN_CLASS = Object.freeze({
 export const classOf = (kind) => LEAN_CLASS[kind] ?? CHAT;
 export const COACH_HINTS = Object.freeze(['pull', 'ease', 'irons', 'heavy']);   // the Coach's own words: pull in, ease out, bear away (in irons), ease or reef
 // A TIP that may show again (a nudge, not a lesson): at most max times a session, never within everyS of its own last showing, and
-// never once retired (lean.retire(kind): the player did it; kept in the same store as the once-ever marks). The gap and busy rules hold.
+// never once retired (lean.retire(kind): the player did it; kept in the same store as the once-ever marks). The gap and busy rules hold (a LEAN_JUMP kind: below).
+// A TIP that is the only door into a feature (it must not miss a whole moment): it jumps the gapS rule, and a busy() moment holds it
+// for at most busyMaxS of asking (then it shows anyway); the MUST hold, once-ever, retire and LEAN_REPEAT rules hold. "Tessie's up.
+// [T] to be her." (a sighting lasts seconds: the 20 s gap after any line, or a long tack, used to drop the whole sighting)
+export const LEAN_JUMP = Object.freeze({ 'tip.tessie.be': Object.freeze({ busyMaxS: 3 }) });
 export const LEAN_REPEAT = Object.freeze({ 'tip.tessie.be': Object.freeze({ everyS: 240, max: 3 }), 'tip.tessie.level': Object.freeze({ everyS: 0, max: Infinity }) });   // the level line keeps its own clock (tessieLevelUp.js)
 // A line that arrives with no kind (the shared modules that never pass one: the bar's say, the Calm HUD's line, the logbook's find,
 // the practice marks, the kayaks' and Tessie's call-outs): its kind by its text. The few that teach or must be acted on are named;
@@ -121,12 +125,23 @@ export function createLeanSkipper({ phone = null, storage = globalThis.localStor
   const phoneOn = () => !!phone?.on;
   // may a TIP of this kind show now (no marks made)
   const again = (kind) => { const r = LEAN_REPEAT[kind]; return !r || ((counts[kind] ?? 0) < r.max && t - (kindAt[kind] ?? -Infinity) >= r.everyS); };
-  const tipOk = (kind) => !seen.has(kind) && again(kind) && !isBusy() && t - lastAt >= P.gapS && t - mustAt >= P.mustHoldS;
+  const jumpWait = {};   // LEAN_JUMP kinds held by a busy moment: { from (the first ask while busy), at (the last) }
+  const busyHolds = (kind, j) => {
+    if (!isBusy()) return false;
+    let w = jumpWait[kind]; if (!w || t - w.at > 2) w = jumpWait[kind] = { from: t, at: t };   // a new wait once the asking had stopped
+    w.at = t;
+    return t - w.from < j.busyMaxS;
+  };
+  const tipOk = (kind) => {
+    const j = LEAN_JUMP[kind];
+    if (j) return !seen.has(kind) && again(kind) && t - mustAt >= P.mustHoldS && !busyHolds(kind, j);
+    return !seen.has(kind) && again(kind) && !isBusy() && t - lastAt >= P.gapS && t - mustAt >= P.mustHoldS;
+  };
   // the one gate: MUST at once; TIP once ever into a quiet moment; CHAT never. mark: the line will show (stamp the clocks)
   function pass(kind, { mark = true } = {}) {
     const c = classOf(kind);
     if (c === MUST) { if (mark) { lastAt = t; mustAt = t; } return true; }
-    if (c === TIP && tipOk(kind)) { if (mark) { lastAt = t; if (LEAN_REPEAT[kind]) { counts[kind] = (counts[kind] ?? 0) + 1; kindAt[kind] = t; } else remember(kind); } return true; }
+    if (c === TIP && tipOk(kind)) { if (mark) { lastAt = t; delete jumpWait[kind]; if (LEAN_REPEAT[kind]) { counts[kind] = (counts[kind] ?? 0) + 1; kindAt[kind] = t; } else remember(kind); } return true; }
     if (c === CREW) return t - mustAt >= P.mustHoldS;
     return false;
   }

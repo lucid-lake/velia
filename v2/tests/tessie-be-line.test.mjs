@@ -75,19 +75,27 @@ test('once a sighting, again after 4 min, at most 3 a session; gone with her', (
   assert.equal(S.lean.state.counts[BE_LINE.kind], 3);
 });
 
-test('under the lean rules: the 20 s gap after another line, nothing mid-manoeuvre; a long sighting waits for the quiet moment', () => {
+test('the only door in: it jumps the 20 s gap after another line; a manoeuvre holds it at most 3 s; the line after it waits 20 s', () => {
   let busy = true;
   const S = session({ busy: () => busy });
-  S.sight(8);
-  assert.equal(S.h.shown.length, 0, 'nothing mid-manoeuvre');
-  busy = false; S.sight(1);
-  assert.equal(S.h.shown.length, 1, 'then, while she is still up');
+  S.sight(2);
+  assert.equal(S.h.shown.length, 0, 'not at once mid-manoeuvre');
+  S.sight(2);
+  assert.equal(S.h.shown.length, 1, 'but a long manoeuvre holds it at most about 3 s, while she is still up');
+  busy = false;
   const T = session();
   T.lean.update(1); assert.equal(T.lean.gate('tip.helm'), true);
-  T.sight(LEAN.gapS - 3);
-  assert.equal(T.h.shown.length, 0, 'the 20 s gap after another line');
-  T.sight(4);
-  assert.equal(T.h.shown.length, 1);
+  T.lean.update(5);   // another line shown 5 s before she comes up
+  T.sight(1);
+  assert.equal(T.h.shown.length, 1, 'a line shown 5 s before the sighting no longer blocks it');
+  T.lean.update(1);
+  assert.equal(T.lean.gate('tip.logbook'), false, 'the next tip waits out the gap after it');
+  const U = session();
+  U.lean.update(1); assert.equal(U.lean.gate('sea.shoal'), true, 'a MUST line');
+  U.sight(LEAN.mustHoldS - 2);
+  assert.equal(U.h.shown.length, 0, 'the MUST hold still holds it (6 s)');
+  U.sight(3);
+  assert.equal(U.h.shown.length, 1);
 });
 
 test('never again after a swap by T or the tap: retired in the lean store, a new session too', () => {
@@ -173,7 +181,8 @@ test('a late line: T read off it swaps for readS after it shows, though her own 
     addEventListener() {}, removeEventListener() {}, setAttribute() {}, removeAttribute() {}, toggleAttribute() {}, hasAttribute() { return false; },
     appendChild(c) { return c; }, prepend() {}, append() {}, after() {}, before() {}, replaceChildren() {}, insertBefore(c) { return c; }, remove() {}, matches() { return false; }, setPointerCapture() {}, getBoundingClientRect() { return { left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 }; },
     querySelector(s) { return (kids[s] ??= mk()); }, querySelectorAll() { return []; }, classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } } }; };
-  // one session: her sighting from its first frame (?tessie=now), the skipper busy until freeAt s, then T pressed pressAfter s after the line shows
+  // one session: her sighting from its first frame (?tessie=now), the skipper's row taken until freeAt s (a slow machine, another
+  // channel's line: the lean's busy rule holds this line only 3 s now, LEAN_JUMP), then T pressed pressAfter s after the line shows
   const run = ({ freeAt, pressAfter, until = 40 }) => {
     const keys = {};
     globalThis.addEventListener = (t, f) => { (keys[t] ??= []).push(f); }; globalThis.removeEventListener = () => {};
@@ -184,7 +193,8 @@ test('a late line: T read off it swaps for readS after it shows, though her own 
       const sim = createTessie({ seed: 1, depthAt: () => 40 });
       const plugin = { sim, render: { ready: true }, playing: false, revenge: null, boatFor: null, playDip: 1 };
       let t = 0;
-      const lean = createLeanSkipper({ storage: store(), busy: () => t < freeAt }), h = hintWith(lean);
+      const lean = createLeanSkipper({ storage: store() }), h = hintWith(lean);
+      const note0 = h.note; h.note = (...a) => (t >= freeAt ? note0(...a) : true);   // the row taken: the line not shown, asked again
       const services = { get: (k) => (k === 'hint' ? h : null), provide() {} };
       const P = createTessiePlayer({ plugin, B, depthAt: () => 40, touch: () => false, veil: () => {}, storage: null, services: () => services });
       const b0 = { x: B.state.x, z: B.state.z, heading: 0, speed: 0 }, view = { x: b0.x, z: b0.z + 20, yaw: 0, hHalf: 0.6 };
@@ -205,9 +215,9 @@ test('a late line: T read off it swaps for readS after it shows, though her own 
       return { shownAt, closedAt, pillAtPress, endAt, as: P.as };
     } finally { delete globalThis.document; delete globalThis.addEventListener; delete globalThis.removeEventListener; }
   };
-  // her own window, no line (the skipper busy all along): it closes a few seconds after she goes under
+  // her own window, no line (the row taken all along): it closes a few seconds after she goes under
   const own = run({ freeAt: Infinity, pressAfter: null });
-  assert.equal(own.shownAt, null, 'busy throughout: no line');
+  assert.equal(own.shownAt, null, 'the row taken throughout: no line');
   assert.ok(own.endAt > 18 && own.endAt < 20, `her own window closes at ${own.endAt?.toFixed(2)} s`);
   // the late line: the skipper frees up 1.2 s before her window would close; T pressed 3 s after the line shows, past that close
   const late = run({ freeAt: 17.8, pressAfter: 3 });
