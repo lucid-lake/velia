@@ -28,8 +28,8 @@ function section(w, y0, y1, zc, n = 12) {   // (w: the half-width, y0 the bottom
   for (let i = 0; i < n; i++) {
     const t = (i + 0.5) / n * Math.PI * 2, c = Math.cos(t), s = Math.sin(t);
     // a superellipse: flat top and bottom, round rails
-    const ex = 4, px = Math.sign(c) * Math.abs(c) ** (2 / ex) * w, py = Math.sign(s) * Math.abs(s) ** (2 / ex) * hy;
-    pts.push([px, cy + py, zc]);
+    const ex = s > 0 ? 3.4 : 5, px = Math.sign(c) * Math.abs(c) ** (2 / ex) * w, py = Math.sign(s) * Math.abs(s) ** (2 / ex) * hy;
+    pts.push([px, cy + py + (s > 0 ? 0.006 * (1 - (px / Math.max(w, 1e-3)) ** 2) : 0), zc]);   // the deck's slight dome
   }
   return pts;
 }
@@ -40,11 +40,12 @@ function geo() {
   const mark = (part, fn) => { const a = B.v.length / VF; fn(); runs.push({ part, first: a, count: B.v.length / VF - a }); };
   // ---- the board ----
   mark(PART.board, () => {
-    const rings = [], N = 18, L = BOARD.L;
+    // 28 rings along (closer at the ends, where the outline and the rocker turn), 16 points round: the rails read round near
+    const rings = [], N = 28, L = BOARD.L;
     for (let i = 0; i <= N; i++) {
-      const u = i / N, z = -L / 2 + L * u, w = Math.max(0.012, halfWidth(u)), l = lift(u);
+      const t = i / N, u = t - Math.sin(2 * Math.PI * t) / (2 * Math.PI) * 0.45, z = -L / 2 + L * u, w = Math.max(0.012, halfWidth(u)), l = lift(u);
       const top = BOARD.top + l * 0.6, bot = BOARD.bottom + l;
-      rings.push(section(w, bot, top, z, 12));
+      rings.push(section(w, bot, top, z, 16));
     }
     // loft from the bow (z -L/2) to the tail; the rings wound so the normals face out
     B.loft(rings.map((r) => r.slice().reverse()), PART.board, { capEnd: true });
