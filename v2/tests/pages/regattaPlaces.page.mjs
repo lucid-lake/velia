@@ -209,7 +209,8 @@ try {
   await t.ctx.close();
 
   // ---- Tessie's Deep with the Tessie RPG (?tessierpg=1 and a bounty save with Dash rank 2, Tail Surge, Breach): her attacks are your
-  // ranks, aimed at you: the dash first, then the surge (her slap's wave heels the boat, never a knockdown) ----
+  // ranks, aimed at you, alternating with today's strike: the dash, a strike, then the surge (her slap's wave heels the boat, never a
+  // knockdown; a knock from the strike before it does not count) ----
   const SAVE = { _v: 2, xp: 1100, ranks: { dash: 2, lure: 1, sonar: 1, surge: 2, breach: 1 } };
   const rp = await open('&course=tessies-deep&tessie=1&tessierpg=1', undefined, { 'lakeshore.tessie.bounty.v1': JSON.stringify(SAVE) });
   const okWarn = await sailUntil(rp.page, (r) => r.deep.state.n >= 1 && r.deep.state.phase === 'warn', 200, 0.5);
@@ -218,6 +219,7 @@ try {
   const okSurge = await sailUntil(rp.page, (r) => r.deep.state.phase === 'warn' && r.deep.state.act === 'surge', 300, 0.5);
   check(okSurge, 'rpg: your Tail Surge comes in its turn');
   if (okSurge) {
+    const knocks0 = await rp.page.evaluate(() => window.__velia.regatta.r.stats.knocks.length);
     // real time from the warning (her swim runs on the living clock); the slap's wave heels the boat
     const watch = (until) => rp.page.evaluate(async (until) => {
       const V = window.__velia, r = V.regatta.r, T = V.tessie, w = (window.__lkW ??= { seen: false, heel: 0, t: null });
@@ -233,7 +235,7 @@ try {
     await shot(rp.page, 'tessies-deep-rpg-surge');   // her slap's rings, the boat heeling away
     const surge = await watch('rest');
     check(surge.seen, `rpg: she shows for her surge (${JSON.stringify(surge).slice(0, 200)})`);
-    check(surge.knocks.length === 0 && surge.heel < 55, `rpg: her wave never knocks the boat down (peak heel ${surge.heel.toFixed(1)}°, heels ${JSON.stringify(surge.heels)})`);
+    check(surge.knocks.length === knocks0 && surge.heel < 55, `rpg: her wave never knocks the boat down (peak heel ${surge.heel.toFixed(1)}°, heels ${JSON.stringify(surge.heels)}, knocks ${JSON.stringify(surge.knocks)})`);
   }
   check(rp.errors.length === 0, `rpg: no page errors (${rp.errors.slice(0, 2).join(' | ')})`);
   await rp.ctx.close();
