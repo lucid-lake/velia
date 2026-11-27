@@ -53,7 +53,7 @@ export const LEAN_CLASS = Object.freeze({
   // "Tessie's up. [T] to be her." (tessiePlayer.js createBeLine): a TIP that may come back (LEAN_REPEAT), retired for good by the first swap
   'tip.tessie.be': TIP,
   // the Tessie RPG's level-up (v2/sim/tessieLevelUp.js, ?tessierpg=1): "Level N: pick one skill to grow: [1] or [2].", a TIP that comes back while a
-  // point waits (its own cadence: still 2 s, at most every 60 s, at most 3 reminders a session, reset by a new level); the gap and busy rules hold
+  // point waits (its own cadence: still 2 s, at most every 60 s, at most 3 reminders a session, reset by a new level); it jumps the gap (LEAN_JUMP)
   'tip.tessie.level': TIP,
   // the Tessie RPG, phase 6 (v2/sim/tessieBounty.js SETS, v2/sim/tessieWary.js CHATTER): a set's legend line and the lookout's two
   // chatter lines, once ever each
@@ -99,7 +99,10 @@ export const COACH_HINTS = Object.freeze(['pull', 'ease', 'irons', 'heavy']);   
 // A TIP that is the only door into a feature (it must not miss a whole moment): it jumps the gapS rule, and a busy() moment holds it
 // for at most busyMaxS of asking (then it shows anyway); the MUST hold, once-ever, retire and LEAN_REPEAT rules hold. "Tessie's up.
 // [T] to be her." (a sighting lasts seconds: the 20 s gap after any line, or a long tack, used to drop the whole sighting)
-export const LEAN_JUMP = Object.freeze({ 'tip.tessie.be': Object.freeze({ busyMaxS: 3 }) });
+// afterS: a LEAN_JUMP kind still waits this long after the last line, so the line it follows is read (0: none). The level-up line
+// ("Level N: pick one skill to grow: [1] or [2].") is the only door to the pick (a press picks only while it is up), so it jumps the gap
+// too: a why-line or a first-time line that took the row a moment before no longer holds it back 20 s (it waits out a note's 7 s)
+export const LEAN_JUMP = Object.freeze({ 'tip.tessie.be': Object.freeze({ busyMaxS: 3 }), 'tip.tessie.level': Object.freeze({ busyMaxS: 3, afterS: 7 }) });
 export const LEAN_REPEAT = Object.freeze({ 'tip.tessie.be': Object.freeze({ everyS: 240, max: 3 }), 'tip.tessie.level': Object.freeze({ everyS: 0, max: Infinity }) });   // the level line keeps its own clock (tessieLevelUp.js)
 // A line that arrives with no kind (the shared modules that never pass one: the bar's say, the Calm HUD's line, the logbook's find,
 // the practice marks, the kayaks' and Tessie's call-outs): its kind by its text. The few that teach or must be acted on are named;
@@ -141,7 +144,7 @@ export function createLeanSkipper({ phone = null, storage = globalThis.localStor
   };
   const tipOk = (kind) => {
     const j = LEAN_JUMP[kind];
-    if (j) return !seen.has(kind) && again(kind) && t - mustAt >= P.mustHoldS && !busyHolds(kind, j);
+    if (j) return !seen.has(kind) && again(kind) && t - mustAt >= P.mustHoldS && t - lastAt >= (j.afterS ?? 0) && !busyHolds(kind, j);
     return !seen.has(kind) && again(kind) && !isBusy() && t - lastAt >= P.gapS && t - mustAt >= P.mustHoldS;
   };
   // the one gate: MUST at once; TIP once ever into a quiet moment; CHAT never. mark: the line will show (stamp the clocks)

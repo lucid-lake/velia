@@ -4,7 +4,8 @@
 // slots that can take a point carry a soft amber halo, and a press on a glowing slot while the line is up spends the point there.
 //   the line     asked at once when a level is reached; while a point waits, asked again once she has been still stillS (2 s), at
 //                most every everyS (60 s), at most remindMax (3) such reminders a session; a new level reached resets the count. The lean skipper still decides when it shows (v2/ui/leanSkipper.js
-//                'tip.tessie.level': the 20 s gap, the busy rule); say(text) answers whether it was taken
+//                'tip.tessie.level', LEAN_JUMP: it jumps the 20 s gap, waits 7 s after the last line and a busy moment at most 3 s,
+//                so a why-line said a moment before never holds it back); say(text) answers whether it was taken
 //   the window   lineS (7 s, the skipper's note) from the line's showing; it closes early when the line goes (lineUp false) or no
 //                point is left
 //   the halo     the skills a point can go to now (v2/sim/tessieBounty.js canSpend), whenever a point waits, line or no line

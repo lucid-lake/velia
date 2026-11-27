@@ -151,7 +151,7 @@ try {
   }
   // ---- phase 2: the five slots, the level-up line and its pick ----
   {
-    const { ctx, page, errors } = await open(`${Q}&tessierpg=1`, SAVE2);
+    const { ctx, page, errors } = await open(Q, SAVE2);
     await page.evaluate(() => window.__velia.tessiePlay.become('menu'));
     const inT = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie' && !document.querySelector('#lk-tplay .tp-sonar')?.hidden, null, { timeout: 30000 }).then(() => true, () => false);
     check(inT, 'phase 2: you are her');
@@ -194,7 +194,7 @@ try {
       check(c.ok && c.legend, `${w} px: the five slots clear of DEPTH, SONAR and the legend (${JSON.stringify(c)})`);
     }
     await page.setViewportSize({ width: 1280, height: 720 }); await page.waitForTimeout(400);
-    // a waiting point: the line once she is still 2 s (nothing held), after the lean skipper's 20 s gap from her first tip
+    // a waiting point: the line once she is still 2 s (nothing held), 7 s after her first tip (it jumps the lean skipper's 20 s gap)
     const lineUp = await page.waitForFunction(() => window.__velia.tessiePlay.stats().rpg?.open, null, { timeout: 40000 }).then(() => true, () => false);
     await page.waitForTimeout(900);
     const said = await page.evaluate(() => [...document.querySelectorAll('.lk-hint .row.in')].map((r) => r.textContent.trim()).join(' | '));
