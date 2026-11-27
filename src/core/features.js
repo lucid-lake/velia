@@ -210,6 +210,17 @@ export const POLICIES = Object.freeze({
       if (f === 'lite') return 'lite';
       if (phoneOnly(p, c)) return 'off';
       return !c.headless && lite(p) ? 'lite' : 'full'; } },   // the tablet rule: desktopLike, scaled by lite(p)
+  // --- the player's sloop crewed (v2/render/boatCrew.js): a helmsman at the wheel and one crew on the windward
+  // side, the kayakers' figure (two draws on their skin pipeline), seen from the Boat view (never in the Helm view). full: the detail
+  // LOD near, drawn to 160 m (a desktop or a tablet at L0-L1); lite: the core LOD only, drawn to 90 m (L2-L3); a phone none. A capture: full ---
+  crew: { fixed: true, axes: 'form, gpu', aliases: '?crew=0 (off), ?crew=1 (full, a phone too), ?crew=lite, ?profile=form:phone',
+    why: 'the helmsman and the crew on the player\'s sloop (2 indexed draws on the kayaks\' skin pipeline): full at L0-L1, lite (the core LOD, nearer) at L2-L3; a phone has none',
+    tier: (p, c) => { const f = c.flags.crew == null ? '' : String(c.flags.crew);
+      if (f === '0' || f === 'false' || f === 'off') return 'off';
+      if (f === '1' || f === 'true' || f === 'full') return 'full';
+      if (f === 'lite') return 'lite';
+      if (phoneOnly(p, c)) return 'off';
+      return !c.headless && lite(p) ? 'lite' : 'full'; } },
   // --- the stand-up paddleboarders (South Lake's rows, v2/living/sup.js): a few boards on slow lanes off the beach, each a standing paddler.
   // full: 4 boards (a desktop or a tablet at L0-L1); lite: 2 (L2-L3); a phone has none (no sim, no pipeline). A capture: full ---
   paddleboards: { fixed: true, axes: 'form, gpu', aliases: '?sup=0 (off), ?sup=1 (full, a phone too), ?sup=lite, ?profile=form:phone',

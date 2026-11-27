@@ -17,6 +17,7 @@ import { createKayaksPlugin } from './kayaks.js';
 import { createTourBoatPlugin } from './tourBoat.js';
 import { createPaddlePlugin } from './paddleWheeler.js';
 import { createPowerPlugin } from './powerBoats.js';
+import { createCrewPlugin } from './crew.js';
 import { trafficOf } from '../sim/regions.js';
 import { pageSettings } from '../ui/settingsStore.js';   // Tessie's row: her sound's switches, her key hints
 import { reducedNow } from '../sim/steadyCamera.js';
@@ -62,6 +63,22 @@ const KAYAKS = {
   prime: { stage: 'boat', paths: ['capture', 'filmui'], run: (k, c) => k.prime(c.kView()) },
   stats: (k) => ({ kayaks: k?.stats() ?? null }),
   hook: (k) => ({ kayaks: k }),   // the fleet (stats, live, draws) and its renderer
+};
+
+// the player's sloop crewed (living/crew.js): the helmsman and the crew on the kayaks' figure and skin pipeline,
+// in every mode the boat sails (a race too: only her own, the rivals have none); hidden in the Helm view (src/core/features.js crew)
+const CREW_ROW = {
+  id: 'crew', group: 'kayaks', createAt: 'living', statsAt: 'living',
+  on: (c) => c.boatOn && c.feature('crew').tier !== 'off',
+  create: (c) => createCrewPlugin({ device: c.device, reg: c.reg, sky: c.sky, shadow: c.shadow, kayaks: c.plugins.get('kayaks'), tier: c.feature('crew').tier, errors: c.errors, headless: !!c.P.headless }),
+  at: {
+    'fill.living': (w, c, f) => w.fill({ frame: c.boatR && c.L.boat ? c.boatR.crewFrame : null, eye: f.eye, focal: f.focal, helmK: c.m4?.views?.k ?? 0 }),
+    'sim.living': (w, c, dt) => w.step(dt),   // people on the living clock (the kayakers' rule: real time, not Sail's 2 x)
+    'scene.solid': (w, c, pass, cc, s) => { if (c.L.boat && c.PG.kayaks && !s.uw) w.draw(pass, cc); },   // opaque, before the water (the boat's order)
+  },
+  prime: { stage: 'boat', paths: ['capture', 'filmui'], run: (w) => w.prime() },   // the figure's asset in before the first frame
+  stats: (w) => ({ crew: w?.stats() ?? null }),
+  hook: (w) => ({ crew: w }),
 };
 
 // the glass boat (owner, 2026-11-18): a tour pontoon and her clear kayaks on a natural schedule through the bay; two
@@ -501,10 +518,10 @@ export const FIREWORKS = {
   hook: (fw) => ({ fireworks: fw }),   // the show (stats, the state, the GPU side)
 };
 
-export const LAKE_PLUGINS = [KAYAKS, TOUR, PADDLE, POWER_BOATS, TESSIE, FIREWORKS, BIRDS, ANCHORED, BUSY_LAKE];
+export const LAKE_PLUGINS = [KAYAKS, TOUR, PADDLE, POWER_BOATS, CREW_ROW, TESSIE, FIREWORKS, BIRDS, ANCHORED, BUSY_LAKE];
 
 export const ORDER = {
-  'create.living': ['kayaks', 'tour', 'paddle', 'power'],
+  'create.living': ['kayaks', 'tour', 'paddle', 'power', 'crew'],
   'create.birds': ['birds'],
   'create.tessie': ['tessie'],
   'create.fireworks': ['fireworks'],
@@ -523,17 +540,17 @@ export const ORDER = {
   music: ['birds'],
   'compute.water': ['tessie', 'tour', 'paddle', 'power', 'birds'],
   'fill.boats': ['anchored', 'busy', 'tour', 'paddle', 'power'],
-  'fill.living': ['kayaks', 'tessie'],
+  'fill.living': ['kayaks', 'crew', 'tessie'],
   'fill.birds': ['birds'],
   'night.lights': ['anchored', 'tour', 'paddle'],
-  'scene.solid': ['kayaks', 'tessie'],
+  'scene.solid': ['kayaks', 'crew', 'tessie'],
   'scene.solid2': ['birds', 'fireworks'],
   'scene.solid3': ['tour', 'paddle', 'power'],
   'scene.water': ['birds', 'tour'],
   'scene.mirror': ['kayaks', 'tessie'],
   'scene.light': ['fireworks'],
   'scene.clear': ['tour'],
-  'sim.living': ['kayaks'],
+  'sim.living': ['kayaks', 'crew'],
   'sim.tessie': ['tessie'],
   'camera.cruise': ['fireworks'],
   'camera.race': ['fireworks'],
@@ -542,10 +559,10 @@ export const ORDER = {
   'sim.show': ['fireworks'],
   'post.bloom': ['fireworks'],
   'prime.terrain': ['birds'],
-  'prime.boat': ['kayaks', 'tour'],
+  'prime.boat': ['kayaks', 'tour', 'crew'],
   'prime.tessie': ['tessie'],
   'prime.show': ['fireworks'],
-  'stats.living': ['kayaks'],
+  'stats.living': ['kayaks', 'crew'],
   'stats.tessie': ['tessie'],
   'stats.birds': ['birds'],
   'stats.show': ['fireworks'],

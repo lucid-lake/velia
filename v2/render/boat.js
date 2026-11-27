@@ -102,6 +102,7 @@ export function rivalSailKey(p) {   // a number, so a frame's comparison allocat
   return ((((((q(p.boomAngle, 0, 0.02) * 1024 + q(p.jibAngle, 0, 0.02)) * 32 + q(p.mainFill, 1, 0.1)) * 32 + q(p.jibFill, 1, 0.1)) * 32 + q(p.mainDraft, 1, 0.1)) * 32 + q(p.jibDraft, 1, 0.1)) * 2) + (p.jibBacked ? 1 : 0);
 }
 const DPOSE = {};   // the drawn pose, reused each frame (boat/drawnTrim.js)
+const CREWF = { M: null, heel: 0, pitch: 0, boom: 0, rudder: 0 };   // the crew's frame (crewFrame), reused
 export const SWAP_S = 0.5;   // the dissolve from the M3 hull to v1's models (s, live pages only; a capture starts with the models)
 const STRIDE = 256;   // one Model record a slot (all 256 B used: m, n, p, q, r, w[5])
 export const MODEL_BYTES = 256;   // the Model struct's size (m, n, p, q, r, w[5]): every layout that binds it says so
@@ -922,6 +923,9 @@ export function createBoat({ device, reg, frameBGL, frameBG, U, frameStruct = wg
     },
     get rivals() { return { n: nRivals, fills: rivalFills, shadows: rivalShadowN, max: MAX_NEAR_RIVALS, slots: rivals.map((r) => r.boat) }; },
     get triangles() { return drawnTriangles; },
+    // the crew's frame (render/boatCrew.js): the hull's matrix this frame and the drawn boom, rudder, heel and
+    // pitch the people on board move to (null before the first update)
+    get crewFrame() { if (DPOSE.x == null) return null; CREWF.M = Mroot; CREWF.heel = DPOSE.heel ?? 0; CREWF.pitch = DPOSE.pitch ?? 0; CREWF.boom = DPOSE.boomAngle ?? 0; CREWF.rudder = DPOSE.rudderAngle ?? 0; return CREWF; },
     get stats() { const m = gm.stats; return { instruments: inst.stats, lines: lineCount, sailFills, cpuMs: +cpuMs.toFixed(3), waterPatchMs: +patchMs.toFixed(3), buildMs: +buildMs.toFixed(1), hullTriangles: hull.triangles, mastTriangles: parts.mast.triangles, boomTriangles: parts.boom.triangles, ribbonPoints: R.points,
       models: { phase: m.phase, wireBytes: m.wireBytes, files: m.files, bytes: m.bytes, triangles: m.triangles, materials: m.materials, images: m.images, queued: m.queued, uploadFrames: m.uploadFrames, uploadMsMax: +m.uploadMsMax.toFixed(2), buildMs: +(m.buildMs ?? 0).toFixed(1), decodeMs: +(m.decodeMs ?? 0).toFixed(1), error: m.error, lodNear: gm.lod.near, lodDetail: gm.lod.detail }, fade: +fade.toFixed(3) }; },
     // pose: the drawn state (x, heave, z, heading, heel, pitch, boomAngle, the sails' fill…); t the sim time (the flutter);

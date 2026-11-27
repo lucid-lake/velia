@@ -15,6 +15,7 @@
 //     headLevel (0–1)     how far the head is held level (1: its up is the world's)      armReach (≥ 1) the arm bones' stretch along themselves
 //                         (more, up to armMax, where a wrist's target is beyond it)
 //     footTurn            each foot's turn out (rad, about the deck's up)
+//     headYaw, headPitch  the head's turn (rad; + to its right, + the chin up; both 0 by default)
 //   rig.joints(sex) → the bind joints (the tests)
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -111,7 +112,10 @@ export function createFigureRig(json, clips = null) {
     for (const b of f.torso) put(out, o + b * 12, Rt, s, Jp, hip);
     put(out, o + f.neck * 12, Rt, s, Jp, hip);
     // the head: its up drawn toward the world's (a paddler looks at the horizon, not along the spine's lean)
-    const hl = T.headLevel ?? 0.6, hu = unit(add(scl(up, 1 - hl), [0, hl, 0])), hr = unit(sub(right, scl(hu, dot(right, hu))));
+    const hl = T.headLevel ?? 0.6; let hu = unit(add(scl(up, 1 - hl), [0, hl, 0])), hr = unit(sub(right, scl(hu, dot(right, hu))));
+    // a turn of the head (headYaw: + to its right, about its up; headPitch: + the chin up, about its right): a helmsman's glance at the sails
+    if (T.headYaw) { const c = Math.cos(T.headYaw), sn = Math.sin(T.headYaw); hr = unit(sub(scl(hr, c), scl(crs(hu, hr), sn))); }
+    if (T.headPitch) { const c = Math.cos(T.headPitch), sn = Math.sin(T.headPitch); hu = unit(add(scl(hu, c), scl(crs(hr, hu), sn))); }
     put(out, o + f.head * 12, turn([hr, hu, crs(hu, hr)], BIND), s, J[f.head], torsoAt(f.head));
     // the arms: shoulder → elbow → wrist on the figure's own lengths (a stretch along the bones by armReach)
     for (let i = 0; i < 2; i++) {
