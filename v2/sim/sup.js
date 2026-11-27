@@ -2,7 +2,7 @@
 // paddler with a single-blade paddle (v2/sim/supPose.js). Pure: no DOM, no GPU, no Math.random, no wall clock (the caller's dt and hour).
 //   const F = createSupFleet({ slots, hour, storm, heightAt })
 //     slots: [{ id, path (src/sim/kayaks/routes.js polyline: at(s) → { x, z, heading }, length), s0, seed, board, pfd, cap, skin, region }]
-//   F.step(dt)          the boards along their lanes (0.85 m/s, a stroke every 3.1 s, the blade's side alternating), the balance sway, the
+//   F.step(dt)          the boards along their lanes (0.85 m/s, a stroke every 3.1 s, the blade's side changed every 3 to 5 strokes), the balance sway, the
 //                       splashes' wobble; out only in the day (SUP.hours) and never in a storm
 //   F.spook(x, z, r)    Tessie's splash (a breach or a surfacing within r m, default SUP.spookM): each board within r wobbles for SUP.wobbleS,
 //                       drops to kneel on the deck, holds SUP.holdS, then stands again (SUP.riseS). The paddler never leaves the board:
@@ -31,7 +31,7 @@ export function createSupFleet({ slots = [], hour = () => 13, storm = () => fals
   const boards = slots.map((slot, i) => {
     const p = slot.path.at(slot.s0), pr = hash01(slot.seed ?? 1, 11 + i);
     return { slot, i, s: slot.s0, x: p.x, z: p.z, heading: p.heading, v: SUP.speedMs, u: hash01(slot.seed ?? 1, 3), side: hash01(slot.seed ?? 1, 5) < 0.5 ? 1 : -1, k: 0, roll: 0, shift: 0, amp: 0,
-      swayPh: pr * TAU, wobbleT: 0, wobbleUntil: -1, kneelUntil: -1, holdS: SUP.holdS[0] + (SUP.holdS[1] - SUP.holdS[0]) * hash01(slot.seed ?? 1, 17), pose: newPose(), out: false, caught: false };
+      swayPh: pr * TAU, wobbleT: 0, wobbleUntil: -1, kneelUntil: -1, holdS: SUP.holdS[0] + (SUP.holdS[1] - SUP.holdS[0]) * hash01(slot.seed ?? 1, 17), pose: newPose(), out: false, caught: false, run: 3 + Math.floor(hash01(slot.seed ?? 1, 23) * 3), left: 1 + Math.floor(hash01(slot.seed ?? 1, 29) * 3) };
   });
   const inDay = () => { const h = hour(); return !storm() && h >= SUP.hours[0] && h < SUP.hours[1]; };
   const sm = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
@@ -58,9 +58,9 @@ export function createSupFleet({ slots = [], hour = () => 13, storm = () => fals
       b.x = p.x; b.z = p.z;
       const turn = Math.max(-SUP.turnRate * dt, Math.min(SUP.turnRate * dt, wrap(want - b.heading)));
       b.heading = wrap(b.heading + turn);
-      // the stroke: one every strokeS, the blade's side swapped at the end of each (frozen as she kneels)
+      // the stroke: one every strokeS, the blade's side swapped after each run of b.run strokes (3 to 5, her own; frozen as she kneels)
       const du = dt / SUP.strokeS * (1 - b.k), u1 = b.u + du;
-      if (u1 >= 1) { b.u = u1 - 1; b.side = -b.side; b.caught = false; } else b.u = u1;
+      if (u1 >= 1) { b.u = u1 - 1; b.caught = false; if (--b.left <= 0) { b.side = -b.side; b.left = b.run; } } else b.u = u1;
       // the blade's catch and exit: the kayaks' splash (a catch lifts droplets at the blade, the exit drips)
       if (b.k < 0.3) {
         if (!b.caught && b.u >= 0.1 && b.u < 0.5) {
@@ -76,7 +76,7 @@ export function createSupFleet({ slots = [], hour = () => 13, storm = () => fals
       const wob = b.amp * SUP.wobbleRad * Math.sin(TAU * SUP.wobbleHz * b.wobbleT + b.swayPh);
       b.roll = SUP.swayRad * Math.sin(TAU * time / SUP.swayS + b.swayPh) + -b.side * 0.025 * Math.sin(Math.PI * b.u) * (1 - b.k) + wob;
       b.shift = b.amp * 0.07 * Math.sin(TAU * SUP.wobbleHz * b.wobbleT + b.swayPh + 1.1);
-      supPose({ kneel: b.k, u: b.u, side: b.side, roll: b.roll, shift: b.shift, reach: 1 }, b.pose);
+      supPose({ kneel: b.k, u: b.u, side: b.side, next: b.left <= 1 ? -b.side : b.side, roll: b.roll, shift: b.shift, reach: 1 }, b.pose);
     }
   }
 

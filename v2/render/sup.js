@@ -26,6 +26,8 @@ const RECORDS = 4 * MAX + ROD_PER * MAX;
 const lin = (hex) => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255].map((v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
 export const COLOURS = Object.freeze({
   board: Object.freeze({ white: lin(0xe9e6dc), yellow: lin(0xe3b52a), red: lin(0xc2382b), blue: lin(0x2d6fa8), orange: lin(0xe2731f) }),
+  // a white board's deck takes one of these by its seed (the rows' own colours stand as given)
+  deck: Object.freeze([lin(0x2a8c8c), lin(0xe0604a), lin(0x24406e), lin(0x8fb83a), lin(0x4f9fd2), lin(0xd8b57a), lin(0xe3b52a), lin(0x6a4c93)]),
   pfd: Object.freeze({ orange: lin(0xe8661c), yellow: lin(0xf0c419), red: lin(0xcc2f2a), blue: lin(0x2b62b3), white: lin(0xe9e6dc) }),
   cap: Object.freeze({ navy: lin(0x1c2340), white: lin(0xeeeae0), red: lin(0xb42a26), yellow: lin(0xe3b52a) }),
 });
@@ -63,7 +65,13 @@ fn skinOf(bi: u32) -> vec3f { let w = SC[bi * 3u + 2u].w; return mix(vec3f(0.62,
       let groove = 1.0 - smoothstep(0.0025, 0.0025 + aaX * 1.5, gd);
       let kick = 1.0 - smoothstep(0.012, 0.012 + aaZ, abs(lp.z - 0.7));
       let padC = mix(vec3f(0.11, 0.115, 0.12), vec3f(0.05, 0.052, 0.055), max(groove * 0.7, kick));
-      alb = mix(alb, padC, pad); rough = mix(rough, 0.92, pad);
+      // the deck's graphic, by the board (SC[bi].w): 0 a white chevron toward the nose, 1 a pale centre stripe with pinlines, 2 a
+      // two-tone split (the colour forward, white aft on a slanted line)
+      let style = u32(SC[v.bi * 3u].w + 0.5);
+      if (style == 0u) { let cz = abs(lp.z + 1.0 + abs(lp.x) * 0.9); alb = mix(alb, vec3f(0.92, 0.92, 0.9), (1.0 - smoothstep(0.05 - aaZ, 0.05 + aaZ, cz)) * deck); }
+      else if (style == 1u) { let ax = abs(lp.x); alb = mix(alb, mix(bc, vec3f(0.95), 0.6), (1.0 - smoothstep(0.07 - aaX, 0.07 + aaX, ax)) * deck); alb = mix(alb, vec3f(0.95), (1.0 - smoothstep(0.006, 0.006 + aaX, abs(ax - 0.1))) * deck); }
+      else { alb = mix(alb, vec3f(0.9, 0.9, 0.88), smoothstep(-aaZ, aaZ, lp.z - 0.95 + lp.x * 0.6) * deck); }
+      alb = mix(alb, padC * mix(vec3f(1.0), bc * 2.0, 0.25), pad); rough = mix(rough, 0.92, pad);
       let handle = 1.0 - smoothstep(0.9, 1.0, length(vec2f(lp.x / 0.065, (lp.z + 0.05) / 0.11)));
       alb = mix(alb, vec3f(0.02, 0.02, 0.022), handle * onTop); rough = mix(rough, 0.6, handle * onTop);
       let plug = 1.0 - smoothstep(0.012, 0.012 + aaX, length(vec2f(lp.x, lp.z - ${(BOARD.L / 2 - 0.12).toFixed(3)})));
@@ -184,8 +192,8 @@ export function createSupRender({ device, reg, frameBGL, frameStruct, sky, shado
       poseRows({ x: b.x, y, z: b.z, yaw: -b.heading, pitch: Math.atan2(yb - ys, 2 * L2) * 0.9, roll: Math.atan2(yS - yP, 2 * B2) * 0.8 - b.roll * 0.3 }, bw);
       const wy = y - 0.02;
       // the colours
-      const bcol = pick(COLOURS.board, s.board, 'white'), pcol = pick(COLOURS.pfd, s.pfd, 'orange'), ccol = pick(COLOURS.cap, s.cap, 'navy'), sk = s.skin ?? [0.6, 0.4, 0.3];
-      cols.set([bcol[0], bcol[1], bcol[2], 0, pcol[0], pcol[1], pcol[2], 0, ccol[0], ccol[1], ccol[2], (sk[0] * 7 + sk[1] * 13 + (s.seed ?? 1) * 0.011) % 11], bi * 12);
+      const sd = (s.seed ?? 1) >>> 0, bcol = !s.board || s.board === 'white' ? COLOURS.deck[(sd * 7 + 3) % COLOURS.deck.length] : pick(COLOURS.board, s.board, 'white'), pcol = pick(COLOURS.pfd, s.pfd, 'orange'), ccol = pick(COLOURS.cap, s.cap, 'navy'), sk = s.skin ?? [0.6, 0.4, 0.3];
+      cols.set([bcol[0], bcol[1], bcol[2], (sd * 13) % 3, pcol[0], pcol[1], pcol[2], 0, ccol[0], ccol[1], ccol[2], (sk[0] * 7 + sk[1] * 13 + (s.seed ?? 1) * 0.011) % 11], bi * 12);
       // the nearest boards (sorted: the first ones) carry the kayakers' figure while big enough on screen
       const bpx = BOARD.L * focalPx / Math.max(1, Math.hypot(b.x - eye[0], b.z - eye[2]));
       if (figOk && bi === nFig && nFig < FIG && bpx >= SUP_RENDER.figurePx) {

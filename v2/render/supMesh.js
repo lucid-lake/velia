@@ -17,10 +17,13 @@ export const ROD = Object.freeze({ upperArm: 0, foreArm: 1, thigh: 2, shin: 3 })
 // the board's outline: half-width at u (0 bow tip, 1 tail), and the rocker's lift
 const halfWidth = (u) => {
   const B = BOARD.B / 2;
-  if (u < 0.34) return B * Math.pow(Math.sin((u / 0.34) * Math.PI / 2), 0.62);   // a pointed bow, round at the very tip
-  if (u > 0.9) return B * (1 - 0.34 * ((u - 0.9) / 0.1) ** 2);                    // the tail drawn in to a round end
-  return B;
+  if (u < 0.32) return B * 0.985 * Math.pow(Math.sin((u / 0.32) * Math.PI / 2), 0.66) * (1 - 0.015 * (u / 0.32 - 1));   // the nose: pointed, round at its very tip
+  if (u < 0.86) return B * (1 - 0.06 * ((u - 0.47) / 0.4) ** 2);   // the widest just ahead of the middle, easing both ways
+  const t = (u - 0.86) / 0.14, wT = 0.6;   // the tail drawn in to a squared end (its corners eased)
+  return B * (0.958 + (wT - 0.958) * t ** 1.4) * (u > 0.985 ? Math.sqrt(Math.max(0.2, 1 - ((u - 0.985) / 0.015) ** 2)) * 0.15 + 0.85 : 1);
 };
+// the board's thickness along it (a share of the middle's): full under the stance, thinned toward the nose and the tail
+const thick = (u) => 0.52 + 0.48 * Math.sin(Math.PI * Math.min(1, Math.max(0, (u - 0.02) / 0.96))) ** 0.55;
 const lift = (u) => (u < 0.3 ? BOARD.rocker * (1 - u / 0.3) ** 2 : u > 0.92 ? BOARD.rocker * 0.25 * ((u - 0.92) / 0.08) ** 2 : 0);
 // a rounded-rectangle section of half-width w: the flat deck, the rails, the flat bottom (n points)
 function section(w, y0, y1, zc, n = 12) {   // (w: the half-width, y0 the bottom, y1 the deck)
@@ -44,7 +47,7 @@ function geo() {
     const rings = [], N = 28, L = BOARD.L;
     for (let i = 0; i <= N; i++) {
       const t = i / N, u = t - Math.sin(2 * Math.PI * t) / (2 * Math.PI) * 0.45, z = -L / 2 + L * u, w = Math.max(0.012, halfWidth(u)), l = lift(u);
-      const top = BOARD.top + l * 0.6, bot = BOARD.bottom + l;
+      const bot = BOARD.bottom + l, top = bot + (BOARD.top - BOARD.bottom) * thick(u);
       rings.push(section(w, bot, top, z, 16));
     }
     // loft from the bow (z -L/2) to the tail; the rings wound so the normals face out

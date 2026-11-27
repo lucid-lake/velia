@@ -164,9 +164,10 @@ test('stormy or after dark the boards are home: none out, none stepped', () => {
 });
 
 test('the strokes alternate sides slowly; the blade splashes through the kayaks\' lists (a catch and an exit a stroke)', () => {
-  const F = fleetOf(), b = F.boards[0]; let side = b.side, flips = 0, catches = 0, exits = 0;
-  for (let i = 0; i < 60 * 30; i++) { F.step(1 / 60); if (b.side !== side) { flips++; side = b.side; } for (const e of F.splash) { if (e.type === 'catch') catches++; else exits++; assert.ok(Number.isFinite(e.at[0]) && e.s > 0); } }
-  assert.ok(flips >= 8 && flips <= 11, `${flips} strokes in 30 s (a stroke every ${SUP.strokeS} s)`);
+  const F = fleetOf(), b = F.boards[0]; let side = b.side, flips = 0, strokes = 0, lastU = b.u, catches = 0, exits = 0;
+  for (let i = 0; i < 60 * 30; i++) { F.step(1 / 60); if (b.u < lastU) strokes++; lastU = b.u; if (b.side !== side) { flips++; side = b.side; } for (const e of F.splash) { if (e.type === 'catch') catches++; else exits++; assert.ok(Number.isFinite(e.at[0]) && e.s > 0); } }
+  assert.ok(strokes >= 8 && strokes <= 11, `${strokes} strokes in 30 s (a stroke every ${SUP.strokeS} s)`);
+  assert.ok(flips >= 1 && flips <= 4, `${flips} side changes in 30 s (every 3 to 5 strokes)`);
   assert.ok(catches >= 8 && exits >= 8 && Math.abs(catches - exits) <= 1, `${catches} catches, ${exits} exits`);
   assert.ok(F.boards[0].v > 0.7 && F.boards[0].v < 1.0, 'a slow pace');
 });
