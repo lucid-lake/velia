@@ -72,7 +72,7 @@ import { mountHud, hudLayout, capLine, HUD } from '../ui/tessieHud.js';   //: th
 import { skillOfCode, RPG_SLOT_COUNT, createSkills, RPG_SKILLS_TABLE, LURE_RANKS, SONAR_RANKS, LURE_CAST_S } from '../sim/tessieSkills.js';
 import { LURE, lureTargets, lureSplashes } from '../sim/tessieLure.js';
 import { SONAR, sonarPing, rimMarks, markRing } from '../sim/tessieSonar.js';   // the dash's keys: the slot's 1 and Shift
-import { SURGE, SURGE_RANKS, surgeResolve } from '../sim/tessieSurge.js';
+import { SURGE, SURGE_RANKS, surgeResolve, awaySide as surgeAway } from '../sim/tessieSurge.js';
 import { BREACH, BREACH_RANKS, breachTarget, breachSlowK, breachLanding, breachBeside } from '../sim/tessieBreach.js';   // phase 5: the Breach
 import { Press } from '../../src/ui/pointer.js';
 import { createTessieBounty, BOUNTY_KIND, SKILL_ORDER, SETS, splashType } from '../sim/tessieBounty.js';
@@ -532,11 +532,13 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     else if (b.kind === 'anchored') ok = !!anchored()?.knock?.(b.id, away);   // the RPG, phase 6: knocked down at anchor
     else if (b.kind === 'rival') ok = !!b.knock?.(away);   // a Regatta rival (its race's own knockdown)
     else if (b.sim) ok = !!b.sim.hit(b.id, hitRule(b.kind), away);   // South Lake: a runabout knocked down; the jet ski's rider and the paddle-wheeler splashed only
+    if (ok) H.mark(b.id, clock);   // every knockdown starts its 45 s grace (a bite's and a fall's already have: the slap's and the beside-wave's here)
     if (ok) scoreWreck(b, ctx);
     if (ok) { pullUntil = clock + 5; knockTotal++; try { storage?.setItem(COUNT_KEY, String(knockTotal)); } catch { /* */ } log.knocks.push({ id: b.id, kind: b.kind, side: r.side, at: +clock.toFixed(1), d: r.d }); }
     return ok;
   }
 
+  const graced = (id) => H.grace(id, clock);   // knocked down within the last 45 s: no target, never over again
   // ---- the RPG: a wreck and a splash into her bounty ----
   function scoreWreck(b, ctx = null) {
     const kind = bounty ? RPG.kinds[b.kind] ?? null : null; if (!kind) return null;
@@ -693,7 +695,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     fx.slapAt = clock; fx.x = c[0]; fx.z = c[1];
     sim.emit?.('slap', 'tail', 1.6);
     sim.ring?.(tl.x, tl.z, 1); sim.ring?.(c[0], c[1], 1);
-    const list = surgeList(), plan = surgeResolve({ x: c[0], z: c[1] }, list, fx.row), by = new Map(list.map((b) => [b.id, b]));
+    const list = surgeList(), plan = surgeResolve({ x: c[0], z: c[1] }, list, fx.row, { grace: graced }), by = new Map(list.map((b) => [b.id, b]));
     const seen = new Set(); for (const [id, t] of sawAt) if (clock - t <= RPG.seenS) seen.add(id);
     fx.ctx = { depthM: Math.max(0, C.state.nose ?? 0), hidden: false, seen, skill: 'surge' };   // the slap shows her: never an unseen wreck
     fx.due = [...plan.heels.map((h) => ({ ...h, b: by.get(h.id) })), ...(plan.knock ? [{ ...plan.knock, knock: true, b: by.get(plan.knock.id) }] : [])].sort((a, b) => a.atS - b.atS);
@@ -708,6 +710,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   // the wave reaching a boat: its heel (or the one boat's knockdown), and she is seen
   function surgeReach(fx, h) {
     const b = h.b; if (!b) return;
+    if (h.knock && graced(b.id)) h = { ...h, knock: false, heelDeg: fx.row.heelDeg, side: surgeAway(b, fx) };   // knocked down since the slap (a bite): it only heels
     if (h.knock) {
       const ok = knock({ hit: b, side: h.side, d: h.d }, 1, null, fx.ctx);
       if (ok) { soundKnocks.push({ hit: true, boat: b.kind, x: b.x, z: b.z, where: 'rail', mult: 1 }); log.surge.slap.over.push(b.id); }
@@ -735,7 +738,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   function runBreach(rank) {
     const row = BREACH_RANKS[rank], n = nose(); if (!R || !row || !n || W.as !== 'tessie' || !sim.state.spine) return false;
     R.rank('breach', rank); if (R.state('breach')?.phase !== 'ready') return false;
-    const hidden = !!C.state.hidden, tg = breachTarget(n, targets(), { lockId: lastLock?.id ?? null, hidden, depthAt });
+    const hidden = !!C.state.hidden, tg = breachTarget(n, targets(), { lockId: lastLock?.id ?? null, hidden, depthAt, grace: graced });
     if (!tg) { log.breach = { at: +clock.toFixed(1), rank, none: true, hidden }; return false; }   // nothing to run at: a quiet no-op (nothing spent)
     const offM = tg.kind === 'kayak' ? (tg.B ?? 0.85) / 2 + BREACH.kayakOffM + 2.3 : PLAY.strikeOffM;   // a kayak: the spot off it, her front's reach past her nose kept clear
     if (!C.skillBreach(tg, { offM }) || !R.press('breach')) return false;
@@ -760,7 +763,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const r = H.fall(land, list.filter((b) => b.kind !== 'kayak' && b.kind !== 'sup'), clock, { hitM: row.windowM });
     let ok = r.hit ? knock(r) : false, beside = null;
     if (!r.hit) {
-      beside = breachBeside(land, surgeList(), row);
+      beside = breachBeside(land, surgeList(), row, { grace: graced });
       const b = beside ? list.find((o) => o.id === beside.id) : null;
       if (b && beside.knock) ok = knock({ hit: b, side: beside.side, d: beside.d });   // rank 4: a boat already leaning goes over
       else if (b) {

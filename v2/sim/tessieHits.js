@@ -19,7 +19,9 @@
 //   H.fall(fall { x, z, psi }, list, t) → { hit: the target her front 9 m landed on (within hitM of its hull) or null, side (+1: on its
 //                                        starboard rail, the heel she gives), spooked: [kayak ids within spookM] }; a hit starts its grace
 //   H.splash(x, z, list) → the kayak ids a breach or a surfacing within spookM of them spooks
-//   H.grace(id, t) → bool (45 s after a knockdown a boat is no target);  H.count → the knockdowns so far (her Logbook's number, phase 2)
+//   H.grace(id, t) → bool (45 s after a knockdown a boat is no target);  H.mark(id, t): a knockdown by any other path (the Tail Surge's
+//                                        slap, the Breach's beside-wave) starts the same grace (counted once: a hit already graced is not)
+//   H.count → the knockdowns so far (her Logbook's number, phase 2)
 //   H.holdOff(spine, L, list) → pushes her spine's frames out of the kayaks and the glass boat (horizontally, only where she is near the
 //                                surface): she never passes through them (the Halcyon and the lake's sailboats have the sim's own hold)
 //   H.rollK(P, side) → the roll moment (N·m) her weight on the rail gives a BoatPhysics boat (B.shove's maths: rollK × mass × g × GM)
@@ -86,6 +88,7 @@ export function createTessieHits({ K = HITS } = {}) {
   const self = {
     K, get count() { return count; },
     grace: inGrace,
+    mark(id, t = 0) { if (id == null) return; if (!inGrace(id, t)) count++; grace.set(id, Math.max(grace.get(id) ?? -Infinity, t + K.graceS)); },
     aim(n, list, t = 0) {
       if (!n) return null;
       let best = null, kept = null, keptAny = null;
