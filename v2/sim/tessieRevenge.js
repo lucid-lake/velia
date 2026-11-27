@@ -16,11 +16,12 @@
 //   escape  keep her past escapeM for escapeS, or leave her water (her area grown by waterPadM; only when the chase began in it):
 //           she gives up with a tail slap and spray, the drone fades, "That was close." (once a session). The chase never runs
 //           past chaseMaxS (the tone guard): then she gives up too
-//   strike  she reaches the boat (catchM): she dives deep beside the hull (down), slides under the lee bilge to the keel (in),
-//           rises till her back meets the keel's lee face and the bilge (up: the boat is solid to her, v2/sim/tessieClear.js;
-//           owner 2026-11-18: never through the hull), her tail sweeps (the flick) and the push rolls the boat to leeward, the
-//           keel swinging away from her (B.shove: the physics knocks her down; the card says "Tessie said no."); her splash,
-//           wake and a deep breath; then she sinks away under the falling rail
+//   strike  she reaches the boat (catchM) and stays in sight at the surface, so the player sees what happens: she closes on the lee
+//           side (close: alongside its lee rail amidships, her neck rearing out of the water over closeUpS, her head turned to the boat:
+//           the anticipation), then her head comes down onto the lee rail (bite: the boat is solid to her, v2/sim/tessieClear.js; owner
+//           2026-11-18: never through the hull) and on the touch her weight on the rail rolls the boat to leeward, toward her (B.shove:
+//           the physics knocks her down; the card says "Tessie said no."); her splash and a deep breath, her head held on the rail as
+//           it goes down (holdS), her tail sweeps (the flick); then she sinks away under the falling rail
 //   then 'done': the stage's act ends when she has gone (her cooldown counts from there)
 //
 //   const R = createRevenge({ sim, area, mode, reduced });   mode() → 'sail' | 'cruise' | 'regatta'; reduced() → bool
@@ -40,10 +41,12 @@ export const REVENGE = Object.freeze({
   chaseMs: 11 * 1852 / 3600,                   // 11 kn (5.7 m/s; owner 2026-11-18: B, catches a dithering beginner, not a good sailor)
   leadS: 1.2,                                  // her pursuit aims this far ahead of the boat
   catchM: 6, escapeM: 25, escapeS: 30, chaseMaxS: 30, waterPadM: 30,
-  leeM: 3.2, strikeMaxS: 9,                    // the strike: down beside the hull 3.2 m to leeward, then in and up (at most 9 s)
-  underDy: -3.2,                               // m under her swimming depth while she goes under (the keel's 1.6 m and her girth)
-  contactLat: 1.25, contactDy: -0.55,          // her spine at the keel's lee face (m from the centreline) and her rise there
-  inNear: 1.4, upS: 3.5, touchM: 0.15,         // in: this near the contact point she rises; the push when her gap is within touchM of the margin (or upS)
+  strikeMaxS: 6,                               // the strike at most this long from the catch (then the push anyway)
+  closeLat: 2.7, closeFwd: 1.0, closeNear: 2.0, closeMaxS: 2.6,   // close: her nose alongside the lee rail (m from the centreline, m ahead of amidships), near enough (m), at most (s)
+  closeUpS: 0.8, rearM: 14,                    // s her neck takes to rear up (the anticipation the player reads), from this far off the boat
+  biteK: 0.4, biteS: 0.3, biteMaxS: 1.2,       // bite: her neck comes down to this share of its arc over biteS s (her head onto the rail); the push at the touch, or biteMaxS
+  touchM: 0.15,                                // the touch: her gap within touchM of the hold's margin
+  holdS: 0.9, letGoDeg: 22,                    // her head held on the rail as the boat goes down (at most holdS, or till it heels past letGoDeg), then the neck lets go
   postDy: -3.6,                                // and she sinks away under the rail as the boat rolls toward her
   rollK: 1.3,                                  // the tail sweep's roll moment, × the boat's displacement × GM (B.shove)
   gloom: 0.22,                                 // the darkening's most (alpha of black over the water round the boat)
@@ -167,43 +170,42 @@ export function createRevenge({ sim, area = null, mode = () => 'sail', reduced =
         const n = sim.state.nose, d = n ? Math.hypot(n.x - boat.x, n.z - boat.z) : Infinity;
         st.dist = +d.toFixed(1);
         st.heldS = d > R.escapeM ? st.heldS + dt : 0;
+        // the last metres in sight: she means to touch (no reflex duck under the hull), keeps to the surface and rears up at it as she comes
+        if (d <= R.rearM) { sim.contact(true); sim.depth(0); if (!(sim.rearK > 0)) sim.rear(1, { upS: R.closeUpS }); }
         if (d <= R.catchM) {
           st.lee = leeOf(boat);   // heel < 0 is to port: lee = sign(heel) × right
-          sim.depth(R.underDy); sim.contact(false);
-          st.sub = 'down'; st.subT = 0;
+          sim.depth(0); sim.contact(true); sim.rear(1, { upS: R.closeUpS });   // she stays up and rears at it: the player sees her come
+          st.sub = 'close'; st.subT = 0;
           go('strike');
         } else if (st.inWater && !inWater(boat, R.waterPadM)) giveUp('water');
         else if (st.heldS >= R.escapeS) giveUp('distance');
         else if (st.chaseT >= R.chaseMaxS) giveUp('time');
       } else if (st.phase === 'strike') {
-        // down beside the lee side, in under the bilge to the keel, up till her back meets it; then the tail sweeps, the boat rolls
+        // close alongside the lee rail with her neck up, then her head down onto it; the push at the touch; her head held as it rolls
         const n = sim.state.nose;
         st.subT += dt;
         const v = lastBoat ? [(boat.x - lastBoat.x) / dt, (boat.z - lastBoat.z) / dt] : [0, 0], vb = Math.hypot(v[0], v[1]);
         const fx = Math.sin(boat.heading), fz = -Math.cos(boat.heading), rx = Math.cos(boat.heading), rz = Math.sin(boat.heading);
         const at = (lat, fwd, lead = 0) => [boat.x + st.lee * rx * lat + fx * fwd + v[0] * lead, boat.z + st.lee * rz * lat + fz * fwd + v[1] * lead];
         if (!n || !sim.state.visible) { /* gone: nothing to strike with */ finish('cancel', 'lost'); }
-        else {
-          if (st.sub === 'down') {
-            const p = at(R.leeM, 0, 1.0); sim.swimTo(p[0], p[1], Math.max(1.5, Math.min(R.chaseMs, vb + 2)));
-            if (sim.dy <= R.underDy + 0.5) { st.sub = 'in'; st.subT = 0; }
-          } else if (st.sub === 'in') {
-            const p = at(R.contactLat, 0, 0.8); sim.swimTo(p[0], p[1], Math.max(1.0, Math.min(R.chaseMs, vb + 1.2)));
-            const c = at(R.contactLat, 0);
-            if (Math.hypot(n.x - c[0], n.z - c[1]) <= R.inNear) { st.sub = 'up'; st.subT = 0; sim.contact(true); sim.depth(R.contactDy); }
-          } else {
-            // alongside the keel, at the boat's own speed (an animal cannot hover): her back up against its lee face and the bilge
-            const p = at(R.contactLat, 8); sim.swimTo(p[0], p[1], Math.max(0.6, vb));
-          }
-          // the touch counts once she has risen to the keel (not while she is still passing under it)
-          const touch = st.sub === 'up' && sim.dy >= R.contactDy - 0.5 && sim.state.clear <= CLEAR_MARGIN + R.touchM;
-          if (touch || (st.sub === 'up' && st.subT >= R.upS) || st.t >= R.strikeMaxS) {
+        else if (st.sub === 'close') {
+          const p = at(R.closeLat, R.closeFwd, 0.6); sim.swimTo(p[0], p[1], Math.max(1.5, Math.min(R.chaseMs, vb + 1.6)));
+          const c = at(R.closeLat, R.closeFwd);
+          if ((Math.hypot(n.x - c[0], n.z - c[1]) <= R.closeNear && sim.rearK > 0.85) || st.subT >= R.closeMaxS) { st.sub = 'bite'; st.subT = 0; sim.rear(R.biteK, { downS: R.biteS }); }
+        } else if (st.sub === 'bite') {
+          // alongside at the boat's own speed (an animal cannot hover), her head coming down on the lee rail
+          const p = at(R.closeLat, 8); sim.swimTo(p[0], p[1], Math.max(0.6, vb));
+          const touch = st.subT >= R.biteS * 0.8 && sim.state.clear <= CLEAR_MARGIN + R.touchM;   // her head seen coming down first
+          if (touch || st.subT >= R.biteMaxS || st.t >= R.strikeMaxS) {
             sim.swimTo(null); sim.play('flick', sim.state.t); sim.play('dive', sim.state.t + 5.5);   // after the flick's 5 s (its slap)
-            sim.contact(false); sim.depth(R.postDy); sim.behave(true);   // calm: the boat beside her does not make her shy (her flick plays out)
+            sim.behave(true);   // calm: the boat beside her does not make her shy (her flick plays out)
             sim.emit('break', 'nose', 1.4); sim.emit('breath', 'nose', 1.2);
             ev('strike', { K: st.lee * R.rollK, lee: st.lee, touch, clear: Number.isFinite(sim.state.clear) ? +sim.state.clear.toFixed(2) : null });
-            finish('strike', 'caught');
+            st.sub = 'hold'; st.subT = 0; st.result = 'strike'; st.why = 'caught';
           }
+        } else if (st.sub === 'hold') {
+          // her head held on the rail as the boat goes down toward her, then the neck lets go and she sinks away under the rail
+          if (st.subT >= R.holdS || Math.abs(boat.heel ?? 0) > R.letGoDeg * DEG) { sim.rear(0, { downS: 0.6 }); sim.contact(false); sim.depth(R.postDy); finish('strike', 'caught'); }   // the rail going under: she lets go
         }
       }
       lastBoat = { x: boat.x, z: boat.z };

@@ -310,3 +310,27 @@ Level-ups that are felt (sim/tessieSkills.js): the Dash's ranks raise its speed 
   sim/waveRoll.js; the knockdown watch needs 55°) and never knocks a boat down. Every boat it reaches rolls: yours through `B.wave`, a
   rival's through its own physics (`S.wave`, the same sim/waveRoll.js); each heel is logged (`stats.heels`), and the rivals steer round
   the wave's ring.
+
+## Tessie's strike in sight, fitted to the boat, and the look at her wreck (sim/tessieFit.js, sim/tessieFocus.js, sim/tessieRevenge.js, ui/tessieCam.js)
+
+- **Sail, her revenge's strike** (sim/tessieRevenge.js): she stays at the surface for the whole strike, so the player sees what happens. From
+  14 m off the boat (`REVENGE.rearM`) she keeps up, means to touch (no reflex duck) and rears her neck out of the water over 0.8 s, her head
+  turned to the boat (`sim.rear()`: up to 70°, quickly); she closes alongside the lee rail amidships (`close`), her head comes down onto it over
+  0.3 s (`bite`), and on the touch her weight on the rail rolls the boat to leeward, toward her (`B.shove`, unchanged). Her head is held on the
+  rail 0.9 s or until the boat heels past 22°, then her neck lets go and she sinks away under the falling rail (`hold`). Before, she went 3 m
+  down under the keel and pushed it from below: nothing of her showed at the knockdown.
+- **The fit** (sim/tessieFit.js, read by `contactPoint` in sim/tessiePlay.js): her jaw meets each kind at its own freeboard (kayak 0.3 m, jet
+  ski 0.5, sailboat and Halcyon 0.75, runabout 0.8, glass boat 1.0), the rail on her side raised or lowered by the boat's heel (half the beam
+  × sin heel; never under 0.1 m), the paddle-wheeler on its side at the waterline (no bite on a 1.6 m rail: a slam and a splash). A kayak
+  and the jet ski get a nudge: the jaw open 30–40 % (`sim.bite`'s `gapeK`) and her neck low through the strike. The knockdown ease's
+  pull-back is scaled by the boat's size (`frameK`: 0.6 for a kayak, 1 for a sailboat, up to 2.5 for the paddle-wheeler). What counts
+  as a hit is unchanged (sim/tessieHits.js).
+- **The strike's framing** (ui/tessieCam.js `strike.back`, `strike.aimK`): through a strike the eye stands 4 m further back and the aim drops
+  55 % of the way toward the struck boat, so her neck, her head and its rail are in frame together.
+- **The wreck look** (sim/tessieFocus.js, living/tessiePlayer.js, ui/tessieCam.js `focus`): after any wreck she makes (a bite, a fall, the
+  Breach, the Tail Surge), for 4.5 s: with no way held she turns to face the wreck (her head first, ±35°; nearer its hull than 5 m she first
+  slides off along it so its keel never holds her under), she stays up beside it, and the eye eases round behind her toward it (the yaw's
+  own spring, at most 40°/s, anchored at her middle) with the aim pulled 85 % onto it. Input wins at once: a look drag (the eye turns as
+  dragged that same frame), any key pressed after the hit (keys held through it keep her swimming her way while the eye holds the wreck),
+  the stick, a tap or click. Idle at a drift she never ducks under a hull (the hold still keeps her outside). The bounty and score stay on
+  their existing surfaces; no new UI. Tests: `v2/tests/tessie-wreck-look.test.mjs`, `v2/tests/tessie-m3.test.mjs` (the strike in sight).

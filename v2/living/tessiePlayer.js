@@ -78,6 +78,8 @@ import { Press } from '../../src/ui/pointer.js';
 import { createTessieBounty, BOUNTY, BOUNTY_KIND, SKILL_ORDER, SKILL_NAMES, SETS, splashType } from '../sim/tessieBounty.js';
 import { waryOf, WARY, chatterLine } from '../sim/tessieWary.js';   // phase 6: the lake grows wary by her level
 import { createLevelUp, LEVEL_UP } from '../sim/tessieLevelUp.js';
+import { frameK } from '../sim/tessieFit.js';   // the camera's pull-back for the struck boat's size
+import { createWreckFocus, FOCUS } from '../sim/tessieFocus.js';   // after a wreck: she turns to it, the eye eases round to keep it in view
 import { useSkill, SKILL_EMPTY } from '../sim/tessieTrials.js';   // the RPG: a slot's own press, the free trials of a locked skill   // the RPG, phase 2: the level-up line, the halo, the pick   // the Tessie RPG (rpg, ?tessierpg=1): each wreck scored into her bounty and level   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
 
 const DEG = Math.PI / 180;
@@ -475,9 +477,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   function targets() {
     const out = [];
     const s = B.state;
-    if (fleeOn || B.driven) out.push({ id: 'halcyon', kind: 'halcyon', x: s.x, z: s.z, heading: s.heading ?? 0, u: s.u ?? 0, motoring: !!s.engineOn, rpm: s.engineRpm, ...HALCYON });
+    if (fleeOn || B.driven) out.push({ id: 'halcyon', kind: 'halcyon', x: s.x, z: s.z, heading: s.heading ?? 0, u: s.u ?? 0, heel: s.heel ?? 0, motoring: !!s.engineOn, rpm: s.engineRpm, ...HALCYON });
     // a capsized boat is no target (it lies on its side)
-    const L = busy(); if (L?.active) for (const b of L.liveBoats) { if (b.knock?.capsized) continue; const q2 = b.phys.state; out.push({ id: b.id, kind: 'sail', x: q2.x, z: q2.z, heading: q2.heading, u: q2.u ?? 0, motoring: !!b.motoring, ...BUSY_HULL, ref: b }); }
+    const L = busy(); if (L?.active) for (const b of L.liveBoats) { if (b.knock?.capsized) continue; const q2 = b.phys.state; out.push({ id: b.id, kind: 'sail', x: q2.x, z: q2.z, heading: q2.heading, u: q2.u ?? 0, heel: q2.heel ?? 0, motoring: !!b.motoring, ...BUSY_HULL, ref: b }); }
     const T = tour(); if (T?.active) { const g = T.boat; out.push({ id: 'glass', kind: 'glass', x: g.x, z: g.z, heading: g.heading, u: g.v ?? 0, ...GLASS }); for (const k of T.kayaks) out.push({ id: `gk${k.i}`, kind: 'kayak', x: k.x, z: k.z, heading: k.heading, L: 3.4, B: 0.85 }); }
     // the lake's kayakers (round B): each a bite target while upright (a pair: two targets); the glass boat's are only spooked
     const F = kayaks(); if (F) F.marks().forEach((m, i) => out.push({ id: `k:${m.id ?? i}`, kind: 'kayak', x: m.x, z: m.z, heading: m.heading ?? 0, L: 3.4, B: 0.85, bite: !m.busy && !!F.bite }));
@@ -571,11 +573,19 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     if (ok) H.mark(b.id, clock);   // every knockdown starts its 45 s grace (a bite's and a fall's already have: the slap's and the beside-wave's here)
     if (ok) scoreWreck(b, ctx);
     if (ok && bounty) nextAt = clock + PLAYER.nextDelayS;   // the RPG: the next boat, if none is near (stageReach)
+    if (ok) { focus.start(b, clock, [...held]); pullShare = frameK(b); }   // the wreck look: her head and the eye turn to it (input ends it at once)
     if (ok) { pullUntil = clock + 5; knockTotal++; try { storage?.setItem(COUNT_KEY, String(knockTotal)); } catch { /* */ } log.knocks.push({ id: b.id, kind: b.kind, side: r.side, at: +clock.toFixed(1), d: r.d }); }
     return ok;
   }
 
   const graced = (id) => H.grace(id, clock);   // knocked down within the last 45 s: no target, never over again
+  // the wreck where it lies now (the focus): a capsized boat is no target, so the lake's sailboats are read from the busy lake itself
+  function wreckPos(id, list) {
+    const e = list.find((b) => b.id === id); if (e) return e;
+    if (id === 'halcyon') return B.state;
+    if (id === 'glass') return tour()?.boat ?? null;
+    const b = busy()?.boats?.find?.((o) => o.id === id); return b ? b.phys.state : null;
+  }
   // ---- the RPG: a wreck and a splash into her bounty ----
   function scoreWreck(b, ctx = null) {
     const kind = bounty ? RPG.kinds[b.kind] ?? null : null; if (!kind) return null;
@@ -920,7 +930,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     },
     back({ cut = false } = {}) {
       if (W.as !== 'tessie') return false;
-      W.back(); C.end();
+      W.back(); C.end(); focus.cancel('back');
       if (fleeOn) { if (B.drivenBy?.(flee.drive)) B.drive(null); fleeOn = false; }   // only if her flee still owns the hook (Cruise's autopilot survives)
       apply(false); held.clear(); touchIn.x = touchIn.y = 0; touchIn.id = null; touchIn.dive = touchIn.lunge = touchIn.up = touchIn.down = touchIn.dash = false;   // the view C chose stays for the rest of the visit (open question 2)
       if (!cut && lastPose && lastBoatPose && !needsVeil(lastPose, lastBoatPose, { reduced: reduced() })) glide.start(lastPose);
@@ -995,7 +1005,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       // phase 5: her play clock 0.5x about the Breach's apex (her own step only: the controller here, her body through plugin.playK)
       const slowOff = !slowBreach() || !!race() || isRace(mode());
       slowK = breachSlowK(C.state.lunge, { off: slowOff });
-      C.step(dt * slowK, cardUp() ? {} : hands(), { target: tg, lock: lk, track: breachFx ? breachTrack(list) : undefined });
+      const hh = cardUp() ? {} : hands();
+      if (focus.on) { focus.input({ keys: [...held], stick: Math.hypot(touchIn.x, touchIn.y) > 0.25, press: !!((hh.bite && !has('Space')) || hh.dash || touchIn.up || touchIn.down), pinned: !!pinned }, clock); if (focus.on) focus.track(wreckPos(focus.id, list), clock); }
+      C.step(dt * slowK, hh, { target: tg, lock: lk, track: breachFx ? breachTrack(list) : undefined, face: focus.face });
       plugin.playK = slowK = breachSlowK(C.state.lunge, { off: slowOff });
       if (bounty) watchStrike(nose0, hidden0);
       for (const e of C.events) {
@@ -1053,10 +1065,11 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       const lo = pinned ? [pinned.yaw != null ? Math.atan2(Math.sin(cam.yaw - (n.psi + pinned.yaw)), Math.cos(cam.yaw - (n.psi + pinned.yaw))) : 0, 0] : [(orbit?.[0] ?? 0) + touchLook[0], ((orbit?.[1] ?? 0) + touchLook[1]) * inv]; touchLook[0] = 0; touchLook[1] = 0;   // a pose's yaw: the camera held that far round her
       if (pinned?.look != null) cam.setLook(pinned.look);   // the pose's look, held (no assist)
       const dragging = !!(lo[0] || lo[1]); if (lo[0]) dragYaw -= lo[0];
+      if (dragging && !pinned) focus.cancel('look');   // the player's look always wins, at once
       const moving = has('KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight') || Math.hypot(touchIn.x, touchIn.y) > 0.25 || !!(pinned?.swim || pinned?.chase);
       const keysHeld = moving || has('KeyE', 'KeyQ') || touchIn.up || touchIn.down || !!pinned;
       //: one continuous camera: the controller's strike state shapes its goal, the lock pulls its aim (never a mode switch)
-      const live = cam.step(dt, { spine: sim.state.spine, L: sim.L, psi: n.psi, nose: C.state.nose, speed: C.state.speed, strike: C.state.strike, lock: lastLock, view, reduced: reduced(), orbit: dragging ? lo : null, follow: moving, pull: clock < pullUntil,
+      const live = cam.step(dt, { spine: sim.state.spine, L: sim.L, psi: n.psi, nose: C.state.nose, speed: C.state.speed, strike: C.state.strike, lock: lastLock, view, reduced: reduced(), orbit: dragging ? lo : null, follow: moving, pull: clock < pullUntil ? pullShare : 0, focus: focus.view,
         followOn: prefs.get('follow') !== false, limit: !!C.state.limit, resting: !keysHeld, waterAt, floorAt, underOn });
       lastUnder = live.under;
       if (clock < holdCamUntil && lastBoatPose) return c;
@@ -1066,7 +1079,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     },
     stats() {
       return { as: W.as, entry: W.entry, pill: W.pill, view, viewK: cam.state.viewK, fleeOn, knocks: knockTotal, under: lastUnder ? { ...lastUnder } : null, look: +cam.look.toFixed(4), eye: lastPose?.pos ? lastPose.pos.map((v) => +v.toFixed(2)) : null, ctl: { ...C.state, lunge: C.state.lunge ? { phase: C.state.lunge.phase, kind: C.state.lunge.kind, t: +C.state.lunge.t.toFixed(2), target: C.state.lunge.target?.id ?? null } : null, bite: C.state.bite ? { kind: C.state.bite.kind, t: +C.state.bite.t.toFixed(2), target: C.state.bite.target?.id ?? null, locked: C.state.bite.locked, hit: C.state.bite.hit } : null, strike: C.state.strike }, lock: lastLock ? { ...lastLock, k: +lastLock.k.toFixed(2) } : null, bite: sim.biteState ? { kind: sim.biteState.kind, phase: sim.biteState.phase, t: +sim.biteState.t.toFixed(2), gape: +(sim.state.gape ?? 0).toFixed(3) } : null,
-        log: { ...log, knocks: log.knocks.slice(-8), swaps: log.swaps.slice(-8) }, tipsWant: tips.waiting, beLine: { waiting: beLine.waiting, shown: beLine.shown }, glide: glide.active, aim: lastAim,
+        focus: focus.stats(), log: { ...log, knocks: log.knocks.slice(-8), swaps: log.swaps.slice(-8) }, tipsWant: tips.waiting, beLine: { waiting: beLine.waiting, shown: beLine.shown }, glide: glide.active, aim: lastAim,
         rpg: levelUp ? { ...levelUp.state, halo: levelUp.halo(), level: rpgLevel, wary: { ...wary() }, waiting: tips.waiting, dash: C.skills.state('dash'), lure: R.state('lure'), sonar: R.state('sonar'), surge: R.state('surge'), breach: R.state('breach'), slowK,
           breachFx: breachFx ? { rank: breachFx.rank, phase: C.state.lunge?.kind === 'skill' ? C.state.lunge.phase : 'done', t: +(clock - breachFx.t0).toFixed(2), target: breachFx.targetId, seen: !!breachFx.seen, near: !!C.state.lunge?.near, launch: breachFx.launch, windowM: breachFx.row.windowM } : null,
           surgeFx: surgeFx ? { phase: surgeFx.slapAt == null ? 'windup' : 'wave', t: +(clock - surgeFx.t0).toFixed(2), ringM: surgeFx.row.ringM, due: surgeFx.due.length } : null,
@@ -1077,6 +1090,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const soundKnocks = [];   // this frame's contacts that hit, for her sound
   let nextAt = null;   // the RPG: when to look for the next boat after a wreck (stageReach's near rule)
   let pendingChart = false, holdTip = 0, lastAim = null, pendingEntry = null, pullUntil = -1, lastUnder = null, hud = null, layoutKey = '', outT = 0, world = null;
+  let pullShare = 1;   // the knockdown ease's pull-back share for the struck boat (tessieFit.js frameK)
+  const focus = createWreckFocus();
   // the HUD's places for this window: a desktop's bottom corners and row, a tablet's top corners
   function placeHud() {
     const w = globalThis.innerWidth ?? 1280, h = globalThis.innerHeight ?? 720, tab = !!touch(), k = `${w}x${h}${tab}`;

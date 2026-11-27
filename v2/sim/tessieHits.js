@@ -115,7 +115,7 @@ export function createTessieHits({ K = HITS } = {}) {
       const R = L.surfaceM + (L.underM - L.surfaceM) * u + tab, Rb = L.breakSurfaceM + (L.breakUnderM - L.breakSurfaceM) * u + tab;
       // the distance to a hull: at the surface across the water; under it the 3-D distance to its underbody (never one far over her nose)
       const dist = (b) => { const dh = Math.max(0, hullDist(n.x, n.z, b)); const dy = Math.max(0, nose + L.keelY); if (dy > L.aboveM) return Infinity; return u <= 0 ? dh : Math.hypot(dh, dy * u); };
-      const set = (b, d) => { LK.x = b.x; LK.z = b.z; LK.heading = b.heading ?? 0; LK.u = b.u ?? 0; LK.L = b.L ?? 8.5; LK.B = b.B ?? 3; LK.d = d; LK.off = offOf(n, b); LK.kind = b.kind;
+      const set = (b, d) => { LK.x = b.x; LK.z = b.z; LK.heading = b.heading ?? 0; LK.u = b.u ?? 0; LK.L = b.L ?? 8.5; LK.B = b.B ?? 3; LK.d = d; LK.off = offOf(n, b); LK.kind = b.kind; LK.heel = Number.isFinite(b.heel) ? b.heel : undefined;
         LK.ix = b.x + Math.sin(LK.heading) * LK.u * L.leadS; LK.iz = b.z - Math.cos(LK.heading) * LK.u * L.leadS; LK.under = u > 0.5; };
       if (LK.id != null) {
         const b = list.find((o) => o.id === LK.id);

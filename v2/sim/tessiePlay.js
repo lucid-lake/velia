@@ -66,7 +66,8 @@
 import { BREACH_PLAY, biteBeats, biteDur, BITE2 } from './tessie.js';
 import { createSkills, SKILLS } from './tessieSkills.js';
 import { HITS, hullDist } from './tessieHits.js';
-import { BREACH, ARC_S, ARC_FALL_S } from './tessieBreach.js';   // the RPG's Breach (phase 5): the run, the climb, the 1.6 s arc
+import { BREACH, ARC_S, ARC_FALL_S } from './tessieBreach.js';
+import { fitOf, railAt } from './tessieFit.js';   // the strike fitted to the boat: its freeboard and heel, the jaw, the neck   // the RPG's Breach (phase 5): the run, the climb, the 1.6 s arc
 
 const ROW = (o) => Object.freeze(o);
 export const PLAY = Object.freeze({
@@ -107,6 +108,7 @@ export const PLAY = Object.freeze({
   freeRoll: 70, leanDeg: 20,     // °: the free breach's roll in the air (every other one: R2), the rising strike's fall toward the boat
   surfacedM: 1.0,                // m: the nose this near the surface counts as surfaced (her breath; it swims 0.75 m down there)
   lead: 0.6,                     // s: the depth target leads her nose by the sim's own ease (TESSIE.dyTau), so she moves at the rate asked
+  faceStandM: 5, faceV: 2.2, faceBend: 25,   // by her wreck (face): nearer its hull than this (m) she slides off along it at faceV m/s, bent faceBend ° out, then turns to look
 });
 // her teaching lines (the UI audit, owner 2026-11-21: they go through Sail's skipper line, living/tessiePlayer.js tip(); no status lines:
 // "Got them!" and "Next time…" are gone). Plain text; [K] marks a key cap (the player draws it as the hint line's .cap; a tablet's
@@ -131,13 +133,18 @@ export const CONTACT = Object.freeze({ inM: 0.35, railY: 0.75, sideY: 0.35, ster
 // a kayak's (round B: 3.4 × 0.85 m, its deck ≈ 0.3 m over the water): her jaw on its gunwale (no sim hold sets her flush on a kayak, so
 // the point is on its skin, inM 0), the dash bite on its side at the waterline, from astern its stern deck
 const CONTACT_KAYAK = Object.freeze({ inM: 0, railY: 0.3, sideY: 0.12, sternY: 0.25, sternM: 0.5, endM: 0.45 });
+// Fitted to the boat (v2/sim/tessieFit.js): each kind's freeboard (a kayak's 0.3 m deck, the glass boat's 1.0 m rail, the paddle-wheeler's
+// side at the waterline: never a bite on a rail 1.6 m up), the rail on her side raised or lowered by the boat's heel (b.heel)
 export function contactPoint(b, hx, hz, kind = 'rail', K = CONTACT, where = null) {   // where: kept once chosen (the jaw never jumps from the rail to the transom)
-  if (K === CONTACT && b.kind === 'kayak') K = CONTACT_KAYAK;
+  const fit = K === CONTACT ? fitOf(b.kind) : null;
+  if (fit) K = b.kind === 'kayak' ? CONTACT_KAYAK : fit;
   const fx = Math.sin(b.heading ?? 0), fz = -Math.cos(b.heading ?? 0), dx = hx - b.x, dz = hz - b.z, L = b.L ?? 8.5, B = b.B ?? 3;
   const a = dx * fx + dz * fz, c = dx * -fz + dz * fx, side = c >= 0 ? 1 : -1;
   if (where === 'stern' || (!where && a < -L / 2 + K.sternM && Math.abs(c) < B * 0.8)) { const at = -L / 2 + K.inM; return [b.x + fx * at, K.sternY, b.z + fz * at, 'stern', side]; }
   const along = clamp(a, -L / 2 + K.endM, L / 2 - K.endM), out = B / 2 - K.inM;
-  return [b.x + fx * along - fz * side * out, kind === 'dash' ? K.sideY : K.railY, b.z + fz * along + fx * side * out, kind === 'dash' ? 'side' : 'rail', side];
+  const onSide = kind === 'dash' || fit?.where === 'side';
+  const y = onSide ? K.sideY : fit && Number.isFinite(b.heel) ? railAt(b, side, K) : K.railY;
+  return [b.x + fx * along - fz * side * out, y, b.z + fz * along + fx * side * out, onSide ? 'side' : 'rail', side];
 }
 
 //: the share of the water's numbers at this nose depth (0 at the surface, 1 under the water), smoothstep over K.blend
@@ -229,7 +236,7 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
   }
   // her head: the spine's first frame (the contact test's point)
   const head = () => { const s = sim.state.spine; return { x: s[0], y: s[1], z: s[2] }; };
-  const boatOf = (o) => (o ? { id: o.id, kind: o.kind, x: o.x, z: o.z, heading: o.heading ?? 0, u: o.u ?? 0, L: o.L ?? 8.5, B: o.B ?? 3 } : null);
+  const boatOf = (o) => (o ? { id: o.id, kind: o.kind, x: o.x, z: o.z, heading: o.heading ?? 0, u: o.u ?? 0, L: o.L ?? 8.5, B: o.B ?? 3, ...(Number.isFinite(o.heel) ? { heel: o.heel } : {}) } : null);
   // a strike's boat as it is now: the lock's or the corners' read of it, else carried on along its way (it sails on out of sight)
   const refresh = (b, locked, target, dt) => {
     const now = locked && locked.id === b.id ? locked : target && target.id === b.id ? target : null;
@@ -241,7 +248,7 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
   function startBite(kind, n, tgt, locked) {
     const h = head(), cp = tgt ? contactPoint(tgt, h.x, h.z, kind) : null, aim = cp ? cp.slice(0, 3) : null;
     st.bite = { kind, t: 0, target: tgt, locked: !!locked, hit: null, judged: false, contacted: false, side: sideOf(n, tgt), slapped: false };
-    sim.bite(kind, { aim, side: st.bite.side, meet: tgt ? (locked ? HL.hitM : HL.touchM) + CONTACT.inM : 0 });
+    sim.bite(kind, { aim, side: st.bite.side, meet: tgt ? (locked ? HL.hitM : HL.touchM) + CONTACT.inM : 0, gapeK: tgt ? fitOf(tgt.kind).gapeK : 1 });
     st.bites++; st.bitesShown = st.bites;
     ev('bite', { x: n.x, z: n.z, nose: st.nose, kind, locked: !!locked, target: tgt?.id ?? null });
   }
@@ -314,7 +321,7 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       if ((L && L.free && !hit) || (B && !B.target && !hit)) return;   // a breach for its own sake or a snap at nothing: no verdict
       ev('verdict', { hit: !!hit });   // no line (the UI audit's decision B): the knock itself says it
     },
-    step(dt, hands = {}, { target = null, lock = null, track } = {}) {
+    step(dt, hands = {}, { target = null, lock = null, track, face = null } = {}) {   // face: { x, z } the boat she just wrecked (the page's, a few seconds): with no way held she turns to it, her head first
       events.length = 0;
       if (!st.on || !(dt > 0)) return st;
       const n = nose(); if (!n) return st;
@@ -332,7 +339,9 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       st.lockId = locked?.id ?? null; st.lockK = lk?.k ?? 0;
       // locked, or striking at a boat, she means to touch it: no reflex duck under its hull (she would come up under the rail at 3 m and the
       // press would read as the strike from below); the sim's hold still keeps her skin outside
-      sim.contact(!!locked || !!st.bite?.target || !!st.lunge);
+      const faceOn = !!(face && Number.isFinite(face.x));
+      const idle = Math.hypot(move?.[0] ?? 0, move?.[1] ?? 0) <= 0.2 && n.speed < 1.2;
+      sim.contact(!!locked || !!st.bite?.target || !!st.lunge || faceOn || idle);   // by her wreck, or idle at a drift, she stays up beside a hull (no reflex duck under it; the hold keeps her outside)
       // her turn as it happened (the nose's own heading since the last step): the bank reads it
       st.yawRate = psiWas == null ? 0 : wrap(n.psi - psiWas) / dt; psiWas = n.psi;
       // the way she should swim: the hands' direction about the camera's yaw, the yaw read when the hands change (held while they are
@@ -362,6 +371,19 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       st.steer = cut ? 1 : Math.min(beats ? beats.steer : 1, lungeSteer(L, K));
       st.phase = L ? L.phase : beats ? beats.phase : 'swim';
       st.want = st.dash ? M.dash : st.setting;
+      // with no way held by her wreck (face): she turns to face it at her own rate (her head leads, below); right against its hull (where its
+      // keel and rig would hold her under) she first slides off along it at faceV, bending out, then turns back to look at it
+      let faceWay = null;
+      if (way == null && faceOn && !L) {
+        const fb = { heading: 0, L: 8.5, B: 3, ...face }, hd = hullDist(n.x, n.z, fb);
+        if (hd < K.faceStandM && Number.isFinite(face.heading)) {
+          const h = Math.abs(wrap(face.heading - n.psi)) <= Math.PI / 2 ? face.heading : wrap(face.heading + Math.PI);
+          const ox = n.x - face.x, oz = n.z - face.z, ax = Math.sin(face.heading), az = -Math.cos(face.heading), al = ox * ax + oz * az;
+          const px = ox - ax * al, pz = oz - az * al;   // out from its centreline toward her
+          faceWay = wrap(h + (px * Math.cos(h) + pz * Math.sin(h) >= 0 ? 1 : -1) * K.faceBend * DEG);   // + turns her right, toward that side
+          st.want = Math.max(st.want, K.faceV);
+        } else { faceWay = Math.atan2(face.x - n.x, -(face.z - n.z)); if (Math.abs(wrap(faceWay - n.psi)) > 20 * DEG) st.want = Math.max(st.want, K.faceV); }   // she swims round to it, then drifts
+      }
       // the rail bite's lunge: + lungeV for lungeS from the strike
       if (B && B.kind === 'rail') { const t1 = BITE2.rail.windup; B.v0 ??= Math.max(n.speed, st.setting); if (B.t >= t1 && B.t < t1 + K.lungeS) st.want = Math.max(st.want, B.v0 + K.lungeV); }
       if (B && B.hit && beats?.phase === 'follow' && B.target) st.want = Math.min(st.want, Math.max(K.drift, B.target.u ?? 0) + 1);   // her jaw on its rail: she hangs on (her pace down to the boat's, at the strike's own brake)
@@ -389,7 +411,9 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       // the heading she wants: the hands' turn at her rate × the steering share, the rate itself ramped, never wound
       // past her nose by more than 25°
       const rate = turnRate(M, n.speed, K) * st.steer, slew = M.slew * DEG;
-      st.omega = rampTurn(st.omega, way != null ? wrap(way - st.psiWant) : 0, way != null ? rate : 0, slew, dt, K);
+      const goWay = way ?? faceWay;
+      const faceRate = faceWay != null ? Math.max(rate, M.turnFast * DEG * st.steer) : rate;   // turning to her wreck she swims round at her cruise's turn
+      st.omega = rampTurn(st.omega, goWay != null ? wrap(goWay - st.psiWant) : 0, goWay != null ? faceRate : 0, slew, dt, K);
       st.psiWant = wrap(st.psiWant + st.omega * dt);
       // the lock's assist (§ 6.4): toward the intercept with weight 0.45 / 0.55 × its blend, at most 20°/s on top of her own turn; only on a
       // way she swims (or through a strike): nothing moves her toward a boat she has not chosen to swim at
@@ -400,7 +424,7 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
         st.psiWant = wrap(st.psiWant + st.assist * dt);
       }
       const off = wrap(st.psiWant - n.psi); if (Math.abs(off) > 25 * DEG) { st.psiWant = wrap(n.psi + Math.sign(off) * 25 * DEG); if (Math.sign(st.omega) === Math.sign(off)) st.omega = clamp(st.omega, -rate, rate); }
-      if (way == null && !lk) st.psiWant = wrap(n.psi + wrap(st.psiWant - n.psi) * Math.max(0, 1 - dt * 0.5));   // let go: she settles on the way she faces
+      if (way == null && !lk && faceWay == null) st.psiWant = wrap(n.psi + wrap(st.psiWant - n.psi) * Math.max(0, 1 - dt * 0.5));   // let go: she settles on the way she faces
       // the bite (Space or a left click): a press is held bufS; it fires when nothing is striking and the cooldown is over
       const biteNow = !!(bite || lunge), pressEdge = biteNow && !lungeWas; lungeWas = biteNow;
       if (pressEdge) st.buf = K.bufS;
@@ -542,10 +566,11 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       // her neck and gait: up in its arc at the surface (lower on the dash), straight forward and low under the water (its
       // depth reads her head: an arc down there would read as a climb), level on the dash; her head leads her turn (0.6 × the heading still to turn, at most 25°), or turns to
       // the locked boat; the tail lifts as she dives
-      const neckK = L && L.phase !== 'recover' ? 0 : st.noseWant < 0.9 && ch < K.swimY + 0.25 ? (st.dash ? 0.35 : 1) : 0;   // up once her body is at the surface (after the catch)
+      const neckK = (L && L.phase !== 'recover' ? 0 : st.noseWant < 0.9 && ch < K.swimY + 0.25 ? (st.dash ? 0.35 : 1) : 0) * (B?.target ? fitOf(B.target.kind).neckK : 1);   // up once her body is at the surface (after the catch); low over a little craft (tessieFit.js)
       sim.neck?.(neckK);
       let lead = clamp(0.6 * wrap(st.psiWant - n.psi), -25 * DEG, 25 * DEG);
       if (lk) lead += (clamp(wrap(Math.atan2(lk.x - n.x, -(lk.z - n.z)) - n.psi), -35 * DEG, 35 * DEG) - lead) * lk.k;
+      else if (faceOn) lead = clamp(wrap(Math.atan2(face.x - n.x, -(face.z - n.z)) - n.psi), -35 * DEG, 35 * DEG);   // her head turns to her wreck first
       sim.gait?.({ dash: st.dash, dive: clamp((v - 1.2) / 2, 0, 1), look: lead });
       // what she is now: the nose's depth (the spine's first frame), her word, her breath on each surfacing
       const ny = sim.state.spine[1];
