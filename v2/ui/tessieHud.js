@@ -27,7 +27,7 @@
 //   THE ICONS (the RTS pass): each slot is a rounded-square tile of one family (a navy ground lit from the upper left, a bevel, a
 //          3 px frame that carries the state) with one bold cream silhouette, outlined in navy, that says what the skill does: the
 //          Dash a dart with three speed streaks (horizontal), the Lure a hook with a glint (a vertical curl), the Sonar a fan of three
-//          bands from a point (radial), the Tail Surge a breaking wave (a low heavy curl), the Breach her neck rising out of a splash
+//          radial, never a broadcast fan), the Tail Surge a breaking wave (a low heavy curl), the Breach her neck rising out of a splash
 //          (vertical). The frame tells the state: ready a full cream frame; running an amber frame emptying (the figure amber);
 //          cooling a dim frame refilling and a navy wipe over the tile shrinking clockwise from twelve; locked the tile and figure
 //          dimmed, no frame; pickable the steady amber halo. The skill's name under every tile, a locked one's dimmed
@@ -44,7 +44,7 @@ export const HUD = Object.freeze({
   narrow: Object.freeze({ width: 1100, dial: 112, slot: 56 }),
   tablet: Object.freeze({ dial: 104, inset: 16, slot: 72, stickShare: 0.4, buttonsW: 236 }),   // the stick owns the left 40 %, the buttons (Bite and ▲ ▼) about 236 px on the right
   sonar: Object.freeze({ rangeM: 160, rings: Object.freeze([50, 100]), max: 12, hz: 10, coneDeg: 35 }),
-  ping: Object.freeze({ waveS: 0.9, max: 16, fadeMin: 0.35, R: 54 }),   // the ping on the dial: the wave's run, the blips at most, the faintest a blip fades to, the rim (px of 132)
+  ping: Object.freeze({ waveS: 0.9, max: 16, fadeMin: 0.35, R: 54, minPx: 11 }),   // minPx: two blips never closer than this (a pile spreads)   // the ping on the dial: the wave's run, the blips at most, the faintest a blip fades to, the rim (px of 132)
   learnAt: 3,   // uses before a line dims (Sail's LEARN_AT); the ink is Sail's (keyLegend.js OPACITY)
   storeKey: 'lakeshore.tessie.keys.v1',
 });
@@ -160,7 +160,27 @@ export function pingBlips(her, boats = [], ping = null, t = 0, { reduced = false
       out: k > 1, on: reduced || age >= P.waveS * Math.min(1, k), op });
   }
   out.sort((p, q) => p.d - q.d);
-  return out.slice(0, max);
+  const shown = out.slice(0, max);
+  spread(shown.filter((b) => !b.out), P.minPx, P.R);
+  return shown;
+}
+// blips that would pile up pushed apart to at least min px (pure, deterministic, a few relaxation passes); each keeps its true spot as
+// tx, ty and stays inside the rim
+function spread(list, min, R) {
+  for (const b of list) { b.tx = b.x; b.ty = b.y; }
+  for (let it = 0; it < 8; it++) {
+    let moved = false;
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+      const a = list[i], b = list[j]; let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+      if (d >= min) continue;
+      if (d < 1e-3) { const ang = j * 2.39996; dx = Math.cos(ang); dy = Math.sin(ang); d = 0; } else { dx /= d; dy /= d; }   // a coincident pair splits along a golden-angle bearing
+      const push = (min - d) / 2;
+      a.x -= dx * push; a.y -= dy * push; b.x += dx * push; b.y += dy * push; moved = true;
+    }
+    for (const b of list) { const rx = b.x - 66, ry = b.y - 66, r = Math.hypot(rx, ry); if (r > R) { b.x = 66 + rx * R / r; b.y = 66 + ry * R / r; } }
+    if (!moved) break;
+  }
+  for (const b of list) { b.x = +b.x.toFixed(2); b.y = +b.y.toFixed(2); }
 }
 
 const LOCKED_LOOK = Object.freeze({ ring: 0, ink: 'empty', glyph: slotGlyph('locked') }), TRIAL_LOOK = Object.freeze({ ring: 0, ink: 'empty', glyph: slotGlyph('trial') }), READY = Object.freeze({ phase: 'ready' });
@@ -220,7 +240,11 @@ const HUD_CSS = `#lk-tplay .tp-sonar{position:absolute;right:22px;bottom:22px;wi
 #lk-tplay .tp-slot.locked .kn{background:none;border-color:transparent;opacity:.4}
 #lk-tplay .tp-slot[data-halo]{box-shadow:0 0 0 2px rgb(var(--lk-brand-navy) / .55),0 0 0 4px rgb(var(--lk-amber,240 172 64) / .55),0 0 14px 5px rgb(var(--lk-amber,240 172 64) / .28)}   /* a navy hairline keeps the amber apart from the cream ring */
 #lk-tplay .tp-slot{transition:box-shadow .4s ease}
-#lk-tplay .tp-sonar .pr,#lk-tplay .tp-sonar[data-ping] .r0,#lk-tplay .tp-sonar[data-ping] .cone{display:none}
+#lk-tplay .tp-sonar .pr,#lk-tplay .tp-sonar .hm,#lk-tplay .tp-sonar[data-ping] .r0,#lk-tplay .tp-sonar[data-ping] .cone,#lk-tplay .tp-sonar[data-ping] .me{display:none}
+#lk-tplay .tp-sonar[data-ping] .hm{display:inline}
+#lk-tplay .tp-sonar .hm circle{fill:rgb(var(--lk-brand-navy) / .85);stroke:rgb(var(--lk-cream) / .6);stroke-width:1}
+#lk-tplay .tp-sonar .hm path{fill:rgb(var(--lk-cream));stroke:rgb(var(--lk-brand-navy));stroke-width:1;stroke-linejoin:round}
+#lk-tplay .tp-sonar .hm .ht{fill:none;stroke:rgb(var(--lk-cream) / .95);stroke-width:2.4;stroke-linecap:round}
 #lk-tplay .tp-sonar[data-ping] .pr{display:inline}
 #lk-tplay .tp-sonar[data-ping]:not([data-hidden]) .sw{visibility:hidden}   /* the rim's own label says the range */
 #lk-tplay .tp-sonar .pr circle{fill:none;stroke:rgb(var(--lk-cream) / .3);stroke-width:1;stroke-dasharray:2 3}
@@ -236,16 +260,16 @@ const HUD_CSS = `#lk-tplay .tp-sonar{position:absolute;right:22px;bottom:22px;wi
 // .f a filled figure, .d a navy detail, .so/.s a thick line's navy outline and its cream body. 64 px grid; the figure keeps clear of
 // the frame (3 px) and of the pips (y 51 to 55)
 export const ICONS = Object.freeze({
-  // a dart pointing right (her head, streamlined) with three speed streaks behind: horizontal, forward
-  dash: '<rect class="f" x="12" y="23" width="12" height="4.2" rx="2.1"/><rect class="f" x="7.5" y="28.4" width="18" height="4.2" rx="2.1"/><rect class="f" x="13" y="33.8" width="11" height="4.2" rx="2.1"/>'
-    + '<path class="f" d="M56 30.5C51 23 41 20.5 28.5 22.5C32 25.5 33.5 28 33.5 30.5C33.5 33 32 35.5 28.5 38.5C41 40.5 51 38 56 30.5Z"/><circle class="d" cx="48" cy="28.6" r="1.8"/>',
+  // her head and neck stretched forward, lunging right, three speed streaks trailing: horizontal, forward ("Tessie dashes")
+  dash: '<rect class="f" x="10" y="25.4" width="12" height="4.2" rx="2.1"/><rect class="f" x="6" y="30.8" width="16" height="4.2" rx="2.1"/><rect class="f" x="11" y="36.2" width="10" height="4.2" rx="2.1"/>'
+    + '<path class="f" d="M24 36C30 32 36 28.5 42 26.6C46 25.4 50.5 25.4 53.6 27.4C56.2 29 56.2 32.2 53.6 33.8C50.6 35.6 46.4 35.4 42.4 35C36.2 34.6 30.4 36.6 25.2 40.4Z"/><circle class="d" cx="50" cy="29" r="1.6"/><path class="d" d="M47.5 32.6h6" style="stroke:rgb(var(--lk-brand-navy));stroke-width:1;stroke-linecap:round"/>',
   // a hook with its eye and barb, a glint by it: the bait (a vertical curl)
   lure: '<path class="so" d="M38 14.5V35a8 8 0 0 1-16 0v-4.5M22 30.5l4.6 4.4"/><circle class="so" cx="38" cy="11" r="3.4"/>'
     + '<path class="s" d="M38 14.5V35a8 8 0 0 1-16 0v-4.5M22 30.5l4.6 4.4"/><circle class="s" cx="38" cy="11" r="3.4" style="stroke-width:3.2"/>'
     + '<path class="f" d="M20 10l1.8 4.9L26.7 16.7l-4.9 1.8L20 23.4l-1.8-4.9L13.3 16.7l4.9-1.8Z"/>',
-  // a point and three bands fanning out ahead: radial
-  sonar: '<path class="f" d="M21.75 31.75A14.5 14.5 0 0 1 42.25 31.75L39.07 34.93A10 10 0 0 0 24.93 34.93Z"/><path class="f" d="M15.74 25.74A23 23 0 0 1 48.26 25.74L45.08 28.92A18.5 18.5 0 0 0 18.92 28.92Z"/>'
-    + '<path class="f" d="M9.73 19.73A31.5 31.5 0 0 1 54.27 19.73L51.09 22.91A27 27 0 0 0 12.91 22.91Z"/><circle class="f" cx="32" cy="42" r="4.6"/>',
+  // a radar scope: the ring, a sweep wedge from its centre and two blips (a scope, not a broadcast): radial
+  sonar: '<circle class="so" cx="32" cy="29" r="17" style="stroke-width:7"/><circle class="s" cx="32" cy="29" r="17" style="stroke-width:3.6"/>'
+    + '<path class="f" d="M32 29L32 14.5A14.5 14.5 0 0 1 44.56 21.75Z"/><circle class="f" cx="32" cy="29" r="2.6"/><circle class="f" cx="23.5" cy="35" r="2.8"/><circle class="f" cx="39.5" cy="37" r="2.3"/>',
   // a breaking wave, its crest curling over, spray off it: low and heavy
   surge: '<rect class="f" x="8" y="42.5" width="48" height="4.4" rx="2.2"/><path class="f" d="M9 45C11 31 21 18 36 17C47 16.5 55 23 55 31C55 37 50 40.5 45.5 39.5C41 38.5 39.5 34 42 31.5C44 29.5 47 30.5 47.5 32.5C48.5 26 43 22.5 37 23.5C28 25 24 35 28 45Z"/>'
     + '<circle class="f" cx="50" cy="13" r="2.3"/><circle class="f" cx="55" cy="18.5" r="1.7"/>',
@@ -268,7 +292,7 @@ export const tileSvg = (id) => `<svg viewBox="0 0 64 64"><defs><radialGradient i
 const SONAR_SVG = (cone) => `<svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="58" stroke-width="2" style="fill:rgb(var(--lk-brand-navy) / .72);stroke:rgb(var(--lk-cream) / .7)"/>
 <circle class="r0" cx="66" cy="66" r="${(54 * 50 / 160).toFixed(1)}" fill="none" stroke-width="1" style="stroke:rgb(var(--lk-cream) / .14)"/><circle class="r0" cx="66" cy="66" r="${(54 * 100 / 160).toFixed(1)}" fill="none" stroke-width="1" style="stroke:rgb(var(--lk-cream) / .14)"/>
 <path class="cone" d="M66 66L${(66 + 54 * Math.sin(cone)).toFixed(1)} ${(66 - 54 * Math.cos(cone)).toFixed(1)}A54 54 0 0 0 ${(66 - 54 * Math.sin(cone)).toFixed(1)} ${(66 - 54 * Math.cos(cone)).toFixed(1)}Z" style="fill:rgb(var(--lk-cream) / .06)"/>
-<g class="pr"><circle cx="66" cy="66" r="27"/><text class="l1" x="66" y="96"></text><text class="l2" x="66" y="123.5"></text></g><g class="pwg"></g><g class="rim"></g><g class="bls"></g><g class="pbs"></g><path class="me" d="M66 59l4 10h-8z" style="fill:rgb(var(--lk-cream) / .95)"/></svg><b class="sw">SONAR</b>`;
+<g class="pr"><circle cx="66" cy="66" r="27"/><text class="l1" x="66" y="96"></text><text class="l2" x="66" y="123.5"></text></g><g class="pwg"></g><g class="rim"></g><g class="bls"></g><g class="pbs"></g><path class="me" d="M66 59l4 10h-8z" style="fill:rgb(var(--lk-cream) / .95)"/><g class="hm"><circle cx="66" cy="66" r="8"/><path d="M66 58.5L71 71L66 68L61 71Z"/><path class="ht" d="M66 8.5V16"/></g></svg><b class="sw">SONAR</b>`;
 
 // the DOM: the sonar, the skills row, the legend, made in the play's layer; returns { paint(frame), place(layout), count(code), el }
 export function mountHud({ root, doc = globalThis.document, skills = [], storage = null, onSlot = null, onSlotUp = null, keyHints = () => true, rpg = false, reduced = () => false } = {}) {
@@ -362,7 +386,7 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
         const P = pingBlips(her, boats, ping, t, { reduced: rm });
         pb.innerHTML = P.map((b) => (b.out
           ? `<line class="rm" data-id="${b.id}" x1="${(66 + (b.x - 66) * 55 / R).toFixed(1)}" y1="${(66 + (b.y - 66) * 55 / R).toFixed(1)}" x2="${(66 + (b.x - 66) * 62 / R).toFixed(1)}" y2="${(66 + (b.y - 66) * 62 / R).toFixed(1)}" style="opacity:${b.on ? b.op : 0}"/>`
-          : `<path class="pb${b.shape === 'otri' ? ' o' : ''}" data-id="${b.id}" data-shape="${b.shape}" d="${blipPath(b.shape)}" transform="translate(${b.x} ${b.y}) rotate(${b.rot})" style="opacity:${b.on ? b.op : 0}"/>`)).join('');
+          : `<path class="pb${b.shape === 'otri' ? ' o' : ''}" data-id="${b.id}" data-shape="${b.shape}" data-tx="${b.tx}" data-ty="${b.ty}" d="${blipPath(b.shape)}" transform="translate(${b.x} ${b.y}) rotate(${b.rot})" style="opacity:${b.on ? b.op : 0}"/>`)).join('');
         sonar.dataset.pinged = String(P.filter((b) => !b.out).length);
         sonar.dataset.lit = String(P.filter((b) => b.on).length);
         rimTicks = String(P.filter((b) => b.out).length);

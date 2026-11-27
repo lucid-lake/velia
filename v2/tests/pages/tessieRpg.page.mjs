@@ -302,10 +302,13 @@ try {
         const b = V.busy.lake.liveBoats.find((o) => o.id === e.dataset.id)?.phys.state; if (!b || !n) continue;
         const dx = b.x - n.x, dz = b.z - n.z, d = Math.hypot(dx, dz), ahead = dx * Math.sin(n.psi) - dz * Math.cos(n.psi), right = dx * Math.cos(n.psi) + dz * Math.sin(n.psi), k = Math.min(1, d / range) * R;
         const m = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(e.getAttribute('transform')); if (!m) continue;
-        off.push({ id: e.dataset.id, shape: e.dataset.shape, px: +Math.hypot(+m[1] - (66 + right / d * k), +m[2] - (66 - ahead / d * k)).toFixed(2) });
+        off.push({ id: e.dataset.id, shape: e.dataset.shape, px: +Math.hypot(+e.dataset.tx - (66 + right / d * k), +e.dataset.ty - (66 - ahead / d * k)).toFixed(2), moved: +Math.hypot(+m[1] - +e.dataset.tx, +m[2] - +e.dataset.ty).toFixed(1) });
       }
+      const hm = so.querySelector('.hm'), hmShown = !!hm && getComputedStyle(hm).display !== 'none' && !!hm.querySelector('.ht');
+      const pts = [...so.querySelectorAll('.pbs path')].map((e) => /translate\(([-\d.]+) ([-\d.]+)\)/.exec(e.getAttribute('transform'))).filter(Boolean).map((m) => [+m[1], +m[2]]);
+      let gap = Infinity; for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) gap = Math.min(gap, Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]));
       const lab = [...so.querySelectorAll('.pr text')].map((t) => t.textContent), prShown = getComputedStyle(so.querySelector('.pr')).display !== 'none';
-      return { log: V.tessiePlay.stats().log.sonar, pinged: +(so.dataset.pinged ?? 0), rim: +(so.dataset.rim ?? 0), blips: so.querySelectorAll('.pbs path').length, ticks: so.querySelectorAll('.pbs line').length, lit: +(so.dataset.lit ?? 0), off, lab, prShown, plain: so.querySelectorAll('.bls > *').length,
+      return { log: V.tessiePlay.stats().log.sonar, pinged: +(so.dataset.pinged ?? 0), rim: +(so.dataset.rim ?? 0), blips: so.querySelectorAll('.pbs path').length, ticks: so.querySelectorAll('.pbs line').length, lit: +(so.dataset.lit ?? 0), off, lab, prShown, hmShown, gap: +gap.toFixed(1), plain: so.querySelectorAll('.bls > *').length,
         word: so.querySelector('.sw').textContent, marks: +(w.dataset.marks ?? 0), shown: [...w.querySelectorAll('.mk')].filter((e) => e.getAttribute('visibility') === 'visible').length };
     });
     if (process.env.TESSIE_RPG3_SHOT) await page.screenshot({ path: `${process.env.TESSIE_RPG3_SHOT}-sonar.png` });
@@ -315,6 +318,7 @@ try {
       `the SONAR dial shows the ping: a blip per marked boat, all lit 1 s on, the 160 m blips gone (${p1.blips} blips + ${p1.ticks} rim ticks of ${n3})`);
     check(p1.off.length >= 1 && p1.off.every((o) => o.px < 2.5 && o.shape === 'tri'), `each sailboat's blip at its true bearing and range on the 300 m scale, a triangle (${JSON.stringify(p1.off)})`);
     check(p1.prShown && p1.lab.join() === '150,300 m', `the dial's half ring and rim labelled (${p1.lab.join()})`);
+    check(p1.hmShown && p1.gap >= 10, `her own mark at the dial's centre and a heading tick at the rim; no two blips closer than 10 px (closest ${p1.gap})`);
     check(/^(300 M|HIDDEN)$/.test(p1.word), `the dial's word reads the ping's range (${p1.word})`);
     check(p1.marks >= 1 && p1.shown === p1.marks, `the marks in the world: a ring under each hull in view (${p1.marks} drawn)`);
     // the marks are world: every HUD box (each legend line, the two dials, the slots) lies inside a cut of the marks' mask

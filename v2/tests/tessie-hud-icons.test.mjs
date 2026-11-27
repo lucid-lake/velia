@@ -66,3 +66,18 @@ test('every boat kind on the water has a blip shape, each a real path', () => {
   assert.equal(new Set(['sail', 'power', 'kayak', 'glass', 'paddle', 'jetski'].map((k) => BLIP_SHAPE[k])).size, 6, 'six types, six shapes');
   for (const sh of new Set(Object.values(BLIP_SHAPE))) assert.match(blipPath(sh), /^M[-\d. ]+/, sh);
 });
+
+test('a pile of blips spreads to the minimum spacing, near its true spot; a lone blip stays put', () => {
+  const her = { x: 0, z: 0, psi: 0 };
+  const pile = [0, 1, 2, 3, 4].map((i) => ({ id: `k${i}`, kind: 'kayak', x: i * 0.5, z: -100 })).concat([{ id: 's', kind: 'sail', x: 150, z: 0 }]);
+  const B = pingBlips(her, pile, { rangeM: 300, at: 0, until: 8, has: () => true }, 2);
+  const ks = B.filter((b) => b.id[0] === 'k');
+  for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) assert.ok(Math.hypot(ks[i].x - ks[j].x, ks[i].y - ks[j].y) >= HUD.ping.minPx - 0.6, `${ks[i].id}–${ks[j].id} apart`);
+  assert.ok(ks.every((b) => Math.hypot(b.x - b.tx, b.y - b.ty) < 3 * HUD.ping.minPx), 'each near its true spot');
+  const s = B.find((b) => b.id === 's'); assert.deepEqual([s.x, s.y], [s.tx, s.ty], 'the lone sailboat exactly at its bearing and range');
+});
+
+test('the Sonar icon is a scope (a ring, a sweep wedge, blips), not a broadcast fan; the Dash is her head and neck', () => {
+  assert.match(ICONS.sonar, /<circle class="s" cx="32" cy="29" r="17"/); assert.doesNotMatch(ICONS.sonar, /A31\.5/);
+  assert.match(ICONS.dash, /class="d" cx="50"/, 'an eye on her head');
+});
