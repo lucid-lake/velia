@@ -213,6 +213,7 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
   let deepWas = false;   // her nose was deeper than breachAtM on this climb (a dash climb from depth breaches as it passes)
   let easing = false;    // the burst has ended and she is still above her cruise: back to it at dashEase
   let sinceDash = Infinity;   // s since the dash's burst ended (the dash bite's window)
+  let growK = 1;   // the RPG: her cruise × this (her level's growth, tessieSkills.js growthOf); 1 flag off
   const events = [];
   let lungeWas = false, shiftWas = false, wasUnder = false, moveKey = null, refYaw = 0, psiWas = null;
   const ev = (type, o = {}) => events.push({ type, ...o });
@@ -266,6 +267,9 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
   const self = {
     K, state: st, events, skills: S,
     get on() { return st.on; },
+    // the RPG: her body's growth by level, × her cruise (tessieSkills.js growthOf; 1: none)
+    grow(k) { growK = Number.isFinite(k) && k > 0 ? k : 1; return growK; },
+    get growK() { return growK; },
     begin(at = null) {
       if (!sim.state.visible || !sim.state.nose) {
         const a = at ?? { x: 0, z: 0, heading: 0 };
@@ -318,6 +322,10 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       const look = hands.look ?? pitch;   // the player's look about the camera's neutral (+ down)
       // the speed model here: the surface's numbers blended into the water's by her nose's depth
       const M = mediumK(st.nose, K);
+      // the RPG: her cruise grows with her level (grow()), the Dash's burst with its rank (tessieSkills.js GROWTH, DASH_RANKS speedK); × 1 flag off
+      const dk = S.state('dash')?.speedK ?? 1, top = K.top * Math.max(1, dk);
+      if (growK !== 1) M.cruise *= growK;
+      if (dk !== 1) M.dash *= dk;
       st.u = M.u; st.cruise = M.cruise;
       // the lock: its blend, and the boat while it holds
       const lk = lock && lock.k > 0 ? lock : null, locked = lk && lk.id != null ? lk : null;
@@ -459,7 +467,7 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
         const pace = () => {
           const dx = sx - n.x, dz = sz - n.z, ahead = dx * Math.sin(n.psi) - dz * Math.cos(n.psi);
           if (ahead < 2.5) { toward(L.target.x, L.target.z); goV = Math.max(2, L.target.u ?? 0); }   // the spot under her (or behind): hold here at the boat's way, facing it
-          else { toward(sx, sz); goV = clamp(Math.hypot(dx, dz) / Math.max(0.4, tLeft), 2, L.skill ? Math.max(BREACH.runV, n.speed) : K.top); }   // the Breach: never faster than her run (a release far off lands short)
+          else { toward(sx, sz); goV = clamp(Math.hypot(dx, dz) / Math.max(0.4, tLeft), 2, L.skill ? Math.max(BREACH.runV, n.speed) : top); }   // the Breach: never faster than her run (a release far off lands short)
         };
         if (L.phase === 'run') {
           // the Breach's run: at the spot at her run pace, BREACH.runNose down; the climb on the release, at the spot, after runM or maxRunS
@@ -505,10 +513,10 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       }
       // her pace: up at the medium's rate (the dash's own ramp above her cruise), down at its stop rate (after the burst at dashEase); never
       // braked harder than strikeStop through a strike (the 24 m/s² brake is gone)
-      goV = Math.min(goV, K.top);
+      goV = Math.min(goV, top);
       let acc = goV > n.speed + 0.05 ? (goV > M.cruise + 0.1 ? M.dashAcc : M.acc) : goV < n.speed - 0.05 ? (easing && n.speed > M.cruise + 0.1 ? K.dashEase : M.stopAcc) : M.acc;
       if ((B || L) && goV < n.speed) acc = Math.min(acc, K.strikeStop);
-      sim.swimTo(goX, goZ, goV, acc, M.turnMax);
+      sim.swimTo(goX, goZ, goV, acc, M.turnMax, dk > 1 ? top + 0.5 : null);   // the RPG's Dash ranks: her top past the sim's 19.5 m/s
       // the bank into her turn: her pace and her turn as it happened, at most the medium's (25° on the dash), eased
       const bankWant = L && L.phase !== 'recover' ? 0 : bankFor(n.speed, st.yawRate, st.dash ? Math.min(M.bank, 25) : M.bank, K);
       st.bank += (bankWant - st.bank) * (1 - Math.exp(-dt / K.bankTau));

@@ -131,8 +131,8 @@ test('pickable follows the unlock order and the cap', () => {
   assert.deepEqual(pickable({ ...s, points: 0 }), []);
 });
 
-test('the Dash by rank: burst/cooldown 1.8/4.5 → 2.1/4.0 → 2.4/3.5 → 2.6/3.0 s; rank 4 bites × 1.25 (× 1.15 below)', () => {
-  assert.deepEqual(DASH_RANKS.slice(1).map((r) => [r.activeS, r.cooldownS, r.bite]), [[1.8, 4.5, 1.15], [2.1, 4.0, 1.15], [2.4, 3.5, 1.15], [2.6, 3.0, 1.25]]);
+test('the Dash by rank: burst/cooldown 1.8/4.5 → 2.4/3.8 → 3.0/3.1 → 3.6/2.5 s, speed × 1.0 → 1.3; rank 4 bites × 1.25 (× 1.15 below)', () => {
+  assert.deepEqual(DASH_RANKS.slice(1).map((r) => [r.activeS, r.cooldownS, r.bite, r.speedK]), [[1.8, 4.5, 1.15, 1.0], [2.4, 3.8, 1.15, 1.1], [3.0, 3.1, 1.15, 1.2], [3.6, 2.5, 1.25, 1.3]]);
   const S = createSkills(SKILLS);
   assert.equal(S.state('dash').bite, null, 'no rank set (the flag off): the bite keeps its own knock');
   const cycle = (rank) => {
@@ -143,9 +143,9 @@ test('the Dash by rank: burst/cooldown 1.8/4.5 → 2.1/4.0 → 2.4/3.5 → 2.6/3
     return [+active.toFixed(1), +cool.toFixed(1), K.state('dash').bite];
   };
   assert.deepEqual(cycle(1), [1.8, 4.5, 1.15]);
-  assert.deepEqual(cycle(2), [2.1, 4.0, 1.15]);
-  assert.deepEqual(cycle(3), [2.4, 3.5, 1.15]);
-  assert.deepEqual(cycle(4), [2.6, 3.0, 1.25]);
+  assert.deepEqual(cycle(2), [2.4, 3.8, 1.15]);
+  assert.deepEqual(cycle(3), [3.0, 3.1, 1.15]);
+  assert.deepEqual(cycle(4), [3.6, 2.5, 1.25]);
   assert.equal(S.rank('dash', 0), false, 'the Dash is never locked'); assert.equal(S.rank('dash', 5), false); assert.equal(S.rank('lure', 1), false, 'Lure has no numbers yet');
 });
 

@@ -69,7 +69,7 @@ import { createTessieCam, createGlide, needsVeil } from '../ui/tessieCam.js';
 import { heightAt as tessieHeightAt, reachAt } from '../sim/tessie.js';
 import { tessieSettings } from '../ui/tessieSettings.js';   // phase 2a: Invert up/down, Camera follows her
 import { mountHud, hudLayout, capLine, HUD } from '../ui/tessieHud.js';   //: the sonar, the skills row, her keys on the right edge
-import { skillOfCode, RPG_SLOT_COUNT, createSkills, RPG_SKILLS_TABLE, LURE_RANKS, SONAR_RANKS, LURE_CAST_S } from '../sim/tessieSkills.js';
+import { skillOfCode, RPG_SLOT_COUNT, createSkills, RPG_SKILLS_TABLE, LURE_RANKS, SONAR_RANKS, LURE_CAST_S, growthOf } from '../sim/tessieSkills.js';
 import { LURE, lureTargets, lureSplashes } from '../sim/tessieLure.js';
 import { SONAR, sonarPing, rimMarks, markRing } from '../sim/tessieSonar.js';   // the dash's keys: the slot's 1 and Shift
 import { SURGE, SURGE_RANKS, surgeResolve, awaySide as surgeAway } from '../sim/tessieSurge.js';
@@ -588,7 +588,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   function rpgSync(force = false) {
     if (!bounty || (!force && clock - rpgReadT < RPG.readS)) return;
     rpgReadT = clock;
-    const s = bounty.state(); rpgLevel = s.level;
+    const s = bounty.state(); rpgLevel = s.level; C.grow(growthOf(s.level));   // her body grows with her level
     const key = SKILL_ORDER.map((id) => `${s.ranks[id]}.${s.trials?.[id] ?? ''}`).join();
     if (key !== rpgRanks) { rpgRanks = key; C.skills.rank('dash', s.ranks.dash); hud?.ranks(s.ranks, s.trials); }
     const halo = levelUp.halo().join();
