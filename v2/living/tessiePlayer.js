@@ -75,7 +75,7 @@ import { SONAR, sonarPing, rimMarks, markRing } from '../sim/tessieSonar.js';   
 import { SURGE, SURGE_RANKS, surgeResolve, awaySide as surgeAway } from '../sim/tessieSurge.js';
 import { BREACH, BREACH_RANKS, breachTarget, breachSlowK, breachLanding, breachBeside } from '../sim/tessieBreach.js';   // phase 5: the Breach
 import { Press } from '../../src/ui/pointer.js';
-import { createTessieBounty, BOUNTY, BOUNTY_KIND, SKILL_ORDER, SETS, splashType } from '../sim/tessieBounty.js';
+import { createTessieBounty, BOUNTY, BOUNTY_KIND, SKILL_ORDER, SKILL_NAMES, SETS, splashType } from '../sim/tessieBounty.js';
 import { waryOf, WARY, chatterLine } from '../sim/tessieWary.js';   // phase 6: the lake grows wary by her level
 import { createLevelUp, LEVEL_UP } from '../sim/tessieLevelUp.js';
 import { useSkill, SKILL_EMPTY } from '../sim/tessieTrials.js';   // the RPG: a slot's own press, the free trials of a locked skill   // the RPG, phase 2: the level-up line, the halo, the pick   // the Tessie RPG (rpg, ?tessierpg=1): each wreck scored into her bounty and level   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
@@ -92,6 +92,11 @@ export const RPG = Object.freeze({ seenS: 45, splashS: 45, kinds: BOUNTY_KIND,  
 export const SURGE_LINES = Object.freeze({
   upright: Object.freeze({ kind: 'tip.tessie.surge.upright', text: 'It only heeled. Slap closer, or a boat leaning in the wind.' }),
   light: Object.freeze({ kind: 'tip.tessie.surge.light', text: 'Light wind: the wave only heels them.' }),
+});
+// a slot press that did nothing, and why (the RPG; once ever each): Breach with no boat to run at, a locked skill with no free try left
+export const SKILL_LINES = Object.freeze({
+  breachNone: Object.freeze({ kind: 'tip.tessie.breach.none', text: 'Breach needs a boat ahead, within 60 m.' }),
+  locked: Object.freeze({ kind: 'tip.tessie.locked', text: (name) => `${name} is locked. Level up to pick it.` }),
 });
 // the first wreck of a boat wrecked within BOUNTY.repeatS before (the RPG; once ever): why the bounty paid less
 export const REPEAT_LINE = Object.freeze({ kind: 'tip.tessie.repeat', text: 'Same boat again: half the bounty. Find a fresh one.' });
@@ -602,6 +607,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     if (u.line) tip(u.line.kind, u.line.text);   // the first trial's line, the last one's (once ever each: the lean skipper)
     if (u.trial && u.spent) { log.trials = [...(log.trials ?? []), { id, left: u.left, at: +clock.toFixed(1) }].slice(-8); rpgSync(true); }
     if (!u.used) log.idle = (log.idle ?? 0) + 1;   // nothing happened: a quiet no-op
+    if (u.why === 'locked') tip(SKILL_LINES.locked.kind, SKILL_LINES.locked.text(SKILL_NAMES[id]));   // no free try left: why (once ever)
     return u.used ? 'fire' : 'idle';
   }
   // a slot let go (its key up, the press on it lifted): the Breach launches (its run ends; a quick tap breaches where she is)
@@ -768,7 +774,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const row = BREACH_RANKS[rank], n = nose(); if (!R || !row || !n || W.as !== 'tessie' || !sim.state.spine) return false;
     R.rank('breach', rank); if (R.state('breach')?.phase !== 'ready') return false;
     const hidden = !!C.state.hidden, tg = breachTarget(n, targets(), { lockId: lastLock?.id ?? null, hidden, depthAt, grace: graced });
-    if (!tg) { log.breach = { at: +clock.toFixed(1), rank, none: true, hidden }; return false; }   // nothing to run at: a quiet no-op (nothing spent)
+    if (!tg) { log.breach = { at: +clock.toFixed(1), rank, none: true, hidden }; tip(SKILL_LINES.breachNone.kind, SKILL_LINES.breachNone.text); return false; }   // nothing to run at: nothing spent; the line says why (once ever)
     const offM = tg.kind === 'kayak' ? (tg.B ?? 0.85) / 2 + BREACH.kayakOffM + 2.3 : PLAY.strikeOffM;   // a kayak: the spot off it, her front's reach past her nose kept clear
     if (!C.skillBreach(tg, { offM }) || !R.press('breach')) return false;
     breachFx = { rank, row, t0: clock, targetId: tg.id, kind: tg.kind, seen: null, launch: null, fall: null, released: null };

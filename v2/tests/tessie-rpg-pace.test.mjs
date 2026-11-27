@@ -2,6 +2,7 @@
 // pin (W toward a boat, Space once locked), the way tools/v2-perf.mjs's evidence does.
 //   camping one boat: the Halcyon knocked again every 46 s paid more than roaming (6 XP a knock); now the same boat within 120 s pays
 //     half a time (v2/sim/tessieBounty.js repeatS), and the skipper's line says why once
+//   a press that did nothing says why once: Breach with no boat within 60 m ahead, a locked skill with no free try left
 //   the next boat: the swim between two wrecks was about 80 % of the time between them (a 30 min chase: 18 wrecks); 6 s after a wreck
 //     with no fresh upright boat within 220 m, one is laid 130–210 m ahead of her (cheat on where, as her entry's first boat)
 import test from 'node:test';
@@ -9,7 +10,7 @@ import assert from 'node:assert/strict';
 import { steadyWind } from '../../src/sim/boat.js';
 import { createBoatSim, waterFor } from '../sim/boat.js';
 import { createTessie } from '../sim/tessie.js';
-import { createTessiePlayer, REPEAT_LINE, PLAYER } from '../living/tessiePlayer.js';
+import { createTessiePlayer, REPEAT_LINE, SKILL_LINES, PLAYER } from '../living/tessiePlayer.js';
 import { createBusyLake } from '../living/busyLake.js';
 import { birthplaceRows } from '../sim/regions.js';
 import { BOUNTY } from '../sim/tessieBounty.js';
@@ -95,4 +96,16 @@ test('the next boat: 6 s after a wreck with no fresh boat within 220 m, one is l
   q.wreck(c0);
   q.step(PLAYER.nextDelayS + 1);
   assert.equal(q.P.stats().log.reach?.next, undefined, 'a boat 100 m off: no cheat');
+});
+
+test('a slot press that does nothing says why once: Breach with no boat ahead, a locked skill out of free tries', () => {
+  const { P, step } = halcyonRig();   // the Halcyon 180 m off: nothing within the Breach's 60 m
+  step(1);
+  assert.equal(P.pressSlot('breach'), 'idle', 'nothing to run at');
+  assert.equal(P.bounty.state().trials.breach, 5, 'no free try spent');
+  assert.ok(P.stats().tipsWant.includes(SKILL_LINES.breachNone.kind), 'the reason asked of the skipper\'s line');
+  for (let i = 0; i < 5; i++) P.bounty.trial('lure');
+  assert.equal(P.pressSlot('lure'), 'idle', 'no free try left: locked');
+  assert.ok(P.stats().tipsWant.includes(SKILL_LINES.locked.kind));
+  assert.equal(SKILL_LINES.locked.text('Lure'), 'Lure is locked. Level up to pick it.');
 });
