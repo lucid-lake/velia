@@ -18,7 +18,13 @@
 //     behaviour spends none; a real use (a stub behaviour) spends one and at 0 the slot returns to the locked look
 // Phase 3 (Lure and Sonar, v2/sim/tessieLure.js, tessieSonar.js): 2 fires the Lure (a busy-lake sailboat laid 90 m ahead of her,
 //     crossing, turns toward her; the slot's ring amber then cooling; the lure's ring on the water); 3 pings (the marks under the
-//     hulls in the world, ticks on the SONAR dial's rim, its word "300 M"; the ring); a click on the Sonar slot while it cools does nothing
+//     hulls in the world; the SONAR dial rescaled to 300 m, a type-coded blip per marked boat at its true bearing and range, the half
+//     ring and the rim labelled; the ring); a click on the Sonar slot while it cools does nothing
+// The icons (the RTS pass): every slot's name under its tile (locked ones dimmed) at 1280, 1180 and 1100, the names apart; a
+//     cooling slot's wipe over its tile
+// The cheat (?tessiecheat=1, or G R U F F typed while she is played): "Cheat on: every skill, no cooldown." on the skipper's line,
+//     every slot at rank 4, the Sonar pinging twice in a row, the Dash again the moment its burst ends; the save byte for byte as
+//     seeded; the code again: "Cheat off.", the save's ranks back
 // Phase 4 (Tail Surge, v2/sim/tessieSurge.js): 4 winds up 1.2 s (the slot amber), then the slap: the wave's cream ring on the water
 //     runs out to 40 m, a busy-lake sailboat laid 20 m abeam heels away from her; a click on the slot while it cools does nothing; in a
 //     strong wind (?wind=4, the fleet out 25 s, then a gust laying one past 22°) a boat leaning past 20° moved 9 m off her just before the slap goes over (scored as wrecked)
@@ -188,10 +194,19 @@ try {
       return { w: innerWidth, row: [Math.round(row.l), Math.round(row.r)], dial: dial && Math.round(dial.right), sonar: sonar && Math.round(sonar.left), legend: !!leg, legL: leg && Math.round(leg.left), legB: leg && Math.round(leg.bottom), rowT: Math.round(row.t),
         ok: !hit(dial) && !hit(sonar) && !hit(leg) && row.l >= 0 && row.r <= innerWidth && !!dial && !!sonar };
     });
+    const names = () => page.evaluate(() => [...document.querySelectorAll('#lk-tplay .tp-skills .tp-slot')].map((s) => {
+      const n = s.querySelector('.nm'), r = n?.getBoundingClientRect(), cs = n && getComputedStyle(n), t = s.getBoundingClientRect();
+      return { t: n?.textContent, shown: !!n && cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0, px: cs ? parseFloat(cs.fontSize) : 0, op: cs ? +cs.opacity : 0, l: r?.left, r: r?.right, top: r?.top, b: r?.bottom, under: r && r.top >= t.bottom - 1, locked: s.classList.contains('locked') };
+    }));
     for (const w of [1280, 1180, 1100]) {
       await page.setViewportSize({ width: w, height: 720 }); await page.waitForTimeout(500);
       const c = await clear();
       check(c.ok && c.legend, `${w} px: the five slots clear of DEPTH, SONAR and the legend (${JSON.stringify(c)})`);
+      const nm = await names();
+      const apart = nm.every((x, i) => i === 0 || x.l >= nm[i - 1].r + 2);
+      check(nm.map((x) => x.t).join() === 'DASH,LURE,SONAR,SURGE,BREACH' && nm.every((x) => x.shown && x.under && x.px >= 11 && x.b <= 720) && apart,
+        `${w} px: every slot's name under its icon, 11 px or more, apart, on screen (${JSON.stringify(nm.map((x) => [x.t, Math.round(x.l), Math.round(x.r), Math.round(x.b)]))})`);
+      check(nm.filter((x) => x.locked).every((x) => x.op >= 0.45 && x.op < 0.8) && nm.filter((x) => !x.locked).every((x) => x.op === 1), `${w} px: a locked slot's name dimmed, an open one's full (${JSON.stringify(nm.map((x) => [x.t, x.op]))})`);
     }
     await page.setViewportSize({ width: 1280, height: 720 }); await page.waitForTimeout(400);
     // a waiting point: the line once she is still 2 s (nothing held), 7 s after her first tip (it jumps the lean skipper's 20 s gap)
@@ -275,13 +290,35 @@ try {
     const off2 = await offNow(laid), r2 = await slot('lure');
     check(off0 != null && off2 != null && off2 < off0 - 5, `the lured boat turned toward her within 2.5 s (${off0?.toFixed(0)}° → ${off2?.toFixed(0)}° off its bow)`);
     check(r2.ink === 'cool' && r2.ring < r2.full * 0.3, `then the ring cools, refilling (${JSON.stringify(r2)})`);
+    const wipe = await page.evaluate(() => { const c = document.querySelector('#lk-tplay .tp-slot[data-skill=lure] .cd'); return { d: c?.getAttribute('d') ?? '', shown: !!c && getComputedStyle(c).display !== 'none' }; });
+    check(wipe.shown && /^M32 32L/.test(wipe.d), `and a wipe over the Lure's tile while it cools (${wipe.d.slice(0, 30)})`);
     // the Sonar: 3 pings; its rings under the hulls, the rim, the word
     await page.keyboard.press('Digit3'); await page.waitForTimeout(1000);
-    const p1 = await page.evaluate(() => { const so = document.querySelector('#lk-tplay .tp-sonar'), w = document.querySelector('#lk-tplay .tp-world'); return { log: window.__velia.tessiePlay.stats().log.sonar, rim: +(so.dataset.rim ?? 0), ticks: so.querySelectorAll('.rim line').length, word: so.querySelector('.sw').textContent, marks: +(w.dataset.marks ?? 0), shown: [...w.querySelectorAll('.mk')].filter((e) => e.getAttribute('visibility') === 'visible').length }; });
+    const p1 = await page.evaluate(() => {
+      const so = document.querySelector('#lk-tplay .tp-sonar'), w = document.querySelector('#lk-tplay .tp-world'), V = window.__velia, n = V.tessie.sim.state.nose, R = 54;
+      // each blip against its boat's true bearing and range on the ping's scale (the busy lake's sailboats: their positions are known here)
+      const range = V.tessiePlay.stats().rpg.ping?.rangeM ?? 300, off = [];
+      for (const e of so.querySelectorAll('.pbs path[data-id]')) {
+        const b = V.busy.lake.liveBoats.find((o) => o.id === e.dataset.id)?.phys.state; if (!b || !n) continue;
+        const dx = b.x - n.x, dz = b.z - n.z, d = Math.hypot(dx, dz), ahead = dx * Math.sin(n.psi) - dz * Math.cos(n.psi), right = dx * Math.cos(n.psi) + dz * Math.sin(n.psi), k = Math.min(1, d / range) * R;
+        const m = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(e.getAttribute('transform')); if (!m) continue;
+        off.push({ id: e.dataset.id, shape: e.dataset.shape, px: +Math.hypot(+e.dataset.tx - (66 + right / d * k), +e.dataset.ty - (66 - ahead / d * k)).toFixed(2), moved: +Math.hypot(+m[1] - +e.dataset.tx, +m[2] - +e.dataset.ty).toFixed(1) });
+      }
+      const hm = so.querySelector('.hm'), hmShown = !!hm && getComputedStyle(hm).display !== 'none' && !!hm.querySelector('.ht');
+      const pts = [...so.querySelectorAll('.pbs path')].map((e) => /translate\(([-\d.]+) ([-\d.]+)\)/.exec(e.getAttribute('transform'))).filter(Boolean).map((m) => [+m[1], +m[2]]);
+      let gap = Infinity; for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) gap = Math.min(gap, Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]));
+      const lab = [...so.querySelectorAll('.pr text')].map((t) => t.textContent), prShown = getComputedStyle(so.querySelector('.pr')).display !== 'none';
+      return { log: V.tessiePlay.stats().log.sonar, pinged: +(so.dataset.pinged ?? 0), rim: +(so.dataset.rim ?? 0), blips: so.querySelectorAll('.pbs path').length, ticks: so.querySelectorAll('.pbs line').length, lit: +(so.dataset.lit ?? 0), off, lab, prShown, hmShown, gap: +gap.toFixed(1), plain: so.querySelectorAll('.bls > *').length,
+        word: so.querySelector('.sw').textContent, marks: +(w.dataset.marks ?? 0), shown: [...w.querySelectorAll('.mk')].filter((e) => e.getAttribute('visibility') === 'visible').length };
+    });
     if (process.env.TESSIE_RPG3_SHOT) await page.screenshot({ path: `${process.env.TESSIE_RPG3_SHOT}-sonar.png` });
     const n3 = p1.log?.ids.length ?? 0;
     check(n3 >= 1 && p1.log.rangeM === 300 && p1.log.markS === 8, `3 pings: ${n3} boats within 300 m marked for 8 s (${JSON.stringify(p1.log)})`);
-    check(p1.rim === n3 && p1.ticks === n3, `the SONAR dial's rim: a tick per marked boat (${p1.ticks} of ${n3})`);
+    check(p1.blips + p1.ticks === Math.min(n3, 16) && p1.pinged === p1.blips && p1.rim === p1.ticks && p1.lit === p1.blips + p1.ticks && p1.plain === 0,
+      `the SONAR dial shows the ping: a blip per marked boat, all lit 1 s on, the 160 m blips gone (${p1.blips} blips + ${p1.ticks} rim ticks of ${n3})`);
+    check(p1.off.length >= 1 && p1.off.every((o) => o.px < 2.5 && o.shape === 'tri'), `each sailboat's blip at its true bearing and range on the 300 m scale, a triangle (${JSON.stringify(p1.off)})`);
+    check(p1.prShown && p1.lab.join() === '150,300 m', `the dial's half ring and rim labelled (${p1.lab.join()})`);
+    check(p1.hmShown && p1.gap >= 10, `her own mark at the dial's centre and a heading tick at the rim; no two blips closer than 10 px (closest ${p1.gap})`);
     check(/^(300 M|HIDDEN)$/.test(p1.word), `the dial's word reads the ping's range (${p1.word})`);
     check(p1.marks >= 1 && p1.shown === p1.marks, `the marks in the world: a ring under each hull in view (${p1.marks} drawn)`);
     // the marks are world: every HUD box (each legend line, the two dials, the slots) lies inside a cut of the marks' mask
@@ -300,8 +337,8 @@ try {
     const p2 = await page.evaluate(() => window.__velia.tessiePlay.stats().log.sonar.at);
     check(p2 === p1.log.at, 'a click on the Sonar slot while it runs does nothing (no second ping)');
     await page.waitForTimeout(7500);
-    const p3 = await page.evaluate(() => ({ rim: document.querySelector('#lk-tplay .tp-sonar').dataset.rim, word: document.querySelector('#lk-tplay .tp-sonar .sw').textContent, marks: document.querySelector('#lk-tplay .tp-world').dataset.marks }));
-    check(p3.rim === '0' && p3.marks === '0' && /^(SONAR|HIDDEN)$/.test(p3.word), `after 8 s the marks are gone, the dial says SONAR again (${JSON.stringify(p3)})`);
+    const p3 = await page.evaluate(() => ({ rim: document.querySelector('#lk-tplay .tp-sonar').dataset.rim, pinged: document.querySelector('#lk-tplay .tp-sonar').dataset.pinged, ping: document.querySelector('#lk-tplay .tp-sonar').hasAttribute('data-ping'), word: document.querySelector('#lk-tplay .tp-sonar .sw').textContent, marks: document.querySelector('#lk-tplay .tp-world').dataset.marks }));
+    check(p3.rim === '0' && p3.pinged === '0' && !p3.ping && p3.marks === '0' && /^(SONAR|HIDDEN)$/.test(p3.word), `after 8 s the marks are gone, the dial is back at 160 m and says SONAR again (${JSON.stringify(p3)})`);
     check(errors.length === 0, `phase 3: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }
@@ -434,6 +471,47 @@ try {
     const again = await page.evaluate(() => window.__velia.tessiePlay.stats().log.breach.at);
     check(again === r1.b.at, `${tag}: 5 while it cools does nothing`);
     check(errors.length === 0, `${tag}: no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await ctx.close();
+  }
+  // ---- the cheat: ?tessiecheat=1, then the typed code ----
+  {
+    const SAVEC = { ...SAVE, _v: 2, xp: 30, ranks: { dash: 1, lure: 1, sonar: 0, surge: 0, breach: 0 }, trials: { lure: 5, sonar: 2, surge: 0, breach: 5 } };
+    const { ctx, page, errors } = await open(`${Q}&tessiecheat=1`, SAVEC);
+    const raw0 = await page.evaluate(() => localStorage.getItem('lakeshore.tessie.bounty.v1'));
+    await page.evaluate(() => window.__velia.tessiePlay.become('menu'));
+    const inT = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie' && !document.querySelector('#lk-tplay .tp-sonar')?.hidden && window.__velia.tessie.sim.state.nose, null, { timeout: 30000 }).then(() => true, () => false);
+    check(inT, 'cheat: you are her');
+    const line = (src) => page.waitForFunction((re) => [...document.querySelectorAll('.lk-hint .row.in')].some((r) => new RegExp(re).test(r.textContent.trim())), src, { timeout: 8000 }).then(() => true, () => false);
+    check(await line('Cheat on: every skill, no cooldown\\.'), 'cheat (?tessiecheat=1): the skipper\'s line says "Cheat on: every skill, no cooldown."');
+    const ranks = () => page.evaluate(() => [...document.querySelectorAll('#lk-tplay .tp-skills .tp-slot')].map((s) => `${s.dataset.skill}:${s.classList.contains('locked') ? 'L' : s.querySelectorAll('.pp b.on').length}`).join());
+    check((await ranks()) === 'dash:4,lure:4,sonar:4,surge:4,breach:4' && (await page.evaluate(() => window.__velia.tessiePlay.stats().rpg.cheat)), `cheat: every slot unlocked at rank 4 (${await ranks()})`);
+    await page.keyboard.press('Digit3'); await page.waitForTimeout(600);
+    const s1 = await page.evaluate(() => window.__velia.tessiePlay.stats().log.sonar);
+    await page.keyboard.press('Digit3'); await page.waitForTimeout(600);
+    const s2 = await page.evaluate(() => window.__velia.tessiePlay.stats().log.sonar);
+    check(s1?.rank === 4 && s1.rangeM === 480 && s2?.at > s1.at, `cheat: the Sonar at rank 4 (480 m) pings again 0.6 s later, no cooldown (${s1?.at} -> ${s2?.at})`);
+    await page.keyboard.press('ShiftLeft'); await page.waitForTimeout(3900);   // rank 4: a 3.6 s burst
+    const d1 = await page.evaluate(() => window.__velia.tessiePlay.stats().rpg.dash);
+    check(d1.phase === 'ready' && d1.count >= 1, `cheat: the Dash is ready the moment its burst ends (${JSON.stringify(d1)})`);
+    check((await page.evaluate(() => localStorage.getItem('lakeshore.tessie.bounty.v1'))) === raw0, 'cheat: the save byte for byte as seeded');
+    for (const k of ['KeyG', 'KeyR', 'KeyU', 'KeyF', 'KeyF']) await page.keyboard.press(k);
+    check(await line('^Cheat off\\.$'), 'the code again: "Cheat off."');
+    await page.waitForTimeout(400);
+    check((await ranks()) === 'dash:1,lure:1,sonar:L,surge:L,breach:L' && !(await page.evaluate(() => window.__velia.tessiePlay.stats().rpg.cheat)), `cheat off: the save's ranks back (${await ranks()})`);
+    check((await page.evaluate(() => localStorage.getItem('lakeshore.tessie.bounty.v1'))) === raw0, 'cheat off: the save still as seeded');
+    check(errors.length === 0, `cheat: no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await ctx.close();
+  }
+  {
+    const { ctx, page, errors } = await open(Q, SAVE2);
+    await page.evaluate(() => window.__velia.tessiePlay.become('menu'));
+    await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie' && !document.querySelector('#lk-tplay .tp-sonar')?.hidden, null, { timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    for (const k of ['KeyG', 'KeyR', 'KeyU', 'KeyF', 'KeyF']) await page.keyboard.press(k);
+    await page.waitForTimeout(400);
+    const c = await page.evaluate(() => ({ on: window.__velia.tessiePlay.stats().rpg.cheat, line: [...document.querySelectorAll('.lk-hint .row.in')].map((r) => r.textContent.trim()).join(' | '), as: window.__velia.tessiePlay.as }));
+    check(c.on && /Cheat on: every skill, no cooldown\./.test(c.line) && c.as === 'tessie', `typed G R U F F while she is played: the cheat on, said on the skipper's line, still her (${JSON.stringify(c)})`);
+    check(errors.length === 0, `typed code: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }
   // ---- the flag off: nothing of it ----
