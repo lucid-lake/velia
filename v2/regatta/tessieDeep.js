@@ -20,24 +20,29 @@
 //   D.centre(c) her body's centre from her sim (null: the chosen spot): the ring follows her;  D.ring;  D.state
 //   pickTarget(boats, from, rand) → the boat she goes for;  strikeSpot(b, area, leadS, depthAt) → [x, z] | null
 //   avoidAdvice(s, c, rOut, { skill, windFrom }) → null | { heading, side }: a rival's course round her outer ring
-// The Tessie RPG, phase 6b (?tessierpg=1 with a bounty save; v2/sim/tessieBounty.js readRanks): the staged Tessie carries the
-// player's own Tessie's ranks (actsOf(ranks)): her attacks take turns over [...the unlocked acts, today's strike], each act aimed at
-// the player (when the player is racing near her water; else today's strike on a pick), each warned for the same DEEP.warnS and
-// escapable by a steer, because the spot is fixed at the warning and never follows the boat:
+// The Tessie RPG, phase 6b (?tessierpg=1 with a bounty save): the staged Tessie carries the player's own Tessie's ranks (the acts:
+// tessieDeepRpg.js actsOf, loaded by a dynamic import only then, so the Regatta's chunk carries no RPG code). Her attacks alternate
+// act, today's strike, act, today's strike, cycling through the unlocked acts (at most every other attack is an act at the player);
+// each act is aimed at the player (when the player is racing near her water; else today's strike on a pick, and the act waits for
+// the next turn), each warned for the same DEEP.warnS and escapable by a steer, because the spot is fixed at the warning and never
+// follows the boat:
 //   dash    (Dash rank 2+) she rises DEACT.dashFromM off the spot, ahead and to one side of the bow, and runs across the bow to the
 //           spot at the surface (her V), then today's strike there (her ring's catch: the race's own knockdown rule)
 //   surge   (Tail Surge unlocked) she surfaces off the bow, DEACT.surgeBearDeg to one side, at 0.65 × her rank's ring; at the strike
-//           her tail slaps and a ring wave runs out to the ring (SURGE_RANKS, SURGE.waveS): each racing boat it reaches heels away
-//           from her (surgeHeel, capped at DEACT.heelMaxDeg: far under the 55° knockdown), never knocked down
+//           her tail slaps and a ring wave runs out to the ring (the act's row and waveS: v2/sim/tessieSurge.js): each racing boat it
+//           reaches, yours and the rivals', heels away from her (the act's heel, capped at DEACT.heelMaxDeg: far under the 55°
+//           knockdown), never knocked down
 //   breach  (Breach unlocked) she breaches DEACT.besideM beside the boat's course (never on it): a heel wave to DEACT.waveM, the
 //           same cap, never a knock
 //   an act waits up to 2 × waitS for her last sighting to end (a fresh rise near its spot); a wave runs out from the warned spot
 //   no ranks (acts null or empty): today's race exactly (the same draws, the same events)
+//   D.setActs(acts) the acts once their module has loaded (before her first attack: the same race as acts at create)
 //   events added with acts: warn { …, act, from?, heading?, ringM? };  strike { …, act };  heel { n, id, heelDeg, side, d } (side + starboard down)
-export const DEEP = Object.freeze({ everyS: [20, 35], restS: 4, waitS: 6, firstS: 10, warnS: 5, strikeS: 6, innerM: 28, outerM: 60, reachM: 80, insetM: 25, minDepthM: 10, retryS: 2, marginM: 12, irons: 42, leaderW: 1.5, nearW: 2 });
+export const DEEP = Object.freeze({ everyS: [20, 35], restS: 4, waitS: 6, firstS: 10, warnS: 5, strikeS: 6, innerM: 28, outerM: 60, reachM: 80, insetM: 25, minDepthM: 10, retryS: 2, marginM: 12, irons: 42, leaderW: 1.5, nearW: 2, rollK: 1.3 });
+// rollK: her catch's roll on the player's boat (B.shove: × displacement × GM), her revenge's tail sweep (v2/sim/tessieRevenge.js
+// REVENGE.rollK; a copy so the Regatta's chunk loads none of her sim; v2/tests/regatta-no-rpg.test.mjs keeps the two equal)
 const DEG = Math.PI / 180;
 import { wrap } from '../../src/sim/core/math.js';
-import { SURGE, SURGE_RANKS, surgeHeel, awaySide } from '../sim/tessieSurge.js';
 
 // phase 6b: the acts her ranks give her in the race (see the head)
 export const DEACT = Object.freeze({
@@ -56,15 +61,8 @@ export const DEACT = Object.freeze({
   waveRiseS: 2.0,       // real s: the breach wave's run to waveM (the surge's: SURGE.waveS)
   actS: 3.5,            // real s after the strike before she dives (a surge, a breach: the wave and its fade)
 });
-// her acts from the player's ranks (null: none)
-export function actsOf(ranks) {
-  if (!ranks) return null;
-  const out = [];
-  if ((ranks.dash ?? 0) >= DEACT.dashRank) out.push({ kind: 'dash' });
-  if ((ranks.surge ?? 0) >= 1) out.push({ kind: 'surge', row: SURGE_RANKS[Math.min(4, ranks.surge)] });
-  if ((ranks.breach ?? 0) >= 1) out.push({ kind: 'breach' });
-  return out.length ? out : null;
-}
+// the attacks' turns from the acts: act, today's strike, act, today's strike … (null: today's race)
+const orderOf = (acts) => (acts?.length ? acts.flatMap((a) => [a, { kind: 'strike' }]) : null);
 
 // a small seeded stream (mulberry32): the same race, the same attacks
 function stream(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -131,10 +129,10 @@ export function actPlan(kind, b, area, leadS, side, { depthAt = () => 30, row = 
 export function createTessieDeep({ area, depthAt = () => 30, pace = 2, seed = 1, D = DEEP, acts = null } = {}) {
   const rand = stream(seed * 2654435761 + 97);
   const rand2 = stream(seed * 40503 + 7919);   // phase 6b: the acts' sides (her base draws untouched)
-  const order = acts?.length ? [...acts, { kind: 'strike' }] : null;
+  let order = orderOf(acts);
   const k = pace, warnS = D.warnS * k, strikeS = D.strikeS * k;
   const nextGap = () => (D.everyS[0] + rand() * (D.everyS[1] - D.everyS[0])) * k;
-  const st = { phase: 'rest', n: 0, at: null, target: null, t0: null, nextAt: D.firstS * k, caught: new Set(), centre: null, turnTo: null, last: [area.x, area.z], log: [], act: null, plan: null, turn: 0, heeled: new Set(), wave: null };
+  const st = { phase: 'rest', n: 0, at: null, target: null, t0: null, nextAt: D.firstS * k, caught: new Set(), centre: null, turnTo: null, last: [area.x, area.z], log: [], act: null, actRow: null, plan: null, turn: 0, heeled: new Set(), wave: null };
   const out = [];
   const isAct = () => st.act === 'surge' || st.act === 'breach';   // a wave act: no catch ring, a heel wave
   // phase 6b: the act due (aimed at the player) → the warning's event, or null (today's strike then)
@@ -146,7 +144,7 @@ export function createTessieDeep({ area, depthAt = () => 30, pace = 2, seed = 1,
     const p = actPlan(a.kind, me, area, D.warnS * k, rand2() < 0.5 ? 1 : -1, { depthAt, row: a.row, D });
     if (!p) return null;
     st.turn++;
-    st.phase = 'warn'; st.n++; st.at = p.at; st.target = 'me'; st.t0 = t; st.caught.clear(); st.turnTo = null; st.centre = null; st.act = a.kind; st.plan = p; st.heeled.clear(); st.wave = null;
+    st.phase = 'warn'; st.n++; st.at = p.at; st.target = 'me'; st.t0 = t; st.caught.clear(); st.turnTo = null; st.centre = null; st.act = a.kind; st.actRow = a; st.plan = p; st.heeled.clear(); st.wave = null;
     st.log.push({ n: st.n, target: 'me', t: +t.toFixed(1), act: a.kind });
     const e = { type: 'warn', n: st.n, target: 'me', at: p.at, act: a.kind };
     if (p.from) { e.from = p.from; e.heading = p.heading; }
@@ -155,6 +153,7 @@ export function createTessieDeep({ area, depthAt = () => 30, pace = 2, seed = 1,
   }
   return {
     state: st, warnS, strikeS,
+    setActs(a) { order = orderOf(a); st.turn = 0; },
     centre(c) { st.centre = c ? [c[0], c[1]] : null; },
     get ring() {
       if (st.phase !== 'warn' && st.phase !== 'strike') return null;
@@ -184,14 +183,14 @@ export function createTessieDeep({ area, depthAt = () => 30, pace = 2, seed = 1,
       }
       if (st.phase === 'strike' && isAct()) {
         // the wave's front (race clock: the real seconds × the pace); each racing boat it reaches heels away from her once
-        const c = st.wave.at, R = st.plan.ringM, runS = (st.act === 'surge' ? SURGE.waveS : DEACT.waveRiseS) * k, front = R * Math.min(1, (t - st.wave.t) / runS);
+        const c = st.wave.at, R = st.plan.ringM, A = st.actRow, runS = A.waveS * k, front = R * Math.min(1, (t - st.wave.t) / runS);
         for (const b of boats) {
           if (b.status !== 'racing' || b.held || st.heeled.has(b.id)) continue;
           const d = Math.hypot(b.x - c[0], b.z - c[1]);
           if (d > front || d > R) continue;
           st.heeled.add(b.id);
-          const heelDeg = Math.min(DEACT.heelMaxDeg, surgeHeel(d, st.plan.row));
-          out.push({ type: 'heel', n: st.n, id: b.id, heelDeg, side: awaySide(b, { x: c[0], z: c[1] }), d });
+          const heelDeg = Math.min(DEACT.heelMaxDeg, A.heel(d, st.plan.row));
+          out.push({ type: 'heel', n: st.n, id: b.id, heelDeg, side: A.side(b, { x: c[0], z: c[1] }), d });
         }
         if (t - st.t0 >= warnS + DEACT.actS * k) {
           st.last = [c[0], c[1]]; st.phase = 'rest'; st.nextAt = Math.max(st.t0 + nextGap(), t + D.restS * k); st.at = null; st.target = null; st.wave = null;
@@ -217,7 +216,7 @@ export function createTessieDeep({ area, depthAt = () => 30, pace = 2, seed = 1,
       }
       return out;
     },
-    reset() { st.phase = 'rest'; st.n = 0; st.at = null; st.target = null; st.t0 = null; st.nextAt = D.firstS * k; st.caught.clear(); st.centre = null; st.turnTo = null; st.last = [area.x, area.z]; st.log.length = 0; st.act = null; st.plan = null; st.turn = 0; st.heeled.clear(); st.wave = null; },
+    reset() { st.phase = 'rest'; st.n = 0; st.at = null; st.target = null; st.t0 = null; st.nextAt = D.firstS * k; st.caught.clear(); st.centre = null; st.turnTo = null; st.last = [area.x, area.z]; st.log.length = 0; st.act = null; st.actRow = null; st.plan = null; st.turn = 0; st.heeled.clear(); st.wave = null; },
   };
 }
 

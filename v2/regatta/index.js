@@ -175,7 +175,7 @@ export function createRegatta({ B, windField, clock, terrain, water = null, flag
     racePlace: R.racePlace, placeKnock: R.placeKnock, cupSail: R.cupSail, select: R.select, explore: R.explore, get selected() { return R.sel; },
     get glassRace() { return !!(R.on && !R.hubOpen && hooked('glass')); }, get showRace() { return !!(R.on && !R.hubOpen && hooked('show')); }, get stormRace() { return !!(R.on && !R.hubOpen && hooked('storm')); },
     get placeCup() { return R.placeCup; }, get glass() { return R.glass; }, get look() { return look; },
-    get placeRace() { return placeRow(); }, get tessieRace() { return !!(R.on && R.deep && !R.hubOpen); }, get salute() { return R.salute; }, get deep() { return R.deep; }, get held() { return R.held; },
+    get placeRace() { return placeRow(); }, get tessieRace() { return !!(R.on && R.deep && !R.hubOpen); }, get salute() { return R.salute; }, get deep() { return R.deep; }, get deepReady() { return R.deepReady ?? null; }, get held() { return R.held; },
     enter: R.enter, leave: R.leave, quit: R.quit, restart: R.restart, helperOn: R.helperOn, get inProgress() { return R.inProgress(); }, setLevel: R.setLevel, beforeStep: R.beforeStep, afterStep: R.afterStep, camera: R.camera, frame: R.frame, settle: R.settle, stats, racing: R.racing, quiet: R.quiet, lights: R.lights, go: R.go, deal: R.deal, adjust: R.adjust, openHub: R.openHub, custom: R.custom, raceCustom: R.raceCustom, dealForMe: R.dealForMe, flyover: R.flyover, beaconView: R.beaconView, cupGo: R.cupGo, cupNext: R.cupNext, cupNew: R.cupNew,
     get cup() { return R.cup; }, get trial() { return R.trial; }, get chip() { return R.chip; }, get raceN() { return R.raceN; },
     get fly() { return R.fly; },

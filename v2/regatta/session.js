@@ -27,6 +27,7 @@
 // knockdown (knocks.js): S.knock(id, cause) → { kind: 'hold' | 'dnf' } on the race clock; a held rival lets her sheets fly for 12 s,
 // a second knock retires her (race.retire); the player's hold is the page's (index.js drives her controls). S.hazard = { at, rOut } |
 // null: Tessie's ring (tessieDeep.js); the rivals steer round it (avoidAdvice, by skill).
+// S.wave(id, heel) a race wave under a rival (the Tessie RPG's surge and breach): rolled to heel (rad) and let go (v2/sim/waveRoll.js).
 // Phase 2: S.wash = (x, z) → 0..1 (Glass Boat Chase: her wash, glassChase.js) takes way off any boat in it each tick; a
 // course with a shortcut (Tea House Run) sends a seeded share of the rivals inside the shelf (SHORTCUT) and grounds a keel under
 // AGROUND.draftM (held AGROUND.holdS, then on to the mark); S.aground(id)
@@ -48,7 +49,8 @@ import { placeTrackerFor } from './placeTracker.js';   // a place race's gates a
 import { createKnocks, holdControls } from './knocks.js';   // a place race's knockdown: 12 s held, a second one DNF
 import { avoidAdvice } from './tessieDeep.js';   // the rivals steer round Tessie's ring (S.hazard)
 import { BOAT_LENGTH_M } from '../../src/sim/race/course.js';
-import { WASH } from './glassChase.js';   // Glass Boat Chase: her wash slows a boat sitting in it (S.wash)
+import { WASH } from './glassChase.js';
+import { waveRollStep } from '../sim/waveRoll.js';   // a race wave (the Tessie RPG's surge and breach) rolls a rival as the player's boat   // Glass Boat Chase: her wash slows a boat sitting in it (S.wash)
 
 // Tea House Run's shortcut: some rivals cut inside the island's boulder shallows on the first leg (share by
 // the rivals' tier, seeded per boat), and a keel on the shelf grounds: under draftM of water she stops dead (the sheets let fly, her way
@@ -228,7 +230,7 @@ export function createRegattaSession({ course, me, rivals = RACE.rivals, windAt,
     helperBrain.reset();
     onPlace?.(me0);
     ghost[0] = ghost0[0]; ghost[1] = ghost0[1];
-    knocks.reset(); S.hazard = null; for (const r of list) { r.brain.hazardAdv = null; if (r.brain.shortcut) r.brain.shortcut.done = false; } aground.clear();
+    knocks.reset(); S.hazard = null; for (const r of list) { r.brain.hazardAdv = null; r.wave = null; if (r.brain.shortcut) r.brain.shortcut.done = false; } aground.clear();
     S.race = newRace(); S.events.length = 0; S.helper = !!helper; S.helperUntil = null; S.restarts++; for (const k in lastTouch) delete lastTouch[k];
     return S.race;
   }
@@ -265,6 +267,7 @@ export function createRegattaSession({ course, me, rivals = RACE.rivals, windAt,
         if (b.ctl.jibFree) b.ctl.jibFree = false;
         b.brain.update(DT, s, b.ctl, { t: S.t, clock: r.clock, view: v, line, other: COVER ? near : null });
       }
+      if (b.wave && !waveRollStep(b.wave, S.t - b.wave.t0, b.phys, DT)) b.wave = null;   // a race wave's roll (S.wave), as the page's boat
       b.env.t = S.t; b.phys.step(DT, b.ctl, b.env);
       // the shortcut's shelf (a place race with a shortcut): a keel on it stops her dead for a few seconds
       if (course.shortcut && depthAt && v.status === 'racing') {
@@ -341,6 +344,14 @@ export function createRegattaSession({ course, me, rivals = RACE.rivals, windAt,
     if (k.kind === 'dnf') { const e = r.retire(id, cause); if (e) S.events.push({ ...e, clock: r.clock }); }
     return k;
   }
+  // a race wave under a rival (Tessie's Deep, the RPG's surge and breach: placeEvents.js): its hull carried to heel (rad, + starboard
+  // down; the director caps it at 22°, far under a knockdown) and let go (v2/sim/waveRoll.js); false for an unknown id
+  function wave(id, heel) {
+    const b = list.find((r) => r.id === id);
+    if (!b || !Number.isFinite(heel)) return false;
+    b.wave = { heel, t0: S.t, h0: null };
+    return true;
+  }
   function advanceTo(t) { let k = 0; while (S.t + DT <= t + 1e-9 && k < 600) { tick(); k++; } if (k === 600) S.t = t; return k; }
   function drain() { if (!S.events.length) return NONE; const out = S.events.slice(); S.events.length = 0; return out; }
 
@@ -348,7 +359,7 @@ export function createRegattaSession({ course, me, rivals = RACE.rivals, windAt,
     course, line, windFrom, me0, ghost, boats, round, rivals: list, meWind, helperBrain, stats, flying: !!flying, gunWaits: waits, prestartS, event, slots, skills, T1,
     get race() { return S.race; }, get t() { return S.t; }, set t(v) { S.t = v; },
     get helper() { return S.helper; }, get restarts() { return S.restarts; },
-    helperTick, takeHelm, helperOn, advanceTo, tick, drain, restart, knock, knocks, place,
+    helperTick, takeHelm, helperOn, advanceTo, tick, drain, restart, knock, knocks, place, wave,
     get hazard() { return S.hazard; }, set hazard(v) { S.hazard = v; },
     get wash() { return S.wash; }, set wash(v) { S.wash = v; },   // Glass Boat Chase: (x, z) → her wash there (glassChase.js washAt), null off
     aground: (id) => { const g = aground.get(id); return !!g && S.t < g.until; },
