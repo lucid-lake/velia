@@ -4,7 +4,8 @@
 import { loadCourse, snapCourse } from '../../src/sim/race/course.js';
 import { isPlace, placeCourse, placeHand } from '../sim/racePlaces.js';
 import { STORM_RUN } from './stormRun.js';
-import { createTessieDeep } from './tessieDeep.js';
+import { createTessieDeep, actsOf } from './tessieDeep.js';
+import { readRanks } from '../sim/tessieBounty.js';
 import { areaOf } from '../stage/areas.js';
 import { createOfficer } from '../../src/sim/race/officer.js';
 import { Rival } from '../../src/sim/race/rival.js';
@@ -102,7 +103,7 @@ export function installRaceLoop(R) {
     R.lastClock = null; R.finishAt = null; R.result = null; R.resultT = 0; R.lastSign = 0; R.knocked = null;
     R.salute = null; stats.salute = null; stats.knocks = []; stats.deep = null; R.endHold();
     R.phase2Fresh();
-    R.deep = hooked('tessie') && tessie() ? createTessieDeep({ area: areaOf('tessieWaters'), depthAt, pace: R.aids.pace ?? R.hand?.pace ?? 2, seed: R.hand?.raceSeed ?? seed }) : null; stats.attacks = []; R.camK = 1; R.linesT = 1; R.lastKey = ''; R.shiftSaid = { intro: false, at: -1e9 }; stats.shiftLines = [];
+    R.deep = hooked('tessie') && tessie() ? createTessieDeep({ area: areaOf('tessieWaters'), depthAt, pace: R.aids.pace ?? R.hand?.pace ?? 2, seed: R.hand?.raceSeed ?? seed, acts: R.flags.tessierpg === true ? actsOf(readRanks(R.store)) : null }) : null; stats.attacks = []; delete stats.heels; R.camK = 1; R.linesT = 1; R.lastKey = ''; R.shiftSaid = { intro: false, at: -1e9 }; stats.shiftLines = [];
     stats.start = null; stats.result = null; stats.calls.length = 0; stats.coach = R.coach.log; stats.clock = R.S.race.clock; stats.status = 'prestart'; stats.helper = R.S.helper; stats.line = null;
     pic.ghost = R.S.ghost; pic.ghostHeading = R.S.me0.heading; pic.aids = R.aids;
     R.ui?.results(null); R.ui?.level(R.aids); R.ui?.helperButton(false); R.ui?.line(null);

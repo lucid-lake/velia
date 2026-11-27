@@ -38,7 +38,7 @@ export const TYPES = Object.freeze([
   Object.freeze({ id: 'halcyon', name: 'Your Halcyon', live: true }),
   Object.freeze({ id: 'glass', name: 'The glass boat', live: true }),
   Object.freeze({ id: 'kayak', name: 'Kayak pairs', live: true, splash: true }),
-  Object.freeze({ id: 'rival', name: 'Regatta rivals', live: false }),   // scored when a race lets her near them (the rivals' source: phase 6's Deep tie-in)
+  Object.freeze({ id: 'rival', name: 'Regatta rivals', live: false }),   // kept for the save's shape; in no set (phase 6b): rivals sail only in races, where she is never played
   Object.freeze({ id: 'still', name: 'Boats at anchor', live: true }),     // phase 6: knocked down at anchor (v2/sim/anchoredBoats.js knock)
   Object.freeze({ id: 'paddle', name: 'The paddle-wheeler', live: true, splash: true }),   // phase 6: her decks splashed (a 300 t hull is never knocked down)
   Object.freeze({ id: 'runabout', name: 'South Lake runabouts', live: true }),
@@ -52,7 +52,8 @@ export const splashType = (id) => !!TYPES.find((t) => t.id === id)?.splash;
 // the sets (phase 6): a row group each in her Logbook tab; a complete set earns BOUNTY.set once and its legend line once on the
 // skipper's line (its lean kind: v2/ui/leanSkipper.js)
 export const SETS = Object.freeze([
-  Object.freeze({ id: 'emerald', name: 'Emerald Bay', types: Object.freeze(['halcyon', 'sail', 'rival', 'glass', 'kayak']), kind: 'tip.tessie.legend.emerald', legend: "They're talking about you at the tea house." }),
+  // phase 6b: no Regatta rival row (a rival sails only in a race, where she is never played: the set could never complete)
+  Object.freeze({ id: 'emerald', name: 'Emerald Bay', types: Object.freeze(['halcyon', 'sail', 'glass', 'kayak']), kind: 'tip.tessie.legend.emerald', legend: "They're talking about you at the tea house." }),
   Object.freeze({ id: 'south', name: 'South Lake', types: Object.freeze(['paddle', 'still', 'kayak', 'runabout', 'jetski']), kind: 'tip.tessie.legend.south', legend: 'The paddle-wheeler changed its route.' }),
 ]);
 // a set's progress in a save: { got (types with a wreck or a splash), of, done (earned) }
@@ -169,6 +170,15 @@ export function trialInto(s, id) {
 export function legendOf(s) {
   const L = levelOf(s.xp), at = xpAt(L), next = L < BOUNTY.maxLevel ? xpAt(L + 1) : null;
   return { level: L, xp: s.xp, at, next, k: next == null ? 1 : Math.min(1, Math.max(0, (s.xp - at) / (next - at))) };
+}
+
+// the save's skill ranks, read-only (never written, never migrated in the store): null when this device has no bounty save
+// (phase 6b: the Regatta's Tessie's Deep, where the staged Tessie carries them: v2/regatta/tessieDeep.js actsOf)
+export function readRanks(storage) {
+  let raw = null;
+  try { raw = storage?.getItem(BOUNTY.key) ?? null; } catch { return null; }
+  if (raw == null) return null;
+  return { ...migrate(raw, null).save.ranks };
 }
 
 export function createTessieBounty({ storage = null } = {}) {
