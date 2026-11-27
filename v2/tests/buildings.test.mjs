@@ -117,10 +117,12 @@ test('the grounding: every sampled box stands on the terrain (its foot under its
   assert.ok(n > 600, `${n} boxes sampled`);
   // the unit mesh, no floor: the main block (4 walls in 6 quads, the top in 2, two slopes, two gables), the wing (4 walls, two
   // slopes, two gables), each block's soffits (the slopes' undersides) and fascia (2 eaves, 4 rakes), the chimney (4 sides, a cap);
-  // the far mesh is the walls, slopes and gables only, a subset of the full one's faces
+  // the far mesh is the walls, slopes, gables, the yard and the fir, a subset of the full one's faces
+  // the yard (12 triangles from the footprint to its ring), two shrubs (6 sides × 3), a fir (3 skirts of 10, a 4-sided trunk)
   const M = unitMesh(), main = 2 * 6 + 2 * 2 + 2 * 2 + 2, wing = 2 * 4 + 2 * 2 + 2, trim = 2 * 2 + 6 * 2, chimney = 5 * 2;
-  assert.equal(M.near / 3, main + wing + 2 * trim + chimney);
-  assert.equal(M.farCount / 3, main + wing);
+  const yard = 12, shrubs = 2 * 18, fir = 3 * 10, trunk = 8;
+  assert.equal(M.near / 3, main + wing + 2 * trim + chimney + yard + shrubs + fir + trunk);
+  assert.equal(M.farCount / 3, main + wing + yard + fir);
   const tri = (a) => Array.from({ length: a.length / 3 }, (_, i) => [a[3 * i], a[3 * i + 1], a[3 * i + 2]].join());
   const full = new Set(tri(M.I.subarray(0, M.near)));
   for (const t of tri(M.I.subarray(M.farFirst, M.farFirst + M.farCount))) assert.ok(full.has(t), 'a far face is a full-mesh face');
