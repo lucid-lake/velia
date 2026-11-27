@@ -12,6 +12,7 @@
 // The dash: Shift, a press; 1.8 s at the dash speed counted from the press, then 4.5 s of cooldown from the burst's end
 // (a full cycle 6.3 s); a press in the last 0.3 s is buffered.
 import { SURGE_RANKS } from './tessieSurge.js';   // the RPG's Tail Surge ranks (Tessie's own chunk: nothing on a phone reads this file)
+import { BREACH_RANKS } from './tessieBreach.js';   // the RPG's Breach ranks (the same chunk)
 export const SKILLS = Object.freeze({
   dash: Object.freeze({ id: 'dash', name: 'Dash', slot: 1, key: 'Shift', keys: Object.freeze(['Digit1', 'ShiftLeft', 'ShiftRight']), caps: Object.freeze(['1', '⇧']), glyph: '⇧', touch: 'slot', activeS: 1.8, cooldownS: 4.5, bufferS: 0.3, level: 1 }),
 });
@@ -39,12 +40,16 @@ export const SONAR_RANKS = Object.freeze([null, sonarRank(300, 8, 25), sonarRank
 // Tail Surge's four ranks (the RPG, phase 4; v2/sim/tessieSurge.js): ring 40 → 48 → 56 → 64 m, knock radius 12 → 14 → 16 → 18 m,
 // heel 35 → 38 → 41 → 45°, every 30 s at every rank (amber over the 1.2 s wind-up and the wave's 2 s, then dim)
 export { SURGE_RANKS };
-export const SKILL_RANKS = Object.freeze({ dash: DASH_RANKS, lure: LURE_RANKS, sonar: SONAR_RANKS, surge: SURGE_RANKS });
+// Breach's four ranks (the RPG, phase 5; v2/sim/tessieBreach.js): cooldown 60 → 52 → 45 → 40 s from the press (amber over the run and the
+// arc, BREACH.activeS), landing window 3 → 4 → 5 → 6 m
+export { BREACH_RANKS };
+export const SKILL_RANKS = Object.freeze({ dash: DASH_RANKS, lure: LURE_RANKS, sonar: SONAR_RANKS, surge: SURGE_RANKS, breach: BREACH_RANKS });
 // the RPG's own skills table for the slots after the Dash (their rings; flag off nothing reads it): rank 1's numbers until rank() sets theirs
 export const RPG_SKILLS_TABLE = Object.freeze({
   lure: Object.freeze({ id: 'lure', name: 'Lure', slot: 2, keys: Object.freeze(['Digit2']), bufferS: 0, level: 1, ...LURE_RANKS[1] }),
   sonar: Object.freeze({ id: 'sonar', name: 'Sonar', slot: 3, keys: Object.freeze(['Digit3']), bufferS: 0, level: 1, ...SONAR_RANKS[1] }),
   surge: Object.freeze({ id: 'surge', name: 'Tail Surge', slot: 4, keys: Object.freeze(['Digit4']), bufferS: 0, level: 1, ...SURGE_RANKS[1] }),
+  breach: Object.freeze({ id: 'breach', name: 'Breach', slot: 5, keys: Object.freeze(['Digit5']), bufferS: 0, level: 1, ...BREACH_RANKS[1] }),
 });
 // the skill a key code presses (null: none, including a reserved slot's number)
 export const skillOfCode = (code, table = SKILLS) => Object.values(table).find((r) => r.keys?.includes(code))?.id ?? null;

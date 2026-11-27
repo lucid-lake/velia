@@ -22,6 +22,10 @@
 // Phase 4 (Tail Surge, v2/sim/tessieSurge.js): 4 winds up 1.2 s (the slot amber), then the slap: the wave's cream ring on the water
 //     runs out to 40 m, a busy-lake sailboat laid 20 m abeam heels away from her; a click on the slot while it cools does nothing; in a
 //     strong wind (?wind=4, the fleet out 25 s, then a gust laying one past 22°) a boat leaning past 20° moved 9 m off her just before the slap goes over (scored as wrecked)
+// Phase 5 (Breach, v2/sim/tessieBreach.js): 5 held from 7 m down with a busy-lake sailboat laid 45 m ahead crossing her bow: the run at
+//     6 m (the slot amber, a free trial spent), the corners on it turning amber; let go then: the arc, her play clock 0.5x about the apex
+//     (?slowbreach=0: never), the eye eased back; her fall on its rail knocks it over (scored as wrecked); a press while it cools does nothing
+// Evidence: TESSIE_RPG5_SHOT=<prefix> saves <prefix>-apex.png (the arc's apex).
 // Evidence: TESSIE_RPG4_SHOT=<prefix> saves <prefix>-wave.png (0.9 s after the slap) and <prefix>-knock.png (the knockdown, 2.5 s after).
 // Evidence: TESSIE_RPG3_SHOT=<prefix> saves <prefix>-lure.png (2.5 s after the lure) and <prefix>-sonar.png (1 s after the ping).
 // TESSIE_RPG_SHOT=<png> saves the Tessie page as drawn; TESSIE_RPG2_SHOT=<prefix> saves her HUD during the level-up line
@@ -366,6 +370,55 @@ try {
       if (k.slap?.knock) check(k.slap.knock.id === mv.id && k.slap.over.includes(mv.id) && k.capsized && k.wrecked === 10, `strong wind: the boat leaning ${lean}° 9 m off goes over and is scored (${JSON.stringify({ knock: k.slap?.knock, over: k.slap?.over, capsized: k.capsized, wrecked: k.wrecked })})`);
       else check(!!mv && Math.abs(lean) <= 20 && !k.capsized, `strong wind: the boat leaning only ${lean}° at the slap (not past 20°) only heels (${JSON.stringify(k.slap?.heels)})`);
     }
+    check(errors.length === 0, `${tag}: no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await ctx.close();
+  }
+  // ---- phase 5: Breach ----
+  for (const slow of [true, false]) {
+    const SAVE5 = { ...SAVE, _v: 2, xp: 52, ranks: { dash: 1, lure: 1, sonar: 1, surge: 1, breach: 0 }, trials: { lure: 5, sonar: 5, surge: 5, breach: 5 } };
+    const { ctx, page, errors } = await open(`${Q}&tessierpg=1${slow ? '' : '&slowbreach=0'}`, SAVE5);
+    const tag = slow ? 'phase 5' : 'phase 5 (?slowbreach=0)';
+    await page.evaluate(() => window.__velia.tessiePlay.become('menu'));
+    const inT = await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie' && !document.querySelector('#lk-tplay .tp-sonar')?.hidden && window.__velia.tessie.sim.state.nose, null, { timeout: 30000 }).then(() => true, () => false);
+    check(inT, `${tag}: you are her`);
+    await page.waitForTimeout(2000);
+    // 7 m down (the boats see her at 15 m there), then a busy-lake sailboat laid 45 m ahead, crossing her bow
+    await page.evaluate(() => window.__velia.tessiePlay.pin({ nose: 7 }));
+    await page.waitForFunction(() => window.__velia.tessiePlay.ctl.state.nose > 6, null, { timeout: 15000 }).catch(() => {});
+    await page.evaluate(() => window.__velia.tessiePlay.pin(null));
+    const laid = await page.evaluate(() => {
+      const V = window.__velia, L = V.busy.lake, n = V.tessie.sim.state.nose, live = L?.liveBoats ?? []; if (!live.length) return null;
+      const id = live[0].id; L.lay(id, { x: n.x + Math.sin(n.psi) * 45, z: n.z - Math.cos(n.psi) * 45, heading: n.psi + 2.1, speed: 2.5 }); return id;
+    });
+    await page.waitForTimeout(200);
+    const w0 = await page.evaluate(() => window.__velia.tessiePlay.bounty.state().byType.sail.wrecked);
+    await page.keyboard.down('Digit5'); await page.waitForTimeout(500);
+    const r1 = await page.evaluate(() => { const st = window.__velia.tessiePlay.stats(), s = document.querySelector('#lk-tplay .tp-slot[data-skill=breach]'); return { b: st.log.breach, fx: st.rpg.breachFx, ink: s?.dataset.ink, trials: window.__velia.tessiePlay.bounty.state().trials.breach }; });
+    check(r1.fx?.phase === 'run' && r1.b?.target === laid && r1.trials === 4 && r1.ink === 'amber', `${tag}: 5 held: the run at the laid boat, the slot amber, a free trial spent (${JSON.stringify({ fx: r1.fx, target: r1.b?.target, laid, trials: r1.trials, ink: r1.ink })})`);
+    // held until the corners turn amber (a release now lands the arc on it), then let go
+    const amber = await page.waitForFunction(() => window.__velia.tessiePlay.stats().rpg.breachFx?.near && document.querySelector('#lk-tplay .tp-aim')?.hasAttribute('data-reach'), null, { timeout: 8000, polling: 16 }).then(() => true, () => false);
+    await page.keyboard.up('Digit5');
+    check(amber, `${tag}: the corners on the boat turn amber before the release`);
+    let minK = 1, slowMs = 0, eyeMax = 0, shot = false, t0 = Date.now(), last = t0;
+    for (let i = 0; i < 160; i++) {
+      const s = await page.evaluate(() => { const V = window.__velia, st = V.tessiePlay.stats(), n = V.tessie.sim.state.nose, e = st.eye; return { k: st.rpg.slowK, fall: st.log.breach?.fall ?? null, phase: st.rpg.breachFx?.phase, d: e && n ? Math.hypot(e[0] - n.x, e[2] - n.z) : 0 }; });
+      const now = Date.now(); if (s.k < 1) slowMs += now - last; last = now;
+      minK = Math.min(minK, s.k); eyeMax = Math.max(eyeMax, s.d);
+      if (s.k < 1 && !shot && process.env.TESSIE_RPG5_SHOT) { shot = true; await page.screenshot({ path: `${process.env.TESSIE_RPG5_SHOT}-apex.png` }); }
+      if (s.fall) break;
+      await page.waitForTimeout(25);
+    }
+    await page.waitForTimeout(1500);
+    const r2 = await page.evaluate((i) => { const V = window.__velia, st = V.tessiePlay.stats(), b = V.busy.lake.liveBoats.find((o) => o.id === i); return { b: st.log.breach, knocked: !!b?.knock, wrecked: V.tessiePlay.bounty.state().byType.sail.wrecked, playK: V.tessie.playK }; }, laid);
+    check(r2.b?.launch?.why === 'release' && !!r2.b.fall, `${tag}: let go: the arc and her fall (${JSON.stringify(r2.b?.launch)})`);
+    check(r2.b?.fall?.hit === laid && r2.knocked && r2.wrecked === w0 + 1, `${tag}: her fall on its rail knocks it over, scored (${JSON.stringify({ fall: r2.b?.fall, knocked: r2.knocked, wrecked: r2.wrecked })})`);
+    if (slow) check(minK === 0.5 && slowMs > 300 && slowMs < 2500, `${tag}: her clock 0.5x about the apex (${slowMs} ms of samples at ${minK})`);
+    else check(minK === 1, `${tag}: no slow clock under ?slowbreach=0 (${minK})`);
+    check(r2.playK === 1, `${tag}: her clock back to 1x after the fall`);
+    check(eyeMax > 14, `${tag}: the eye eased back from her (${eyeMax.toFixed(1)} m)`);
+    await page.keyboard.down('Digit5'); await page.waitForTimeout(200); await page.keyboard.up('Digit5');
+    const again = await page.evaluate(() => window.__velia.tessiePlay.stats().log.breach.at);
+    check(again === r1.b.at, `${tag}: 5 while it cools does nothing`);
     check(errors.length === 0, `${tag}: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }

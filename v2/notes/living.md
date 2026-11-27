@@ -251,6 +251,24 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
   boats' own heel peaks at 5° in 5 kn, 14° in 10 kn, 18° in 12 kn, 20° in 15 kn, 22–23° in 18–24 kn, so knocks come in a strong wind.
 - **The kayakers** within 20 m of her middle are splashed (one bounty splash a slap, a breach's rule) and spooked.
 
+## Tessie's Breach (`?tessierpg=1`, phase 5; sim/tessieBreach.js, sim/tessiePlay.js `skillBreach`, living/tessiePlayer.js)
+
+- **The hold** (key 5, or a press held on the slot; `onSlotUp` reports the lift): the target is the locked boat, else the nearest
+  within 60 m in ±35° of her heading (a kayak too: she lands off it); from HIDDEN never one over water under 20 m. No target: a quiet
+  no-op, nothing spent. She dives to 6 m and runs at 12 m/s at the strike spot by its near rail (the breach family's kind `skill`:
+  run → climb → breach → recover). The corners sit on it and turn amber once a release lands the arc on it (`lunge.near`).
+- **The launch:** the release, the spot itself reached while held (`BREACH.atK` of the release's reach), 60 m of run or 8 s. A climb at
+  7 m/s, then the arc: `sim.breach({ roll: 70°, lean, B: BREACH.arc })`, 1.6 s (0.75 / 0.25 / 0.6), never faster than her run. The
+  eye's knockdown ease (back 10 m, up 4 m) from the launch.
+- **The fall** (`fall` with `skill: true`): within the rank's window of the hull (3/4/5/6 m, `tessieHits.fall`'s footprint) a
+  knockdown, scored with skill `breach`; else within 12 m a wave heeling it to 35° away from her (`busyLake.wave`, `B.wave`, the glass
+  boat's roll); rank 4: a boat already heeled past `SURGE.overDeg` (12°) goes over. Never on a kayak: the landing moves 4 m off its hull
+  (`breachLanding`), a splash only. Rank 3+: the kayakers within 30 m of the splash are spooked and scored (20 m below).
+- **The V:** through the run the threat's sight is 25 m (`warn`); a target that sees the run before the launch is no longer tracked:
+  she runs at where it was (it bears away). A release on the amber (about 27 m out) beats it.
+- **The slow clock:** 0.5x for 0.8 s (real) about the apex: `breachSlowK` scales the controller's dt and `plugin.playK` her body's
+  step (living/tessie.js); never in a race, never under `?slowbreach=0`. Cooldown 60/52/45/40 s from the press.
+
 ## The lake grows wary, more targets, the sets (`?tessierpg=1`, phase 6a; sim/tessieWary.js, living/tessiePlayer.js)
 
 - **By her level** (`waryOf(level)`): levels 1–5 keep today's sight (60 m at the surface); from 6 the threat's `seeM` is 90 m (the busy

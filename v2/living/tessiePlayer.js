@@ -30,7 +30,7 @@
 //                 Lake runabout knocked down and the jet ski's rider splashed count too. Phase 2: five slots (Digit1 … Digit5, a click
 //                 or tap) with rank pips; a level reached says "Level N: pick one skill to grow." on the skipper's line and the slots
 //                 a point can go to glow; a press on a glowing slot while the line is up spends the point (v2/sim/tessieLevelUp.js),
-//                 any other press is the skill's own (Tail Surge, Breach: no behaviour yet, a quiet no-op); the Dash's
+//                 any other press is the skill's own (phases 3–5); the Dash's
 //                 rank sets its burst, cooldown and bite (v2/sim/tessieSkills.js DASH_RANKS)
 // Phase 3 (the RPG): Lure (slot 2) and Sonar (slot 3) by rank (v2/sim/tessieSkills.js LURE_RANKS, SONAR_RANKS; their rings on
 // the slots, keys 2 and 3, a click or tap). Lure: her tail flicks the surface (creature-map rings, a fish-splash sound, a faint cream ring
@@ -51,6 +51,15 @@
 // 13+: the Halcyon's skipper is never lured (he flees at the first ring). The boats at anchor are targets (anchored(): knocked down
 // at anchor, 'anchored' → the bounty's 'still'), a Regatta rival is one whenever a race's source lists it (rivals(): entries with knock(side); none yet),
 // the paddle-wheeler's splash scores; a set completed says its legend line once on the skipper's line
+// Phase 5 (the RPG): Breach (slot 5: hold key 5 or a press on the slot, let go; v2/sim/tessieBreach.js, BREACH_RANKS). The hold picks the
+// target (the locked boat, else the nearest within 60 m in ±35° of her heading; from HIDDEN never one over water under 20 m) and starts
+// her run at 6 m (sim/tessiePlay.js skillBreach); the release (or 60 m of run, or the boat close enough) launches the 1.6 s arc with her
+// roll in the air. Her fall within the rank's landing window of the hull knocks it down (scored, skill 'breach'); beside it (within
+// BREACH.besideM) it is a wave heeling the boat to 35° (rank 4: one already heeled past SURGE.overDeg goes over); a kayak: she lands 4 m
+// off it, a splash only; rank 3+ spooks the kayakers within 30 m of the splash. The run-up shows (BREACH.seeM, the threat's warn): a crew
+// that sees it bears away and she is no longer told where it went (she lands behind). The third-person eye pulls back and up from the
+// launch (the knockdown ease) and her play clock runs at 0.5x for 0.8 s about the apex (plugin.playK: a dt scale on her step only;
+// never in a race; ?slowbreach=0 off). Cooldown 60 / 52 / 45 / 40 s
 import { createTessiePlay, LINES as PLAY_LINES, PLAY } from '../sim/tessiePlay.js';
 import { hitRule, createTessieHits } from '../sim/tessieHits.js';
 import { createSwap } from '../sim/tessieSwap.js';
@@ -64,6 +73,7 @@ import { skillOfCode, RPG_SLOT_COUNT, createSkills, RPG_SKILLS_TABLE, LURE_RANKS
 import { LURE, lureTargets, lureSplashes } from '../sim/tessieLure.js';
 import { SONAR, sonarPing, rimMarks, markRing } from '../sim/tessieSonar.js';   // the dash's keys: the slot's 1 and Shift
 import { SURGE, SURGE_RANKS, surgeResolve } from '../sim/tessieSurge.js';
+import { BREACH, BREACH_RANKS, breachTarget, breachSlowK, breachLanding, breachBeside } from '../sim/tessieBreach.js';   // phase 5: the Breach
 import { Press } from '../../src/ui/pointer.js';
 import { createTessieBounty, BOUNTY_KIND, SKILL_ORDER, SETS, splashType } from '../sim/tessieBounty.js';
 import { waryOf, WARY, chatterLine } from '../sim/tessieWary.js';   // phase 6: the lake grows wary by her level
@@ -245,7 +255,7 @@ export function createClickBite({ on = () => true, bite = () => {}, now = () => 
 export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () => null, tour = () => null, kayaks = () => null, sups = () => null, traffic = () => [], anchored = () => null, rivals = () => null, chatter = () => true, birthplaces = null, veil = null,
   project = null, focal = () => 600, canvas = null, mode = () => 'sail', race = () => false, knocked = () => false, reduced = () => false,
   services = () => null, touch = () => false, headless = false, storage = (() => { try { return globalThis.localStorage ?? null; } catch { return null; } })(),
-  waterAt = null, floorAt = null, underOn = true, settings = null, keyHints = () => true, rpg = false, day = () => { try { return new Date().toLocaleDateString('en-CA'); } catch { return null; } } } = {}) {
+  waterAt = null, floorAt = null, underOn = true, settings = null, keyHints = () => true, rpg = false, slowBreach = () => true, day = () => { try { return new Date().toLocaleDateString('en-CA'); } catch { return null; } } } = {}) {
   const sim = plugin.sim;
   const C = createTessiePlay({ sim, depthAt }), H = createTessieHits(), W = createSwap(), cam = createTessieCam(), glide = createGlide();
   let flee = null, fleeOn = false, view = 'third', clock = 0, entryT = 0, reachDone = true, holdCamUntil = -1, veilT = null, lastPose = null, lastBoatPose = null;
@@ -262,7 +272,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   let rpgLevel = bounty ? bounty.state().level : 1;   // phase 6: her level as last read (the wary band)
   const wary = () => (bounty ? waryOf(rpgLevel) : WARY[0]);   // flag off: today's rules
   // each skill's behaviour, (rank) → true when it really ran (a press that did something: a locked skill's trial is spent only then).
-  // Lure, Sonar, Tail Surge and Breach have none yet: phases 3–5 add theirs here; until then their presses are quiet no-ops
+  // Lure, Sonar, Tail Surge and Breach register theirs here (phases 3–5); a skill with none answers false (a quiet no-op)
   const SKILL_RUN = {};
   // phase 3: Lure's and Sonar's rings (their own skills table; the Dash keeps C.skills), the lure under way, the ping's marks
   const R = bounty ? createSkills(RPG_SKILLS_TABLE) : null;
@@ -273,6 +283,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   SKILL_RUN.lure = (rank) => runLure(rank);
   SKILL_RUN.sonar = (rank) => runSonar(rank);
   SKILL_RUN.surge = (rank) => runSurge(rank);
+  SKILL_RUN.breach = (rank) => runBreach(rank);
+  // phase 5: the Breach under way { rank, row, t0, targetId, kind, seen (the target saw the run: no longer tracked), launch, fall }
+  let breachFx = null, slowK = 1;
   // phase 4: the Tail Surge under way { rank, row, t0, slapAt (null: the wind-up), x, z (the ring's centre), due: [the boats the wave has yet
   // to reach], ctx (the strike's record for the bounty), stir (the wind-up's rings laid) }
   let surgeFx = null;
@@ -307,7 +320,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     }
     doc.body.appendChild(el);
     //: the sonar, the skills row (a tablet taps DASH to dash), her keys on the right edge
-    hud = mountHud({ root: el, skills: C.skills.list(), storage, keyHints, rpg: !!bounty, onSlot: (id) => { if (bounty) pressSlot(id); else if (id === 'dash') touchIn.dash = true; } });
+    hud = mountHud({ root: el, skills: C.skills.list(), storage, keyHints, rpg: !!bounty, onSlot: (id) => { if (bounty) pressSlot(id); else if (id === 'dash') touchIn.dash = true; }, onSlotUp: (id) => { if (bounty) releaseSlot(id); } });
     hud?.show(false);
     if (bounty) {
       hud?.level(bounty.legend());
@@ -386,7 +399,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       else if (e.code === 'KeyC') view = view === 'first' ? 'third' : 'first';   //: C toggles her eyes and the view behind her; kept for the visit
     } else if (INERT.has(e.code)) { e.preventDefault(); e.stopImmediatePropagation(); }
   };
-  const onKeyUp = (e) => { held.delete(e.code); };
+  const onKeyUp = (e) => { held.delete(e.code); if (bounty && W.as === 'tessie' && RPG.slotCodes[e.code] === 'breach') releaseSlot('breach'); };   // phase 5: the Breach launches on the release
   // the left click on the water bites, as Space (owner, 2026-11-24; desktop only: a tablet has its Bite button); the same pulse, so
   // the same buffer, cooldown, lunge, events and sound
   const clickBite = createClickBite({ on: () => W.as === 'tessie' && !touch() && !cardUp(), bite: () => { pulse = true; hud?.count('Space'); } });   // the legend's Bite line learns
@@ -566,6 +579,12 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     if (!u.used) log.idle = (log.idle ?? 0) + 1;   // nothing happened: a quiet no-op
     return u.used ? 'fire' : 'idle';
   }
+  // a slot let go (its key up, the press on it lifted): the Breach launches (its run ends; a quick tap breaches where she is)
+  function releaseSlot(id) {
+    if (id !== 'breach' || !breachFx) return false;
+    const ok = C.releaseBreach(); if (ok) breachFx.released = +clock.toFixed(2);
+    return ok;
+  }
   // each step while she is played: the level-up line (asked through the lean skipper), the halo, the ranks
   function rpgStep(dt) {
     if (!levelUp) return;
@@ -586,9 +605,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     rpgSync();
   }
   // a breach, a fall or a surfacing at (x, z): one splash for the kayaks it spooks (a pair: one), none twice within RPG.splashS
-  function scoreSplash(x, z, list) {
+  function scoreSplash(x, z, list, reach = null) {   // reach: the splash's own reach (the Breach's rank 3+: 30 m), else sim/tessieHits.js spookM
     if (!bounty) return null;
-    const ids = H.splash(x, z, list).filter((id) => list.find((o) => o.id === id)?.kind === 'kayak');
+    const ids = (reach == null ? H.splash(x, z, list) : list.filter((o) => o.kind === 'kayak' && Math.hypot(o.x - x, o.z - z) <= reach).map((o) => o.id)).filter((id) => list.find((o) => o.id === id)?.kind === 'kayak');
     const fresh = ids.filter((id) => !(clock - (splashAt.get(id) ?? -Infinity) < RPG.splashS));
     if (!fresh.length) return null;
     for (const id of ids) splashAt.set(id, clock);
@@ -602,7 +621,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const fresh = (bt && bt !== biteWas) || (ln && ln !== lungeWas);
     if (fresh) {
       const seen = new Set(); for (const [id, t] of sawAt) if (clock - t <= RPG.seenS) seen.add(id);
-      strike = { at: clock, depthM: nose0, hidden: hidden0, seen, skill: bt && bt !== biteWas ? (bt.kind === 'dash' ? 'dash' : null) : 'rise' };
+      strike = { at: clock, depthM: nose0, hidden: hidden0, seen, skill: bt && bt !== biteWas ? (bt.kind === 'dash' ? 'dash' : null) : ln?.kind === 'skill' ? 'breach' : 'rise' };
     }
     biteWas = bt; lungeWas = ln;
   }
@@ -711,6 +730,54 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     while (fx.due.length && v >= fx.due[0].atS) surgeReach(fx, fx.due.shift());
     if (v > SURGE.waveS + SURGE.fadeS && !fx.due.length) surgeFx = null;
   }
+  // ---- the RPG, phase 5: the Breach ----
+  function runBreach(rank) {
+    const row = BREACH_RANKS[rank], n = nose(); if (!R || !row || !n || W.as !== 'tessie' || !sim.state.spine) return false;
+    R.rank('breach', rank); if (R.state('breach')?.phase !== 'ready') return false;
+    const hidden = !!C.state.hidden, tg = breachTarget(n, targets(), { lockId: lastLock?.id ?? null, hidden, depthAt });
+    if (!tg) { log.breach = { at: +clock.toFixed(1), rank, none: true, hidden }; return false; }   // nothing to run at: a quiet no-op (nothing spent)
+    const offM = tg.kind === 'kayak' ? (tg.B ?? 0.85) / 2 + BREACH.kayakOffM + 2.3 : PLAY.strikeOffM;   // a kayak: the spot off it, her front's reach past her nose kept clear
+    if (!C.skillBreach(tg, { offM }) || !R.press('breach')) return false;
+    breachFx = { rank, row, t0: clock, targetId: tg.id, kind: tg.kind, seen: null, launch: null, fall: null, released: null };
+    log.breach = { at: +clock.toFixed(1), rank, windowM: row.windowM, target: tg.id, kind: tg.kind, d: +Math.hypot(tg.x - n.x, tg.z - n.z).toFixed(1), hidden, launch: null, fall: null };
+    return true;
+  }
+  // the target as she is told of it this step: its entry; once its crew has seen the run (before the launch: the V) she is told no more,
+  // and runs at where it was then (it bears away: she lands behind it)
+  function breachTrack(list) {
+    const fx = breachFx; if (!fx) return null;
+    const b = list.find((o) => o.id === fx.targetId) ?? null;
+    if (!fx.seen && C.state.lunge?.phase === 'run' && (sawAt.get(fx.targetId) ?? -Infinity) > fx.t0) {
+      fx.seen = b ? { ...b, u: 0 } : true; if (log.breach) { log.breach.seen = +clock.toFixed(1); if (b) log.breach.seenAt = { x: +b.x.toFixed(1), z: +b.z.toFixed(1) }; }
+    }
+    return fx.seen ? (fx.seen === true ? null : fx.seen) : b;
+  }
+  // her front lands: on the rail within the window (a knockdown), beside it (the wave), by a kayak (4 m off it, a splash only)
+  function breachFall(e, list) {
+    const fx = breachFx, row = fx?.row ?? BREACH_RANKS[1];
+    const land = breachLanding(e, list);
+    const r = H.fall(land, list.filter((b) => b.kind !== 'kayak' && b.kind !== 'sup'), clock, { hitM: row.windowM });
+    let ok = r.hit ? knock(r) : false, beside = null;
+    if (!r.hit) {
+      beside = breachBeside(land, surgeList(), row);
+      const b = beside ? list.find((o) => o.id === beside.id) : null;
+      if (b && beside.knock) ok = knock({ hit: b, side: beside.side, d: beside.d });   // rank 4: a boat already leaning goes over
+      else if (b) {
+        const heel = beside.side * beside.heelDeg * DEG;
+        if (b.kind === 'sail') busy()?.wave?.(b.id, { heel });
+        else if (b.kind === 'halcyon') B.wave?.({ heel });
+        else if (b.kind === 'glass') tour()?.knock?.(beside.side, beside.heelDeg);
+      }
+      if (b) sawAt.set(b.id, clock);
+    }
+    if (ok) { log.hits++; soundKnocks.push({ hit: true, boat: (r.hit ?? list.find((o) => o.id === beside?.id))?.kind, x: land.x, z: land.z, where: 'rail', mult: 1 }); }
+    spookAt(land.x, land.z, row.spookM); scoreSplash(land.x, land.z, list, row.spookM);
+    const fl = { x: +land.x.toFixed(1), z: +land.z.toFixed(1), moved: +land.moved.toFixed(2), hit: r.hit?.id ?? null, d: r.d ?? null, beside: beside ? { id: beside.id, d: +beside.d.toFixed(1), heelDeg: beside.heelDeg, side: beside.side, knock: beside.knock, lean: +beside.lean.toFixed(1) } : null, ok, at: +clock.toFixed(1) };
+    if (fx) { fx.fall = fl; fx.launch = 'done'; }
+    if (log.breach) log.breach.fall = fl;
+    log.lastFall = { x: fl.x, z: fl.z, hit: fl.hit, d: fl.d, at: fl.at };
+    C.result(ok);
+  }
   // each step while she is played: the two rings' clocks, the lure's splashes, the marks running out
   function skillsStep(dt) {
     if (!R) return;
@@ -735,7 +802,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     plugin.playing = on;
     const H2 = doc?.documentElement;
     if (H2) H2.toggleAttribute('data-tessie-play', on);
-    if (!on) { plugin.playDip = 1; plugin.sound?.played?.({ on: false }); surgeFx = null; }   // a surge under way ends with her play
+    if (!on) { plugin.playDip = 1; plugin.sound?.played?.({ on: false }); surgeFx = null; breachFx = null; slowK = 1; plugin.playK = 1; }   // a surge or a breach under way ends with her play
     if (dom()) {
       q('.tp-dial').hidden = !on; q('.tp-touch').hidden = !on || !touch(); q('.tp-aim').hidden = true;
       layoutKey = ''; hud?.show(on); if (on) placeHud();
@@ -754,6 +821,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     get bounty() { return bounty; },   // the RPG's (null without ?tessierpg=1)
     get levelUp() { return levelUp; },   // the RPG's level-up moment (null without ?tessierpg=1)
     pressSlot: (id) => (bounty ? pressSlot(id) : null),   // the RPG: a slot pressed as its key or a tap would
+    releaseSlot: (id) => (bounty ? releaseSlot(id) : null),   // the RPG: a slot let go (the Breach launches)
     skillRun: SKILL_RUN,   // the RPG: the skills' behaviours by id (phases 3–5; the page test registers a stub)
     // the door: the Logbook on its Tessie page (the dials' click; the RPG only)
     openLog() { const L = svc()?.get?.('logbook')?.logbook; if (!bounty || !L?.show) return false; L.show('tessie'); return true; },
@@ -820,8 +888,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       if (W.as !== 'tessie' || !sim.state.visible) return null;
       const n = nose(); if (!n) return null;
       const nz = C.state.nose, L = C.state.lunge, warned = !!L?.deep && L.phase === 'rise';   // 2c: the warning rings: the boats near them see her coming, at any depth
-      const seeM = warned ? PLAY.warn.seeM : nz < 2.5 ? wary().seeM : nz <= PLAY.hiddenM ? 15 : 0;   // phase 6: 60 m, 90 m from level 6   //: 1–8 m 15 m, deeper never (HIDDEN on the dial)
-      return seeM ? { x: n.x, z: n.z, heading: n.psi, u: n.speed, m: 120, seeM, warn: warned } : null;
+      const runUp = L?.kind === 'skill' && (L.phase === 'run' || L.phase === 'climb');   // phase 5: the Breach's run-up, a dark shape and a V
+      const seeM = warned ? PLAY.warn.seeM : runUp ? Math.max(BREACH.seeM, nz < 2.5 ? wary().seeM : 0) : nz < 2.5 ? wary().seeM : nz <= PLAY.hiddenM ? 15 : 0;   // phase 6: 60 m, 90 m from level 6   //: 1–8 m 15 m, deeper never (HIDDEN on the dial)
+      return seeM ? { x: n.x, z: n.z, heading: n.psi, u: n.speed, m: 120, seeM, warn: warned || runUp } : null;
     },
     step(dt) {
       if (!(dt > 0)) return;
@@ -865,7 +934,11 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       pinTg = tg; lastTg = tg;
       const nose0 = C.state.nose, hidden0 = !!C.state.hidden;
       if (bounty) watchSeen(list, n);
-      C.step(dt, cardUp() ? {} : hands(), { target: tg, lock: lk });
+      // phase 5: her play clock 0.5x about the Breach's apex (her own step only: the controller here, her body through plugin.playK)
+      const slowOff = !slowBreach() || !!race() || isRace(mode());
+      slowK = breachSlowK(C.state.lunge, { off: slowOff });
+      C.step(dt * slowK, cardUp() ? {} : hands(), { target: tg, lock: lk, track: breachFx ? breachTrack(list) : undefined });
+      plugin.playK = slowK = breachSlowK(C.state.lunge, { off: slowOff });
       if (bounty) watchStrike(nose0, hidden0);
       for (const e of C.events) {
         if (e.type === 'contact') {
@@ -877,6 +950,10 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
           const ok = r.hit ? knock(r, km, e) : false; if (ok) log.hits++;
           if (ok) soundKnocks.push({ hit: true, boat: r.hit.kind, x: e.x, z: e.z, where: e.where, mult: km });   // the knock's sound (v2/audio/tessieMix.js): the hull's material, the creak, the sails
           C.result(ok);
+        } else if (e.type === 'launch') {   // phase 5: the Breach launches: the eye eases back and up (the knockdown's)
+          pullUntil = clock + 5; if (breachFx) breachFx.launch = e.why; if (log.breach) log.breach.launch = { why: e.why, at: +clock.toFixed(1) };
+        } else if (e.type === 'fall' && e.skill) {
+          log.falls++; breachFall(e, list);
         } else if (e.type === 'fall') {
           log.falls++;
           const r = H.fall(e, list, clock, { hitM: e.locked ? H.K.lock.footM : H.K.hitM });   // the rising strike's fall: 3.5 m while locked
@@ -903,7 +980,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
         cam: pp && pt ? { x: pp[0], z: pp[2], yaw: Math.atan2(pt[0] - pp[0], -(pt[2] - pp[2])) } : { x: n.x, z: n.z, yaw: n.psi }, events: C.events, knocks: soundKnocks, skill: C.skills.state('dash'), phase: C.state.phase, bite: C.state.bite, lunge: C.state.lunge, lockId: lastLock?.id ?? null, casts });
       soundKnocks.length = 0; casts.length = 0;
       plugin.playDip = (eyeUnder != null ? eyeUnder > 0.3 : C.state.nose >= 2) ? 0.55 : 1;
-      paint(tg, list, dt);
+      // phase 5: through the Breach's run the corners sit on its target, amber once a release now lands the arc on it
+      const L5 = C.state.lunge, bt = breachFx && L5?.kind === 'skill' && L5.phase === 'run' ? list.find((b) => b.id === breachFx.targetId) : null;
+      paint(bt ? { id: bt.id, x: bt.x, z: bt.z, d: Math.max(0, Math.hypot(bt.x - n.x, bt.z - n.z) - (bt.L ?? 8.5) / 2), locked: !!L5.near } : tg, list, dt);
     },
     camera(dt, c, orbit = null) {
       // the boat's own camera, tracked in place (no per-frame allocation) in both modes: the swap-back judges the veil against where the boat is NOW
@@ -929,7 +1008,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     stats() {
       return { as: W.as, entry: W.entry, pill: W.pill, view, viewK: cam.state.viewK, fleeOn, knocks: knockTotal, under: lastUnder ? { ...lastUnder } : null, look: +cam.look.toFixed(4), eye: lastPose?.pos ? lastPose.pos.map((v) => +v.toFixed(2)) : null, ctl: { ...C.state, lunge: C.state.lunge ? { phase: C.state.lunge.phase, kind: C.state.lunge.kind, t: +C.state.lunge.t.toFixed(2), target: C.state.lunge.target?.id ?? null } : null, bite: C.state.bite ? { kind: C.state.bite.kind, t: +C.state.bite.t.toFixed(2), target: C.state.bite.target?.id ?? null, locked: C.state.bite.locked, hit: C.state.bite.hit } : null, strike: C.state.strike }, lock: lastLock ? { ...lastLock, k: +lastLock.k.toFixed(2) } : null, bite: sim.biteState ? { kind: sim.biteState.kind, phase: sim.biteState.phase, t: +sim.biteState.t.toFixed(2), gape: +(sim.state.gape ?? 0).toFixed(3) } : null,
         log: { ...log, knocks: log.knocks.slice(-8), swaps: log.swaps.slice(-8) }, tipsWant: tips.waiting, beLine: { waiting: beLine.waiting, shown: beLine.shown }, glide: glide.active, aim: lastAim,
-        rpg: levelUp ? { ...levelUp.state, halo: levelUp.halo(), level: rpgLevel, wary: { ...wary() }, waiting: tips.waiting, dash: C.skills.state('dash'), lure: R.state('lure'), sonar: R.state('sonar'), surge: R.state('surge'),
+        rpg: levelUp ? { ...levelUp.state, halo: levelUp.halo(), level: rpgLevel, wary: { ...wary() }, waiting: tips.waiting, dash: C.skills.state('dash'), lure: R.state('lure'), sonar: R.state('sonar'), surge: R.state('surge'), breach: R.state('breach'), slowK,
+          breachFx: breachFx ? { rank: breachFx.rank, phase: C.state.lunge?.kind === 'skill' ? C.state.lunge.phase : 'done', t: +(clock - breachFx.t0).toFixed(2), target: breachFx.targetId, seen: !!breachFx.seen, near: !!C.state.lunge?.near, launch: breachFx.launch, windowM: breachFx.row.windowM } : null,
           surgeFx: surgeFx ? { phase: surgeFx.slapAt == null ? 'windup' : 'wave', t: +(clock - surgeFx.t0).toFixed(2), ringM: surgeFx.row.ringM, due: surgeFx.due.length } : null,
           marks: [...marks.keys()], ping: ping ? { rangeM: ping.rangeM, left: +(ping.until - clock).toFixed(2), tail: ping.tail } : null, lureRing: !!lureFx, halcyonLure: !!halcyonLure } : null };
     },
@@ -1018,7 +1098,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     placeHud();
     const th = self.threat(), n0 = nose();
     hudStates.dash = C.skills.state('dash');
-    if (R) { hudStates.lure = R.state('lure'); hudStates.sonar = R.state('sonar'); hudStates.surge = R.state('surge'); }
+    if (R) { hudStates.lure = R.state('lure'); hudStates.sonar = R.state('sonar'); hudStates.surge = R.state('surge'); hudStates.breach = R.state('breach'); }
     // the ping's rim (10 Hz: the dial's own rate): a tick at each marked boat's bearing
     if (ping && n0 && (rimT < 0 || clock - rimT >= 0.1)) { rimT = clock; rimMarks(n0, list, (id) => marks.has(id), rimOut); pingArg.rangeM = ping.rangeM; }
     hud?.paint({ t: clock, states: hudStates, her: n0, boats: list, targetId: tg?.id ?? null, lockId: lastLock?.id ?? null, seen: (b, d) => !!th && b.kind !== 'kayak' && d <= th.seeM, hidden: st.hidden, ping: ping ? pingArg : null });
