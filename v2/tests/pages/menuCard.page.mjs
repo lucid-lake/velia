@@ -82,10 +82,13 @@ try {
     // a tap on the world outside the card (the phone card fills the screen: nothing is outside it; the ×, Sail and Esc close it)
     if (!touch) {
     await openMenu();
-    const out = await page.evaluate(() => { const c = document.querySelector('#lk-load .lk-card').getBoundingClientRect(); return innerWidth - c.right > 80 ? { x: Math.round((c.right + innerWidth) / 2), y: Math.round(innerHeight / 2) } : { x: Math.round(innerWidth / 2), y: Math.max(20, Math.round(c.top / 2)) }; });
+    // 70 px below the middle of the free side: the map centres the boat there, and a press on the map's boat resumes (the same close as
+    // Esc, feat(chart) 2026-11-25), so the press lands on the water beside her (sailHere.page.mjs: a click 70 px off opens the water card)
+    const out = await page.evaluate(() => { const c = document.querySelector('#lk-load .lk-card').getBoundingClientRect(); return innerWidth - c.right > 80 ? { x: Math.round((c.right + innerWidth) / 2), y: Math.round(innerHeight / 2) + 70 } : { x: Math.round(innerWidth / 2), y: Math.max(20, Math.round(c.top / 2)) }; });
     // the point is in the page's layout frame; an upright phone shows it turned on its side (landscape-only phones, 2026-11-15)
     const [ox, oy] = await page.evaluate(([x, y]) => (window.__veliaTurn ? window.__veliaTurn.toScreen(x, y) : [x, y]), [out.x, out.y]);
     if (touch) await page.touchscreen.tap(ox, oy); else await page.mouse.click(ox, oy);
+    await page.waitForTimeout(700);   // a single press waits out the double-press window before its card (sailHere.page.mjs waits the same)
     // the live map fills what the panel leaves: a press there is the map's (the water's card, the map features' ruling 2026-11-18), the menu stays
     const card = await page.evaluate(() => window.__velia.m4.ui.services.get('liveChart')?.state.card ?? null);
     check(!(await closed()) && (await look()).open && !!card, `${vn}: a press on the map beside the panel (${out.x}, ${out.y}) opens the map's card and keeps the menu (${card?.name ?? card?.kind ?? 'none'})`);
