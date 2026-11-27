@@ -47,7 +47,10 @@ function section(H, u, sx, round) {
   const lS = Math.hypot(...toS) || 1, lK = Math.hypot(...toK) || 1, r = Math.min(H.round, 0.3 * lS, 0.3 * lK);
   const cu = [C[0] + toS[0] / lS * r, C[1] + toS[1] / lS * r], cl = [C[0] + toK[0] / lK * r, C[1] + toK[1] / lK * r];
   const cm = [C[0] * 0.45 + (cu[0] + cl[0]) / 2 * 0.55, C[1] * 0.45 + (cu[1] + cl[1]) / 2 * 0.55];
-  return [P(s.hb, s.ys), P(cu[0], cu[1]), P(cm[0], cm[1]), P(cl[0], cl[1]), P(0, s.yk)];
+  // the topsides flared: bowed out between the sheer and the chine (more forward, where the bow flares), so they turn in the light
+  const fl = 0.03 + 0.05 * Math.max(0, 1 - u / 0.45), F = (t) => [s.hb + (cu[0] - s.hb) * t + fl * Math.sin(Math.PI * t), s.ys + (cu[1] - s.ys) * t];
+  const f1 = F(0.33), f2 = F(0.67);
+  return [P(s.hb, s.ys), P(f1[0], f1[1]), P(f2[0], f2[1]), P(cu[0], cu[1]), P(cm[0], cm[1]), P(cl[0], cl[1]), P(0, s.yk)];
 }
 
 function hull(B, H, n, near) {
@@ -90,10 +93,10 @@ function hull(B, H, n, near) {
     const pt = [pa[0], pa[1] + H.crown * (1 - Math.abs(pa[0]) / (H.B / 2)) * 0, pa[2]];
     B.quad(pt, c, [0, pa[1] - W.depth, pa[2]], floor(pa), SLOT.liner); B.quad(c, sa, floor(sa), [0, pa[1] - W.depth, pa[2]], SLOT.liner);
   }
-  // the rubrail: a dark band along each sheer, a hand deep
-  if (near) for (const rows of sides) for (let i = 0; i < R - 1; i++) {
-    const a = rows[i][0], b = rows[i + 1][0], o = Math.sign(a[0] || b[0] || 1) * 0.025;
-    B.quad([a[0] + o, a[1] + 0.01, a[2]], [b[0] + o, b[1] + 0.01, b[2]], [b[0] + o, b[1] - 0.07, b[2]], [a[0] + o, a[1] - 0.07, a[2]], SLOT.dark);
+  // the rubrail: a rounded dark vinyl rail along each sheer with a bright insert along its face
+  if (near) for (const rows of sides) {
+    const sg = Math.sign(rows[R >> 1][0][0]) || 1, pts = rows.map((r) => [r[0][0] + sg * 0.012, r[0][1] - 0.028, r[0][2]]);
+    B.tube(pts, 0.036, 6, SLOT.dark); B.tube(pts.map((q) => [q[0] + sg * 0.033, q[1], q[2]]), 0.009, 4, SLOT.metal);
   }
   // the transom: a fan from its middle
   const tp = port[R - 1], ts = stbd[R - 1], ring = [...tp, ...ts.slice(0, N - 1).reverse()], c = [0, (tp[0][1] + tp[N - 1][1]) / 2, tp[0][2]];
