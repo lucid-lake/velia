@@ -12,7 +12,7 @@ import { encodeBuildings, decodeBuildings, instanceArray, groundBox, pickChunks,
 import { packBuildings, inputs, sameContent, southLights, RULES } from '../../tools/v2-buildings-pack.mjs';
 import { packLights } from '../../tools/v2-lights-pack.mjs';
 import { decodeLights } from '../sim/night.js';
-import { unitMesh } from '../render/buildings.js';
+import { unitMesh, yardTrees, HOUSE } from '../render/buildings.js';
 import { createFeatures } from '../../src/core/features.js';
 import { profileOf, readFacts, forcedOf } from '../../src/core/profile.js';
 import { DEVICES } from '../../tests/helpers/devices.mjs';
@@ -117,12 +117,11 @@ test('the grounding: every sampled box stands on the terrain (its foot under its
   assert.ok(n > 600, `${n} boxes sampled`);
   // the unit mesh, no floor: the main block (4 walls in 6 quads, the top in 2, two slopes, two gables), the wing (4 walls, two
   // slopes, two gables), each block's soffits (the slopes' undersides) and fascia (2 eaves, 4 rakes), the chimney (4 sides, a cap);
-  // the far mesh is the walls, slopes, gables, the yard and the fir, a subset of the full one's faces
-  // the yard (12 triangles from the footprint to its ring), two shrubs (6 sides × 3), a fir (3 skirts of 10, a 4-sided trunk)
-  const M = unitMesh(), main = 2 * 6 + 2 * 2 + 2 * 2 + 2, wing = 2 * 4 + 2 * 2 + 2, trim = 2 * 2 + 6 * 2, chimney = 5 * 2;
-  const yard = 12, shrubs = 2 * 18, fir = 3 * 10, trunk = 8;
-  assert.equal(M.near / 3, main + wing + 2 * trim + chimney + yard + shrubs + fir + trunk);
-  assert.equal(M.farCount / 3, main + wing + yard + fir);
+  // the far mesh is the walls, slopes, gables and the yard, a subset of the full one's faces
+  // the yard (12 triangles from the footprint to its ring); its trees are the forest's (yardTrees, below)
+  const M = unitMesh(), main = 2 * 6 + 2 * 2 + 2 * 2 + 2, wing = 2 * 4 + 2 * 2 + 2, trim = 2 * 2 + 6 * 2, chimney = 5 * 2, yard = 12;
+  assert.equal(M.near / 3, main + wing + 2 * trim + chimney + yard);
+  assert.equal(M.farCount / 3, main + wing + yard);
   const tri = (a) => Array.from({ length: a.length / 3 }, (_, i) => [a[3 * i], a[3 * i + 1], a[3 * i + 2]].join());
   const full = new Set(tri(M.I.subarray(0, M.near)));
   for (const t of tri(M.I.subarray(M.farFirst, M.farFirst + M.farCount))) assert.ok(full.has(t), 'a far face is a full-mesh face');
@@ -169,4 +168,19 @@ test('no brand text: what ships (the sets, the south\'s lights, the pack\'s stat
   // the records carry numbers only: no field is a string
   const D = decodeBuildings(shipped(SETS.lake.file));
   for (const v of Object.values(D.rec(0))) assert.equal(typeof v, 'number');
+});
+
+test('the yards\' trees: the forest\'s own species, 12–24 m, beside a building (never on a hull or a part), the same every load', () => {
+  const lake = decodeBuildings(shipped(SETS.lake.file));
+  const a = yardTrees(lake, 0), b = yardTrees(lake, 0);
+  assert.deepEqual(a, b, 'deterministic');
+  assert.ok(a.length > 500 && a.length < lake.count, `${a.length} trees for ${lake.count} records`);
+  for (const t of a) {
+    assert.ok([0, 1, 2].includes(t.layer), `layer ${t.layer}`);
+    assert.ok(t.h >= HOUSE.treeM[0] && t.h <= HOUSE.treeM[1], `h ${t.h}`);
+    assert.ok(t.r > 1 && t.r < 6, `r ${t.r}`);
+  }
+  // each stands within its building's yard: no farther from some record than its half-diagonal plus the yard
+  const recs = Array.from({ length: lake.count }, (_, i) => lake.rec(i)).filter((r) => r.kind < KIND.hull);
+  for (const t of a.slice(0, 200)) assert.ok(recs.some((r) => Math.hypot(t.x - r.x, t.z - r.z) <= Math.hypot(r.len, r.wid) / 2 + HOUSE.lotM + 1), 'beside a building');
 });

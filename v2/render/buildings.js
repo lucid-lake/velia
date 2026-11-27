@@ -42,7 +42,7 @@ export const HOUSE = Object.freeze({
   boardM: 0.21, bayM: 3.0, storeyM: 2.9, footM: 0.55, cornerM: 0.14,          // siding, window bays, storeys, foundation, corner boards (m)
   litShare: [0.3, 0.65], houseGain: 4.0,                                      // a lit window's share at night, its radiance × LOOK.winRad
   skyNeutral: 0.6,                                                           // the sky's light toward neutral (the tea house's rule: no blue cast)
-  yardM: [2.5, 4.5], lotM: 5.0, treeShare: 0.65, shrubM: [0.9, 1.7], treeM: [11.0, 20.0],   // the yard, its shrubs and fir
+  yardM: [2.5, 4.5], lotM: 5.0, treeShare: 0.65, lotTreeShare: 0.4, treeM: [12.0, 24.0],   // the yard; its tree (the forest's: yardTrees)
   pitchK: [0.75, 1.35], nightAmb: 0.25, porchShare: 0.7,                     // the roofs' pitch spread; the night's ambient trim; porch lamps
   nearM: 800,                                                                 // a chunk this close draws the full mesh; past it, the far one
   wall: 0x5f5548, trim: [0xb9b1a1, 0x3a2c22, 0x34402f], stone: 0x6f6a62, glass: 0x141a20, door: 0x3a281c,
@@ -50,19 +50,19 @@ export const HOUSE = Object.freeze({
 // what each vertex is: its part (the material) and, in n.w, its code: the block (0 the main body, 1 the wing, 2 the chimney)
 // and how the vertex stage moves it (out along x by the rake, out along z by the eave, down by the eave's drop at the roof's
 // pitch, on the roof's height scale, down by the fascia's depth)
-export const PART = Object.freeze({ wall: 0, slope: 1, top: 2, bow: 3, gable: 4, fascia: 5, soffit: 6, chimney: 7, apron: 8, shrub: 9, tree: 10, trunk: 11 });
+export const PART = Object.freeze({ wall: 0, slope: 1, top: 2, bow: 3, gable: 4, fascia: 5, soffit: 6, chimney: 7, apron: 8 });
 export const CODE = Object.freeze({ pushX: 8, pushZ: 16, drop: 32, roofY: 64, fdown: 128 });
 // the blocks: the main body, the wing, the chimney (a big block's rooftop plant), the yard (a ring draped on the terrain round
-// the footprint), two shrubs, a fir
-export const BLOCK = Object.freeze({ main: 0, wing: 1, chimney: 2, apron: 3, shrubA: 4, shrubB: 5, tree: 6 });
+// the footprint). The yard's trees are the forest's own (yardTrees below, render/forest.js setYard)
+export const BLOCK = Object.freeze({ main: 0, wing: 1, chimney: 2, apron: 3 });
 
 // the unit mesh, in blocks: each block x, z ∈ [−0.5, 0.5], y ∈ [0, 1] (walls: base to eaves; with CODE.roofY: eaves to ridge).
 // The main block: the walls (their bow third, x > 0.15: part bow, which a hull pinches to a point), the flat top, two slopes
 // (ridge along x), two gables, the slopes' undersides (the soffit), the eaves' and the rakes' fascia. The wing: the same
 // without the top and the bow. The chimney: a box. Each vertex: x, y, z, part, the normal (a slope's is made in the vertex
 // stage), the code. Faces wound counter-clockwise from outside (checked here against the normal on the moved positions).
-// The yard, the shrubs and the fir: free vertices (below). → { V, I, near: the full mesh's index count, farFirst, farCount: the far
-// mesh's (the walls, slopes, gables, the yard and the fir) }
+// The yard: free vertices (below). → { V, I, near: the full mesh's index count, farFirst, farCount: the far mesh's (the walls,
+// slopes, gables and the yard) }
 export function unitMesh() {
   const V = [], I = [], far = [];
   const at = (p, code) => {   // a stand-in position with every move applied (for the winding check only)
@@ -143,37 +143,6 @@ export function unitMesh() {
     const a = inner[sd], b = inner[(sd + 1) % 4], o0 = ring[2 * sd], o1 = ring[2 * sd + 1], o2 = ring[(2 * sd + 2) % 8];
     tri3(a, o0, o1, [0, 1, 0], true, flat); tri3(a, o1, b, [0, 1, 0], true, flat); tri3(b, o1, o2, [0, 1, 0], true, flat);
   }
-  // two shrubs: a rounded clump (a 6-sided ring at the ground, a wider one at half height, a crown), smooth normals
-  for (const blk of [BLOCK.shrubA, BLOCK.shrubB]) {
-    const N = 6, r0 = [], r1 = [];
-    for (let i = 0; i < N; i++) {
-      const a = (i / N) * 2 * Math.PI, c = Math.cos(a), sn = Math.sin(a);
-      r0.push(vtx([0.75 * c, 0, 0.75 * sn], PART.shrub, [c, 0.1, sn], blk)); r1.push(vtx([c, 0.5, sn], PART.shrub, [c * 0.8, 0.6, sn * 0.8], blk));
-    }
-    const top = vtx([0, 1, 0], PART.shrub, [0, 1, 0], blk);
-    for (let i = 0; i < N; i++) {
-      const j = (i + 1) % N, a = ((i + 0.5) / N) * 2 * Math.PI, out = [Math.cos(a), 0.3, Math.sin(a)];
-      tri3(r0[i], r0[j], r1[j], out, false, posOf); tri3(r0[i], r1[j], r1[i], out, false, posOf); tri3(r1[i], r1[j], top, [out[0], 1, out[2]], false, posOf);
-    }
-  }
-  // a fir: three stacked cones (base y, apex y, radius, in units of its height) on a trunk
-  for (const [b0, b1, r] of [[0.12, 0.55, 0.42], [0.36, 0.8, 0.31], [0.6, 1.0, 0.2]]) {
-    // a ragged skirt: ten points, every other one drawn in and up (the boughs' tips and the gaps between them)
-    const N = 10, ringT = [], hgt = b1 - b0;
-    for (let i = 0; i < N; i++) { const a = (i / N) * 2 * Math.PI, c = Math.cos(a), sn = Math.sin(a), k = i % 2 ? 0.7 : 1; ringT.push(vtx([r * k * c, b0 + (i % 2 ? 0.05 : 0), r * k * sn], PART.tree, [c * hgt, r, sn * hgt], BLOCK.tree)); }
-    for (let i = 0; i < N; i++) {
-      const j = (i + 1) % N, a = ((i + 0.5) / N) * 2 * Math.PI, c = Math.cos(a), sn = Math.sin(a);
-      const apex = vtx([0, b1, 0], PART.tree, [c * hgt, r, sn * hgt], BLOCK.tree);
-      tri3(ringT[i], ringT[j], apex, [c, 0.4, sn], true, posOf);
-    }
-  }
-  { const r = 0.03, q = [[-r, -r], [r, -r], [r, r], [-r, r]];
-    for (let i = 0; i < 4; i++) {
-      const j = (i + 1) % 4, nx = (q[i][0] + q[j][0]) / (2 * r), nz = (q[i][1] + q[j][1]) / (2 * r);
-      const a = vtx([q[i][0], 0, q[i][1]], PART.trunk, [nx, 0, nz], BLOCK.tree), b = vtx([q[j][0], 0, q[j][1]], PART.trunk, [nx, 0, nz], BLOCK.tree);
-      const c = vtx([q[j][0], 0.14, q[j][1]], PART.trunk, [nx, 0, nz], BLOCK.tree), d = vtx([q[i][0], 0.14, q[i][1]], PART.trunk, [nx, 0, nz], BLOCK.tree);
-      tri3(a, b, c, [nx, 0, nz], false, posOf); tri3(a, c, d, [nx, 0, nz], false, posOf);
-    } }
   const near = I.length;
   I.push(...far);
   return { V: new Float32Array(V), I: new Uint16Array(I), near, farFirst: near, farCount: far.length };
@@ -182,6 +151,30 @@ export function unitMesh() {
 const hexLin = (h) => [(h >> 16) & 255, (h >> 8) & 255, h & 255].map((b) => { const c = b / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
 const v3 = (a) => `vec3f(${a.map((x) => x.toFixed(5)).join(', ')})`;
 const INST_STRUCT = 'struct Inst { a: vec4f, b: vec4f, c: vec4f, d: vec4u }';
+// the WGSL's pcg and hr on the CPU, bit for bit (u32): the yard's trees stand where the draw puts the yard
+export const pcgJS = (v) => { const st = (Math.imul(v >>> 0, 747796405) + 2891336453) >>> 0; const w = Math.imul((st >>> ((st >>> 28) + 4)) ^ st, 277803737) >>> 0; return ((w >>> 22) ^ w) >>> 0; };
+export const hrJS = (i, k) => (pcgJS((Math.imul(i, 16) + k) >>> 0) >>> 8) / 16777216;
+const isHouseKind = (k) => k === KIND.house || k === KIND.lodge || k === KIND.boathouse;
+export const yardMJS = (rid, kind) => (isHouseKind(kind) ? HOUSE.yardM[0] + (HOUSE.yardM[1] - HOUSE.yardM[0]) * hrJS(rid, 15) : kind < KIND.hull ? HOUSE.lotM : 0);
+// the yard's tree: about two houses in three and two big lots in five get one at a corner of the yard (0.7 of the way out), a
+// Jeffrey pine, a white fir or a lodgepole of 12–24 m (the forest's own cards, lod and tier: render/forest.js setYard).
+// D: a decoded set; first: its records' global index (the draw's hash runs on it) → [{ x, z, h, r, layer }]
+export function yardTrees(D, first = 0) {
+  const out = [];
+  for (let i = 0; i < D.count; i++) {
+    const r = D.rec(i), rid = first + i;
+    if (r.kind >= KIND.hull || r.mode !== MODE.ground) continue;
+    const house = isHouseKind(r.kind);
+    if (hrJS(rid, 25) >= (house ? HOUSE.treeShare : HOUSE.lotTreeShare)) continue;
+    const e = yardMJS(rid, r.kind), c = Math.floor(hrJS(rid, 20) * 4) % 4;
+    const sx = c === 1 || c === 2 ? 1 : -1, sz = c >= 2 ? 1 : -1;
+    const lx = sx * (r.len / 2 + 0.7 * e), lz = sz * (r.wid / 2 + 0.7 * e), ca = Math.cos(r.yaw), sa = Math.sin(r.yaw);
+    const h = HOUSE.treeM[0] + (HOUSE.treeM[1] - HOUSE.treeM[0]) * hrJS(rid, 24);
+    const u = hrJS(rid, 28), layer = u < 0.6 ? 0 : u < 0.85 ? 2 : 1;
+    out.push({ x: r.x + lx * ca + lz * sa, z: r.z - lx * sa + lz * ca, h, r: (0.9 + 0.09 * h) * (0.8 + 0.4 * hrJS(rid, 29)) * 1.2, layer });
+  }
+  return out;
+}
 // a building's own numbers (its record's index hashed): the same in the grounding pass and the draw
 const HASH_WGSL = `fn pcg(v: u32) -> u32 { let s = v * 747796405u + 2891336453u; let w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u; return (w >> 22u) ^ w; }
 fn hr(i: u32, k: u32) -> f32 { return f32(pcg(i * 16u + k) >> 8u) / 16777216.0; }
@@ -320,28 +313,11 @@ struct VO { @builtin(position) pos: vec4f, @location(0) world: vec3f, @location(
     yt = select(1.0, 0.0, i >= 8u);
     if (e <= 0.0) { fx = 0.0; fz = 0.0; }
   }
-  if (blk >= ${BLOCK.shrubA}u) {
-    // a shrub at a corner or a side's middle, a fir at another corner, each on the yard's sample there
-    let c = u32(hr(rid, 20u) * 4.0) % 4u;
-    var i = 2u * c; var s = mix(${HOUSE.shrubM[0].toFixed(2)}, ${HOUSE.shrubM[1].toFixed(2)}, hr(rid, 21u)); var on = house;
-    var reach = 0.45;
-    if (blk == ${BLOCK.shrubB}u) { i = (2u * c + 3u) % 8u; s = mix(${HOUSE.shrubM[0].toFixed(2)}, ${HOUSE.shrubM[1].toFixed(2)}, hr(rid, 22u)); on = house && hr(rid, 23u) < 0.8; reach = 0.35; }
-    if (blk == ${BLOCK.tree}u) { i = (2u * c + 4u) % 8u; s = mix(${HOUSE.treeM[0].toFixed(2)}, ${HOUSE.treeM[1].toFixed(2)}, hr(rid, 24u)); on = isBld && hr(rid, 25u) < select(0.4, ${HOUSE.treeShare.toFixed(2)}, house); reach = 0.7; }
-    let o = array<vec2f, 8>(vec2f(-1.0, -1.0), vec2f(0.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0), vec2f(0.0, 1.0), vec2f(-1.0, 1.0), vec2f(-1.0, 0.0))[i];
-    let gy = yardH(k, i);
-    let sx = select(1.0, 1.6, blk == ${BLOCK.shrubB}u);   // the side's shrub is a longer hedge clump
-    let ang = hr(rid, 26u) * 6.2831853; let cr = cos(ang); let sr = sin(ang);
-    let lx = v.p.x * s * sx; let lz = v.p.z * s;
-    fx = o.x * (len * 0.5 + e * reach) + (lx * cr - lz * sr); fz = o.y * (wid * 0.5 + e * reach) + (lx * sr + lz * cr);
-    ly = gy - 0.15 + v.p.y * s * select(1.1, 1.0, blk == ${BLOCK.tree}u);
-    nf = vec3f(nl.x * cr - nl.z * sr, nl.y, nl.x * sr + nl.z * cr);
-    if (!on || e <= 0.0) { fx = 0.0; fz = 0.0; ly = base; }
-  }
   let ca = cos(q.a.w); let sa = sin(q.a.w);
   let w = vec3f(q.a.x + fx * ca + fz * sa, ly, q.a.z - fx * sa + fz * ca);
   var o: VO; o.pos = F.viewProj * vec4f(w, 1.0); o.world = w; o.n = vec3f(nf.x * ca + nf.z * sa, nf.y, -nf.x * sa + nf.z * ca);
   // the materials: 0 plain (a hull, a part), 1 siding, 2 a big block's wall, 3 shingle, 4 metal, 5 a flat roof, 6 trim, 7 soffit,
-  // 8 the chimney's stone, 9 a gable's siding, 10 the yard, 11 foliage, 12 bark, 13 rooftop plant
+  // 8 the chimney's stone, 9 a gable's siding, 10 the yard, 13 rooftop plant
   let hb = hr(rid, 0u);
   let wallC = unpackRGB(q.d.x); let roofC = unpackRGB(q.d.y);
   let tr = hr(rid, 6u);
@@ -367,8 +343,6 @@ struct VO { @builtin(position) pos: vec4f, @location(0) world: vec3f, @location(
     if (part == ${PART.chimney}u) { mat = 13u; alb = ${v3(hexLin(0x6a6c6c))} * (0.85 + 0.25 * hr(rid, 10u)); }
   }
   if (part == ${PART.apron}u) { mat = 10u; alb = select(${v3(hexLin(0x3a3b3b))}, ${v3(hexLin(0x3a3529))}, house) * (0.8 + 0.25 * hr(rid, 27u)); }
-  if (part == ${PART.shrub}u || part == ${PART.tree}u) { mat = 11u; alb = ${v3(hexLin(0x2c3a26))} * mix(vec3f(0.85, 0.95, 0.9), vec3f(1.1, 1.05, 0.95), hr(rid, 28u)); }
-  if (part == ${PART.trunk}u) { mat = 12u; alb = ${v3(hexLin(0x4a3a2c))}; }
   o.alb = alb;
   o.wl = vec4f(select(along, fx, part == ${PART.apron}u), select(ly - base, fz, part == ${PART.apron}u), halfX, top - ly);
   let ground = top - q.b.z - base;
@@ -380,7 +354,6 @@ struct VO { @builtin(position) pos: vec4f, @location(0) world: vec3f, @location(
   let door = select(select(f32((flags >> 8u) & 15u), 1e9, house), doorX, house && frontOrYard);
   o.ex = vec4f(select(ground, wid * 0.5, part == ${PART.apron}u), door, q.b.z, select(0.0, oh, pitched));
   o.rf = select(vec2f(mx, abs(v.p.z * BW) * sqrt(1.0 + pitch * pitch)), vec2f(yt, 0.0), part == ${PART.apron}u);
-  if (part == ${PART.tree}u || part == ${PART.shrub}u) { o.rf = vec2f(select(1.0, 0.0, length(v.p.xz) < 1e-4), 0.0); }   // foliage: 0 at a crown's tip, 1 at its skirt
   return o;
 }
 fn sunAt(h: f32, s: vec3f) -> vec3f {
@@ -535,14 +508,6 @@ ${SHORE_LIGHT_WGSL}
     A = mix(A, ${v3(hexLin(0x6a655c))} * (0.85 + 0.3 * vnoise(p.xz * 3.0)), drive);
     rough = 0.97; specK = 0.3; ao *= mix(0.7, 1.0, t);
   }
-  if (mat == 11u) {
-    // foliage: clumps and gaps, the undersides of the boughs dark
-    let cl = vnoise(p.xz * 2.6 + vec2f(p.y * 2.1, p.y * 1.3)) * 0.6 + vnoise(p.xz * 7.0 + vec2f(0.0, p.y * 5.0)) * 0.4;
-    if (v.rf.x > 0.72 + 0.35 * cl) { discard; }   // a ragged skirt: the boughs' ends, not a cone's rim
-    A *= 0.45 + 0.85 * cl; A *= mix(0.55, 1.0, smoothstep(0.1, 0.7, n.y));
-    rough = 0.95; specK = 0.2; ao *= 0.8;
-  }
-  if (mat == 12u) { rough = 0.95; specK = 0.3; }
   if (mat == 13u) { A *= 0.9 + 0.2 * vnoise(p.xz * 2.0); rough = 0.6; }
   // the porch lamp: a warm lamp beside the door on most houses, its pool on the wall
   if (mat == 1u && night > 0.0 && v.ex.y < 1e8 && hash2(vec2f(id, 5.0)) < ${HOUSE.porchShare.toFixed(2)}) {
@@ -566,7 +531,7 @@ ${SHORE_LIGHT_WGSL}
   return vec4f(out, 1.0);
 }`;
 
-export function createBuildings({ device, reg, frameBGL, frameStruct, sky, shadow, terrain, hdrTarget, msaa = 1, depthFormat = 'depth32float', errors = [], fetchImpl = (u) => fetch(u), lite = false }) {
+export function createBuildings({ device, reg, frameBGL, frameStruct, sky, shadow, terrain, hdrTarget, msaa = 1, depthFormat = 'depth32float', errors = [], fetchImpl = (u) => fetch(u), lite = false, onYard = null }) {
   const nearM = lite ? 0 : HOUSE.nearM;   // a lite tier draws the far mesh everywhere (src/core/features.js buildingsTier)
   const VX = GPUShaderStage.VERTEX, FR = GPUShaderStage.FRAGMENT, CP = GPUShaderStage.COMPUTE, BU = GPUBufferUsage;
   const mesh = unitMesh();
@@ -617,6 +582,18 @@ export function createBuildings({ device, reg, frameBGL, frameStruct, sky, shado
     dBG = device.createBindGroup({ label: 'buildings-draw', layout: dBGL, entries: [{ binding: 0, resource: { buffer: instBuf } }, { binding: 1, resource: { buffer: idxBuf } }, { binding: 2, resource: { buffer: gBuf } }, { binding: 3, resource: { buffer: yBuf } }] });
     gBG = device.createBindGroup({ label: 'buildings-ground', layout: gBGL, entries: [{ binding: 0, resource: { buffer: instBuf } }, { binding: 1, resource: { buffer: idxBuf } }, { binding: 2, resource: { buffer: gBuf } }, { binding: 3, resource: { buffer: gpU } }, { binding: 4, resource: { buffer: yBuf } }] });
     stats.records = total; stats.sets = order; stats.ready = true; dirty = true; n = 0; nNear = 0;
+    // the yards' trees to the forest, in 1 km cells (its tile picker culls them by cell)
+    if (onYard) {
+      const cells = new Map(); let f = 0;
+      for (const id of order) {
+        const { D } = loaded.get(id);
+        for (const t of yardTrees(D, f)) { const k = `${Math.floor(t.x / 1000)},${Math.floor(t.z / 1000)}`; if (!cells.has(k)) cells.set(k, []); cells.get(k).push(t); }
+        f += D.count;
+      }
+      const list = [...cells.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([k, recs]) => { const [cx, cz] = k.split(',').map(Number); return { x0: cx * 1000 - 30, z0: cz * 1000 - 30, x1: cx * 1000 + 1030, z1: cz * 1000 + 1030, recs }; });
+      stats.yardTrees = list.reduce((a, c) => a + c.recs.length, 0);
+      onYard(list);
+    }
   }
   const loads = new Map();
   async function fetchSet(id) {

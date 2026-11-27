@@ -69,7 +69,7 @@ export function coverNear(d, L) {
 // box (REGION, or the start level's: forestRegion)
 export function createTilePicker({ L, ground, boxInFrustum, offsets = { shrubs: 0, region: 0 }, region = REGION }) {
   const out = new Uint32Array(MAX_TILES * 4), gb = new Float64Array(2);
-  const src = { trees: null, shrubs: null, region: false };
+  const src = { trees: null, shrubs: null, region: false, yard: null };
   let count = 0, tested = 0, overflow = 0;
   let far2 = 0, shrub2 = 0;   // read from L at each pick (a quality level may change the reach live)
   function push(first, n, s) { if (count >= MAX_TILES) { overflow++; return; } const o = count * 4; out[o] = first; out[o + 1] = n; out[o + 2] = s; out[o + 3] = 0; count++; }
@@ -99,6 +99,15 @@ export function createTilePicker({ L, ground, boxInFrustum, offsets = { shrubs: 
           if (nt) push(T.start[k], nt, SOURCE.trees);
           if (ns && d2 < shrub2) push(S.start[k] + offsets.shrubs, ns, SOURCE.shrubs);
         }
+      }
+      // the yard trees beside the buildings (render/forest.js setYard): their cells in range and view, as the region's tiles
+      if (src.yard) for (const c of src.yard) {
+        if (d2box(ex, ez, c.x0, c.z0, c.x1, c.z1) > far2) continue;
+        ground(c.x0, c.z0, c.x1, c.z1, gb);
+        if (!(gb[0] <= gb[1])) continue;
+        tested++;
+        if (!boxInFrustum(planes, c.x0, gb[0] - 1, c.z0, c.x1, gb[1] + TREE_TOP, c.z1)) continue;
+        push(c.first, c.count, SOURCE.region);
       }
       if (src.region) {
         const R = region, per = R.n * R.n, base = offsets.region;

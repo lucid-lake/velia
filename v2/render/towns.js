@@ -23,7 +23,7 @@ import { WATER_WGSL, TERRAIN_BIND, TERRAIN_HEIGHT } from './terrain.js';
 import { MIRROR_HAZE_M } from './water-aa.js';
 import { SHADOW_STRUCT, SHADOW_READ } from './shadow-read.js';
 import { frustumPlanes, boxInFrustum } from '../terrain/quadtree.js';
-import { decodeShore, mergeShore, MESH, CHUNK, SHORE_SETS } from '../towns/format.js';
+import { decodeShore, mergeShore, MESH, CHUNK, SHORE_SETS, BAY } from '../towns/format.js';
 import { inflate } from '../terrain/decode.js';
 
 export const TOWN_FILES = Object.freeze({ shore: new URL('../assets/towns/shore.vsh.gz', import.meta.url), mask: new URL('../assets/towns/mask.vtm.gz', import.meta.url) });
@@ -140,7 +140,9 @@ fn tNoise(p: vec2f) -> f32 {
   // the decks and slabs above the water: weathered, never a flat grey box (each pattern filtered to its mean when small). A
   // flat top of a long deck: boards across its length; a wide slab (a breakwater's or a harbour's top): concrete with joints;
   // the sides: streaks and the wet, dark band over the waterline
-  if (p.y > -0.05 && max(v.sz.x, v.sz.z) > 2.0) {
+  // (outside Emerald Bay: the bay's shore keeps v1's look, which its page test holds to v1's colours)
+  let inBay = p.x > ${BAY.x0.toFixed(1)} && p.x < ${BAY.x1.toFixed(1)} && p.z > ${BAY.z0.toFixed(1)} && p.z < ${BAY.z1.toFixed(1)};
+  if (!inBay && p.y > -0.05 && max(v.sz.x, v.sz.z) > 2.0) {
     specK = 0.45; roughT = max(roughT, 0.92);   // weathered: a matte face, its sky sheen mostly gone
     A *= (0.5 + 0.45 * smoothstep(0.15, 0.85, tNoise(p.xz * 0.11 + vec2f(p.y * 0.2, 0.0)))) * (0.8 + 0.25 * tNoise(p.xz * 2.1 + vec2f(0.0, p.y * 1.7)));   // aged: a value darker than new, mottled
     if (n.y > 0.95) {
