@@ -87,3 +87,20 @@ test('a stage far past its plan: the creep restarts toward a farther cap, keeps 
   bar.ready(); assert.equal(cleared, 1, 'the interval stops at ready');
   delete globalThis.getComputedStyle;
 });
+
+test('a milestone that arrives past its cap (a long gate: its rearms carried the bar there) still creeps on, never still', () => {
+  globalThis.getComputedStyle = () => ({ transform: 'none' });
+  let t = 0; const root = fakeRoot();
+  const bar = installLoadBar({ root, now: () => t, every: () => 7, clear: () => {} });
+  const S = root.els['.lk-sailed'];
+  bar.mark('gate');
+  for (let i = 0; i < 9; i++) { t += REARM_MS; bar.rearm(); }   // 22.5 s on a slow link
+  const v = bar.value();
+  assert.ok(v > MILESTONES.gpu[1], `the gate's creep is past the device's cap (${v.toFixed(3)})`);
+  bar.mark('gpu');
+  const s = scales(S.anims.at(-1));
+  assert.ok(s[0] >= v - 1e-4, 'never back');
+  assert.ok(s.at(-1) - s[0] > 0.04 && Math.max(...s) <= MAX_BEFORE_READY + 1e-9, `the build after it creeps on (${s[0]} to ${s.at(-1)})`);
+  t += 700; assert.ok(bar.value() - s[0] > 0.01, 'and moves within its first 700 ms');
+  delete globalThis.getComputedStyle;
+});
