@@ -137,3 +137,46 @@ test('the Breach: breachTarget skips a boat in its grace; a press with only grac
   assert.equal(P.bounty.state().trials.breach, 5, 'no free trial spent');
   assert.equal(P.stats().rpg.breachFx, null);
 });
+
+// ---- finding 3: one bounty for the page when the store cannot hold it ----
+test('a private window: the player\'s and the Logbook\'s bounties are one (no store, a store that throws, one that refuses writes)', async () => {
+  const { createTessieBounty } = await import('../sim/tessieBounty.js');
+  const refuses = (seed) => { const m = new Map(seed ? [[BOUNTY.key, seed]] : []); return { getItem: (k) => m.get(k) ?? null, setItem: () => { throw new Error('quota'); }, map: m }; };
+  const throws = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } };
+  for (const [name, storage] of [['no store', null], ['a store that throws', throws], ['a store that refuses writes', refuses(null)], ['refuses writes, an old save', refuses(JSON.stringify({ _v: 2, xp: 12 }))]]) {
+    const play = createTessieBounty({ storage }), book = createTessieBounty({ storage });
+    const xp0 = play.state().xp;
+    for (let i = 0; i < 2; i++) play.score({ kind: 'sail', depthM: 0 });
+    assert.equal(book.state().xp, play.state().xp, `${name}: the Logbook reads the play's XP`);
+    assert.ok(play.state().xp > xp0);
+    assert.equal(book.state().level, play.state().level, `${name}: the same level`);
+    assert.ok(book.state().points >= 1, `${name}: a point to spend`);
+    assert.equal(book.spend('lure').ok, true, `${name}: spending works from the Logbook`);
+    assert.equal(play.state().ranks.lure, 1, `${name}: and the play sees the rank`);
+  }
+  // the player made the way the page makes it (living/lakePlugins.js: no storage passed, globalThis.localStorage absent)
+  const P = createTessiePlayer({ plugin: { sim: createTessie({ seed: 1, depthAt: deep }), render: { ready: true }, playDip: 1 }, B: createBoatSim({ water: waterFor(() => 0), heightAt: () => -40, wind: { pattern: null, base: { dirDeg: 0, speedMs: 5 }, setLevel() { return 1; }, sample: () => ({ vx: 0, vz: 0 }) }, headless: true }), headless: true, rpg: true, storage: null });
+  const book = createTessieBounty({ storage: null });
+  P.bounty.score({ kind: 'glass', depthM: 0 });
+  assert.equal(book.state().xp, P.bounty.state().xp, 'the page\'s two holders agree');
+});
+
+// ---- finding 5: a save of an unknown _v is never written over ----
+test('a save of a newer _v is kept untouched in the store (read in memory, play kept for the session); no _v with XP migrates, XP kept', async () => {
+  const { createTessieBounty, migrate } = await import('../sim/tessieBounty.js');
+  const raw = JSON.stringify({ _v: 3, xp: 500, ranks: { dash: 2, lure: 2 }, future: { x: 1 } });
+  const st = memStore({ [BOUNTY.key]: raw }), T = createTessieBounty({ storage: st });
+  assert.equal(T.state().xp, 500, 'read as well as it can be');
+  assert.equal(T.state().ranks.lure, 2);
+  assert.equal(st.map.get(BOUNTY.key), raw, 'not written on the first read');
+  T.score({ kind: 'sail', depthM: 0 });
+  assert.ok(T.state().xp > 500, 'the session\'s play kept in memory');
+  assert.equal(st.map.get(BOUNTY.key), raw, 'never written over, even after a score');
+  assert.equal(createTessieBounty({ storage: st }).state().xp, T.state().xp, 'another holder of the store sees the same session');
+  assert.equal(migrate(raw, null).frozen, true);
+  const old = memStore({ [BOUNTY.key]: JSON.stringify({ xp: 500, byType: { sail: { wrecked: 7 } } }) }), U = createTessieBounty({ storage: old });
+  assert.equal(U.state().xp, 500, 'no _v: the XP kept');
+  assert.equal(U.state().byType.sail.wrecked, 7, 'and the counts');
+  assert.equal(JSON.parse(old.map.get(BOUNTY.key))._v, BOUNTY.v, 'migrated and written as today\'s _v');
+  assert.equal(migrate(JSON.stringify({ hello: 1 }), '3').save.byType.sail.wrecked, 3, 'no _v and nothing of a save: a new one (the old knock total carried)');
+});
