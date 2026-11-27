@@ -145,7 +145,7 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   const ANCHOR_WORK = new Set(['falling', 'down', 'weighing', 'up']);   // not 'held' (nor 'stowed'): at anchor is quiet water, so "Anchor's holding." (a tip) can show
   const leanBusy = () => !!assist?.active || !!B.carryKeep || Math.abs((phys.state.furl ?? 0) - furlWantNow()) > 0.03 || ANCHOR_WORK.has(B.sea?.tackle?.state?.anchor?.phase);
   // the first sail's intro is due (v2/ui/firstSail.js: Sail, welcomed, not yet said; never on a ?filmui=1 film, which builds no first sail)
-  const firstDue = () => mode === 'sail' && flags.filmui !== true && !!settings?.get && settings.get('welcomed') === true && settings.get('introShown') === false;
+  const firstDue = () => mode === homeId() && flags.filmui !== true && !!settings?.get && settings.get('welcomed') === true && settings.get('introShown') === false;
   const lean = createLeanSkipper({ phone: phoneQuiet, storage: store, busy: leanBusy, firstDue });
   services.provide('lean', lean);
   const hint = createControlsHint({ services, state: () => phys.state, once, skills, words, proKeys: () => pro, pilot: () => B.assists?.pilot !== false, voice, phoneQuiet: lean,
