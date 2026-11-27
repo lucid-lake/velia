@@ -96,7 +96,7 @@ export const SURGE_LINES = Object.freeze({
 // the first wreck of a boat wrecked within BOUNTY.repeatS before (the RPG; once ever): why the bounty paid less
 export const REPEAT_LINE = Object.freeze({ kind: 'tip.tessie.repeat', text: 'Same boat again: half the bounty. Find a fresh one.' });
 const HALCYON = { L: 8.5, B: 3.0 }, BUSY_HULL = { L: 8.5, B: 3.0 }, GLASS = { L: 12.2, B: 3.8 };
-export const PLAYER = Object.freeze({ offM: 150, veilOut: 0.22, veilIn: 0.4, reachDelayS: 2, reachM: [100, 90, 115, 80, 125], reachConeDeg: 20, holdNearM: 30, dialM: 20, arrowV: 0.2, lookUpM: 6, fastS: 3, chevV: Object.freeze([1.5, 6.5, 15]), dashLineS: 2 });   // dashLineS: a boat in her corners out of reach this long, once ever: the dash's line   //: the fast line after 3 s swimming at the surface; the speed chevrons lit past 1.5, 6.5 and 15 m/s   // phase 2a: the dial's 0–20 m, its ▲/▼ past 0.2 m/s, the first dive's line, the first time past 6 m
+export const PLAYER = Object.freeze({ offM: 150, veilOut: 0.22, veilIn: 0.4, reachDelayS: 2, reachM: [100, 90, 115, 80, 125], reachConeDeg: 20, nextDelayS: 6, nextNearM: 220, nextM: Object.freeze([170, 150, 190, 130, 210]), holdNearM: 30, dialM: 20, arrowV: 0.2, lookUpM: 6, fastS: 3, chevV: Object.freeze([1.5, 6.5, 15]), dashLineS: 2 });   // nextDelayS, nextNearM, nextM: the RPG's next boat after a wreck (6 s on, none upright and fresh within 220 m: one laid 130–210 m ahead)   // dashLineS: a boat in her corners out of reach this long, once ever: the dash's line   //: the fast line after 3 s swimming at the surface; the speed chevrons lit past 1.5, 6.5 and 15 m/s   // phase 2a: the dial's 0–20 m, its ▲/▼ past 0.2 m/s, the first dive's line, the first time past 6 m
 
 const MARK = '<svg viewBox="0 0 32 20" aria-hidden="true"><path d="M2 15c3-1 4-6 7-6s3 5 6 5 3-6 6-6c2 0 3 2 3 4M24 12c1-4 1-8 4-9 1.5-.5 2.5.6 2 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 17.5h30" stroke="currentColor" stroke-width="1" opacity=".55"/></svg>';
 const BOAT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v13M12 4l6 11h-6M11 6L6 15h5"/><path d="M3 18h18l-2 3H6z"/></svg>';
@@ -505,22 +505,29 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     }
     return { x: s.x + Math.sin(s.heading + Math.PI / 2) * 60, z: s.z - Math.cos(s.heading + Math.PI / 2) * 60, heading: s.heading };
   }
-  // the reach: within 10 s of a menu or chart entry, one of the lake's sailboats 80–125 m ahead of her in a 40° cone
-  function stageReach() {
+  // the reach: within 10 s of a menu or chart entry, one of the lake's sailboats 80–125 m ahead of her in a 40° cone. After a wreck
+  // (near: m), the next boat: when no upright boat out of its grace is within near m of her, one laid R0 m ahead (cheat on where:
+  // the swim between two wrecks was about 80 % of the time between them)
+  function stageReach(R0 = PLAYER.reachM, near = null) {
     const n = nose(), L = busy(); if (!n || !L?.active) return true;
-    const list = L.liveBoats.filter((b) => !b.knock?.capsized); if (!list.length) return false;   // never a capsized one (it would pop upright)
-    for (const b of list) { const s = b.phys.state, d = Math.hypot(s.x - n.x, s.z - n.z), off = Math.abs(Math.atan2(Math.sin(Math.atan2(s.x - n.x, -(s.z - n.z)) - n.psi), Math.cos(Math.atan2(s.x - n.x, -(s.z - n.z)) - n.psi))); if (d < 140 && off < PLAYER.reachConeDeg * DEG) return true; }
+    let list = L.liveBoats.filter((b) => !b.knock?.capsized); if (!list.length) return false;   // never a capsized one (it would pop upright)
+    if (near == null) { for (const b of list) { const s = b.phys.state, d = Math.hypot(s.x - n.x, s.z - n.z), off = Math.abs(Math.atan2(Math.sin(Math.atan2(s.x - n.x, -(s.z - n.z)) - n.psi), Math.cos(Math.atan2(s.x - n.x, -(s.z - n.z)) - n.psi))); if (d < 140 && off < PLAYER.reachConeDeg * DEG) return true; } }
+    else {
+      list = list.filter((b) => !b.knock && !graced(b.id) && !(clock - (wreckAt.get(b.id)?.at(-1) ?? -Infinity) < BOUNTY.repeatS));   // a fresh boat: not righting, not in its grace, not one just wrecked
+      if (list.some((b) => Math.hypot(b.phys.state.x - n.x, b.phys.state.z - n.z) < near)) return true;
+      if (!list.length) return false;
+    }
     const eye = lastPose?.pos ?? [n.x, 0, n.z];
     const pick = [...list].sort((a, b) => Math.hypot(b.phys.state.x - eye[0], b.phys.state.z - eye[2]) - Math.hypot(a.phys.state.x - eye[0], a.phys.state.z - eye[2]))[0];
     const s = B.state, windFrom = (s.heading ?? 0) + (s.trueWind?.angle ?? 0);
-    for (const R of PLAYER.reachM) for (const off of [0, 8, -8, 15, -15]) {
+    for (const R of R0) for (const off of [0, 8, -8, 15, -15]) {
       const a = n.psi + off * DEG, x = n.x + Math.sin(a) * R, z = n.z - Math.cos(a) * R;
       if (depthAt(x, z) < 6) continue;
       const hs = [n.psi + Math.PI / 2, n.psi - Math.PI / 2].sort((h1, h2) => Math.abs(Math.cos(h1 - windFrom)) - Math.abs(Math.cos(h2 - windFrom)));
       for (const h of hs) {
         if (Math.abs(Math.atan2(Math.sin(h - windFrom), Math.cos(h - windFrom))) < 60 * DEG) continue;
         let ok = true; for (let k = 15; k <= 90 && ok; k += 15) ok = depthAt(x + Math.sin(h) * k, z - Math.cos(h) * k) >= 4;
-        if (ok && L.lay(pick.id, { x, z, heading: h, speed: 2.6 })) { log.reach = { id: pick.id, R, at: +clock.toFixed(1) }; return true; }
+        if (ok && L.lay(pick.id, { x, z, heading: h, speed: 2.6 })) { log.reach = { id: pick.id, R, at: +clock.toFixed(1), ...(near != null ? { next: true } : {}) }; return true; }
       }
     }
     return false;
@@ -546,6 +553,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     else if (b.sim) ok = !!b.sim.hit(b.id, hitRule(b.kind), away);   // South Lake: a runabout knocked down; the jet ski's rider and the paddle-wheeler splashed only
     if (ok) H.mark(b.id, clock);   // every knockdown starts its 45 s grace (a bite's and a fall's already have: the slap's and the beside-wave's here)
     if (ok) scoreWreck(b, ctx);
+    if (ok && bounty) nextAt = clock + PLAYER.nextDelayS;   // the RPG: the next boat, if none is near (stageReach)
     if (ok) { pullUntil = clock + 5; knockTotal++; try { storage?.setItem(COUNT_KEY, String(knockTotal)); } catch { /* */ } log.knocks.push({ id: b.id, kind: b.kind, side: r.side, at: +clock.toFixed(1), d: r.d }); }
     return ok;
   }
@@ -998,6 +1006,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       const biting = C.state.bite?.target?.id ?? C.state.lunge?.target?.id ?? null;
       H.holdOff(sim.state.spine, sim.L, biting ? list.filter((b) => b.id !== biting || b.kind !== 'kayak') : list, (s) => reachAt(s, sim.L));
       if (!reachDone && clock - entryT > PLAYER.reachDelayS) reachDone = stageReach() || clock - entryT > 10;
+      if (nextAt != null && clock >= nextAt) { nextAt = null; stageReach(PLAYER.nextM, PLAYER.nextNearM); }   // the RPG: a fresh boat after a wreck
       // the sound and the beds under the surface
       // her sound (v2/living/tessie-sound.js played): the rush by speed and gait (the top 19 m/s), the world's low-pass by the eye's depth,
       // the water's ambience, the engines, the one-shots from this frame's events
@@ -1042,6 +1051,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   };
   let lastLock = null, lastTg = null, lockWas = null, lockAt = -Infinity;   //: the lock this step, the corners' close-in clock
   const soundKnocks = [];   // this frame's contacts that hit, for her sound
+  let nextAt = null;   // the RPG: when to look for the next boat after a wreck (stageReach's near rule)
   let pendingChart = false, holdTip = 0, lastAim = null, pendingEntry = null, pullUntil = -1, lastUnder = null, hud = null, layoutKey = '', outT = 0, world = null;
   // the HUD's places for this window: a desktop's bottom corners and row, a tablet's top corners
   function placeHud() {
