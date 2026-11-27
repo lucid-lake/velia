@@ -27,9 +27,10 @@ import { UNDERWATER_WGSL } from './underwater.js';
 import { UNDER_WGSL } from './underMedium.js';   // play as Tessie, phase 2a
 import { underPipe } from './underState.js';
 import { SHADOW_STRUCT, SHADOW_READ } from './shadow-read.js';
-import { CREATURE, WATER_COMPUTE_WGSL } from './creature-map.js';
+import { CREATURE, CREATURE_VEC4, WATER_COMPUTE_WGSL } from './creature-map.js';
 export { CREATURE, WATER_COMPUTE_WGSL };   // the creature map's maths: shared with the osprey's strike (living/birds-splash.js)
 import { parseGlb, sceneNodes, meshPrimitives } from '../engine/gltf.js';
+import { mapExtent } from '../sim/tessieWaves.js';   // the map widens while a skill's wave runs past 23 m (the Tail Surge's swell)
 
 const SPINE_N = 64;
 const TU_FLOATS = SPINE_N * 8 + 12;   // the spine (pos, up) + p (L, N, wetAge, t) + q (bed, played, paddle phase, paddle amp) + r (gape, 0, 0, 0)
@@ -37,7 +38,7 @@ const TU_FLOATS = SPINE_N * 8 + 12;   // the spine (pos, up) + p (L, N, wetAge, 
 // skin closed: no inside, no teeth). Sightings send 0 for both, so their frames are the same as before
 export const POSE = Object.freeze({ fore: Object.freeze([5.0, -0.25, 0.56]), hind: Object.freeze([10.2, -0.28, 0.64]), split: 7.6, sweep: 0.35,   // the flipper roots (rest x, y, |z| m), the pair's split, the stroke's fore-aft share
   hinge: 0.95, mouth: 0.44, corner: 0.20, cheekW: 0.36, jawY: Object.freeze([-0.03, -0.05]), back: 0.15, crease: 0.03, dark: 0.6, gapeMax: 15 });   // the jaw: its hinge (rest x m), the mouth's line under the snout (x 0.44 m, 0.20 m further back at the corners), the cheek's half-width, the jaw's line y = a + b x, the gape's pull back, the crease's width (m) and darkening
-const CU_VEC4 = 2 + CREATURE.maxK + CREATURE.maxR + CREATURE.maxC;
+const CU_VEC4 = CREATURE_VEC4;
 
 const COMMON = (fs) => `diagnostic(off, derivative_uniformity);
 ${fs}
@@ -578,7 +579,7 @@ export function createTessieRender({ device, reg, frameBGL, frameStruct, sky, sh
   }
 
   let asset = null, vb = null, ib = null, loading = null, live = false, waterLive = false, lod = 'lod0';
-  const stats = { bytes: 0, loadMs: null, verts: 0, triangles: 0, calls: 0, dispatches: 0, L: null, lod: null, drops: 0, mists: 0, shadow: 0, gloom: 0 };
+  const stats = { bytes: 0, loadMs: null, verts: 0, triangles: 0, calls: 0, dispatches: 0, L: null, lod: null, drops: 0, mists: 0, shadow: 0, gloom: 0, extent: 64, waves: 0 };
   // M2: the desk LODs by her length on screen (the kayaks' size rule): near over 260 px, mid over 90 px, far below
   const LOD_PX = { near: 260, mid: 90 };
   const self = {
@@ -614,12 +615,14 @@ export function createTessieRender({ device, reg, frameBGL, frameStruct, sky, sh
       tu[o + 6] = st.paddle?.phase ?? 0; tu[o + 7] = st.paddle?.amp ?? 0; tu[o + 8] = st.gape ?? 0;   // played: the player swims her (her wet back);: the paddle and the gape (0 for a sighting)
       device.queue.writeBuffer(ubuf, 0, tu);
       if (!waterLive) return;
-      const E = CREATURE.extent, cell = E / CREATURE.size;
+      const E = mapExtent(st.water.reach ?? 0), cell = E / CREATURE.size;
       const x0 = Math.round((st.centre[0] - E / 2) / cell) * cell, z0 = Math.round((st.centre[1] - E / 2) / cell) * cell;
       wake.creature.x0 = x0; wake.creature.z0 = z0; wake.creature.extent = E;
-      const W = st.water, K = W.kelvin.slice(0, CREATURE.maxK), R = W.rings.slice(-CREATURE.maxR), Cn = W.contacts.slice(0, CREATURE.maxC);
+      const W = st.water, K = W.kelvin.slice(0, CREATURE.maxK), R = W.rings.slice(-CREATURE.maxR), Cn = W.contacts.slice(0, CREATURE.maxC), Sk = (W.skill ?? []).slice(-CREATURE.maxS / 2);
       cu.fill(0);
-      cu.set([x0, z0, E, 0, K.length, R.length, Cn.length, st.t], 0);
+      cu.set([x0, z0, E, Sk.length, K.length, R.length, Cn.length, st.t], 0);
+      Sk.forEach((e, i) => cu.set(e, 8 + (CREATURE.maxK + CREATURE.maxR + CREATURE.maxC + i * 2) * 4));
+      stats.extent = E; stats.waves = Sk.length;
       K.forEach((e, i) => cu.set(e, 8 + i * 4));
       R.forEach((e, i) => cu.set(e, 8 + (CREATURE.maxK + i) * 4));
       Cn.forEach((e, i) => cu.set(e, 8 + (CREATURE.maxK + CREATURE.maxR + i) * 4));

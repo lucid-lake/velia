@@ -6,12 +6,18 @@
 //   lureTargets(her { x, z }, list [{ id, kind, x, z }], { rangeM, seen(id) → bool, halcyon }) → the ids lured, nearest first
 //   curiousHeading(s { x, z, heading }, at { x, z }, windFrom, noGoDeg) → the heading toward the point, never inside the no-go cone
 //   lureSplashes(x, z, n) → n points (seeded by index: the golden angle) for the small splashes round her, within LURE.splashM
+//   lureHops(x, z, n) → n points (the golden angle) for the fish that flick out of the water toward her, LURE.hopM[0]–[1] m out
+// Its look (no outward ring): ripples closing in on her from LURE.rippleR0 m (the creature map's inward train, sim/tessieWaves.js), small
+// fish flicking out of the water toward her, her tail's flick; each lured boat gets a short dashed cream line toward her, its dashes flowing in
 import { CURIOUS, curiousHeading } from './curious.js';
 export { curiousHeading };
 export const LURE = Object.freeze({
   seenS: 45,          // s: a boat that saw her this recently ignores the lure (the RPG's seen window)
-  ringM: 30,          // m: the ring of small splashes on the water (the in-world ring's radius)
-  ringGrowS: 1.5, ringS: 4,   // s: the ring runs out to ringM over ringGrowS and fades by ringS
+  ringM: 30,          // m: the call's reach on her water (the inward ripples start just inside it)
+  ringGrowS: 1.5, ringS: 4,   // s: the call's look lasts ringS (the ripples, the fish, the lured boats' lines)
+  ripples: 3, rippleR0: 21, rippleV: 7, rippleEveryS: 0.6,   // the inward trains: how many, from m out, at m/s, s apart
+  hops: 10, hopM: Object.freeze([5, 18]),   // the fish flicking toward her over the cast, m out
+  linePx: 110, lineS: 5,   // the lured boats' lines on the screen: px long at most (a third of the way to her), shown s (the last 1.5 s fading)
   splashM: 9,         // m: the small splashes lie within this of her (a school's shimmer)
   splashes: 6,        // the creature-map rings over the cast (LURE_CAST_S)
   ...CURIOUS,         // arriveM, kayakArriveM, slowM, easeDeg, noGoDeg (sim/curious.js)
@@ -36,5 +42,12 @@ export function lureSplashes(x, z, n = LURE.splashes, out = []) {
   out.length = 0;
   const GA = Math.PI * (3 - Math.sqrt(5));
   for (let i = 0; i < n; i++) { const r = LURE.splashM * Math.sqrt((i + 0.5) / n), a = i * GA; out.push([x + Math.sin(a) * r, z - Math.cos(a) * r]); }
+  return out;
+}
+
+export function lureHops(x, z, n = LURE.hops, out = []) {
+  out.length = 0;
+  const GA = Math.PI * (3 - Math.sqrt(5)), [r0, r1] = LURE.hopM;
+  for (let i = 0; i < n; i++) { const r = r0 + (r1 - r0) * Math.sqrt((i + 0.5) / n), a = i * GA + 0.7; out.push([x + Math.sin(a) * r, z - Math.cos(a) * r]); }
   return out;
 }

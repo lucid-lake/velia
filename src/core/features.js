@@ -101,6 +101,12 @@ export const POLICIES = Object.freeze({
   tessieUnder: { fixed: true, axes: 'form, gpu', aliases: '?tessie=0 (none)',
     why: 'the eye under the water as Tessie (the medium, Snell\'s window, the crossing): full at L0-L1, lite at L2, none at L3 or on a phone (no Tessie there)',
     tier: (p, c, m, decide) => (decide('playTessie') !== 'on' ? 'none' : p.gpu != null && p.gpu >= 2 ? 'lite' : 'full') },
+  // the Tessie RPG's skill effects (each skill its own look: the Dash's bow spray and boil, the Lure's inward ripples and fish, the
+  // ping's pulse, the Surge's swell and crest spray, the Breach's column and landing wave): full at L0-L1, lite at L2 (about half the
+  // spray, the swell's crest spray thinner, no hull spray), none where she is not playable
+  tessieSkillFx: { fixed: true, axes: 'form, gpu', aliases: '?tessie=0 (none)',
+    why: 'the Tessie RPG skills\' own water effects: full at L0-L1, lite at L2 (half the spray), none where she is not playable',
+    tier: (p, c, m, decide) => (decide('playTessie') !== 'on' ? 'none' : p.gpu != null && p.gpu >= 2 ? 'lite' : 'full') },
   // her tablet controls: the floating thumbstick, Lunge and Dive, on a finger's device where she is playable
   tessieTouch: { fixed: false, axes: 'input', aliases: '?touch=1 (on), ?touch=0 (off)',
     why: 'play as Tessie\'s thumbstick, Lunge and Dive buttons on a touch or mixed input (a tablet, a touch laptop); keys only: the keys',

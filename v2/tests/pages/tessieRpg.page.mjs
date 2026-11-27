@@ -17,7 +17,8 @@
 //   the free trials: a locked skill with uses left shows its glyph at 60 % and the count (its legend line too); a press with no
 //     behaviour spends none; a real use (a stub behaviour) spends one and at 0 the slot returns to the locked look
 // Phase 3 (Lure and Sonar, v2/sim/tessieLure.js, tessieSonar.js): 2 fires the Lure (a busy-lake sailboat laid 90 m ahead of her,
-//     crossing, turns toward her; the slot's ring amber then cooling; the lure's ring on the water); 3 pings (the marks under the
+//     crossing, turns toward her; the slot's ring amber then cooling; no ring on the water: ripples closing in, fish flicking toward
+//     her, a dashed line flowing from the lured boat toward her); 3 pings (one thin pulse running out; the marks under the
 //     hulls in the world; the SONAR dial rescaled to 300 m, a type-coded blip per marked boat at its true bearing and range, the half
 //     ring and the rim labelled; the ring); a click on the Sonar slot while it cools does nothing
 // The icons (the RTS pass): every slot's name under its tile (locked ones dimmed) at 1280, 1180 and 1100, the names apart; a
@@ -25,7 +26,7 @@
 // The cheat (?tessiecheat=1, or G R U F F typed while she is played): "Cheat on: every skill, no cooldown." on the skipper's line,
 //     every slot at rank 4, the Sonar pinging twice in a row, the Dash again the moment its burst ends; the save byte for byte as
 //     seeded; the code again: "Cheat off.", the save's ranks back
-// Phase 4 (Tail Surge, v2/sim/tessieSurge.js): 4 winds up 1.2 s (the slot amber), then the slap: the wave's cream ring on the water
+// Phase 4 (Tail Surge, v2/sim/tessieSurge.js): 4 winds up 1.2 s (the slot amber), then the slap: a swell on her water (no drawn ring)
 //     runs out to 40 m, a busy-lake sailboat laid 20 m abeam heels away from her; a click on the slot while it cools does nothing; in a
 //     strong wind (?wind=4, the fleet out 25 s, then a gust laying one past 22°) a boat leaning past 20° moved 9 m off her just before the slap goes over (scored as wrecked)
 // Phase 5 (Breach, v2/sim/tessieBreach.js): 5 held from 7 m down with a busy-lake sailboat laid 45 m ahead crossing her bow: the run at
@@ -279,11 +280,12 @@ try {
     const offNow = (id) => page.evaluate((i) => { const V = window.__velia, b = V.busy.lake.liveBoats.find((o) => o.id === i)?.phys.state, n = V.tessie.sim.state.nose; if (!b || !n) return null; const a = Math.atan2(n.x - b.x, -(n.z - b.z)) - b.heading; return Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) * 180 / Math.PI; }, id);
     const slot = (id) => page.evaluate((i) => { const s = document.querySelector(`#lk-tplay .tp-slot[data-skill=${i}]`), r = s.querySelector('.rg'); return { ink: s.dataset.ink, ring: +r.getAttribute('stroke-dasharray').split(' ')[0], full: +r.getAttribute('stroke-dasharray').split(' ')[1], shown: getComputedStyle(r).display !== 'none' }; }, id);
     const off0 = await offNow(laid);
-    await page.keyboard.press('Digit2'); await page.waitForTimeout(150);
-    const l1 = await page.evaluate(() => ({ lure: window.__velia.tessiePlay.stats().log.lure, ring: document.querySelector('#lk-tplay .tp-world .lr')?.getAttribute('visibility'), world: getComputedStyle(document.querySelector('#lk-tplay .tp-world')).display !== 'none' }));
+    await page.keyboard.press('Digit2'); await page.waitForTimeout(700);
+    const l1 = await page.evaluate(() => { const w = document.querySelector('#lk-tplay .tp-world'), V = window.__velia; return { lure: V.tessiePlay.stats().log.lure, fx: V.tessiePlay.stats().log.fx.lure, inward: V.tessie.sim.state.water.skill.filter((s) => s[3] === 2).length, ring: !!w.querySelector('.lr, .sr'), lines: [...w.querySelectorAll('.lu')].filter((e) => e.getAttribute('visibility') === 'visible').length, lured: +(w.dataset.lured ?? 0), world: getComputedStyle(w).display !== 'none' }; });
     const r1 = await slot('lure');
     check(!!laid && l1.lure?.ids.includes(laid) && l1.lure.rangeM === 120 && l1.lure.curiousS === 12, `2 fires the Lure: the boat 90 m off is lured, 120 m, 12 s (${JSON.stringify(l1.lure)})`);
-    check(l1.world && l1.ring === 'visible', `the lure's ring on the water (${JSON.stringify(l1)})`);
+    check(l1.world && !l1.ring && l1.inward >= 1 && ['flick', 'hop', 'inward', 'shimmer'].every((k) => l1.fx.includes(k)), `the lure on the water: no drawn ring; ripples closing in, fish and a shimmer (${JSON.stringify({ ...l1, lure: undefined })})`);
+    check(l1.lines >= 1 && l1.lines === l1.lured, `a dashed line flows from the lured boat toward her (${l1.lines})`);
     check(r1.ink === 'amber' && r1.shown, `the Lure slot's ring runs amber (${JSON.stringify(r1)})`);
     await page.waitForTimeout(2350);
     if (process.env.TESSIE_RPG3_SHOT) await page.screenshot({ path: `${process.env.TESSIE_RPG3_SHOT}-lure.png` });
@@ -293,7 +295,10 @@ try {
     const wipe = await page.evaluate(() => { const c = document.querySelector('#lk-tplay .tp-slot[data-skill=lure] .cd'); return { d: c?.getAttribute('d') ?? '', shown: !!c && getComputedStyle(c).display !== 'none' }; });
     check(wipe.shown && /^M32 32L/.test(wipe.d), `and a wipe over the Lure's tile while it cools (${wipe.d.slice(0, 30)})`);
     // the Sonar: 3 pings; its rings under the hulls, the rim, the word
-    await page.keyboard.press('Digit3'); await page.waitForTimeout(1000);
+    await page.keyboard.press('Digit3'); await page.waitForTimeout(250);
+    const pl = await page.evaluate(() => { const w = document.querySelector('#lk-tplay .tp-world'); return { pulse: +(w.dataset.pulse || 0), sp: w.querySelector('.sp').getAttribute('visibility'), waves: window.__velia.tessie.sim.state.water.skill.length }; });
+    check(pl.pulse > 0 && pl.pulse < 300 && pl.sp === 'visible', `3 sends one thin pulse running out (${pl.pulse} m at 0.25 s)`);
+    await page.waitForTimeout(750);
     const p1 = await page.evaluate(() => {
       const so = document.querySelector('#lk-tplay .tp-sonar'), w = document.querySelector('#lk-tplay .tp-world'), V = window.__velia, n = V.tessie.sim.state.nose, R = 54;
       // each blip against its boat's true bearing and range on the ping's scale (the busy lake's sailboats: their positions are known here)
@@ -360,12 +365,12 @@ try {
       await page.waitForTimeout(400);
       const heel0 = await page.evaluate((i) => Math.abs(window.__velia.busy.lake.liveBoats.find((o) => o.id === i)?.phys.state.heel ?? 0) * 180 / Math.PI, laid);
       await page.keyboard.press('Digit4'); await page.waitForTimeout(400);
-      const w1 = await page.evaluate(() => { const st = window.__velia.tessiePlay.stats(), s = document.querySelector('#lk-tplay .tp-slot[data-skill=surge]'); return { surge: st.log.surge, fx: st.rpg.surgeFx, ink: s.dataset.ink, ring: document.querySelector('#lk-tplay .tp-world .sr')?.getAttribute('visibility') }; });
+      const w1 = await page.evaluate(() => { const st = window.__velia.tessiePlay.stats(), s = document.querySelector('#lk-tplay .tp-slot[data-skill=surge]'); return { surge: st.log.surge, fx: st.rpg.surgeFx, ink: s.dataset.ink, ring: !!document.querySelector('#lk-tplay .tp-world .sr, #lk-tplay .tp-world .lr'), swell: (window.__velia.tessie.sim.state.water.skill ?? []).filter((x) => x[3] === 1).length }; });
       check(w1.surge?.rank === 1 && w1.surge.ringM === 40 && w1.fx?.phase === 'windup' && !w1.surge.slap, `4 winds up: rank 1, 40 m, no slap yet at 0.4 s (${JSON.stringify(w1)})`);
-      check(w1.ink === 'amber' && w1.ring === 'hidden', `the Surge slot runs amber; no ring before the slap (${JSON.stringify({ ink: w1.ink, ring: w1.ring })})`);
+      check(w1.ink === 'amber' && !w1.ring && w1.swell === 0, `the Surge slot runs amber; no swell before the slap, no drawn ring at all (${JSON.stringify({ ink: w1.ink, ring: w1.ring, swell: w1.swell })})`);
       await page.waitForTimeout(1700);
       if (process.env.TESSIE_RPG4_SHOT) await page.screenshot({ path: `${process.env.TESSIE_RPG4_SHOT}-wave.png` });
-      const w2 = await page.evaluate((i) => { const st = window.__velia.tessiePlay.stats(), w = document.querySelector('#lk-tplay .tp-world'); return { slap: st.log.surge.slap, ring: w.querySelector('.sr')?.getAttribute('visibility'), r: +(w.dataset.surge || 0), heel: Math.abs(window.__velia.busy.lake.liveBoats.find((o) => o.id === i)?.phys.state.heel ?? 0) * 180 / Math.PI }; }, laid);
+      const w2 = await page.evaluate((i) => { const st = window.__velia.tessiePlay.stats(), w = document.querySelector('#lk-tplay .tp-world'), sk = window.__velia.tessie.sim.state.water.skill ?? []; return { slap: st.log.surge.slap, swell: sk.filter((x) => x[3] === 1).length, extent: window.__velia.tessie.stats().render.extent, kinds: st.log.fx.surge, r: +(w.dataset.surge || 0), heel: Math.abs(window.__velia.busy.lake.liveBoats.find((o) => o.id === i)?.phys.state.heel ?? 0) * 180 / Math.PI }; }, laid);
       const h = w2.slap?.heels.find((x) => x.id === laid);
       // the boat's peak heel over the 2 s after this (the wave reaches it at its distance / 20 m/s)
       // and the ring's radius as it runs (read 2.1 s after the press it is only about 0.9 s into its 2 s run: about 18 m; it reaches
@@ -376,7 +381,7 @@ try {
       for (let i = 0; i < 20; i++) { w2.heel = Math.max(w2.heel, await page.evaluate((id) => Math.abs(window.__velia.busy.lake.liveBoats.find((o) => o.id === id)?.phys.state.heel ?? 0) * 180 / Math.PI, laid)); ringRead(await ringAt()); await page.waitForTimeout(100); }
       for (let i = 0; i < 30 && ring.max < 40; i++) { const q = await ringAt(); if (q.r == null) break; ringRead(q); await page.waitForTimeout(100); }
       check(!!w2.slap && Math.abs(w2.slap.at - w1.surge.at - 1.2) < 0.15, `the slap 1.2 s after the press (${JSON.stringify(w2.slap && { at: w2.slap.at, press: w1.surge.at })})`);
-      check(w2.ring === 'visible' && w2.r > 0 && ring.max === 40 && !ring.off.length, `the wave's ring on the water, running out to 40 m at 20 m/s (${w2.r} m at the first read, ${ring.max} m at most; off its clock: ${JSON.stringify(ring.off)})`);
+      check(w2.swell === 1 && w2.extent > 64 && w2.r > 0 && ring.max === 40 && !ring.off.length && ['swell', 'crest', 'slap'].every((k) => w2.kinds.includes(k)), `the swell on her water (her map ${Math.round(w2.extent)} m wide), spume off its crest, running out to 40 m at 20 m/s (${w2.r} m at the first read, ${ring.max} m at most; off its clock: ${JSON.stringify(ring.off)}; ${w2.kinds})`);
       check(!!h && h.heelDeg > 15 && Math.abs(w2.heel - h.heelDeg) < 4 && w2.heel > heel0 + 8, `the boat ${h?.d} m off heels away from her (${heel0.toFixed(0)}° → ${w2.heel.toFixed(0)}°, the wave's ${h?.heelDeg}°)`);
       const so = await page.evaluate(() => { const r = document.querySelector('#lk-tplay .tp-slot[data-skill=surge]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
       await page.mouse.click(so.x, so.y); await page.waitForTimeout(200);

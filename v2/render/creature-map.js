@@ -3,18 +3,21 @@
 // page: 128² over 64 m centred on her) and the osprey's strike (living/birds-splash.js: its rings and foam patch, on every
 // form) write it with this one compute; one writer at a time (wake.creature.writer). Pure strings: no GPU here.
 //   sources (CrU.src): the V's impulses [x, z, tau, amp] (maxK), the rings [x, z, age, amp] (maxR), the waterline's
-//   cross-sections [x, z, radius, 0] (maxC)
+//   cross-sections [x, z, radius, 0] (maxC), the skill waves [x, z, age, kind] [p0, p1, p2, p3] (maxS = 2 × SKILL_WAVE_MAX vec4;
+//   their count in box.w: sim/tessieWaves.js)
 import { MX_NOISE_WGSL } from './wake.js';
+import { SKILL_WAVE_MAX } from '../sim/tessieWaves.js';   // the RPG's skill waves (the swell, the inward ripples, the churn)
 
-export const CREATURE = Object.freeze({ size: 128, extent: 64, maxK: 24, maxR: 16, maxC: 24, rc: 0.45, r0: 0.5, dtK: 1 / 3 });
+export const CREATURE = Object.freeze({ size: 128, extent: 64, maxK: 24, maxR: 16, maxC: 24, maxS: SKILL_WAVE_MAX * 2, rc: 0.45, r0: 0.5, dtK: 1 / 3 });
+export const CREATURE_VEC4 = 2 + CREATURE.maxK + CREATURE.maxR + CREATURE.maxC + CREATURE.maxS;   // the uniform's vec4 (box, cnt, the sources)
 
 // the creature map: rings, the V, the waterline's foam, the slick (the wake's impulse maths: render/wake.js WAKE_COMPUTE_WGSL)
 export const WATER_COMPUTE_WGSL = ({ size, offset }) => `
-struct CrU { box: vec4f, cnt: vec4f, src: array<vec4f, ${CREATURE.maxK + CREATURE.maxR + CREATURE.maxC}> }
+struct CrU { box: vec4f, cnt: vec4f, src: array<vec4f, ${CREATURE.maxK + CREATURE.maxR + CREATURE.maxC + CREATURE.maxS}> }
 @group(0) @binding(0) var<uniform> C: CrU;
 @group(0) @binding(1) var<storage, read_write> M: array<vec2u>;
 const S = ${size}u; const OFF = ${offset}u; const G = 9.81;
-const NK = ${CREATURE.maxK}u; const NR = ${CREATURE.maxR}u;
+const NK = ${CREATURE.maxK}u; const NR = ${CREATURE.maxR}u; const NC = ${CREATURE.maxC}u;
 ${MX_NOISE_WGSL}
 fn source(p: vec2f, at: vec2f, amp: f32, g4: f32, r02: f32, rc: f32, acc: ptr<function, vec3f>) {
   let rv = p - at; let r2 = dot(rv, rv) + r02; let r = sqrt(r2);
@@ -53,6 +56,51 @@ fn source(p: vec2f, at: vec2f, amp: f32, g4: f32, r02: f32, rc: f32, acc: ptr<fu
     let edge = (1.0 - smoothstep(-0.2, 0.6 + 1.1 * n1, dmin)) * smoothstep(-0.55, -0.05, dmin);
     foam = max(foam, edge * smoothstep(0.32, 0.9, 0.55 * n1 + 0.55 * n2) * 0.9);
     rough = max(rough, 1.0 - smoothstep(0.0, 3.0, dmin));
+  }
+  // the RPG's skill waves (sim/tessieWaves.js): a source is two vec4, [x, z, age, kind] [p0 … p3]; acc.yz is the slope as the
+  // impulses write it (minus the height's gradient)
+  let ns = u32(C.box.w); let cell = C.box.z / f32(S);
+  for (var i = 0u; i < ns; i++) {
+    let a = C.src[NK + NR + NC + 2u * i]; let q = C.src[NK + NR + NC + 2u * i + 1u];
+    let rv = p - a.xy; let d = length(rv) + 1e-4; let dir = rv / d; let age = a.z; let kind = u32(a.w + 0.5);
+    if (kind == 1u) {
+      // the swell: one raised crest (a hump, a shallow trough behind it) rolling out; foam torn along its top and front face
+      let w = max(q.w, cell * 1.8); let rr = min(q.y, q.x * age);
+      let fade = select(1.0, max(0.0, 1.0 - (q.x * age - q.y) / (q.x * 0.6)), q.x * age >= q.y);
+      let A = q.z * sqrt(4.0 / max(4.0, rr)) * fade;
+      let x = (d - rr) / w; let x2 = x + 1.6;
+      if (abs(x) > 4.5 && abs(x2) > 3.0) { continue; }
+      let e1 = exp(-x * x); let e2 = exp(-x2 * x2);
+      let dh = A * (-2.0 * x * e1 + 0.7 * x2 * e2) / w;
+      acc += vec3f(A * (e1 - 0.35 * e2), -dh * dir.x, -dh * dir.y);
+      let n = mxNoise(p * 0.9 + dir * age * 3.0) * 0.6 + mxNoise(p * 2.6 - vec2f(age * 1.7, 0.0)) * 0.5;
+      let lip = smoothstep(0.35, 0.95, e1) * (0.55 + 0.45 * smoothstep(-0.6, 0.4, x));
+      let thin = fade * (1.0 - 0.4 * smoothstep(0.0, q.y, rr));
+      foam = max(foam, lip * smoothstep(-0.3, 0.3, n) * thin);
+      rough = max(rough, e1 * 0.3 * fade);   // a little calm on its back only: a wide slick would read as a flat pale band
+    } else if (kind == 2u) {
+      // the inward ripples: a short train closing in on her, no foam but a glint of specks on its crests
+      let rr = max(0.0, q.x - q.y * age); let w = max(q.w, cell * 2.2);
+      let x = (d - rr) / w;
+      if (abs(x) > 3.5) { continue; }
+      let env = exp(-0.35 * x * x) * smoothstep(0.0, 0.4, age) * smoothstep(1.0, 4.0, rr);
+      let k = 6.2832 / w; let ph = (d - rr) * k;
+      let dh = q.z * env * cos(ph) * k;
+      acc += vec3f(q.z * env * sin(ph), -dh * dir.x, -dh * dir.y);
+      foam = max(foam, env * smoothstep(0.55, 1.0, sin(ph)) * smoothstep(0.25, 0.6, mxNoise(p * 3.1 + vec2f(age, -age))) * 0.5);
+      rough = max(rough, env * 0.6);
+    } else if (kind == 3u) {
+      // the churn: a white, boiling disc that fades over its life
+      let r = q.x + q.z * age;
+      if (d > r * 1.2) { continue; }
+      let life = clamp(1.0 - age / max(q.w, 0.1), 0.0, 1.0);
+      let m = (1.0 - smoothstep(0.5 * r, 1.15 * r, d)) * q.y * life;
+      let pp = p * 1.4 + vec2f(age * 0.8, -age * 1.1);
+      let n0 = mxNoise(pp); let nx = mxNoise(pp + vec2f(0.35, 0.0)) - n0; let nz = mxNoise(pp + vec2f(0.0, 0.35)) - n0;
+      acc += vec3f(0.0, nx * m * 0.9, nz * m * 0.9);
+      foam = max(foam, m * smoothstep(-0.25, 0.35, n0 * 0.7 + mxNoise(p * 4.3 - vec2f(age * 2.0, 0.0)) * 0.5));
+      rough = max(rough, m);
+    }
   }
   M[OFF + g.y * S + g.x] = vec2u(pack2x16float(acc.yz), pack2x16float(vec2f(clamp(foam, 0.0, 1.0), clamp(rough, 0.0, 1.0))));
 }`;

@@ -396,7 +396,7 @@ export const TESSIE = {
   on: (c) => c.boatOn && c.tessieOn,
   load: (c) => c.tessieModP,
   create: (c, mod) => {
-    const t = mod.createTessiePlugin({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: c.P.msaa, depthFormat: c.depthFormat, wake: c.wake, errors: c.errors, flags: c.flags, P: c.P, depthAt: (x, z) => -c.terrain.field.height(x, z), under: c.under });
+    const t = mod.createTessiePlugin({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: c.P.msaa, depthFormat: c.depthFormat, wake: c.wake, errors: c.errors, flags: c.flags, P: c.P, depthAt: (x, z) => -c.terrain.field.height(x, z), under: c.under, skillFx: c.feature('tessieSkillFx').tier });
     TESSIE_SIDE.set(t, { mod, play: null });
     return t;
   },

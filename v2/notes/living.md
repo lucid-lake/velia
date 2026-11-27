@@ -245,10 +245,33 @@ Level-ups that are felt (sim/tessieSkills.js): the Dash's ranks raise its speed 
 - **Sonar** marks every boat within the ping's range (no paddleboards): rings projected onto the water under the hulls (a pooled SVG
   layer in the play's own DOM, `.tp-world`), ticks on the SONAR dial's rim, the dial's word the range. Ranks: `sim/tessieSkills.js`.
 
+## Tessie's skill looks (`?tessierpg=1`; living/tessiePlayer.js `SKILL_FX`, sim/tessieWaves.js, render/creature-map.js, living/tessie-fx.js `skill()`)
+
+Each skill reads on its own; none is the old flat cream ring. The water's part rides her creature map: the sim keeps up to 10 skill
+waves (`sim.wave(kind, x, z, p, life)`: `swell` one raised crest with a trough behind it and foam torn along its top, `inward` a short
+ripple train closing in, `churn` a white boiling disc), two vec4 each after the waterline sections, their count in the map's `box.w`.
+The map widens from 64 m while a wave runs past 23 m (`mapExtent`: its round fade starts beyond the wave; at most 192 m, 1.5 m texels).
+The spray's part is her drops and mists (`plugin.skillFx(type, o)`): `boil`, `bow`, `hop`, `shimmer`, `crest`, `hull`, `column`.
+Her events emitted after her frame's effects read them (`sim.consumed()`) wait for her next step, so the player's flick and slap reach
+the spray and the sound (they were lost before).
+
+- **Dash:** a boil where she kicks (churn + a low dome of spray), her V × 1.8 (`sim.wakeGain`), the bow's two sheets of spray and a
+  churned trail every 0.35 s while her neck cuts the surface. No ring.
+- **Lure:** three ripple trains closing in from 21 m at 7 m/s, ten fish flicking out toward her (a bright body and a plop), a school's
+  shimmer for 2.6 s, her tail's flick; each lured boat gets a dashed cream line toward her on the screen, its dashes flowing in, 5 s.
+- **Sonar:** one thin cream pulse (`.tp-world .sp`, its front 110° about her heading brighter, `.sa`) runs out to the range in 0.9 s,
+  slow round her then racing out (r ∝ u^1.8); each mark appears as the pulse reaches it and flashes (grown from 1.8 ×, thick) 0.4 s.
+  The only ring a skill draws; nothing on the water.
+- **Tail Surge:** the wind-up churns at her tail; the slap's spray and mist, a swell (1.3 m, 3 m wide) rolling out from her middle at
+  the ring radius over 2 s with spume thrown off its crest every 0.06 s, and a sheet of spray up each hull it reaches as it heels it.
+- **Breach:** the run-up's V shows on the water over her from 6 m down (`sim.ghostWake`); the landing's tall column, its crown and
+  stacked mist, a short landing swell (9 m/s to 24 m) and a churned disc.
+- **Tiers** (`src/core/features.js` `tessieSkillFx`): full at L0-L1, lite at L2 (half the spray), none where she is not playable.
+
 ## Tessie's Tail Surge (`?tessierpg=1`; sim/tessieSurge.js, sim/waveRoll.js, living/tessiePlayer.js)
 
-- **The press:** a 1.2 s wind-up (her tail's flick, rings on her water), then the slap (her `slap` splash, the creature map's rings at
-  full amplitude, a solid cream ring on the water, `.tp-world .sr`, running out to the rank's ring over 2 s). Ranks: ring 40/48/56/64 m,
+- **The press:** a 1.2 s wind-up (her tail's flick, the water churning at her tail), then the slap (her `slap` splash, a swell on her
+  water running out to the rank's ring over 2 s: § Tessie's skill looks). Ranks: ring 40/48/56/64 m,
   knock radius 12/14/16/18 m, heel 35/38/41/45°, every 30 s (`sim/tessieSkills.js` `SURGE_RANKS`).
 - **The wave** reaches each boat by its distance from her middle and heels it away from her: the full angle inside the knock radius,
   easing to 30 % of it at the ring. `busyLake.wave(id, { heel })` and the Halcyon's `B.wave({ heel })` carry the hull to that heel over
