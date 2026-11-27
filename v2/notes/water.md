@@ -578,6 +578,15 @@ impulse sum the test compares with); the drawing is ported to WGSL.
   map at 0.5 m instead of 0.25 m; the height is not drawn into the mesh (v1 neither: slope only); the boat is not in the
   water's mirror (M3's limit, as before). Heel moves nothing in v1's wake either; speed scales every part (the impulses
   with U², the transom's stamp from 0.6 to 3 m/s, the roll from 1.3 to 3 m/s, the spray from 15 kn).
+- **Speed legible** (research 101 #1, 2026-11-26): with no instrument 3, 5 and 6.5 kn must read apart from the water. The
+  foam band's width and life scale with the speed each point was made at (`sim/wake.js WAKE_SPEED`: × (U/2.95)^1.5 in
+  [0.6, 1.35] and × (U/2.95)² in [0.5, 1.6]; 1 at 2.95 m/s, where v1's map was fitted, so that fit holds): toward hull speed
+  the stern wave breaks and the transom drags more air down. The factors are packed per point (`(prop, aft, widthK,
+  lifeK)`), so the GPU adds no `pow`. The bow wave's white roll reaches out and aft × (U/2.95)² in [0.4, 1.45]
+  (`render/wake.js BOW_ROLL`). The twin's solid white (centre foam > 0.6) is 0 / 3.8 / 11.0 m long and 0 / 0.96 / 1.92 m wide
+  (3 m aft) at 3 / 5 / 6.5 kn (`tests/speed-legible.test.mjs`). The stills (13:00, a reach, the Boat view; the speeds by
+  the wind): foam pixels 6 / 764 / 906 before, 6 / 460 / 2197 after. Goldens moved: `v2-sail-phone`, `v2-cruise`,
+  `v2-ski-run` (the strip only).
 - **URL rows**: v1's `?nowake=1` and its knobs `?wake_amp= ?wake_rc= ?wake_r0= ?wake_bow=` (v1's table, read through
   `SHARED`). `__velia.wake` exposes the track, the spray and the stats (points, map sizes, drops in the air, uploads).
 - **Pipelines**: +3 (the two maps' compute pipelines, the spray's draw), built at load; 0 after the first frame. The two

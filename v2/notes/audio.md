@@ -21,6 +21,14 @@ Firefox; 1,576,885 B before) or 1,563,972 B AAC (Safari; those files were not re
 (2.6 MB; `vite.config.js` bedsAudio). Everything enters
 `beds.js`'s effects and ambience inputs through a gain held at 0 until the files are in, then faded up over ≈ 0.3 s.
 
+**Speed legible** (research 101 #1, 2026-11-26; `speedSound.js`): the hull's rush at a steady speed is v1's (`hullMix`): −36.7 /
+−12.6 / −5.8 dB re 1 at 3 / 5 / 6.5 kn, its low-pass 1.47 / 4.27 / 12 kHz, its rate 0.961 / 1.039 / 1.077 (the speed feel's
+low-pass at hull speed). New: gaining or losing way heard. The speed low-passed (3 s, the Boat view's own filter), its rate of
+change low-passed (1.2 s), as a share of 0.15 m/s² in −1..1: the rush × (1 + 0.4 k), its rate × (1 + 0.04 k): up to +2.9 dB
+gaining, −4.4 dB losing; at 5 kn a 0.3 kn/s build reads +2.9 dB, a 0.3 kn/s ease −4.4 dB; the waves' 4.5 s surge of
+±0.35 m/s moves k under 0.5. The clock is the beds' `t` (`recorded.js` passes it as `simT`); none: steady, v1's level.
+`tests/speed-legible.test.mjs`.
+
 **The code wind** (`beds.js`, as the owner heard it): the WindField sampled at the eye (the gusts at the listener), v1's two wind
 beds' level as one voice; pink noise → HP 42 Hz → a high shelf (−4 → 0 dB) → two low-passes at Cold Smoke's 300 + 830·u^1.1 Hz
 (u = wind / 12 m/s) → each ear's own buffeting → a slow swell on both ears → panned to the side the apparent wind comes from at
