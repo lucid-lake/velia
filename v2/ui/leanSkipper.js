@@ -53,7 +53,7 @@ export const LEAN_CLASS = Object.freeze({
   // "Tessie's up. [T] to be her." (tessiePlayer.js createBeLine): a TIP that may come back (LEAN_REPEAT), retired for good by the first swap
   'tip.tessie.be': TIP,
   // the Tessie RPG's level-up (v2/sim/tessieLevelUp.js, ?tessierpg=1): "Level N: pick one skill to grow: [1] or [2].", a TIP that comes back while a
-  // point waits (its own cadence: still 2 s, at most every 60 s); the gap and busy rules hold
+  // point waits (its own cadence: still 2 s, at most every 60 s, at most 3 reminders a session, reset by a new level); the gap and busy rules hold
   'tip.tessie.level': TIP,
   // the Tessie RPG, phase 6 (v2/sim/tessieBounty.js SETS, v2/sim/tessieWary.js CHATTER): a set's legend line and the lookout's two
   // chatter lines, once ever each
@@ -65,6 +65,9 @@ export const LEAN_CLASS = Object.freeze({
   // the RPG's reasons for a skill that did nothing (v2/living/tessiePlayer.js SURGE_LINES, SKILL_LINES), once ever each
   'tip.tessie.surge.upright': TIP, 'tip.tessie.surge.light': TIP,
   'tip.tessie.repeat': TIP,
+  'tip.tessie.first.sail': TIP, 'tip.tessie.first.halcyon': TIP, 'tip.tessie.first.glass': TIP, 'tip.tessie.first.kayak': TIP, 'tip.tessie.first.rival': TIP,   // a first of a type (tessiePlayer.js FIRST_LINES), once ever each
+  'tip.tessie.first.still': TIP, 'tip.tessie.first.paddle': TIP, 'tip.tessie.first.runabout': TIP, 'tip.tessie.first.jetski': TIP,
+  'tip.tessie.marked': TIP,   // a boat Sonar marked or Lure called pays half again (v2/sim/tessieBounty.js marked), once ever
   'tip.tessie.breach.none': TIP, 'tip.tessie.breach.seen': TIP, 'tip.tessie.locked': TIP,   // the same boat wrecked again within 2 min pays half (v2/sim/tessieBounty.js repeatS)
   // a press or a tap refused, with the way out (the planner, the double-tap mark, the pilot)
   'mark.set': MUST,   // "Mark set. Click NAV to sail there.": the answer to a double-click; said at once

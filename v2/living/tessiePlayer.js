@@ -69,7 +69,7 @@ import { createTessieCam, createGlide, needsVeil } from '../ui/tessieCam.js';
 import { heightAt as tessieHeightAt, reachAt } from '../sim/tessie.js';
 import { tessieSettings } from '../ui/tessieSettings.js';   // phase 2a: Invert up/down, Camera follows her
 import { mountHud, hudLayout, capLine, HUD } from '../ui/tessieHud.js';   //: the sonar, the skills row, her keys on the right edge
-import { skillOfCode, RPG_SLOT_COUNT, createSkills, RPG_SKILLS_TABLE, LURE_RANKS, SONAR_RANKS, LURE_CAST_S } from '../sim/tessieSkills.js';
+import { skillOfCode, RPG_SLOT_COUNT, createSkills, RPG_SKILLS_TABLE, LURE_RANKS, SONAR_RANKS, LURE_CAST_S, growthOf } from '../sim/tessieSkills.js';
 import { LURE, lureTargets, lureSplashes } from '../sim/tessieLure.js';
 import { SONAR, sonarPing, rimMarks, markRing } from '../sim/tessieSonar.js';   // the dash's keys: the slot's 1 and Shift
 import { SURGE, SURGE_RANKS, surgeResolve, awaySide as surgeAway } from '../sim/tessieSurge.js';
@@ -102,6 +102,14 @@ export const SKILL_LINES = Object.freeze({
 });
 // the first wreck of a boat wrecked within BOUNTY.repeatS before (the RPG; once ever): why the bounty paid less
 export const REPEAT_LINE = Object.freeze({ kind: 'tip.tessie.repeat', text: 'Same boat again: half the bounty. Find a fresh one.' });
+// the first wreck of a boat Sonar marked or Lure called (BOUNTY.marked, within BOUNTY.markedS; once ever): why it paid more
+// the first wreck (or splash) of each boat type (the bounty's × 3; once ever each, a TIP): a short line to mark it. Said after the
+// level-up line when the same wreck reached a level (the level line is never pushed back by it)
+export const FIRST_LINES = Object.freeze({ sail: 'First sailboat over.', halcyon: 'First Halcyon. Sorry, skipper.', glass: 'First glass boat.',
+  kayak: 'First kayak pair. Just wet.', rival: 'First Regatta rival.', still: 'First boat at anchor.', paddle: 'First paddle-wheeler. Soaked decks.',
+  runabout: 'First runabout.', jetski: 'First jet ski. He ducked.' });
+export const firstKind = (type) => `tip.tessie.first.${type}`;
+export const MARKED_LINE = Object.freeze({ kind: 'tip.tessie.marked', text: 'Sonar or Lure first: that boat pays half again.' });
 const HALCYON = { L: 8.5, B: 3.0 }, BUSY_HULL = { L: 8.5, B: 3.0 }, GLASS = { L: 12.2, B: 3.8 };
 export const PLAYER = Object.freeze({ offM: 150, veilOut: 0.22, veilIn: 0.4, reachDelayS: 2, reachM: [100, 90, 115, 80, 125], reachConeDeg: 20, nextDelayS: 6, nextNearM: 220, nextM: Object.freeze([170, 150, 190, 130, 210]), holdNearM: 30, dialM: 20, arrowV: 0.2, lookUpM: 6, fastS: 3, chevV: Object.freeze([1.5, 6.5, 15]), dashLineS: 2 });   // nextDelayS, nextNearM, nextM: the RPG's next boat after a wreck (6 s on, none upright and fresh within 220 m: one laid 130–210 m ahead)   // dashLineS: a boat in her corners out of reach this long, once ever: the dash's line   //: the fast line after 3 s swimming at the surface; the speed chevrons lit past 1.5, 6.5 and 15 m/s   // phase 2a: the dial's 0–20 m, its ▲/▼ past 0.2 m/s, the first dive's line, the first time past 6 m
 
@@ -296,6 +304,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const marks = new Map();   // id → until (s, her clock): the boats the last ping marked
   const skillAt = new Map();   // id → { t, until } (s, her clock): the last Sonar ping that marked the boat or Lure that lured it (the fastest record)
   const sinceSkill = (id) => { const k = skillAt.get(id); return k && clock <= k.until ? clock - k.t : undefined; };
+  const markedNow = (id) => { const k = skillAt.get(id); return !!k && clock - k.t <= Math.max(BOUNTY.markedS, k.until - k.t); };   // the bonus: a ping or a lure within 30 s (or while it lasts)
   let ping = null, lureFx = null, halcyonLure = null, rimT = -1;   // ping { rangeM, until, tail }; lureFx { x, z, t0, n }; halcyonLure { x, z, until }
   const casts = [], splashPts = [], rimOut = [], pingArg = { rangeM: 0, marks: rimOut }, hudStates = { dash: null };
   const seenRecently = (id) => clock - (sawAt.get(id) ?? -Infinity) <= LURE.seenS;
@@ -308,6 +317,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   // phase 4: the Tail Surge under way { rank, row, t0, slapAt (null: the wind-up), x, z (the ring's centre), due: [the boats the wave has yet
   // to reach], ctx (the strike's record for the bounty), stir (the wind-up's rings laid) }
   let surgeFx = null;
+  const firstWait = [];   // the RPG: first-of-a-type lines held until a pending level-up line has been taken
   const wreckAt = new Map();   // the RPG: each boat's wrecks within BOUNTY.repeatS (s, her clock): the same boat again pays less
   const sawAt = new Map(), splashAt = new Map();   // the RPG: when each boat last saw her; when each kayak was last splashed (s, her clock)
   let strike = null, biteWas = null, lungeWas = null;   // the RPG: the strike under way ({ at, depthM, hidden, seen: Set, skill })
@@ -572,9 +582,11 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const st = ctx ?? strike ?? { depthM: C.state.nose, hidden: !!C.state.hidden, seen: null, skill: null };
     const splash = splashType(kind);   // the jet ski's rider and the paddle-wheeler's decks are splashed, never wrecked
     const times = (wreckAt.get(b.id) ?? []).filter((t) => clock - t < BOUNTY.repeatS); times.push(clock); wreckAt.set(b.id, times);   // the same boat again
-    const r = bounty.score({ kind, depthM: st.depthM, hidden: st.hidden, seen: !!st.seen?.has(b.id), skill: st.skill, splash, sinceS: sinceSkill(b.id), repeat: times.length - 1 }, { day: day() });
+    const r = bounty.score({ kind, depthM: st.depthM, hidden: st.hidden, seen: !!st.seen?.has(b.id), skill: st.skill, splash, sinceS: sinceSkill(b.id), repeat: times.length - 1, marked: markedNow(b.id) }, { day: day() });
     if (r?.repeat) tip(REPEAT_LINE.kind, REPEAT_LINE.text);   // the first time the same boat pays less: why (once ever)
-    if (r) { log.bounty.push({ kind, ...(splash ? { splash } : {}), xp: r.xp, first: r.first, levels: r.levels, ...(r.repeat ? { repeat: r.repeat } : {}), at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); leveled(r); }
+    if (r?.marked) tip(MARKED_LINE.kind, MARKED_LINE.text);   // the first time a marked or lured boat pays more: why (once ever)
+    if (r?.first && FIRST_LINES[kind]) firstWait.push(kind);   // its first of a type: a line once ever (after a level line it reached)
+    if (r) { log.bounty.push({ kind, ...(splash ? { splash } : {}), xp: r.xp, first: r.first, levels: r.levels, ...(r.repeat ? { repeat: r.repeat } : {}), ...(r.marked ? { marked: true } : {}), at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); leveled(r); }
     return r;
   }
   // ---- the RPG, phase 2: the level-up moment, the five slots, the Dash's rank ----
@@ -588,7 +600,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   function rpgSync(force = false) {
     if (!bounty || (!force && clock - rpgReadT < RPG.readS)) return;
     rpgReadT = clock;
-    const s = bounty.state(); rpgLevel = s.level;
+    const s = bounty.state(); rpgLevel = s.level; C.grow(growthOf(s.level));   // her body grows with her level
     const key = SKILL_ORDER.map((id) => `${s.ranks[id]}.${s.trials?.[id] ?? ''}`).join();
     if (key !== rpgRanks) { rpgRanks = key; C.skills.rank('dash', s.ranks.dash); hud?.ranks(s.ranks, s.trials); }
     const halo = levelUp.halo().join();
@@ -635,6 +647,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       if (ok) log.lines = (log.lines ?? 0) + 1;
       return ok;
     } });
+    if (firstWait.length && !levelUp.state.want) for (const k of firstWait.splice(0)) tip(firstKind(k), FIRST_LINES[k]);   // the level line first
     rpgSync();
   }
   // a breach, a fall or a surfacing at (x, z): one splash for the kayaks it spooks (a pair: one), none twice within RPG.splashS
@@ -645,8 +658,10 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     if (!fresh.length) return null;
     for (const id of ids) splashAt.set(id, clock);
     const since = fresh.map(sinceSkill).filter(Number.isFinite);   // a lured kayak splashed: the fastest record too
-    const r = bounty.score({ kind: 'kayak', splash: true, depthM: 0, hidden: false, seen: false, ...(since.length ? { sinceS: Math.min(...since) } : {}) }, { day: day() });
-    if (r) { log.bounty.push({ kind: 'kayak', splash: true, xp: r.xp, first: r.first, levels: r.levels, at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); leveled(r); }
+    const r = bounty.score({ kind: 'kayak', splash: true, depthM: 0, hidden: false, seen: false, marked: fresh.some(markedNow), ...(since.length ? { sinceS: Math.min(...since) } : {}) }, { day: day() });
+    if (r?.marked) tip(MARKED_LINE.kind, MARKED_LINE.text);
+    if (r?.first) firstWait.push('kayak');
+    if (r) { log.bounty.push({ kind: 'kayak', splash: true, xp: r.xp, first: r.first, levels: r.levels, ...(r.marked ? { marked: true } : {}), at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); leveled(r); }
     return r;
   }
   // the strike's start (a bite or a rise begun this step): her depth, HIDDEN and the boats that had seen her, kept for its hit

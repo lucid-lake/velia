@@ -702,7 +702,7 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
     emit(type, at = 'nose', s = 1) { if (!S) return false; const o = at === 'tail' ? (N - 1) * 8 : 0; ev(type, spine[o], type === 'breath' ? Math.max(0.3, spine[o + 1] + 0.3) : 0, spine[o + 2], s); return true; },
     play(name, at) { return !!CLIPS[name] && play(name, at); },
     // steer her nose to (x, z) at `speed` m/s (null: back to her own course)
-    swimTo(x, z, speed = T.U, acc = null, turn = null) { if (!S) return false; S.nose.target = x == null ? null : { x, z }; S.nose.want = Math.max(0, Math.min(T.speedMax, speed)); S.nose.acc = acc ?? undefined; S.nose.turnMax = turn ?? undefined; S.dive = Infinity; return true; },
+    swimTo(x, z, speed = T.U, acc = null, turn = null, max = null) { if (!S) return false; S.nose.target = x == null ? null : { x, z }; S.nose.want = Math.max(0, Math.min(max ?? T.speedMax, speed)); S.nose.acc = acc ?? undefined; S.nose.turnMax = turn ?? undefined; S.dive = Infinity; return true; },   // max: a caller's own top (the RPG's Dash ranks past 19.5 m/s)
     // bring her up under (x, z): she starts (or stays) 4.5 m down, swims to it at `speed`, and within `near` m surfaces and breaches there
     riseUnder(x, z, { speed = 3.5, near = 4, from = 40, heading = null, breach = true } = {}) {
       if (!S) {

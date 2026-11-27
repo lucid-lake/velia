@@ -23,11 +23,18 @@ export const SLOT_COUNT = 4;
 // the Tessie RPG (?tessierpg=1): five slots, one per skill in v2/sim/tessieBounty.js SKILL_ORDER (Dash, Lure, Sonar, Tail Surge,
 // Breach); Digit1 … Digit5 press them. Flag off the row keeps SLOT_COUNT.
 export const RPG_SLOT_COUNT = 5;
-// the Dash's four ranks (the RPG): the burst and the cooldown 1.8/4.5 → 2.1/4.0 → 2.4/3.5 → 2.6/3.0 s; rank 4 makes the dash bite's
-// knockdown × 1.25 (× 1.15 below it: sim/tessie.js BITE2.dash.knock). Index = rank (0: locked, never for the Dash)
+// the Dash's four ranks (the RPG; retuned so each rank is felt: rank 2 used to add 0.3 s of burst and nothing else): the burst's speed
+// × 1.0 → 1.1 → 1.2 → 1.3 (under the water 19 → 20.9 → 22.8 → 24.7 m/s, at the surface 12 → 13.2 → 14.4 → 15.6), the burst and the
+// cooldown 1.8/4.5 → 2.4/3.8 → 3.0/3.1 → 3.6/2.5 s (one burst under the water carries her about 34 → 50 → 68 → 89 m); rank 4 makes the dash
+// bite's knockdown × 1.25 (× 1.15 below it: sim/tessie.js BITE2.dash.knock). Index = rank (0: locked, never for the Dash)
 export const DASH_RANKS = Object.freeze([null,
-  Object.freeze({ activeS: 1.8, cooldownS: 4.5, bite: 1.15 }), Object.freeze({ activeS: 2.1, cooldownS: 4.0, bite: 1.15 }),
-  Object.freeze({ activeS: 2.4, cooldownS: 3.5, bite: 1.15 }), Object.freeze({ activeS: 2.6, cooldownS: 3.0, bite: 1.25 })]);
+  Object.freeze({ activeS: 1.8, cooldownS: 4.5, bite: 1.15, speedK: 1.0 }), Object.freeze({ activeS: 2.4, cooldownS: 3.8, bite: 1.15, speedK: 1.1 }),
+  Object.freeze({ activeS: 3.0, cooldownS: 3.1, bite: 1.15, speedK: 1.2 }), Object.freeze({ activeS: 3.6, cooldownS: 2.5, bite: 1.25, speedK: 1.3 })]);
+// her body grows a little with her level, points aside (the RPG; research § 4's growth, made big enough to feel): her cruise speed
+// + 1.5 % a level from level 2, at most + 15 % (level 11 on): under the water 11 → 12.65 m/s, at the surface 6 → 6.9 m/s. She still
+// moves as she does (her rates and turns unchanged); level 1 and the flag off: × 1
+export const GROWTH = Object.freeze({ cruisePerLevel: 0.015, cruiseMax: 0.15 });
+export const growthOf = (level = 1, G = GROWTH) => 1 + Math.min(G.cruiseMax, G.cruisePerLevel * Math.max(0, (level | 0) - 1));
 // Lure's and Sonar's four ranks (the RPG, phase 3; v2/sim/tessieLure.js, tessieSonar.js): everyS is the cooldown from the press (the
 // slot's ring: activeS amber, then cooldownS dim, the two summing to everyS). Lure: range 120 → 150 → 180 → 210 m, the boats curious
 // 12 → 15 → 18 → 21 s, every 20 s; rank 4 also lures the Halcyon's skipper. Sonar: range 300 → 360 → 420 → 480 m, marks 8 → 10 → 12 → 14 s
@@ -85,7 +92,7 @@ export function createSkills(table = SKILLS) {
     state(id) {
       const r = by.get(id); if (!r) return null;
       const k = r.phase === 'ready' ? 1 : r.phase === 'active' ? Math.max(0, 1 - r.t / r.activeS) : Math.min(1, r.t / r.cooldownS);
-      return { phase: r.phase, k, t: r.t, level: r.level, key: r.key, buffered: r.buffered, count: r.count ?? 0, bite: r.bite ?? null };   // bite: the rank's knock (null: no rank set, the bite's own)
+      return { phase: r.phase, k, t: r.t, level: r.level, key: r.key, buffered: r.buffered, count: r.count ?? 0, bite: r.bite ?? null, speedK: r.speedK ?? 1 };   // bite: the rank's knock (null: no rank set, the bite's own); speedK: the burst's speed by rank
     },
     active: (id) => by.get(id)?.phase === 'active',
     // the RPG: a skill's rank (1 … 4) sets its numbers from SKILL_RANKS (the burst, the cooldown, the bite's knock); false: no such rank.

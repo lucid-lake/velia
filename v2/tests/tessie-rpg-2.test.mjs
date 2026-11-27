@@ -84,7 +84,7 @@ test('a refused line asks again every second until the lean takes it; nothing as
   assert.deepEqual(N.said, [], 'level 1, no point: no line'); assert.deepEqual(none.halo(), []);
 });
 
-test('the point waits: the line comes back once she is still 2 s, at most every 60 s, with no cap', () => {
+test('the point waits: the line comes back once she is still 2 s, at most every 60 s, at most 3 times a session; a new level resets the count', () => {
   const T = createTessieBounty({ storage: seeded() }), U = createLevelUp({ bounty: T }), S = sayer();
   run(U, 1.9, { still: true, say: S.say });
   assert.equal(S.said.length, 0, 'still under 2 s: no line yet');
@@ -98,9 +98,19 @@ test('the point waits: the line comes back once she is still 2 s, at most every 
   assert.equal(S.said.length, 1, 'still 1.5 s: not yet');
   run(U, 0.6, { still: true, say: S.say });
   assert.equal(S.said.length, 2, 'still 2 s, 70 s after the last: again');
+  run(U, 61, { still: true, say: S.say });
+  assert.equal(S.said.length, 3, 'the third reminder, 61 s on');
+  assert.equal(U.state.reminders, 3);
   for (let i = 0; i < 5; i++) run(U, 61, { still: true, say: S.say });
-  assert.equal(S.said.length, 7, 'no cap: once every 60 s while she rests');
+  assert.equal(S.said.length, 3, 'capped: no fourth reminder in the session, however long she rests');
   assert.equal(T.state().points, 3, 'the points never expire');
+  assert.deepEqual(U.halo(), ['dash', 'lure'], 'the halo stays: the slots still show the waiting point');
+  // a new level: its own line at once, and the reminders start again (3 more)
+  U.levelUp(); U.step(0.1, { say: S.say });
+  assert.equal(S.said.length, 4, 'the new level\'s line at once');
+  assert.equal(U.state.reminders, 0, 'the count is reset');
+  for (let i = 0; i < 6; i++) run(U, 61, { still: true, say: S.say });
+  assert.equal(S.said.length, 7, 'three reminders after the new level, then quiet again');
 });
 
 test('spent elsewhere (the Logbook tab): the halo clears when no point is left; the line stops', () => {
@@ -121,8 +131,8 @@ test('pickable follows the unlock order and the cap', () => {
   assert.deepEqual(pickable({ ...s, points: 0 }), []);
 });
 
-test('the Dash by rank: burst/cooldown 1.8/4.5 → 2.1/4.0 → 2.4/3.5 → 2.6/3.0 s; rank 4 bites × 1.25 (× 1.15 below)', () => {
-  assert.deepEqual(DASH_RANKS.slice(1).map((r) => [r.activeS, r.cooldownS, r.bite]), [[1.8, 4.5, 1.15], [2.1, 4.0, 1.15], [2.4, 3.5, 1.15], [2.6, 3.0, 1.25]]);
+test('the Dash by rank: burst/cooldown 1.8/4.5 → 2.4/3.8 → 3.0/3.1 → 3.6/2.5 s, speed × 1.0 → 1.3; rank 4 bites × 1.25 (× 1.15 below)', () => {
+  assert.deepEqual(DASH_RANKS.slice(1).map((r) => [r.activeS, r.cooldownS, r.bite, r.speedK]), [[1.8, 4.5, 1.15, 1.0], [2.4, 3.8, 1.15, 1.1], [3.0, 3.1, 1.15, 1.2], [3.6, 2.5, 1.25, 1.3]]);
   const S = createSkills(SKILLS);
   assert.equal(S.state('dash').bite, null, 'no rank set (the flag off): the bite keeps its own knock');
   const cycle = (rank) => {
@@ -133,9 +143,9 @@ test('the Dash by rank: burst/cooldown 1.8/4.5 → 2.1/4.0 → 2.4/3.5 → 2.6/3
     return [+active.toFixed(1), +cool.toFixed(1), K.state('dash').bite];
   };
   assert.deepEqual(cycle(1), [1.8, 4.5, 1.15]);
-  assert.deepEqual(cycle(2), [2.1, 4.0, 1.15]);
-  assert.deepEqual(cycle(3), [2.4, 3.5, 1.15]);
-  assert.deepEqual(cycle(4), [2.6, 3.0, 1.25]);
+  assert.deepEqual(cycle(2), [2.4, 3.8, 1.15]);
+  assert.deepEqual(cycle(3), [3.0, 3.1, 1.15]);
+  assert.deepEqual(cycle(4), [3.6, 2.5, 1.25]);
   assert.equal(S.rank('dash', 0), false, 'the Dash is never locked'); assert.equal(S.rank('dash', 5), false); assert.equal(S.rank('lure', 1), false, 'Lure has no numbers yet');
 });
 
@@ -239,8 +249,8 @@ test('the display: trial (glyph 60 %, the count) vs locked (25 %) vs unlocked (p
   assert.equal(slotState(0, 5), 'trial'); assert.equal(slotState(0, 0), 'locked'); assert.equal(slotState(2, 5), 'unlocked');
   assert.deepEqual(['trial', 'locked', 'unlocked'].map(slotGlyph), [0.6, 0.25, 1]);
   const s = normalise({ _v: 2, xp: 52, ranks: { dash: 2 }, trials: { lure: 4, sonar: 1, surge: 0 } });
-  assert.match(skillRow(s, 'lure').g, /^press to unlock · 4 free tries left$/);
-  assert.match(skillRow(s, 'sonar').g, /after Lure · 1 free try left$/);
+  assert.match(skillRow(s, 'lure').g, /^press to unlock · 4 free tries left · its boats pay \+50 %$/);
+  assert.match(skillRow(s, 'sonar').g, /after Lure · 1 free try left · its boats pay \+50 %$/);
   assert.doesNotMatch(skillRow(s, 'surge').g, /free/);
   assert.doesNotMatch(skillRow(s, 'dash').g, /free/);
 });
