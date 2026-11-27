@@ -30,6 +30,7 @@ export const BREACH = Object.freeze({
   seeM: 25,                       // m: the run-up's dark shape and V: a boat this near sees it (about 2 s at her pace) and bears away; seen
                                   // before the launch, she is told no more of it (she lands where it was: behind it). A release when the
                                   // corners turn amber (about 27 m out) beats it
+  reactS: 0.8,                    // s: a crew that sees the run reacts this long after (a release up to about 1 s after amber still lands)
   hiddenWaterM: 20,               // m: from HIDDEN a boat over water shallower than this cannot be reached (the dive is shallow)
   kayakOffM: 4,                   // m: run at a kayak and she lands this far off its hull (a splash only)
   besideM: 12,                    // m: a fall this near the hull but outside the landing window is a wave beside it

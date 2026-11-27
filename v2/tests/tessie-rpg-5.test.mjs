@@ -246,34 +246,38 @@ test('never on a kayak: run at one and she lands 4 m off its hull, a splash only
   assert.ok(spooks.includes(30), 'rank 3: spooked within 30 m of the splash');
 });
 
-test('the run-up is seen: a crew within 25 m sees the V and bears away; held on, she runs at where it was (it gets away as far as it sails); let go when the corners turn amber, she lands on it', () => {
-  for (const release of [false, true]) {
+test('the run-up is seen: a crew within 25 m sees the V and bears away; held on, she runs at where it was (it gets away as far as it sails); let go when the corners turn amber (or up to a reaction later), she lands on it', () => {
+  for (const [release, lateS] of [[false, 0], [true, 0], [true, 0.6]]) {
     const world = lake();
     const { P, sim, step } = rig({ storage: save({ breach: 1 }), world });
     P.pin({ nose: 7 }); step(4); P.pin(null);
     const boat = [...world.L.liveBoats][0]; place(boat, sim, 45); boat.phys.state.heading = sim.state.nose.psi + 30 * DEG + Math.PI / 2;   // crossing her bow
     const wrecked0 = P.bounty.state().byType.sail.wrecked;
     assert.equal(P.pressSlot('breach'), 'fire');
-    let see = 0, evaded = false, amber = false; const aims = [];
+    let see = 0, evaded = false, amber = false, amberT = null, tNow = 0; const aims = [];
     step(14, () => {
       const L = P.ctl.state.lunge, th = P.threat();
       if (P.stats().log.breach.seen != null && L?.target) aims.push([L.target.x, L.target.z]);
       if (L?.phase === 'run' && P.ctl.state.nose > 3) see = Math.max(see, th?.seeM ?? 0);
       if (boat.evade != null) evaded = true;
-      if (P.stats().rpg.breachFx?.near && L?.phase === 'run') { amber = true; if (release) P.releaseSlot('breach'); }
+      tNow += DT;
+      if (P.stats().rpg.breachFx?.near && L?.phase === 'run') { amber = true; amberT ??= tNow; }
+      if (release && amberT != null && tNow - amberT >= lateS - 1e-9 && L?.phase === 'run') P.releaseSlot('breach');   // a person's reaction: up to 0.6 s after amber
       return !!fallOf(P);
     });
     const b = P.stats().log.breach, f = b.fall, q = boat.phys.state;
     assert.ok(amber, 'the corners turned amber on the run (a release now lands on it)');
     if (!release) {
       assert.equal(see, BREACH.seeM, 'the run at 6 m shows at 25 m (15 m otherwise)');
-      assert.ok(b.seen != null && b.seenAt && evaded, `its crew saw the run and bore away (${JSON.stringify({ seen: b.seen, evaded })})`);
+      assert.ok(evaded, 'its crew saw the V and bore away');
       assert.equal(b.launch.why, 'at', 'held on: she launched at the spot');
-      assert.ok(aims.length > 10 && aims.every((p) => Math.hypot(p[0] - b.seenAt.x, p[1] - b.seenAt.z) < 0.08), 'from the sighting on she runs at where it was (told no more of it)');
-      assert.ok(Math.hypot(f.x - b.seenAt.x, f.z - b.seenAt.z) < Math.hypot(f.x - q.x, f.z - q.z), `she landed nearer where it was than where it got to (${JSON.stringify(f)})`);
+      if (b.seen != null) {   // the crew reacted (BREACH.reactS after the sighting) before her launch: she runs at where it was
+        assert.ok(aims.length > 10 && aims.every((p) => Math.hypot(p[0] - b.seenAt.x, p[1] - b.seenAt.z) < 0.08), 'from the reaction on she runs at where it was (told no more of it)');
+        assert.ok(Math.hypot(f.x - b.seenAt.x, f.z - b.seenAt.z) < Math.hypot(f.x - q.x, f.z - q.z), `she landed nearer where it was than where it got to (${JSON.stringify(f)})`);
+      } else assert.equal(f.hit, boat.id, `seen under ${BREACH.reactS} s before her launch: the crew had no time, she lands on it (${JSON.stringify(f)})`);
     } else {
       assert.equal(b.launch.why, 'release');
-      assert.equal(f.hit, boat.id, `let go on the amber: on its rail (${JSON.stringify(f)})`);
+      assert.equal(f.hit, boat.id, `let go ${lateS} s after the amber: on its rail (${JSON.stringify(f)})`);
       assert.equal(P.bounty.state().byType.sail.wrecked, wrecked0 + 1);
     }
   }
@@ -296,4 +300,17 @@ test('from HIDDEN a boat over water under 20 m cannot be reached (nothing spent)
   assert.equal(P.pressSlot('breach'), 'fire', 'over deep water: the run');
   assert.equal(P.bounty.state().trials.breach, 4, 'a free trial spent by the real use (as rank 1)');
   assert.equal(P.stats().log.breach.rank, 1);
+});
+
+test('the crew reacts BREACH.reactS after it sees the run: seen that long before her launch, she is told no more of it', () => {
+  assert.ok(BREACH.reactS >= 0.6 && BREACH.reactS <= 1.2, `a person's reaction window after amber (${BREACH.reactS} s)`);
+  const world = lake();
+  const { P, sim, step } = rig({ storage: save({ breach: 1 }), world });
+  P.pin({ nose: 7 }); step(4); P.pin(null);
+  const boat = [...world.L.liveBoats][0]; place(boat, sim, 58); boat.phys.state.heading = sim.state.nose.psi;   // sailing away ahead: a long run
+  assert.equal(P.pressSlot('breach'), 'fire');
+  step(14, () => !!fallOf(P));
+  const b = P.stats().log.breach;
+  if (b.seen != null) assert.ok(b.launch == null || b.launch.at - b.seen >= -1e-6, `told no more of it from the reaction on (${JSON.stringify(b)})`);
+  assert.ok(b.seen == null || b.seenAt, 'a reaction keeps where it was');
 });
