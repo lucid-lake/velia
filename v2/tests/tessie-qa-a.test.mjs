@@ -201,3 +201,23 @@ test('the fastest record: a boat wrecked after a Sonar ping marked it scores fas
     else assert.equal(f, null, 'never marked: no record');
   }
 });
+
+// ---- finding 6: a free trial is spent only when the skill touched a boat or a kayak ----
+test('free trials: a Lure, a Sonar ping or a Tail Surge with nothing in range fires and cools but spends no trial; with a boat in range it does', () => {
+  for (const id of ['lure', 'sonar', 'surge']) {
+    const world = lake();
+    const { P, sim, step } = rig({ storage: save({ lure: 0, sonar: 0, surge: 0 }, { lure: 5, sonar: 5, surge: 5, breach: 5 }, 0), world });
+    step(0.2); alone(world, null);
+    assert.equal(P.pressSlot(id), 'fire', `${id}: it fires on nothing`);
+    assert.equal(P.bounty.state().trials[id], 5, `${id}: no trial spent on an empty press`);
+    assert.notEqual(P.stats().rpg[id].phase, 'ready', `${id}: and it cools`);
+    assert.equal(P.stats().log.trials, undefined, `${id}: no trial logged`);
+    step(31);
+    const boat = world.L.liveBoats[0]; place(boat, sim, 25);
+    assert.equal(P.pressSlot(id), 'fire');
+    assert.equal(P.bounty.state().trials[id], 4, `${id}: a boat in range: one spent`);
+  }
+  // a ranked (unlocked) skill is unaffected: it fires on nothing, nothing to spend
+  const { P, step } = rig({ storage: save({ lure: 1 }) }); step(0.2);
+  assert.equal(P.pressSlot('lure'), 'fire');
+});

@@ -78,7 +78,7 @@ import { Press } from '../../src/ui/pointer.js';
 import { createTessieBounty, BOUNTY_KIND, SKILL_ORDER, SETS, splashType } from '../sim/tessieBounty.js';
 import { waryOf, WARY, chatterLine } from '../sim/tessieWary.js';   // phase 6: the lake grows wary by her level
 import { createLevelUp, LEVEL_UP } from '../sim/tessieLevelUp.js';
-import { useSkill } from '../sim/tessieTrials.js';   // the RPG: a slot's own press, the free trials of a locked skill   // the RPG, phase 2: the level-up line, the halo, the pick   // the Tessie RPG (rpg, ?tessierpg=1): each wreck scored into her bounty and level   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
+import { useSkill, SKILL_EMPTY } from '../sim/tessieTrials.js';   // the RPG: a slot's own press, the free trials of a locked skill   // the RPG, phase 2: the level-up line, the halo, the pick   // the Tessie RPG (rpg, ?tessierpg=1): each wreck scored into her bounty and level   // the click rule the look drag uses (v2/ui/touch.js): under 5 px and 250 ms is a click
 
 const DEG = Math.PI / 180;
 export const TESSIE_KEYS = new Set(['ShiftLeft', 'ShiftRight', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyT', 'KeyC', 'KeyE', 'KeyQ', 'Digit1']);   // phase 2a: E rises, Q sinks
@@ -272,7 +272,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   let rpgReadT = 0, rpgRanks = null, rpgHalo = '';
   let rpgLevel = bounty ? bounty.state().level : 1;   // phase 6: her level as last read (the wary band)
   const wary = () => (bounty ? waryOf(rpgLevel) : WARY[0]);   // flag off: today's rules
-  // each skill's behaviour, (rank) → true when it really ran (a press that did something: a locked skill's trial is spent only then).
+  // each skill's behaviour, (rank) → true when it really ran (a press that did something: a locked skill's trial is spent only then);
+  // SKILL_EMPTY when it fired with no boat or kayak in range (it cools as any use, but a trial is not spent).
   // Lure, Sonar, Tail Surge and Breach register theirs here (phases 3–5); a skill with none answers false (a quiet no-op)
   const SKILL_RUN = {};
   // phase 3: Lure's and Sonar's rings (their own skills table; the Dash keeps C.skills), the lure under way, the ping's marks
@@ -578,9 +579,9 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     }
     if (id === 'dash') { dashPulse = true; return 'fire'; }
     // the other skills: their behaviour at the rank (a locked one with free trials left: rank 1); a trial is spent only by a real use
-    const u = useSkill({ bounty, id, run: (sid, rank) => !!SKILL_RUN[sid]?.(rank) });
+    const u = useSkill({ bounty, id, run: (sid, rank) => SKILL_RUN[sid]?.(rank) ?? false });
     if (u.line) tip(u.line.kind, u.line.text);   // the first trial's line, the last one's (once ever each: the lean skipper)
-    if (u.trial && u.used) { log.trials = [...(log.trials ?? []), { id, left: u.left, at: +clock.toFixed(1) }].slice(-8); rpgSync(true); }
+    if (u.trial && u.spent) { log.trials = [...(log.trials ?? []), { id, left: u.left, at: +clock.toFixed(1) }].slice(-8); rpgSync(true); }
     if (!u.used) log.idle = (log.idle ?? 0) + 1;   // nothing happened: a quiet no-op
     return u.used ? 'fire' : 'idle';
   }
@@ -658,7 +659,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     sim.emit?.('flick', 'tail');
     casts.push({ type: 'lure', x: her.x, z: her.z });
     log.lure = { at: +clock.toFixed(1), rank, rangeM: row.rangeM, curiousS: s, ids };
-    return true;
+    return ids.length ? true : SKILL_EMPTY;   // nothing turned toward it: no free trial spent
   }
   function runSonar(rank) {
     const row = SONAR_RANKS[rank], n = nose(); if (!R || !row || !n || W.as !== 'tessie') return false;
@@ -671,7 +672,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     for (const id of heard) sawAt.set(id, clock);
     casts.push({ type: 'ping', echoes: found.slice(0, 6).map((m) => m.d) });
     log.sonar = { at: +clock.toFixed(1), rank, rangeM: row.rangeM, markS: row.markS, ids: found.map((m) => m.id), heard };
-    return true;
+    return found.length ? true : SKILL_EMPTY;   // nothing marked: no free trial spent
   }
   function runSurge(rank) {
     const row = SURGE_RANKS[rank], n = nose(); if (!R || !row || !n || W.as !== 'tessie' || !sim.state.spine) return false;
@@ -681,7 +682,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     sim.emit?.('flick', 'tail');   // her tail lifts: its drops and its sound
     sim.ring?.(tl.x, tl.z, 0.6);
     log.surge = { at: +clock.toFixed(1), rank, ringM: row.ringM, knockM: row.knockM, heelDeg: row.heelDeg, slap: null };
-    return true;
+    const c = sim.state.centre ?? [tl.x, tl.z], reach = surgeResolve({ x: c[0], z: c[1] }, surgeList(), row);
+    return reach.seen.length || reach.kayaks.length ? true : SKILL_EMPTY;   // no boat in its ring, no kayak in reach: no free trial spent
   }
   // her tail's tip and her body's middle on the water
   function tailAt() { const sp = sim.state.spine, o = (sp.length / 8 - 1) * 8; return { x: sp[o], z: sp[o + 2] }; }

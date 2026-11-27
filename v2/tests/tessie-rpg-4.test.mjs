@@ -232,14 +232,18 @@ test('the glass boat inside the ring heels by its scripted roll (never over); th
   assert.ok(Math.hypot(sim.state.centre[0] - g.x, sim.state.centre[1] - g.z) < 45);
 });
 
-test('a free Tail Surge trial: spent on a real slap only (not while cooling); at 0 the slot is locked and the press does nothing', () => {
+test('a free Tail Surge trial: spent on a real slap only (not while cooling, not on one with nothing in its ring); at 0 the slot is locked and the press does nothing', () => {
   const st = save({ surge: 0 }, { lure: 5, sonar: 5, surge: 2, breach: 5 });
-  const { P, step } = rig({ storage: st, world: lake(WINDS.light) });
+  const world = lake(WINDS.light);
+  const { P, sim, step } = rig({ storage: st, world });
   step(0.2);
+  assert.equal(P.pressSlot('surge'), 'fire', 'nothing in its ring: it still fires (and cools)'); assert.equal(P.bounty.state().trials.surge, 2, 'none spent');
+  step(30.1);
+  const boat = world.L.liveBoats[0]; place(boat, sim, 25, 0);   // a sailboat 25 m off her middle: inside the 40 m ring
   assert.equal(P.pressSlot('surge'), 'fire'); assert.equal(P.bounty.state().trials.surge, 1);
   assert.equal(P.stats().log.surge.rank, 1, 'a trial fires at rank 1');
   assert.equal(P.pressSlot('surge'), 'idle'); assert.equal(P.bounty.state().trials.surge, 1, 'cooling: none spent');
-  step(30.1);
+  step(30.1); place(boat, sim, 25, 0);
   assert.equal(P.pressSlot('surge'), 'fire'); assert.equal(P.bounty.state().trials.surge, 0);
   step(30.1);
   assert.equal(P.pressSlot('surge'), 'idle', 'no trials left: locked'); assert.equal(P.bounty.state().trials.surge, 0);
