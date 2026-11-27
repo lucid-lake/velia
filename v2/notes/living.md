@@ -274,9 +274,24 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
 - **By her level** (`waryOf(level)`): levels 1–5 keep today's sight (60 m at the surface); from 6 the threat's `seeM` is 90 m (the busy
   lake's evade reads it), `kayaks.berth(100)` turns the watch into paddling away within 100 m of her parts at the surface (only while
   she is played; 0 otherwise), and a boat's first sighting asks one of two chatter lines once ever (not under `?chatter=0`). From 13
-  her Lure never turns the Halcyon (he flees at the first ring); `rivalBerthM` waits for a race she is played in.
+  her Lure never turns the Halcyon (he flees at the first ring). No rival berth (phase 6b): rivals sail only in races, where she is
+  never played.
 - **Targets:** the boats at anchor list as kind `anchored` (`anchoredBoats.targets()`, `knock(id, side)`: over to 62°, held, righted
   on her rode; `kheel` adds to the drawn heel, 0 unless knocked) and score as `still`; a Regatta rival scores whenever a `rivals()`
-  source lists it (none yet: the Deep tie-in); the paddle-wheeler's splash scores as `paddle` (splashed, 10 XP).
-- **Sets:** the Logbook's Tessie tab groups the bounty by set (Emerald Bay, South Lake), each with its set row; a set completed pays
+  source lists it (none: rivals sail only in races); the paddle-wheeler's splash scores as `paddle` (splashed, 10 XP).
+- **Sets:** the Logbook's Tessie tab groups the bounty by set (Emerald Bay: Halcyon, sailboat, glass boat, kayak pair, with no rival row since phase 6b; South Lake), each with its set row; a set completed pays
   +25 XP once and asks its legend line once on the skipper's line (`tip.tessie.legend.*`).
+
+## Tessie's Deep carries your ranks (`?tessierpg=1` with a bounty save, phase 6b; regatta/tessieDeep.js, regatta/placeEvents.js)
+
+- `readRanks(storage)` reads the save's ranks without writing; no save, or no flag: today's race (the same draws and events).
+- `actsOf(ranks)`: Dash rank 2 a dash, Tail Surge unlocked a surge (its rank's ring), Breach unlocked a breach. Her attacks take
+  turns over the acts, then today's strike; an act is aimed at the player and waits (today's strike on a pick) while the player is out
+  of her reach. Each act is warned for `DEEP.warnS` with the race's cues (the drone, her shape or V, the coach's line), and its spot is
+  fixed at the warning, so a steer escapes it. An act waits up to 2 × `DEEP.waitS` for her last sighting to end; still far (over
+  30 m) in its dive, she rises fresh 17.5 m short of the spot under the water. A wave runs out from the warned spot.
+- Dash: she rises 60 m off the spot, ahead and to one side of the bow, and runs across it at the surface; then today's strike (the
+  race's own catch). Surge: she surfaces 0.65 × her ring off the bow, 35° to one side; her slap's ring wave heels each racing boat it
+  reaches away from her. Breach: 24 m beside the course and 10 m ahead; a heel wave to 40 m. A wave's heel is capped at 22° (`B.wave`,
+  sim/waveRoll.js; the knockdown watch needs 55°) and never knocks a boat down. Only the player's hull rolls; a rival's heel is logged
+  (`stats.heels`) and its sailor steers round the wave's ring.

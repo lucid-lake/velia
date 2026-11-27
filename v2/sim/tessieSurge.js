@@ -5,6 +5,7 @@
 // past SURGE.overDeg (the wind helps) goes over: a knockdown, scored as wrecked; in Light wind (under SURGE.lightKn at that boat)
 // nothing goes over, it only heels. The kayaks within SURGE.kayakM are splashed (scored). The slap reveals her to the boats inside.
 //   surgeHeel(d, row) → the heel (deg) the wave gives a boat d m from her (0 outside the ring)
+//   awaySide(b { x, z, heading }, at { x, z }) → the side a wave from her heels the boat to (+1 starboard down: away from her)
 //   surgeResolve(at { x, z }, list [{ id, kind, x, z, heading, heelDeg (now, + starboard down), twsMs }], row)
 //     → { heels: [{ id, kind, d, lean, heelDeg, side, atS }], knock: { id, kind, d, lean, side, atS } | null, kayaks: [ids], seen: [ids], light }
 //       (lean: its heel when the slap lands, deg)
@@ -38,7 +39,7 @@ export function surgeHeel(d, row) {
 }
 
 // +1 when she lies on the boat's port side (a wave from there heels it to starboard), -1 on its starboard side
-function awaySide(b, at) {
+export function awaySide(b, at) {
   const h = b.heading ?? 0, dot = (at.x - b.x) * Math.cos(h) + (at.z - b.z) * Math.sin(h);
   return dot > 0 ? -1 : 1;
 }

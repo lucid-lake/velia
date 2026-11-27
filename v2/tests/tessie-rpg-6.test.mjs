@@ -67,11 +67,12 @@ function rig({ storage, at, heading = 0, world = lake(), anchored = () => null, 
   return { P, sim, world, step, her: () => sim.state.nose };
 }
 
-test('the wary bands: levels 1–5 sight 60 m; 6–12 90 m, the kayaks 100 m off, the chatter; 13–20 the rivals wide, the Halcyon flees', () => {
+test('the wary bands: levels 1–5 sight 60 m; 6–12 90 m, the kayaks 100 m off, the chatter; 13–20 the Halcyon flees (no rival berth: phase 6b)', () => {
   assert.deepEqual([1, 5, 6, 12, 13, 20].map((L) => waryOf(L).seeM), [60, 60, 90, 90, 90, 90]);
   assert.deepEqual([5, 6, 13].map((L) => waryOf(L).kayakBerthM), [0, 100, 100]);
   assert.deepEqual([5, 6, 13].map((L) => waryOf(L).chatter), [false, true, true]);
-  assert.deepEqual([12, 13].map((L) => [waryOf(L).halcyonFlees, waryOf(L).rivalBerthM > 0]), [[false, false], [true, true]]);
+  assert.deepEqual([12, 13].map((L) => waryOf(L).halcyonFlees), [false, true]);
+  for (const r of WARY) assert.equal('rivalBerthM' in r, false, 'phase 6b: rivals sail only in races, where she is never played');
   assert.equal(waryOf(undefined), WARY[0]);
   // the chatter: the Fannette line near the island, the other elsewhere; none once asked or shown
   assert.equal(chatterLine({ x: 300, z: -200 }).text, 'Something big off Fannette, keep east.');

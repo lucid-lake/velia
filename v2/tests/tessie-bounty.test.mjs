@@ -26,17 +26,15 @@ test('XP per wreck: the table, × 1.5 from HIDDEN, × 1.5 seen, × 3 the first o
   r = scoreInto(s, { kind: 'sail', depthM: 9.4, seen: true }); assert.equal(r.xp, 7, 'hidden and seen: 3 × 2.25 = 6.75');
   r = scoreInto(s, { kind: 'glass', depthM: 1, seen: true }); assert.equal(r.xp, 27, 'the first glass boat, seen: 6 × 1.5 × 3');
   r = scoreInto(s, { kind: 'halcyon', depthM: 0, hidden: true }); assert.equal(r.xp, 18, 'hidden given: 4 × 1.5 × 3');
-  r = scoreInto(s, { kind: 'kayak', splash: true, depthM: 0 }); assert.equal(r.xp, 3, 'a kayak pair splashed, the first: 1 × 3');
+  const xp0 = s.xp;
+  r = scoreInto(s, { kind: 'kayak', splash: true, depthM: 0 }); assert.equal(r.xp, 3 + 25, 'a kayak pair splashed, the first: 1 × 3, and the Emerald Bay set (phase 6b: halcyon, sail, glass, kayak) + 25');
+  assert.equal(r.set, 'emerald'); assert.equal(s.xp, xp0 + 28);
   assert.equal(s.byType.kayak.splashed, 1); assert.equal(s.byType.kayak.wrecked, 0);
   const row = s.byType.sail;
   assert.deepEqual(row, { wrecked: 4, splashed: 0, first: '2026-11-26', deepestM: 9.4, unseen: 2, fastestS: null });
   assert.equal(scoreInto(s, { kind: 'power' }), null, 'a kind with no row scores nothing (the runabouts score as runabout: BOUNTY_KIND)');
   assert.equal(scoreInto(s, { kind: 'paddleboard' }), null);
-  // a set: every type of Emerald Bay (the rival's row filled by hand: no rival is a target yet)
-  s.byType.rival.wrecked = 1;
-  const xp0 = s.xp;
-  r = scoreInto(s, { kind: 'kayak', splash: true }); assert.equal(r.set, 'emerald'); assert.equal(r.xp, 1 + 25); assert.equal(s.xp, xp0 + 26);
-  r = scoreInto(s, { kind: 'kayak', splash: true }); assert.equal(r.set, null, 'a set pays once');
+  r = scoreInto(s, { kind: 'kayak', splash: true }); assert.equal(r.set, null, 'a set pays once'); assert.equal(r.xp, 1);
 });
 
 test('levels and points: one point a level, reported as the levels crossed; the level 20 cap', () => {
@@ -122,12 +120,12 @@ test('the Logbook\'s Tessie page (v2/ui/tessieLog.js): the level line, the bount
   T.score({ kind: 'sail', depthM: 9.4 }, { day: '2026-11-26' }); T.score({ kind: 'kayak', splash: true }, { day: '2026-11-26' });
   let [b, south, k] = P.views();
   assert.deepEqual([b.id, south.id, k.id], ['emerald', 'south', 'skills'], 'phase 6: the bounty by set, a view each, then the skills');
-  assert.deepEqual(b.rows.map((r) => r.id), ['halcyon', 'sail', 'rival', 'glass', 'kayak', 'set'], 'Emerald Bay: its types, then the set');
+  assert.deepEqual(b.rows.map((r) => r.id), ['halcyon', 'sail', 'glass', 'kayak', 'set'], 'Emerald Bay: its types (no rival row: phase 6b), then the set');
   assert.deepEqual(south.rows.map((r) => r.id), ['paddle', 'still', 'kayak', 'runabout', 'jetski', 'set']);
   assert.match(b.rows[1].g, /1 wrecked · deepest from 9\.4 m · 1 unseen · first 2026-11-26/); assert.equal(b.rows[1].got, true);
-  assert.equal(b.rows[0].g, 'not yet'); assert.match(b.rows[4].g, /^1 splashed/);
-  assert.equal(b.rows[5].t, '◇ The set · 2 of 5'); assert.equal(b.rows[5].got, false);
-  assert.match(b.label, /^Emerald Bay<i>2 of 5<\/i>$/);
+  assert.equal(b.rows[0].g, 'not yet'); assert.match(b.rows[3].g, /^1 splashed/);
+  assert.equal(b.rows[4].t, '◇ The set · 2 of 4'); assert.equal(b.rows[4].got, false);
+  assert.match(b.label, /^Emerald Bay<i>2 of 4<\/i>$/);
   assert.match(b.lead, /Level 2 · 17 \/ 25 XP · 1 point to spend/);
   assert.deepEqual(k.rows.map((r) => [r.id, r.press]), [['dash', true], ['lure', true], ['sonar', false], ['surge', false], ['breach', false]]);
   assert.match(k.rows[2].g, /after Lure/);

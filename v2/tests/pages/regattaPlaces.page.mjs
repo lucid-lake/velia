@@ -6,6 +6,8 @@
 //   844 × 390    an iPhone on its side: the same race, no fireworks plug-in, the salute not shown (the horn only)
 //   1280 × 720   Tessie's Deep (&tessie=1): she rises on the player's course with the warning (the race's director, her sim visible
 //                ahead of the bow in her water; no ring on the water, owner 2026-11-20); the race sails on to the finish
+//   1280 × 720   Tessie's Deep with the Tessie RPG (&tessierpg=1 and a bounty save): her attacks are the save's ranks, aimed at the
+//                player (the Dash first, then the Tail Surge: its wave heels the boat, never a knockdown)
 //   1280 × 720, 844 × 390   Leave race (owner, 2026-11-20): the watch's Leave asks "Leave race?" (Esc is No), the Menu card's Leave race row
 //                (Esc is No, the card stays); Yes leaves for free Sail where she is, the race's HUD and fleet gone; a phone (no watch on its
 //                flat controls) by the Menu card's row
@@ -31,10 +33,10 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/6
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--enable-unsafe-webgpu', '--no-first-run', '--mute-audio'] });
 const shot = async (page, name) => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
 
-async function open(query, ctxOpts = { viewport: { width: 1280, height: 720 } }) {
+async function open(query, ctxOpts = { viewport: { width: 1280, height: 720 } }, store = {}) {
   const ctx = await browser.newContext(ctxOpts), page = await ctx.newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
-  await page.addInitScript((s) => { try { localStorage.setItem('lakeshore.settings.v1', JSON.stringify(s)); } catch { /* blocked */ } }, SEEN);
+  await page.addInitScript(([s, more]) => { try { localStorage.setItem('lakeshore.settings.v1', JSON.stringify(s)); for (const [k, v] of Object.entries(more)) localStorage.setItem(k, v); } catch { /* blocked */ } }, [SEEN, store]);
   await page.goto(`${BASE}/?mode=regatta&once=0&seed=1&handseed=7&autoplay=1&autotier=hard${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__velia?.regatta?.r?.on && window.__velia.frames > 20, null, { timeout: 300000 });
   return { ctx, page, errors };
@@ -205,6 +207,36 @@ try {
   check(s.status === 'finished' || (s.status === 'dnf' && s.knocks.length === 2), `tessie: the race ends (${s.status}, knocks ${JSON.stringify(s.knocks)})`);
   check(t.errors.length === 0, `tessie: no page errors (${t.errors.slice(0, 2).join(' | ')})`);
   await t.ctx.close();
+
+  // ---- Tessie's Deep with the Tessie RPG (?tessierpg=1 and a bounty save with Dash rank 2, Tail Surge, Breach): her attacks are your
+  // ranks, aimed at you: the dash first, then the surge (her slap's wave heels the boat, never a knockdown) ----
+  const SAVE = { _v: 2, xp: 1100, ranks: { dash: 2, lure: 1, sonar: 1, surge: 2, breach: 1 } };
+  const rp = await open('&course=tessies-deep&tessie=1&tessierpg=1', undefined, { 'lakeshore.tessie.bounty.v1': JSON.stringify(SAVE) });
+  const okWarn = await sailUntil(rp.page, (r) => r.deep.state.n >= 1 && r.deep.state.phase === 'warn', 200, 0.5);
+  const a1 = await rp.page.evaluate(() => { const r = window.__velia.regatta.r; return { act: r.deep.state.act, target: r.deep.state.target, line: r.coach?.line?.text ?? '' }; });
+  check(okWarn && ((a1.act === 'dash' && a1.target === 'me') || a1.act === 'strike'), `rpg: her first attack is your Dash, aimed at you (or today\'s strike while you are out of her reach) (${JSON.stringify(a1)})`);
+  const okSurge = await sailUntil(rp.page, (r) => r.deep.state.phase === 'warn' && r.deep.state.act === 'surge', 300, 0.5);
+  check(okSurge, 'rpg: your Tail Surge comes in its turn');
+  if (okSurge) {
+    // real time from the warning (her swim runs on the living clock); the slap's wave heels the boat
+    const watch = (until) => rp.page.evaluate(async (until) => {
+      const V = window.__velia, r = V.regatta.r, T = V.tessie, w = (window.__lkW ??= { seen: false, heel: 0, t: null });
+      for (let i = 0; i < 400; i++) {
+        await new Promise((ok) => setTimeout(ok, 50));
+        w.seen ||= !!T.sim.state.visible; w.heel = Math.max(w.heel, Math.abs(V.boat.sim.state.heel ?? 0) * 180 / Math.PI);
+        if (r.deep.state.phase === 'strike' && w.t == null) w.t = performance.now();
+        if (until === 'slap' ? w.t != null && performance.now() - w.t > 900 : r.deep.state.phase === 'rest') break;
+      }
+      return { seen: w.seen, heel: w.heel, heels: r.stats.heels ?? [], knocks: r.stats.knocks };
+    }, until);
+    await watch('slap');
+    await shot(rp.page, 'tessies-deep-rpg-surge');   // her slap's rings, the boat heeling away
+    const surge = await watch('rest');
+    check(surge.seen, `rpg: she shows for her surge (${JSON.stringify(surge).slice(0, 200)})`);
+    check(surge.knocks.length === 0 && surge.heel < 55, `rpg: her wave never knocks the boat down (peak heel ${surge.heel.toFixed(1)}°, heels ${JSON.stringify(surge.heels)})`);
+  }
+  check(rp.errors.length === 0, `rpg: no page errors (${rp.errors.slice(0, 2).join(' | ')})`);
+  await rp.ctx.close();
 
   // ---- Glass Boat Chase, desktop (phase 2): Velia Travel just off her stop with her head start, under way at the gun, in the race ----
   const g = await open('&course=glass-boat-chase');

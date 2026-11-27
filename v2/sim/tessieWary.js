@@ -5,13 +5,13 @@
 //                 a boat that sees her bears away (the busy lake's evade, v2/living/busyLake.js, reads the threat's seeM)
 //   levels 6–12   the lookout: seeM 90 m at the surface; the kayak pairs keep kayakBerthM (100 m) off her water (v2/sim/kayaks.js
 //                 berth); the radio's chatter gains two lines (CHATTER, once ever each, only where ?chatter is not 0)
-//   levels 13–20  as above; the Regatta rivals round her water wide (rivalBerthM, for a race she is played in: the Deep tie-in);
-//                 the Halcyon's skipper flees at the first ring (her Lure never turns him curious)
+//   levels 13–20  as above; the Halcyon's skipper flees at the first ring (her Lure never turns him curious). The design's "Regatta
+//                 rivals round her water wide" is dropped (phase 6b): rivals sail only in races, where she is never played
 //   waryOf(level) → the band's row;  chatterLine(her { x, z }, seen(kind) → bool) → { kind, text } | null
 export const WARY = Object.freeze([
-  Object.freeze({ from: 1, seeM: 60, kayakBerthM: 0, chatter: false, rivalBerthM: 0, halcyonFlees: false }),
-  Object.freeze({ from: 6, seeM: 90, kayakBerthM: 100, chatter: true, rivalBerthM: 0, halcyonFlees: false }),
-  Object.freeze({ from: 13, seeM: 90, kayakBerthM: 100, chatter: true, rivalBerthM: 150, halcyonFlees: true }),
+  Object.freeze({ from: 1, seeM: 60, kayakBerthM: 0, chatter: false, halcyonFlees: false }),
+  Object.freeze({ from: 6, seeM: 90, kayakBerthM: 100, chatter: true, halcyonFlees: false }),
+  Object.freeze({ from: 13, seeM: 90, kayakBerthM: 100, chatter: true, halcyonFlees: true }),
 ]);
 export function waryOf(level = 1) {
   const L = Number.isFinite(+level) ? +level : 1;
