@@ -52,7 +52,7 @@ export const LEAN_CLASS = Object.freeze({
   'tip.tessie.swim': TIP, 'tip.tessie.dive': TIP, 'tip.tessie.dash': TIP, 'tip.tessie.look': TIP,
   // "Tessie's up. [T] to be her." (tessiePlayer.js createBeLine): a TIP that may come back (LEAN_REPEAT), retired for good by the first swap
   'tip.tessie.be': TIP,
-  // the Tessie RPG's level-up (v2/sim/tessieLevelUp.js, ?tessierpg=1): "Level N: pick one skill to grow.", a TIP that comes back while a
+  // the Tessie RPG's level-up (v2/sim/tessieLevelUp.js, ?tessierpg=1): "Level N: pick one skill to grow: [1] or [2].", a TIP that comes back while a
   // point waits (its own cadence: still 2 s, at most every 60 s); the gap and busy rules hold
   'tip.tessie.level': TIP,
   // the Tessie RPG, phase 6 (v2/sim/tessieBounty.js SETS, v2/sim/tessieWary.js CHATTER): a set's legend line and the lookout's two

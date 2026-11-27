@@ -198,7 +198,8 @@ try {
     const lineUp = await page.waitForFunction(() => window.__velia.tessiePlay.stats().rpg?.open, null, { timeout: 40000 }).then(() => true, () => false);
     await page.waitForTimeout(900);
     const said = await page.evaluate(() => [...document.querySelectorAll('.lk-hint .row.in')].map((r) => r.textContent.trim()).join(' | '));
-    check(lineUp && /^Level 4: pick one skill to grow\.$/.test(said ?? ''), `the skipper's line: "Level 4: pick one skill to grow." (${JSON.stringify(said)})`);
+    const caps = await page.evaluate(() => [...document.querySelectorAll('.lk-hint .row.in .cap')].map((c) => c.textContent));
+    check(lineUp && /^Level 4: pick one skill to grow: 1 or 2\.$/.test(said ?? '') && caps.join() === '1,2', `the skipper's line: "Level 4: pick one skill to grow: [1] or [2]." with the glowing slots' keys as caps (${JSON.stringify(said)}, caps ${caps})`);
     if (process.env.TESSIE_RPG2_SHOT) {
       await page.screenshot({ path: `${process.env.TESSIE_RPG2_SHOT}-1280.png` });
       await page.setViewportSize({ width: 1180, height: 720 }); await page.waitForTimeout(350);

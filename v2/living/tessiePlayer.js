@@ -28,7 +28,7 @@
 //                 surfacing that splashes a kayak pair scores one splash a pair (RPG.splashS apart); her legend's first line shows her
 //                 level and its XP fill; a click or tap on her depth dial or her sonar opens the Logbook on its Tessie page; a South
 //                 Lake runabout knocked down and the jet ski's rider splashed count too. Phase 2: five slots (Digit1 … Digit5, a click
-//                 or tap) with rank pips; a level reached says "Level N: pick one skill to grow." on the skipper's line and the slots
+//                 or tap) with rank pips; a level reached says "Level N: pick one skill to grow: [1] or [2]." on the skipper's line and the slots
 //                 a point can go to glow; a press on a glowing slot while the line is up spends the point (v2/sim/tessieLevelUp.js),
 //                 any other press is the skill's own (phases 3–5); the Dash's
 //                 rank sets its burst, cooldown and bite (v2/sim/tessieSkills.js DASH_RANKS)
@@ -276,7 +276,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   let surfaceT = 0, tapDive = 0, dashPulse = false;
   const log = { knocks: [], spooks: 0, falls: 0, hits: 0, lastFall: null, swaps: [], tips: [], bounty: [] };
   const bounty = rpg ? createTessieBounty({ storage }) : null;
-  const levelUp = bounty ? createLevelUp({ bounty }) : null;   // phase 2: the level-up moment on the skipper's line and the slots
+  const levelUp = bounty ? createLevelUp({ bounty, touch }) : null;   // phase 2: the level-up moment on the skipper's line and the slots
   let rpgReadT = 0, rpgRanks = null, rpgHalo = '';
   let rpgLevel = bounty ? bounty.state().level : 1;   // phase 6: her level as last read (the wary band)
   const wary = () => (bounty ? waryOf(rpgLevel) : WARY[0]);   // flag off: today's rules
@@ -621,7 +621,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       if (!h?.note) return false;
       const count = () => { const c = h.phoneQuiet?.state?.counts; return c ? c[LEVEL_UP.kind] ?? 0 : null; };   // null: no lean to ask
       const c0 = count();
-      h.note(text, '', null, { kind: LEVEL_UP.kind });
+      h.note(capLine(text), '', null, { kind: LEVEL_UP.kind });   // the glowing slots' keys as the line's key caps
       const c1 = count();
       const ok = c0 == null || c1 > c0;   // the lean counted it (no lean: taken)
       if (ok) log.lines = (log.lines ?? 0) + 1;
