@@ -88,6 +88,11 @@ const COUNT_KEY = 'lakeshore.tessie.knocks.v1';   // her lines' once-ever marks 
 export const RPG = Object.freeze({ seenS: 45, splashS: 45, kinds: BOUNTY_KIND,   // a hit's kind → its bounty type (the rest come with their boats)
   slotCodes: Object.freeze({ Digit1: 'dash', Digit2: 'lure', Digit3: 'sonar', Digit4: 'surge', Digit5: 'breach' }),   // phase 2: the five slots' number keys
   stillV: 0.3, readS: 0.25 });   // m/s over her drift: still (the waiting line's 2 s); s between two reads of the save (the halo, the ranks)
+// the Tail Surge's reasons when its slap tipped nothing (the RPG; once ever each on the skipper's line, v2/ui/leanSkipper.js)
+export const SURGE_LINES = Object.freeze({
+  upright: Object.freeze({ kind: 'tip.tessie.surge.upright', text: 'It only heeled. Slap closer, or a boat leaning in the wind.' }),
+  light: Object.freeze({ kind: 'tip.tessie.surge.light', text: 'Light wind: the wave only heels them.' }),
+});
 const HALCYON = { L: 8.5, B: 3.0 }, BUSY_HULL = { L: 8.5, B: 3.0 }, GLASS = { L: 12.2, B: 3.8 };
 export const PLAYER = Object.freeze({ offM: 150, veilOut: 0.22, veilIn: 0.4, reachDelayS: 2, reachM: [100, 90, 115, 80, 125], reachConeDeg: 20, holdNearM: 30, dialM: 20, arrowV: 0.2, lookUpM: 6, fastS: 3, chevV: Object.freeze([1.5, 6.5, 15]), dashLineS: 2 });   // dashLineS: a boat in her corners out of reach this long, once ever: the dash's line   //: the fast line after 3 s swimming at the surface; the speed chevrons lit past 1.5, 6.5 and 15 m/s   // phase 2a: the dial's 0–20 m, its ▲/▼ past 0.2 m/s, the first dive's line, the first time past 6 m
 
@@ -683,9 +688,11 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     sim.emit?.('flick', 'tail');   // her tail lifts: its drops and its sound
     sim.ring?.(tl.x, tl.z, 0.6);
     log.surge = { at: +clock.toFixed(1), rank, ringM: row.ringM, knockM: row.knockM, heelDeg: row.heelDeg, slap: null };
-    const c = sim.state.centre ?? [tl.x, tl.z], reach = surgeResolve({ x: c[0], z: c[1] }, surgeList(), row);
+    const c = sim.state.centre ?? [tl.x, tl.z], reach = surgeResolve({ x: c[0], z: c[1] }, surgeList(), row, { bodyD });
     return reach.seen.length || reach.kayaks.length ? true : SKILL_EMPTY;   // no boat in its ring, no kayak in reach: no free trial spent
   }
+  // m from a boat's middle to the nearest frame of her spine (the Tail Surge's knock radius counts from her whole body)
+  function bodyD(b) { const sp = sim.state.spine; if (!sp) return Infinity; let d = Infinity; for (let i = 0; i < sp.length; i += 16) d = Math.min(d, Math.hypot(sp[i] - b.x, sp[i + 2] - b.z)); return d; }
   // her tail's tip and her body's middle on the water
   function tailAt() { const sp = sim.state.spine, o = (sp.length / 8 - 1) * 8; return { x: sp[o], z: sp[o + 2] }; }
   // the boats as the wave sees them: the sailboats' and the Halcyon's heel now and the wind at them
@@ -702,7 +709,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     fx.slapAt = clock; fx.x = c[0]; fx.z = c[1];
     sim.emit?.('slap', 'tail', 1.6);
     sim.ring?.(tl.x, tl.z, 1); sim.ring?.(c[0], c[1], 1);
-    const list = surgeList(), plan = surgeResolve({ x: c[0], z: c[1] }, list, fx.row, { grace: graced }), by = new Map(list.map((b) => [b.id, b]));
+    const list = surgeList(), plan = surgeResolve({ x: c[0], z: c[1] }, list, fx.row, { grace: graced, bodyD }), by = new Map(list.map((b) => [b.id, b]));
     const seen = new Set(); for (const [id, t] of sawAt) if (clock - t <= RPG.seenS) seen.add(id);
     fx.ctx = { depthM: Math.max(0, C.state.nose ?? 0), hidden: false, seen, skill: 'surge' };   // the slap shows her: never an unseen wreck
     fx.due = [...plan.heels.map((h) => ({ ...h, b: by.get(h.id) })), ...(plan.knock ? [{ ...plan.knock, knock: true, b: by.get(plan.knock.id) }] : [])].sort((a, b) => a.atS - b.atS);
@@ -711,8 +718,10 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const kay = plan.kayaks.length ? scoreSplash(c[0], c[1], near) : null;
     spookAt(c[0], c[1], SURGE.kayakM);
     casts.push({ type: 'surge', x: c[0], z: c[1] });
+    if (!plan.knock && plan.light) tip(SURGE_LINES.light.kind, SURGE_LINES.light.text);   // why nothing went over (once ever each)
+    else if (!plan.knock && plan.upright) tip(SURGE_LINES.upright.kind, SURGE_LINES.upright.text);
     log.surge.slap = { at: +clock.toFixed(1), x: +c[0].toFixed(1), z: +c[1].toFixed(1), heels: plan.heels.map((h) => ({ id: h.id, d: +h.d.toFixed(1), lean: +h.lean.toFixed(1), heelDeg: +h.heelDeg.toFixed(1), side: h.side })),
-      knock: plan.knock ? { id: plan.knock.id, d: +plan.knock.d.toFixed(1), lean: +plan.knock.lean.toFixed(1), side: plan.knock.side } : null, light: plan.light, kayaks: plan.kayaks, splashXp: kay?.xp ?? 0, seen: plan.seen, over: [] };
+      knock: plan.knock ? { id: plan.knock.id, d: +plan.knock.d.toFixed(1), lean: +plan.knock.lean.toFixed(1), side: plan.knock.side } : null, light: plan.light, upright: plan.upright, kayaks: plan.kayaks, splashXp: kay?.xp ?? 0, seen: plan.seen, over: [] };
   }
   // the wave reaching a boat: its heel (or the one boat's knockdown), and she is seen
   function surgeReach(fx, h) {

@@ -62,6 +62,8 @@ export const LEAN_CLASS = Object.freeze({
   // last; once ever each
   'tip.tessie.try.lure': TIP, 'tip.tessie.try.sonar': TIP, 'tip.tessie.try.surge': TIP, 'tip.tessie.try.breach': TIP,
   'tip.tessie.tried.lure': TIP, 'tip.tessie.tried.sonar': TIP, 'tip.tessie.tried.surge': TIP, 'tip.tessie.tried.breach': TIP,
+  // the RPG's reasons for a skill that did nothing (v2/living/tessiePlayer.js SURGE_LINES, SKILL_LINES), once ever each
+  'tip.tessie.surge.upright': TIP, 'tip.tessie.surge.light': TIP,
   // a press or a tap refused, with the way out (the planner, the double-tap mark, the pilot)
   'mark.set': MUST,   // "Mark set. Click NAV to sail there.": the answer to a double-click; said at once
   'refuse.plan': MUST, 'refuse.mark': MUST, 'refuse.pilot': MUST, 'refuse.dest': MUST, 'refuse.course': MUST,

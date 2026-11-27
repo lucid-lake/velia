@@ -246,9 +246,12 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
   easing to 30 % of it at the ring. `busyLake.wave(id, { heel })` and the Halcyon's `B.wave({ heel })` carry the hull to that heel over
   0.5 s, hold 0.6 s and let it go over 0.9 s (`sim/waveRoll.js`: a stiff spring on the path plus the righting arm's moment; a hull
   already leaning that far gets nothing). The glass boat: her scripted roll (`tourBoat.knock(side, peakDeg)`).
-- **The knock rule:** one boat (the nearest) inside the knock radius already heeled past 20° by its own wind goes over (her knockdown,
-  scored as wrecked); under 7.5 kn at the boat (the Light band) nothing goes over. Measured on the busy lake (seed 1, 30 s settled): the
-  boats' own heel peaks at 5° in 5 kn, 14° in 10 kn, 18° in 12 kn, 20° in 15 kn, 22–23° in 18–24 kn, so knocks come in a strong wind.
+- **The knock rule:** one boat (the nearest) inside the knock radius of her body (any spine frame, not only her middle) goes over
+  (her knockdown, scored as wrecked) when it is already heeled past 12° by its own wind, or when it is point-blank (within 0.6 of the
+  knock radius: 7.2 m at rank 1, 10.8 m at rank 4) whatever its lean; under 7.5 kn at the boat (the Light band) nothing goes over. Why
+  point-blank: a boat that sees her bears away and sits upright (about 2° at 15 kn), and the lean rule alone from her middle knocked
+  0 of 28 slaps at 15 kn from the surface (1 of 27 from 9 m down); now 6 of 6 within 8 m of her nose. A slap that tipped nothing says
+  why once on the skipper's line ("It only heeled. …", "Light wind: …": `SURGE_LINES`).
 - **The kayakers** within 20 m of her middle are splashed (one bounty splash a slap, a breach's rule) and spooked.
 
 ## Tessie's Breach (`?tessierpg=1`, phase 5; sim/tessieBreach.js, sim/tessiePlay.js `skillBreach`, living/tessiePlayer.js)
