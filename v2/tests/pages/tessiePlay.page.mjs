@@ -43,6 +43,7 @@ async function open(q, { init = null, ...opts } = {}) {
 const QUIET = { fn: ([key, kinds]) => { try { localStorage.setItem(key, JSON.stringify(kinds)); } catch {} },
   arg: [LEAN.storeKey, Object.keys(LEAN_CLASS).filter((k) => LEAN_CLASS[k] === TIP && !k.startsWith('tip.tessie'))] };
 const QQ = Q.replace('once=0', 'once=1');
+const OFF = '&tessierpg=0';   // the RPG is on by default; this file checks today's four-slot HUD (the RPG's own: tessieRpg.page.mjs)
 const BE_UP = () => window.__velia.tessiePlay?.pill && /Tessie.s up\./.test(document.querySelector('.lk-hint .row.in')?.textContent ?? '');
 // the line's facts, read in the frame it is found (a loaded machine: a later read can meet the next line)
 const beLine = (page) => page.waitForFunction(() => { const r = document.querySelector('.lk-hint .row.in'), b = r?.getBoundingClientRect();
@@ -101,7 +102,7 @@ try {
   }
   // ---- the line, T in, a knockdown, T back ----
   {
-    const { ctx, page, errors } = await open(`${QQ}&tessie=now`, { init: QUIET });
+    const { ctx, page, errors } = await open(`${QQ}&tessie=now${OFF}`, { init: QUIET });
     await page.evaluate(() => { const hm = window.__velia.m4?.front?.home; if (hm?.isOpen) hm.close(); });
     const up = await page.waitForFunction(BE_UP, null, { timeout: 120000 }).then(() => true, () => false);
     check(up, 'swap: she shows herself near the boat, the skipper\'s line says so');
@@ -299,7 +300,7 @@ try {
     //: a tablet: DEPTH and SONAR in the top corners under the bar, the skills row bottom centre; a tap on DASH dashes
     const tl = await page.evaluate(() => { const r = (s) => { const b = document.querySelector(s)?.getBoundingClientRect(); return b ? { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), r: Math.round(innerWidth - b.right), b: Math.round(innerHeight - b.bottom) } : null; }; return { depth: r('#lk-tplay .tp-dial'), sonar: r('#lk-tplay .tp-sonar'), skills: r('#lk-tplay .tp-skills') }; });
     check(tl.depth?.x === 16 && tl.depth.y < 140 && tl.depth.w === 104 && tl.sonar?.r === 16 && tl.sonar.y < 140 && tl.skills?.b <= 40, `tablet: the dials in the top corners, the skills row at the foot (${JSON.stringify(tl)})`);
-    await page.locator('#lk-tplay .tp-slot.sk').dispatchEvent('pointerdown'); await page.waitForTimeout(300);
+    await page.locator('#lk-tplay .tp-slot.sk[data-skill="dash"]').dispatchEvent('pointerdown'); await page.waitForTimeout(300);
     check(await page.evaluate(() => window.__velia.tessiePlay.stats().ctl.dash), 'tablet: a tap on DASH dashes');
     const lk0 = await page.evaluate(() => window.__velia.tessiePlay.cam.state.look);
     await page.mouse.move(900, 300); await page.mouse.down(); await page.mouse.move(900, 380, { steps: 5 }); await page.mouse.up(); await page.waitForTimeout(200);

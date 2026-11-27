@@ -1,4 +1,4 @@
-// The Tessie RPG, phase 1 on the real page (?tessierpg=1; v2/sim/tessieBounty.js, v2/ui/tessieLog.js):
+// The Tessie RPG, phase 1 on the real page (on by default where she is playable; ?tessierpg=0 off; v2/sim/tessieBounty.js, v2/ui/tessieLog.js):
 //   (phase 6: the bounty rows grouped by set, Emerald Bay (no rival row since phase 6b) then South Lake, each with its set row; then the skills)
 //   the Logbook's Tessie page: a fifth tab after corners; her mark and "Level N · x / y XP · k points to spend"; the bounty rows by
 //     boat type (from a seeded save); the five skill rows with their rank pips; a press on a skill row that can take a point spends
@@ -6,7 +6,7 @@
 //   her legend's first line "Tessie · Lv N" with its 2 px fill at the share of XP inside the level
 //   the door: a click on her sonar, then on her depth dial, opens the Logbook on its Tessie page
 //   a real knockdown (a busy-lake sailboat laid ahead, W and Space once locked) is scored into the save and the legend
-//   the flag off: no Tessie tab, no level line, no door; today's four slots ("Lv 1" on the dash, three empty)
+//   no flag (the RPG's default, the last block): the Tessie tab, her level line, the five slots; ?tessierpg=0: no Tessie tab, no level line, no door; today's four slots ("Lv 1" on the dash, three empty)
 // Phase 2 (v2/sim/tessieLevelUp.js, the five slots in v2/ui/tessieHud.js):
 //   five slots in order with four rank pips each (filled to the rank), a locked skill in the empty slot's look (glyph 25 %, no pips,
 //     its number key), no "Lv" tag; the halo on the slots a point can go to
@@ -438,7 +438,7 @@ try {
   }
   // ---- the flag off: nothing of it ----
   {
-    const { ctx, page, errors } = await open(Q, SAVE);
+    const { ctx, page, errors } = await open(`${Q}&tessierpg=0`, SAVE);
     const tabs = await page.evaluate(() => [...document.querySelectorAll('.lk-log .title [data-tab]')].map((t) => t.dataset.tab));
     check(!tabs.includes('tessie'), `flag off: no Tessie tab (${tabs.join()})`);
     await page.evaluate(() => window.__velia.tessiePlay.become('menu'));
@@ -452,6 +452,19 @@ try {
     const off3 = await page.evaluate(() => ({ world: !!document.querySelector('#lk-tplay .tp-world'), rim: document.querySelectorAll('#lk-tplay .tp-sonar .rim line').length, lure: window.__velia.tessiePlay.stats().log.lure ?? null, surge: window.__velia.tessiePlay.stats().log.surge ?? null }));
     check(!off3.world && off3.rim === 0 && off3.lure === null && off3.surge === null, `flag off: 2, 3 and 4 do nothing, no world marks (${JSON.stringify(off3)})`);
     check(errors.length === 0, `flag off: no page errors (${errors.slice(0, 2).join(' | ')})`);
+    await ctx.close();
+  }
+  // ---- no flag: the RPG is on by default where she is playable ----
+  {
+    const { ctx, page, errors } = await open(Q, SAVE);
+    const tabs = await page.evaluate(() => [...document.querySelectorAll('.lk-log .title [data-tab]')].map((t) => t.dataset.tab));
+    check(tabs.includes('tessie'), `no flag: the Logbook's Tessie tab (${tabs.join()})`);
+    await page.evaluate(() => window.__velia.tessiePlay.become('menu'));
+    await page.waitForFunction(() => window.__velia.tessiePlay?.as === 'tessie' && !document.querySelector('#lk-tplay .tp-sonar')?.hidden, null, { timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(600);
+    const on = await page.evaluate(() => ({ level: !!document.querySelector('#lk-tplay .tp-lv'), slots: [...document.querySelectorAll('#lk-tplay .tp-skills .tp-slot')].map((s) => s.dataset.skill ?? 'empty'), bounty: !!window.__velia.tessiePlay.bounty }));
+    check(on.level && on.bounty && on.slots.join() === 'dash,lure,sonar,surge,breach', `no flag: her level line, the bounty, five slots (${JSON.stringify(on)})`);
+    check(errors.length === 0, `no flag: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }
 } finally {

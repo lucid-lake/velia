@@ -225,6 +225,14 @@ fleet's step ≈ 0.1 ms a frame (node, 6 kayaks), the plan 22–56 ms once when 
   (1170 x 2532, `terrain=phone`, boards forced on with `?sup=1`): scene 3.227 on, 3.222 off (+0.005 ms). The phone's policy makes no board,
   no pipeline: 0 ms. The budget is 0.2 ms on a desktop.
 
+## The Tessie RPG is on by default (`?tessierpg=0` off)
+
+Wherever she is playable (a desktop, a tablet) the RPG runs with no flag; `?tessierpg=0` turns it off (v2/engine/flags.js). A phone loads
+none of her code (v2/tests/regatta-no-rpg.test.mjs). The sections below name `?tessierpg=1` from before the switch; it still reads on.
+Level-ups that are felt (sim/tessieSkills.js): the Dash's ranks raise its speed × 1.0 → 1.3, its burst 1.8 → 3.6 s, its cooldown
+4.5 → 2.5 s; her cruise grows 1.5 % a level to + 15 %. A wreck of a boat Sonar marked or Lure called in the last 30 s pays × 1.5
+(sim/tessieBounty.js marked). A first wreck of each type has a short line once; a waiting point's reminder comes back at most 3 times a session.
+
 ## Tessie's Lure and Sonar (`?tessierpg=1`; sim/tessieLure.js, sim/tessieSonar.js, living/tessiePlayer.js)
 
 - **Lure: the `curious` kind**, the opposite sign of the evade. `busyLake.lure(id, { x, z, s })`: the sailboat steers toward the ring
