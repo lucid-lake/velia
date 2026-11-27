@@ -65,6 +65,7 @@ export const LEAN_CLASS = Object.freeze({
   // the RPG's reasons for a skill that did nothing (v2/living/tessiePlayer.js SURGE_LINES, SKILL_LINES), once ever each
   'tip.tessie.surge.upright': TIP, 'tip.tessie.surge.light': TIP,
   'tip.tessie.repeat': TIP,
+  'tip.tessie.marked': TIP,   // a boat Sonar marked or Lure called pays half again (v2/sim/tessieBounty.js marked), once ever
   'tip.tessie.breach.none': TIP, 'tip.tessie.breach.seen': TIP, 'tip.tessie.locked': TIP,   // the same boat wrecked again within 2 min pays half (v2/sim/tessieBounty.js repeatS)
   // a press or a tap refused, with the way out (the planner, the double-tap mark, the pilot)
   'mark.set': MUST,   // "Mark set. Click NAV to sail there.": the answer to a double-click; said at once

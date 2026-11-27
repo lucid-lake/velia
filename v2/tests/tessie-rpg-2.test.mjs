@@ -249,8 +249,8 @@ test('the display: trial (glyph 60 %, the count) vs locked (25 %) vs unlocked (p
   assert.equal(slotState(0, 5), 'trial'); assert.equal(slotState(0, 0), 'locked'); assert.equal(slotState(2, 5), 'unlocked');
   assert.deepEqual(['trial', 'locked', 'unlocked'].map(slotGlyph), [0.6, 0.25, 1]);
   const s = normalise({ _v: 2, xp: 52, ranks: { dash: 2 }, trials: { lure: 4, sonar: 1, surge: 0 } });
-  assert.match(skillRow(s, 'lure').g, /^press to unlock · 4 free tries left$/);
-  assert.match(skillRow(s, 'sonar').g, /after Lure · 1 free try left$/);
+  assert.match(skillRow(s, 'lure').g, /^press to unlock · 4 free tries left · its boats pay \+50 %$/);
+  assert.match(skillRow(s, 'sonar').g, /after Lure · 1 free try left · its boats pay \+50 %$/);
   assert.doesNotMatch(skillRow(s, 'surge').g, /free/);
   assert.doesNotMatch(skillRow(s, 'dash').g, /free/);
 });

@@ -5,7 +5,8 @@
 //                the fastest (s from the Sonar ping that marked the boat or the Lure that lured it to the hit, while the mark or the lure lasts)
 //   the XP       per wreck by type (BOUNTY.xp), × 1.5 from HIDDEN, × 1.5 on a boat that had seen her, × 3 the first of a type; a set
 //                (every type of a region) + 25 once; × 0.5 for each earlier wreck of the same boat within BOUNTY.repeatS (the caller
-//                counts them: hit.repeat), never under 1 XP (camping one boat, the Halcyon above all, paid more than roaming)
+//                counts them: hit.repeat), never under 1 XP (camping one boat, the Halcyon above all, paid more than roaming); × 1.5 on a
+//                boat a Sonar ping marked or a Lure called within the last BOUNTY.markedS (hit.marked: Sonar and Lure earn XP that way)
 //   the level    1 to 20; level L → L + 1 needs 5L + 5 XP (level 2 at 10, level 5 at 70, level 10 at 270, level 20 at 1,045)
 //   the points   one a level (19 in all); a point unlocks a skill (rank 0 → 1) or grows one by a rank, to rank 4; Dash's rank 1 is
 //                free; a skill unlocks only after the one before it (Lure → Sonar → Surge → Breach). Points are derived (earned − spent)
@@ -17,7 +18,7 @@
 //                order binds only a point); a trial use acts as rank 1; only a real use spends one (T.trial(id)), never below 0
 //   const T = createTessieBounty({ storage });   every call reads the store afresh and writes it back (two holders never fight); with no
 //                store, or one that throws, every holder of it shares one save in memory; a save of an unknown (newer) _v is never written
-//   T.score({ kind, depthM, seen, hidden, skill, sinceS, splash, repeat }, { day }) → { xp, base, mult, first, set, levels, repeat, state } or null
+//   T.score({ kind, depthM, seen, hidden, skill, sinceS, splash, repeat, marked }, { day }) → { xp, base, mult, first, set, levels, repeat, marked, state } or null
 //   T.spend(id) → { ok, why, state };  T.trial(id) → { ok, why, left, first, last, state };  T.can(id) → null | why;  T.state() → the save with its derived level, points, toNext
 //   T.legend() → { level, k (share inside this level, 0…1), xp, at, next }
 // Phase 6a: the boats at anchor ('still', from a hit's 'anchored'), the paddle-wheeler (splashed) and a Regatta rival score; their rows were in
@@ -30,6 +31,7 @@ export const BOUNTY = Object.freeze({
   // knocked down, jetski the jet ski's rider splashed: he ducks, never in the water)
   xp: Object.freeze({ kayak: 1, still: 2, sail: 3, halcyon: 4, rival: 5, glass: 6, paddle: 10, runabout: 3, jetski: 2 }),
   hidden: 1.5, seen: 1.5, first: 3, set: 25,
+  marked: 1.5, markedS: 30,    // a boat a Sonar ping marked or a Lure called in the last 30 s pays × 1.5 (the caller decides: hit.marked)
   repeatS: 120, repeatK: 0.5,  // the same boat wrecked again within 120 s: × 0.5 a time (a boat comes back from its 45 s grace; roaming boats
                                // meet the same hull again after 150–190 s, camping one every 46 s)
   hiddenM: 8,                  // m: deeper than this at the strike's start is HIDDEN (v2/sim/tessiePlay.js PLAY.hiddenM)
@@ -139,7 +141,8 @@ export function scoreInto(s, hit, { day = null } = {}) {
   const hidden = hit.hidden != null ? !!hit.hidden : depthM > BOUNTY.hiddenM;
   const first = row.wrecked + row.splashed === 0;
   const repeat = first ? 0 : nat(hit.repeat);
-  const mult = (hidden ? BOUNTY.hidden : 1) * (hit.seen ? BOUNTY.seen : 1) * (first ? BOUNTY.first : 1) * BOUNTY.repeatK ** repeat;
+  const marked = !!hit.marked;
+  const mult = (hidden ? BOUNTY.hidden : 1) * (hit.seen ? BOUNTY.seen : 1) * (first ? BOUNTY.first : 1) * (marked ? BOUNTY.marked : 1) * BOUNTY.repeatK ** repeat;
   if (hit.splash) row.splashed++; else row.wrecked++;
   if (first) row.first = day;
   row.deepestM = Math.max(row.deepestM ?? 0, +depthM.toFixed(1));
@@ -153,7 +156,7 @@ export function scoreInto(s, hit, { day = null } = {}) {
   const was = levelOf(s.xp);
   s.xp += xp; s.level = levelOf(s.xp); s.points = s.level - 1 - spent(s.ranks);
   const levels = []; for (let L = was + 1; L <= s.level; L++) levels.push(L);
-  return { xp, base, mult, first, hidden, set, levels, repeat };
+  return { xp, base, mult, first, hidden, set, levels, repeat, marked };
 }
 // why a point cannot go to this skill now (null: it can)
 export function canSpend(s, id) {

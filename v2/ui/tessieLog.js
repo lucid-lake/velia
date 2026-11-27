@@ -46,6 +46,7 @@ export function skillRow(s, id) {
   else g = rank ? `rank ${rank} of ${BOUNTY.rankCap}` : 'locked · a point unlocks it';
   const tries = rank ? 0 : trialsLeft(s, id);   // a locked skill's free uses left
   if (tries) g += ` · ${plural(tries, 'free try', 'free tries')} left`;
+  if (id === 'lure' || id === 'sonar') g += ` · its boats pay +${Math.round((BOUNTY.marked - 1) * 100)} %`;   // Sonar and Lure earn XP through the boats they find
   return { id, t: `${SKILL_NAMES[id]}${pips(rank)}`, g, got: rank > 0, press: !why };
 }
 // the logbook's tessie source: views read the store afresh each time; press(id) spends a point
