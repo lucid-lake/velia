@@ -130,7 +130,7 @@ const POWER_SIDE = new WeakMap();
 const POWER_BOATS = {
   id: 'power', group: 'boatfx', createAt: 'living', statsAt: 'lake',
   on: (c) => c.boatOn && c.feature('powerBoats').tier !== 'off' && powerRows(c).length > 0,
-  create: (c) => createPowerPlugin({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: c.P.msaa, depthFormat: c.depthFormat, tier: c.feature('powerBoats').tier, rows: powerRows(c), wake: c.wake, ownWake: !c.plugins.get('paddle')?.hasWake, headless: !!c.P.headless }),
+  create: (c) => createPowerPlugin({ device: c.device, reg: c.reg, frameBGL: c.frameBGL, frameStruct: c.frameStruct, sky: c.sky, shadow: c.shadow, hdrTarget: c.hdrTarget, msaa: c.P.msaa, depthFormat: c.depthFormat, tier: c.feature('powerBoats').tier, kayaks: c.plugins.get('kayaks'), rows: powerRows(c), wake: c.wake, ownWake: !c.plugins.get('paddle')?.hasWake, headless: !!c.P.headless }),
   at: {
     boat: (p, c) => {
       const { B } = c;

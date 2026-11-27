@@ -293,7 +293,7 @@ test('the models: a runabout about 6.6 m with a figure at the helm; a detailed j
     assert.ok(rider > 0, `${kind} ${lod}: a figure aboard`);
     tris[`${kind}-${lod}`] = a.length / VF / 3;
   }
-  assert.ok(tris['power-near'] <= 1200 && tris['power-far'] <= 300, JSON.stringify(tris));
+  assert.ok(tris['power-near'] <= 6500 && tris['power-far'] <= 300, JSON.stringify(tris));   // near: the cockpit well, the moulded seats and console, the wheel, the outboard's cowling
   assert.ok(tris['jetski-near'] >= 1500 && tris['jetski-near'] <= 2500 && tris['jetski-far'] <= 400 && tris['jetski-far'] * 4 < tris['jetski-near'], JSON.stringify(tris));
   // the jet ski's parts by their slots and places
   const a = buildCraft('jetski', { lod: 'near' }), slots = new Set(); const at = (pred) => { for (let i = 0; i < a.length; i += VF) if (pred(a[i], a[i + 1], a[i + 2], a[i + 6])) return true; return false; };
