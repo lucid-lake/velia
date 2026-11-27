@@ -42,7 +42,7 @@ export function createTouch({ canvas, host = document.body, show = false, lefty 
     // the helm: one finger on the strip, the knob follows the drag from where it landed
     let hid = null, hx0 = 0;
     const full = () => TOUCH.helmFrac * innerWidth;
-    helm.addEventListener('pointerdown', (e) => { hid = e.pointerId; hx0 = e.clientX; helm.setPointerCapture?.(e.pointerId); el.classList.add('on'); e.preventDefault(); });
+    helm.addEventListener('pointerdown', (e) => { hid = e.pointerId; hx0 = e.clientX; try { helm.setPointerCapture?.(e.pointerId); } catch { /* a synthetic or gone pointer */ } el.classList.add('on'); e.preventDefault(); });
     helm.addEventListener('pointermove', (e) => { if (e.pointerId !== hid) return; state.steer = helmFromDrag(e.clientX - hx0, full()); knob.style.transform = `translateX(${(state.steer * 44).toFixed(1)}px)`; });
     const hup = (e) => { if (e.pointerId !== hid) return; hid = null; state.steer = 0; knob.style.transform = ''; el.classList.remove('on'); };
     helm.addEventListener('pointerup', hup); helm.addEventListener('pointercancel', hup);

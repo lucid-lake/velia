@@ -197,7 +197,7 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
   legend.innerHTML = (rpg ? '<div class="kl tp-lv" data-id="level"><span class="w">Tessie · Lv 1</span><i class="xp"><b></b></i></div>' : '') + lines.map((l) => `<div class="kl${l.skill ? ' off' : ''}" data-id="${l.id}"><span class="caps">${l.caps.map(cap).join(l.sep ? `<span class="sep">${l.sep}</span>` : '')}</span><span class="w">${l.word}</span></div>`).join('');
   root.append(sonar, row, legend);
   for (const b of row.querySelectorAll('.tp-slot.sk')) {
-    b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); b.setPointerCapture?.(e.pointerId); onSlot?.(b.dataset.skill); });
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); try { b.setPointerCapture?.(e.pointerId); } catch { /* a synthetic or gone pointer: the press still counts */ } onSlot?.(b.dataset.skill); });
     // the press lifted (onSlotUp: the RPG's Breach is held on its slot and launches on the release)
     for (const t of ['pointerup', 'pointercancel']) b.addEventListener(t, (e) => { e.stopPropagation(); onSlotUp?.(b.dataset.skill); });
   }
