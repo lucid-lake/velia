@@ -73,7 +73,7 @@ export function createRecorded(ctx, { effects, ambience, base = 'audio/', seed =
     ready,
     update(inp, mix, at = ctx.currentTime) {
       const s = inp.state ?? {};
-      const bm = boat?.update(inp.t ?? 0, { ...s, pitch: inp.pitch ?? s.pitch ?? 0, seaRough: mix.rough ?? 0, heelDrawn: inp.heelDrawn ?? s.heel ?? 0, kdRoll: inp.kdRoll ?? 0, kdT: inp.t ?? 0, simT: inp.t }, { camDist: inp.camDist ?? 20, extra: inp.gustEvents ?? undefined, rushMul: inp.rushMul ?? undefined, adjust }, at);   // audit W4: the gust's snap and rush (v1's opts); the speed feel's re-weighting
+      const bm = boat?.update(inp.t ?? 0, { ...s, pitch: inp.pitch ?? s.pitch ?? 0, seaRough: mix.rough ?? 0, heelDrawn: inp.heelDrawn ?? s.heel ?? 0, kdRoll: inp.kdRoll ?? 0, kdT: inp.t ?? 0 }, { camDist: inp.camDist ?? 20, extra: inp.gustEvents ?? undefined, rushMul: inp.rushMul ?? undefined, adjust }, at);   // audit W4: the gust's snap and rush (v1's opts); the speed feel's re-weighting
       sfx?.update(inp.wallT ?? inp.t ?? 0, { pull: inp.pull ?? 0, sheet: inp.sheet ?? null, rudder: inp.rudder ?? 0, steer: inp.steer ?? 0, sog: s.sog ?? 0, load: Math.hypot(s.drive ?? 0, s.side ?? 0) / 2000 }, at);
       if (amb.lake_lap) { set(amb.lake_lap, 'v', amb.lake_lap.gain.gain, mix.gains.lap, at, 0.4); set(amb.lake_lap, 'f', amb.lake_lap.filter.frequency, mix.hz.lap, at, 0.4); }
       if (amb.rain_water) set(amb.rain_water, 'v', amb.rain_water.gain.gain, mix.gains.rain, at, 0.4);

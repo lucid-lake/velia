@@ -37,7 +37,7 @@ export const WAKE = Object.freeze({
 // sizes (texels): the desktop's Kelvin map at 0.5 m (the transverse waves at 6 kn are 5.8 m, the divergent ones past
 // the hull's cutoff ≥ 2.5 m: 5 texels a wave) and the foam map at 0.5 m (v1's); the phone's at 0.67 m
 export const WAKE_SIZES = Object.freeze({ full: { kelvin: 256, foam: 512 }, phone: { kelvin: 192, foam: 384 } });
-export const POINT_FLOATS = 12;   // per point: (x, z, age, amp) (fx, fz, U, go) (prop, aft, widthK, lifeK), relative to the boat
+export const POINT_FLOATS = 12;   // per point: (x, z, age, amp) (fx, fz, U, go) (prop, aft, 0, 0), relative to the boat
 // #14 prop wash (marked): v1's churn behind the transom under power (src/boat/wake.js update: |thrust| / the bollard pull while
 // the engine turns; 0.25 + 0.75 × it once over 0.02) and where it boils (1.2 m aft of the transom going ahead, 1.5 m forward of it
 // astern: the wash runs forward); each point carries the churn of its moment, the foam map draws v1's stamp along that history
@@ -88,7 +88,7 @@ export function createWakeTrack({ length = 7.26, beam = 3.15, trailN = TRAIL_N, 
         const o = n * POINT_FLOATS, rx = x - ox, rz = z - oz;
         out[o] = rx; out[o + 1] = rz; out[o + 2] = age; out[o + 3] = amp;
         out[o + 4] = fx; out[o + 5] = fz; out[o + 6] = U; out[o + 7] = stampGo(U);
-        out[o + 8] = prop; out[o + 9] = aft; out[o + 10] = stripWidthK(U); out[o + 11] = stripLifeK(U);   // the strip's width and life at U (WAKE_SPEED)
+        out[o + 8] = prop; out[o + 9] = aft; out[o + 10] = 0; out[o + 11] = 0;
         if (prop > 0) { const qx = rx - fx * aft, qz = rz - fz * aft; if (qx < px0) px0 = qx; if (qx > px1) px1 = qx; if (qz < pz0) pz0 = qz; if (qz > pz1) pz1 = qz; }
         if (rx < x0) x0 = rx; if (rx > x1) x1 = rx; if (rz < z0) z0 = rz; if (rz > z1) z1 = rz;
         n++;
@@ -135,7 +135,7 @@ export function foamAtCPU(pts, n, x, z, { length = 7.26, beam = 3.15 } = {}) {
     const d = Math.hypot(x - pts[a] - abx * t, z - pts[a + 1] - abz * t);
     if (d > beam + 2) continue;   // the GPU's cut (render/wake.js): the strip's tails past it are under 1e-4
     const age = pts[a + 2] + (pts[b + 2] - pts[a + 2]) * t, U = pts[a + 6] + (pts[b + 6] - pts[a + 6]) * t, go = pts[a + 7] + (pts[b + 7] - pts[a + 7]) * t;
-    const p = stripProfile(d, age, go, beam, U, pts[a + 10] + (pts[b + 10] - pts[a + 10]) * t, pts[a + 11] + (pts[b + 11] - pts[a + 11]) * t);
+    const p = stripProfile(d, age, go, beam);
     foam = Math.max(foam, p[0]); rough = Math.max(rough, p[1]);
     const q = propProfile(pts, a, b, x, z);   // #14 prop wash
     foam = Math.max(foam, q[0]); rough = Math.max(rough, q[1]);
@@ -149,21 +149,11 @@ export function erf(x) {
 }
 // a band of half-width w blurred by a Gaussian of σ, at distance d from its middle
 export const blurredBand = (d, w, s) => 0.5 * (erf((w - d) / (s * Math.SQRT2)) + erf((w + d) / (s * Math.SQRT2)));
-// Speed legible with no instrument: the white strip's width and life by the speed it was made at. Toward hull speed (Froude
-// number 0.30 to 0.40: 5 to 6.5 kn for the 7.26 m waterline) the stern wave steepens and breaks and the transom drags more air
-// down, so the churned band is wider and its bubbles last longer; at 3 kn the quarter barely stirs. Both are 1 at refMs (2.95
-// m/s: the speed v1's foam map was read back at, so the fit above holds there) and go as a power of U/refMs, clamped:
-// width × (U/refMs)^1.5 in [0.6, 1.35], life × (U/refMs)^2 in [0.5, 1.6]. Only the foam band; the slick keeps v1's.
-export const WAKE_SPEED = Object.freeze({ refMs: 2.95, width: Object.freeze([1.5, 0.6, 1.35]), life: Object.freeze([2, 0.5, 1.6]) });
-const speedK = ([p, lo, hi], U) => Math.min(hi, Math.max(lo, Math.pow(Math.max(U, 0) / WAKE_SPEED.refMs, p)));
-export const stripWidthK = (U) => speedK(WAKE_SPEED.width, U);
-export const stripLifeK = (U) => speedK(WAKE_SPEED.life, U);
-// the strip at distance d from the transom's path, `age` s after it passed, stamped at `go` at speed U (m/s): [foam, rough]
-// (wk, lk: the factors as packed and interpolated along a segment, as the GPU reads them; by default from U)
-export function stripProfile(d, age, go, beam = 3.15, U = WAKE_SPEED.refMs, wk = stripWidthK(U), lk = stripLifeK(U)) {
+// the strip at distance d from the transom's path, `age` s after it passed, stamped at `go`: [foam, rough]
+export function stripProfile(d, age, go, beam = 3.15) {
   const s = Math.sqrt(WAKE.edgeM * WAKE.edgeM + WAKE.spreadM2s * Math.max(age, 0));
   const tail = go * (1 - smooth(TRAIL_N * TRAIL_DT - 4, TRAIL_N * TRAIL_DT, age));   // the ring's end: no hard edge
-  return [blurredBand(d, WAKE.core * beam * wk, s) * Math.exp(-age / (WAKE.foamS * lk)) * tail, blurredBand(d, WAKE.roughCore * beam, s) * Math.exp(-age / WAKE.roughS) * tail];
+  return [blurredBand(d, WAKE.core * beam, s) * Math.exp(-age / WAKE.foamS) * tail, blurredBand(d, WAKE.roughCore * beam, s) * Math.exp(-age / WAKE.roughS) * tail];
 }
 // #14 prop wash (marked): v1's stamp (a disc of 1 − smoothstep(0.5, 1.4, r) × the churn: foam × 0.55, the disturbed water × 1)
 // along the history of the prop's point (each point's own offset along its heading), decayed at v1's 6 s and 14 s: [foam, rough]

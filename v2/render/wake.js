@@ -45,8 +45,6 @@ const UNIFORM_FLOATS = 40;   // WakeU: 10 vec4 (the speed feel's lee foam: the 7
 // pass, nothing when upright or slow). fwd: where it starts (share of the waterline from the bow); aftM: how far past the
 // transom it trails (m; the foam map's strip takes over); width: its reach out from the lee waterline (m) amidships and aft;
 // streak, speck: the lanes' and the flecks' noise across and along (1/m): solid by the hull, torn lanes and flecks outboard; gain: its foam at full strength (the water's wake foam is at most 0.85)
-// speed legible (research 101 #1): the bow wave's white roll by speed: its reach out and aft × (U/refMs)² in k (1 at refMs)
-export const BOW_ROLL = Object.freeze({ refMs: 2.95, k: Object.freeze([0.4, 1.45]) });
 export const LEE_FOAM = Object.freeze({ fwd: [0.2, 0.4], aftM: 6, width: [0.3, 1.1], streak: [3.2, 0.5], speck: [9, 2.2], gain: 0.85 });
 // the WebGPU flags (node runs this module in the tests on a fake device)
 const BUF = globalThis.GPUBufferUsage ?? { COPY_DST: 8, UNIFORM: 64, STORAGE: 128 };
@@ -72,13 +70,12 @@ fn erfA(x: f32) -> f32 {   // Winitzki's erf
   let x2 = x * x; let v = sqrt(1.0 - exp(-x2 * (1.27323954 + 0.147 * x2) / (1.0 + 0.147 * x2)));
   return select(v, -v, x < 0.0);
 }
-// wk, lk: the foam band's width and life factors at the speed it was made at (v2/sim/wake.js WAKE_SPEED, packed per point)
-fn stripProfile(d: f32, age: f32, go: f32, Bm: f32, ringS: f32, wk: f32, lk: f32) -> vec2f {
-  let s = sqrt(EDGE * EDGE + SPREAD * max(age, 0.0)) * 1.41421356; let w = CORE * Bm * wk; let wr = ROUGH_CORE * Bm;
+fn stripProfile(d: f32, age: f32, go: f32, Bm: f32, ringS: f32) -> vec2f {
+  let s = sqrt(EDGE * EDGE + SPREAD * max(age, 0.0)) * 1.41421356; let w = CORE * Bm; let wr = ROUGH_CORE * Bm;
   let foam = 0.5 * (erfA((w - d) / s) + erfA((w + d) / s));
   let rough = 0.5 * (erfA((wr - d) / s) + erfA((wr + d) / s));
   let tail = go * (1.0 - smoothstep(ringS - 4.0, ringS, age));
-  return vec2f(foam * exp(-age / (FOAM_S * lk)), rough * exp(-age / ROUGH_S)) * tail;
+  return vec2f(foam * exp(-age / FOAM_S), rough * exp(-age / ROUGH_S)) * tail;
 }`;
 
 export const WAKE_COMPUTE_WGSL = ({ points, kelvin, foam }) => `${WAKE_STRUCT}
@@ -87,7 +84,7 @@ export const WAKE_COMPUTE_WGSL = ({ points, kelvin, foam }) => `${WAKE_STRUCT}
 @group(0) @binding(2) var<storage, read_write> M: array<vec2u>;   // the maps (WAKE_MAPS_WGSL): the Kelvin map, then the foam map
 const NP = ${points}u; const KS = ${kelvin}u; const FS = ${foam}u; const G = 9.81; const MAXSEG = ${WAKE.maxSegM.toFixed(1)};
 ${PROFILE_WGSL}
-const PV = ${POINT_FLOATS / 4}u;   // vec4s a point: (x, z, age, amp) (fx, fz, U, go) (prop, aft, widthK, lifeK)
+const PV = ${POINT_FLOATS / 4}u;   // vec4s a point: (x, z, age, amp) (fx, fz, U, go) (prop, aft, 0, 0)
 var<workgroup> SP: array<vec4f, ${POINT_FLOATS / 4 * points}>;
 fn loadPoints(li: u32) { for (var j = li; j < PV * NP; j += 64u) { SP[j] = P[j]; } workgroupBarrier(); }
 // one source's height and slope at p: env·cos(gτ²/4r) and its radial derivative (the phase term; v1's)
@@ -133,9 +130,9 @@ fn source(p: vec2f, at: vec2f, amp: f32, g4: f32, r02: f32, rc: f32, acc: ptr<fu
       let d = length(p - a.xy - ab * t);
       if (d > Bm + 2.0) { continue; }
       let age = mix(a.z, b.z, t);
-      let ap = SP[PV * i + 2u]; let bp = SP[PV * (i + 1u) + 2u];   // (prop, aft, widthK, lifeK)
-      o = max(o, stripProfile(d, age, mix(ad.w, bd.w, t), Bm, ringS, mix(ap.z, bp.z, t), mix(ap.w, bp.w, t)));
+      o = max(o, stripProfile(d, age, mix(ad.w, bd.w, t), Bm, ringS));
       // #14 prop wash (marked; v2/sim/wake.js propProfile): v1's stamp along the prop point's history
+      let ap = SP[PV * i + 2u]; let bp = SP[PV * (i + 1u) + 2u];
       if (max(ap.x, bp.x) > 0.0) {
         let pa = a.xy - ad.xy * ap.y; let pb = b.xy - bd.xy * bp.y; let pe = pb - pa;
         let pt = clamp(dot(p - pa, pe) / max(dot(pe, pe), 1e-6), 0.0, 1.0);
@@ -246,11 +243,8 @@ fn wakeAt(xz: vec2f, fp: f32) -> WakeS {
   if (a > -1.0 && a < L + 0.5 && abs(c) < Bm + 1.0) {
     let hb = sqrt(clamp(a / (0.5 * L), 0.0, 1.0)) * Bm * 0.5 * WAKE_BWL;   // the waterline half-breadth here
     let off = abs(c) - hb;
-    // the bow wave grows with speed (its height as U²): its white reaches further out and further aft toward hull speed
-    // (BOW_ROLL: × (U/refMs)² clamped, 1 at refMs: the look fitted there is unchanged)
-    let kb = clamp(pow(U / ${BOW_ROLL.refMs.toFixed(2)}, 2.0), ${BOW_ROLL.k[0].toFixed(2)}, ${BOW_ROLL.k[1].toFixed(2)});
-    let roll = smoothstep(-0.2, 0.05, off) * (1.0 - smoothstep(0.1, max(0.6 - a / L, 0.2) * sqrt(kb), off));
-    o.roll = roll * smoothstep(-0.3, 0.3, a) * (1.0 - smoothstep(L * 0.2 * kb, L * 0.4 * kb, a)) * smoothstep(1.3, 3.0, U) * 0.6;
+    let roll = smoothstep(-0.2, 0.05, off) * (1.0 - smoothstep(0.1, max(0.6 - a / L, 0.2), off));
+    o.roll = roll * smoothstep(-0.3, 0.3, a) * (1.0 - smoothstep(L * 0.2, L * 0.4, a)) * smoothstep(1.3, 3.0, U) * 0.6;
   }
   // speed feel: the lee side's foam, hugging the heeled waterline (it moves out to the rail as she heels) from LEE_FOAM.fwd of the
   // waterline aft past the transom, widening aft, torn into lanes that run aft at the hull's speed; nothing when lee.x is 0
