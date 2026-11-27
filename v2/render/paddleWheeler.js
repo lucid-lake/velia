@@ -53,6 +53,14 @@ fn shadeP(world: vec3f, n: vec3f, alb: vec3f, rough: f32, metal: f32, spK: f32) 
   let fres = f0 + (1.0 - f0) * pow(1.0 - max(dot(n, V), 0.0), 5.0);
   return diff + (skyMirror(R) * fres * (1.0 - 0.8 * rough) + ggxSpec(n, V, s, rough, f0) * eSun) * spK;
 }
+// the light the decks above and below take from a wall (a baked ambient occlusion by height): darker into each cabin's foot on its
+// deck and up under the deck that overhangs it, the hull's topsides under the guards' overhang
+fn aoWall(y: f32) -> f32 {
+  var a = 1.0;
+  ${[[SHAPE.cabin1.y0, SHAPE.cabin1.y1], [SHAPE.cabin2.y0, SHAPE.cabin2.y1], [SHAPE.pilot.y0, SHAPE.pilot.y1]].map(([f0, c0]) => `if (y > ${f(f0 - 0.02)} && y < ${f(c0 + 0.02)}) { a = 1.0 - 0.3 * (1.0 - smoothstep(0.0, 0.7, y - ${f(f0)})) - 0.34 * (1.0 - smoothstep(0.0, 1.0, ${f(c0)} - y)); }`).join(' ')}
+  if (y < ${f(SHAPE.guard.y0 + 0.01)}) { a = 1.0 - 0.32 * (1.0 - smoothstep(0.0, 0.6, ${f(SHAPE.guard.y0)} - y)); }
+  return a;
+}
 // the coordinate along a wall (its side: along her; its end: across her)
 fn along(lp: vec3f, ln: vec3f) -> f32 { return select(lp.x, lp.z, abs(ln.x) > abs(ln.z)); }
 fn lit(v: PV) -> vec3f {
@@ -66,6 +74,8 @@ fn lit(v: PV) -> vec3f {
   var n = normalize(v.n); if (dot(n, V) < 0.0) { n = -n; }
   var alb = vec3f(0.78); var rough = 0.4; var metal = 0.0; var emit = vec3f(0.0); var spK = 1.0;
   let lo = vn3(lp * 1.3); let hi = vn3(lp * 19.0);
+  let wall = abs(v.ln.y) < 0.5;   // a wall (not a deck, a roof or an underside)
+  var ao = select(1.0, aoWall(lp.y), wall);
   switch (v.slot) {
     case ${SLOT.hull}u: {   // white topsides: orange peel, rust-tea streaks under the scuppers, the dark-red boot top, the scum line
       let streak = smoothstep(0.7, 0.92, vn3(vec3f(lp.z * 3.0, lp.y * 0.5, lp.x * 3.0))) * smoothstep(0.3, 1.2, lp.y) * 0.5;
@@ -110,7 +120,7 @@ fn lit(v: PV) -> vec3f {
       alb = mix(alb, ${v3(BOOT)}, band);
       alb = mix(alb, vec3f(0.1, 0.095, 0.09), smoothstep(${f(SHAPE.stacks.y1 - 0.3)}, ${f(SHAPE.stacks.y1)}, lp.y) * 0.8);
     }
-    case ${SLOT.under}u: { alb = vec3f(0.66, 0.66, 0.64) * (0.95 + 0.05 * lo); rough = 0.6; }   // the decks' undersides, the roofs
+    case ${SLOT.under}u: { alb = vec3f(0.66, 0.66, 0.64) * (0.95 + 0.05 * lo); rough = 0.6; ao = select(1.0, 0.62, v.ln.y < -0.5); }   // the decks' undersides (shaded: a deck over them), the roofs
     case ${SLOT.flag}u: {   // a plain flag: navy, a cream stripe across its middle (no ensign, no marks)
       let fv = (lp.y - ${f(SHAPE.flag.y1 - 0.08 - SHAPE.flag.h)}) / ${f(SHAPE.flag.h)};
       let stripe = 1.0 - smoothstep(0.11 - aaY, 0.11 + aaY, abs(fv - 0.5));
@@ -130,7 +140,7 @@ fn lit(v: PV) -> vec3f {
     case ${SLOT.wheelDark}u: { alb = vec3f(0.05, 0.05, 0.055); rough = 0.3; metal = 0.6; }
     default: {}
   }
-  return shadeP(v.world, n, alb, rough, metal, spK) + emit;
+  return shadeP(v.world, n, alb, rough, metal, spK) * ao + emit;
 }
 @fragment fn fs(v: PV) -> @location(0) vec4f { return finish(lit(v), v.pos.xy, v.world); }`;
 

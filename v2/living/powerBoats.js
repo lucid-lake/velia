@@ -16,9 +16,9 @@ import { createPowerSound } from './powerBoats-sound.js';
 
 export const WAKE_M = 900;   // m: their wakes are written while one is this near the eye
 
-export function createPowerPlugin({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, tier = 'full', rows = [], wake = null, ownWake = false, headless = false }) {
+export function createPowerPlugin({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, tier = 'full', rows = [], wake = null, ownWake = false, headless = false, kayaks = null }) {
   if (!rows.some((r) => r.kind === 'power' || r.kind === 'jetski')) return null;
-  const R = createSmallCraftRender({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, tier: tier === 'full' ? 'full' : 'lite' });
+  const R = createSmallCraftRender({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, tier: tier === 'full' ? 'full' : 'lite', kayakRender: kayaks?.render ?? null });   // kayaks: the kayaks' plug-in (its figure for the skippers near)
   const VW = ownWake && tier === 'full' ? createVesselWake({ device, reg, wake, name: 'power-wake' }) : null;
   const SP = tier !== 'phone' ? createKayakSplash({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, label: 'craft-spray', max: 400, colour: [0.9, 0.93, 0.95], rough: 0.3 }) : null;
   const EMPTY = { splash: [], tips: null };
@@ -50,7 +50,7 @@ export function createPowerPlugin({ device, reg, frameBGL, frameStruct, sky, sha
       SP?.fill(active ? focal : 0);
       if (!T || !active) { R.update([]); if (VW) { if (wakeBusy) VW.pause(); else VW.update(null, null); } return; }
       const live = T.live;
-      R.update(live, { eye, heightAt });
+      R.update(live, { eye, heightAt, focal });
       if (VW) { const w = wakeBusy ? null : self.wakeEmitters(eye); if (wakeBusy) VW.pause(); else VW.update(w ? w.emitters : null, w ? w.focus : null, simT); }
       sound?.update(live, eye);
     },

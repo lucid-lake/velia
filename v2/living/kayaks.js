@@ -40,7 +40,7 @@ export function createKayaksPlugin({ device, reg, frameBGL, frameStruct, sky, sh
   const R = createKayaksRender({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, errors, mirrors, under });
   const S = createKayakSplash({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, seed: P.seed });
   // sup: { tier, loaded } the stand-up paddleboarders of a region with its own level (v2/living/sup.js; null: none, no pipeline)
-  const U = sup ? createSupSystem({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, tier: sup.tier }) : null;
+  const U = sup ? createSupSystem({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, tier: sup.tier, kayakRender: R }) : null;   // their paddlers: the kayakers' figure on R's skin pipeline
   let B = null, water = null, clock = null, windField = null, ui = null, startPose = null, evening = () => false, storm = () => false, firstPair = () => true;
   let fleet = null, lake = null, shoreP = null, assetP = null, started = false, making = false, sound = null, residents = null, launch = null, tessieSim = () => null;   // residents: (hour) → the regions' kayak rows (attach)
   const phone = feature('kayaksTier').tier === 'lite';   // src/core/features.js: a phone, a tablet or L2–L3 (never a capture)
@@ -148,7 +148,7 @@ export function createKayaksPlugin({ device, reg, frameBGL, frameStruct, sky, sh
       if (sound) for (const e of fleet.sfx) sound.play(e, cam);   // a capsize's splash, a righted hull's
     },
     fill(eye, focalPx) {
-      U?.fill(eye);
+      U?.fill(eye, focalPx);
       if (!fleet) return;
       fleet.draws.camX = eye[0]; fleet.draws.camZ = eye[2];
       R.update(fleet.draws, focalPx);
