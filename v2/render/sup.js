@@ -2,6 +2,8 @@
 // the kayaks' two: the kayaks' lighting, render/kayaks.js COMMON), five instanced draws a frame (the board, the torsos, the heads, the limb
 // rods, the paddles), at most MAX boards. Each part's instance is one 3 × 4 world matrix (the CPU hangs the figure's joints on the board's
 // pose on the drawn water), so a kneel or a stroke is only new matrices. Boards beyond DRAW_M are not drawn.
+// The nearest SUP_RENDER.figures paddlers, while their board is big enough on screen, are the kayakers' own figure instead of the torso,
+// head and rods (the kayaks' skin pipeline, its bones from the same pose: render/figureRig.js); the board and the paddle stay this pipeline's.
 //   const R = createSupRender({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat })
 //   R.update(boards, { eye, heightAt })   once a frame (boards: the fleet's, sim/sup.js; null: nothing drawn)
 //   R.draw(pass, c)                       before the water (the boats' order);  R.stats
@@ -93,7 +95,7 @@ fn skinOf(bi: u32) -> vec3f { let w = SC[bi * 3u + 2u].w; return mix(vec3f(0.62,
   return finish(c, v.pos.xy, v.world);
 }`;
 
-export function createSupRender({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa = 1, depthFormat = 'depth32float', kayakRender = null }) {
+export function createSupRender({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa = 1, depthFormat = 'depth32float', kayakRender = null, tier = 'full' }) {
   const VX = GPUShaderStage.VERTEX, FR = GPUShaderStage.FRAGMENT;
   const mesh = buildSupMeshes();
   const vb = device.createBuffer({ label: 'sup-mesh', size: mesh.data.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
@@ -111,7 +113,7 @@ export function createSupRender({ device, reg, frameBGL, frameStruct, sky, shado
   const stats = { drawn: 0, figures: 0, calls: 0, triangles: 0 };
   // the paddlers near enough: the kayakers' own figure (the UBC paddler on the kayaks' skin pipeline, render/kayaks.js share), its bones
   // set from this board's pose (render/figureRig.js); the rest keep the rods below
-  const FIG = SUP_RENDER.figures;
+  const FIG = tier === 'full' ? SUP_RENDER.figures : 1;   // a lite tier: the nearest paddler only
   let rig = null, rigClips = null, figPal = null, figIns = null, figInsU = null, figPalBuf = null, figInsBuf = null, figBG = null, figBGL = null;
   const figs = [];   // this frame's: { part, detail }
   const looks = new Map();

@@ -20,7 +20,7 @@ export const SUP_MAX = Object.freeze({ full: 4, lite: 2 });
 export const supsLoaded = (loaded, regions = REGIONS) => regions.some((r) => r.level && r.id === loaded && r.sups?.length);
 
 export function createSupSystem({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, tier = 'full', kayakRender = null }) {
-  const R = createSupRender({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, kayakRender });
+  const R = createSupRender({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, kayakRender, tier });
   let fleet = null, tessieState = () => null, heightAt = () => 0;
   const self = {
     render: R, tier, on: true,   // the harness's A/B (hook.kayaks.sup.on: the boards' draws with and without, one page)

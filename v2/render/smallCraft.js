@@ -156,7 +156,7 @@ export function createSmallCraftRender({ device, reg, frameBGL, frameStruct, sky
   function update(boats, { eye, heightAt, focal = 1000 } = {}) {
     groups.length = 0; stats.groups = {}; nFig = 0; figs.length = 0; stats.figures = 0;
     if (!boats?.length) { stats.shown = 0; return; }
-    const share = kayakRender?.share, clips = kayakRender?.clips, figOk = ensureFigs(share, clips);
+    const share = kayakRender?.share, clips = kayakRender?.clips, figOk = tier === 'full' && ensureFigs(share, clips);   // a lite tier (a phone, a tablet, L2-L3) keeps the procedural figure
     const buckets = new Map();
     for (const b of boats) {
       const d = Math.hypot(b.x - eye[0], b.z - eye[2]);
