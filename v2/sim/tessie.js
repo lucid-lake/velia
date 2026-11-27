@@ -298,7 +298,7 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
     const lift = breachK(t) * BREACH.lift * (1 - smooth(BREACH.len, BREACH.len + 4, s));   // the breach: the body under her front rises with it
     return baseY(t) + diveY(tau) + hump + tail + sink + lift + dy + diveTail;   // dy: the nose's depth offset where it passed (M3)
   }
-  const neckLift = (t) => Math.max(S.neckK ?? 0, clipNeck(t));   // the clip's arc, or the driven neck (play as Tessie: up while she swims at the surface)
+  const neckLift = (t) => Math.max(S.neckK ?? 0, clipNeck(t), S.rearK ?? 0);   // the clip's arc, the driven neck (play as Tessie: up while she swims at the surface), or the strike's rear (rear())
   const clipNeck = (t) => { const k = local('arc', t); if (k < -1e8) return 0; return smooth(T.neckUp[0] - T.neckUp[0], T.neckUp[1] - T.neckUp[0], k) * (1 - smooth(Math.min(T.neckDown[0] - T.neckUp[0], S.dive - 2.5 - clipAt('arc').at), Math.min(T.neckDown[1] - T.neckUp[0], S.dive + 1 - clipAt('arc').at), k)); };
   const breachT = () => clipAt('breach')?.B ?? BREACH;   // a breach's own timing (play as Tessie's: BREACH_PLAY)
   function breachK(t) { const k = local('breach', t); if (k < -1e8) return 0; const B = breachT(); return smooth(0, B.up, k) * (1 - smooth(B.up + B.hang, B.up + B.hang + B.down, k)); }
@@ -424,7 +424,7 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
         }
       }
       if (bt && !bc.splashed && kb >= bt.contactAt) { bc.splashed = true; st.bites = (st.bites ?? 0) + 1; if (P[1] > -1.5) ev('slap', P[0], 0, P[2], S.meetNow ? 1.4 : 1.1); }   // at the hull when her jaw meets it
-      st.gape = bt ? bt.gape : 0;
+      st.gape = bt ? bt.gape * (bc.gapeK ?? 1) : 0;
       S.rollX = (bt ? bt.roll * (bc.side || 1) : 0) + (S.breachRoll || 0) * breachFall(t);
     }
     // M3: the boat is solid: every point held outside its proxy by her reach and the margin (the push spread along her)
@@ -669,10 +669,14 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
     get driven() { return !!S?.driven; },
     // play as Tessie: her neck up (at the surface) or down (a dive, the lunge's run), eased in the step
     neck(on = true) { if (!S) return false; S.neckWant = typeof on === 'number' ? Math.max(0, Math.min(1, on)) : on ? 1 : 0; return true; },
+    // a strike's rear (her revenge on the Halcyon): her neck stands up out of the water to k of its arc over upS, or comes down to it over downS
+    // (her head onto the rail), turned toward the boat (up to 70°, quickly); 0 lets it down. Any sighting, driven or not
+    rear(k = 1, { upS = 0.8, downS = 0.3 } = {}) { if (!S) return false; S.rearWant = Math.max(0, Math.min(1, k)); S.rearUp = Math.max(0.05, upS); S.rearDown = Math.max(0.05, downS); return true; },
+    get rearK() { return S?.rearK ?? 0; },
     // play as Tessie,: a bite (kind 'snap' | 'rail' | 'dash', BITE2) starts now; aim: [x, y, z] the point her head strikes
     // at (null: straight on, a little down); side: +1 the target lies to her right (the coil and the roll's sign); biteAim moves the aim
     // (the boat sails on), biteHit(hit) gives the verdict at contact (the follow-through's grip and shake, or one shake)
-    bite(kind = 'snap', { aim = null, side = 1, meet = 0 } = {}) { if (!S || !BITE2[kind]) return false; return play('bite', S.t, { kind, aim: aim ? [...aim] : null, side: side >= 0 ? 1 : -1, hit: null, meet }); },   // meet: m from the contact point within which the strike carries her jaw onto it
+    bite(kind = 'snap', { aim = null, side = 1, meet = 0, gapeK = 1 } = {}) { if (!S || !BITE2[kind]) return false; return play('bite', S.t, { kind, aim: aim ? [...aim] : null, side: side >= 0 ? 1 : -1, hit: null, meet, gapeK: Math.max(0, Math.min(1, gapeK)) }); },   // meet: m from the contact point within which the strike carries her jaw onto it; gapeK: the jaw's share (a nudge on a little craft: v2/sim/tessieFit.js)
     biteAim(x, y, z) { const c = S && clipAt('bite'); if (!c) return false; c.aim = x == null ? null : [x, y, z]; return true; },
     biteHit(hit) { const c = S && clipAt('bite'); if (!c) return false; c.hit = !!hit; return true; },
     // the coil held (the controller's: a rail bite pressed before the rail is in reach holds its wind-up pose): the clip's clock waits dt
@@ -756,6 +760,8 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
       else S.bodyDy = null;
       // play as Tessie: her neck eases up (or down) at an animal's pace, about 2.5 s
       if (S.driven || S.neckK) S.neckK = Math.max(0, Math.min(1, (S.neckK ?? 0) + Math.max(-dt / (S.driven ? 0.5 : 2.5), Math.min(dt / (S.driven ? 1.2 : 2.5), (S.driven ? +S.neckWant || 0 : 0) - (S.neckK ?? 0)))));   // play as Tessie: the neck goes down in 0.5 s for a dive (owner, 2026-11-20: "not heavy")
+      // a strike's rear (rear()): up over rearUp, down over rearDown
+      if (S.rearWant != null) { const w = S.rearWant, k = S.rearK ?? 0; S.rearK = w > k ? Math.min(w, k + dt / S.rearUp) : Math.max(w, k - dt / S.rearDown); if (!w && !S.rearK) S.rearWant = null; }
       // riseUnder: near the point, the surface (and the breach) there
       if (S.rise && !S.rise.done && Math.hypot(S.nose.x - S.rise.x, S.nose.z - S.rise.z) < S.rise.near) {
         S.rise.done = true; if (!clipAt('surface')) play('surface', t - 3.0); if (S.rise.breach) play('breach', t);   // already up (a chase): she stays up
@@ -779,8 +785,9 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
         if (!S.rise && !S.chase && !S.calm && (minD < T.nearM || soon) && S.sinkAt == null && t > 0.5) { S.sinkAt = t; if (S.dive > t + 0.5) play('dive', t + 0.5); rec.shy = true; }
         const ib = Math.round(T.neckS / d); histAt(ib * d, tmp); const hb = Math.max(1, ib - 1); histAt(hb * d, tmp2);
         const want = Math.atan2(boat.x - tmp[0], -(boat.z - tmp[1])) - Math.atan2(tmp2[0] - tmp[0], -(tmp2[1] - tmp[1]));
-        const w = Math.max(-35 * DEG, Math.min(35 * DEG, Math.atan2(Math.sin(want), Math.cos(want))));
-        S.look += (w - S.look) * Math.min(1, dt * 0.6);
+        const rk = S.rearK ?? 0, lim = (35 + 35 * Math.min(1, rk * 2)) * DEG;   // rearing at the boat (a strike): her head turns to it further and quicker
+        const w = Math.max(-lim, Math.min(lim, Math.atan2(Math.sin(want), Math.cos(want))));
+        S.look += (w - S.look) * Math.min(1, dt * (0.6 + 3 * Math.min(1, rk * 2)));
       }
       // play as Tessie: her gait eased toward her pace and depth, the waves' phases by the distance swum, the flippers
       if (S.driven) {
