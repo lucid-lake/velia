@@ -1,7 +1,7 @@
 // Play as Tessie, her HUD as a family of instruments (owner, 2026-11-20: "keep the depth dial; a sonar dial for nearby
 // boats; a skill dial for the dash as the first slot of a skills row; her keys on the right edge in Sail's legend style"). Cockpit
 // instruments, calm: navy glass at 72 %, a cream 2 px bezel, cream ink, amber only while something is lit (the dash, the lock); no flash,
-// no pulse, no sweep. The pure parts (the layout, the sonar's blips, the legend's levels, the ring) are exported for the tests; the DOM
+// no pulse; the only motion a ping's one wave on the SONAR dial and a cooling slot's wipe (THE ICONS, THE PING below). The pure parts (the layout, the sonar's blips, the legend's levels, the ring) are exported for the tests; the DOM
 // is built by mountHud into the play's own layer (#lk-tplay, living/tessiePlayer.js) and painted each frame.
 //   DEPTH  (kept: living/tessiePlayer.js .tp-dial) bottom left; a tablet top left
 //   SONAR  bottom right (a tablet top right): boats round her, her heading up, 160 m at the rim, faint rings at 50 and 100 m, the ±35°

@@ -1,8 +1,8 @@
 // Play as Tessie, the Sonar, the "super radar" (the Tessie RPG, phase 3; behind ?tessierpg=1). Pure: no DOM, no clock, no Math.random.
 // One ping: every boat within the rank's range is marked for the rank's mark time: a faint cream ring on the water under each hull
-// (living/tessiePlayer.js draws it into the world), a tick on her SONAR dial's rim at its bearing and the dial's word reading the
-// ping's range while the marks last (v2/ui/tessieHud.js). No sweep, no pulse. The boats within SONAR.hearM hear it (the seen tick)
-// unless she pings from HIDDEN.
+// (living/tessiePlayer.js draws it into the world), and on her SONAR dial, rescaled to the ping's range while the marks last, a
+// blip per marked boat at its bearing and range (v2/ui/tessieHud.js pingBlips; rimMarks still gives each one's bearing). The boats
+// within SONAR.hearM hear it (the seen tick) unless she pings from HIDDEN.
 //   sonarPing(her { x, z }, list [{ id, kind, x, z }], { rangeM, max }) → [{ id, kind, d }] nearest first, at most max
 //   rimMarks(her { x, z, psi }, list, has(id) → bool, out) → out: [{ id, a }] (a: rad clockwise from her heading, up = ahead)
 //   markRing(L) → the ring's radius under a hull of length L (m)
