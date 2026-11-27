@@ -207,12 +207,32 @@ boat sails (Sail, Cruise, Regatta); the rivals and the lake's boats have none.
   boat's frame, then let go over 1.4 s once she is up.
 - **Clocks:** the people move on the living clock (the kayakers' rule: real time live, not Sail's 2 ×); what they answer (the boom,
   the heel, the wheel) is the boat's. The first 1.5 s puts them straight on the right side (a start, a capture).
-- **Hidden** in the Helm view (its blend past half), from an eye within 4.5 m of the hull, and past 160 m (lite: 90 m). Policy:
+- **Hidden** in the Helm view (its blend past half), from an eye within 10 m of the hull (nearer than the Boat view's closest zoom, 1.5
+  hull lengths: no faces up close), and past 160 m (lite: 90 m). Policy:
   `src/core/features.js crew` (full at L0–L1, the core LOD only at L2–L3, none on a phone; `?crew=0|1|lite`).
 - **Cost** (M5 Pro, headless, the Boat view at 13:00): +40,238 triangles and +2 draws at full detail; GPU within the run-to-run noise
   (ABBA ×2 under a load average of 7–9); CPU ≈ 14 µs a frame (the choreography and two rig poses, node).
 - **Checks:** `tests/boat-crew.test.mjs` (the side after a tack and a gybe, no joint through the boom, wheel, coaming, sole or hull,
   the two apart, feet stepped, hands on the turning rim, the hold, the hike, hidden in the Helm view, deterministic).
+
+## The helm seen, and the lights at night (2026-11-26: boat/models.js, sim/wake.js, sim/night.js, render/night.js)
+
+- **The wheel's turn:** the king spoke's sleeve (`WHEEL_MARK`: cream #EFE6D2 over 16° of the black leather rim's top (11 cm), a 23 mm tube;
+  176 triangles in the wheel's own range) turns with the wheel (4 × the rudder), a light mark on the dark rim that reads its angle
+  from the Boat view; the helmsman's hands carry the turn too (§ The crew).
+- **The rudder:** M3's foil under the hull at `HULL.rudderZ`, turned about its stock (it was already drawn); a spade rudder 0.8 m
+  forward of the transom, so from astern and above the hull hides it and from the quarter it shows through the water. No stock
+  shows above the water on this hull (it rises inside her), so none is drawn.
+- **The helm on the wake:** `WAKE.helmM` (1.2 m × sin(rudder) × the stamp's speed share) moves the transom's point now across the track
+  toward the rudder's trailing edge (+ rudder: to port), so the strip's first metre bends with the helm (25°: ≈ 0.5 m); the older
+  points never move and the Kelvin impulses are unchanged (point 0 carries none). `tests/wake-helm.test.mjs`.
+- **The nav lights:** COLREGs' sectors as before (each sidelight 112.5° from dead ahead, the sternlight the 135° astern, a 2° fade)
+  and on from sunset (`navLevel`); a fifth slot, the masthead (steaming) light on the mast's forward face 5.4 m above the step,
+  white over the forward 225°, lit only while the engine drives her (`navMode`: on, in gear, turning; rule 25(e)); at anchor the
+  all-round white alone. The halo (mode 1) keeps its hot core (smaller: r² × 400) and adds the lens' own colour in a soft ring
+  (`NAV_HALO`: 0.09 HDR at full on, the hue squared, r² × 2.5) at a level the tone curve keeps: the red read pink and the green
+  mint, both now read red and green. The glass boat's lights, the race marks and the riding lights share the halo. The lights'
+  streaks on the water are the glows' own (`GLOW_STREAK.navGain`). `tests/nav-lights-sectors.test.mjs`.
 
 ## Parity with v1: the helm view's look, the game speed, the wind and the sea (2026-11-13)
 The owner, playing local v2 beside v1: "In helm view, unlike v1, I can no longer use mouse to update view" and "under the

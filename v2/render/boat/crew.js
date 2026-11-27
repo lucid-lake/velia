@@ -220,8 +220,8 @@ export function createBoatCrew({ C = CREW, D = HALCYON } = {}) {
 }
 
 // shown or why not (a string: hidden): the Helm view (its blend past half: the helmsman is the player there, and nobody stands
-// in the skipper's face), an eye on board (any camera within nearM of the hull's origin: a cockpit shot), too far to read
-export function crewShown({ helmK = 0, distM = 0, maxM = 160, nearM = 4.5 } = {}) {
+// in the skipper's face), an eye on board or beside her (any camera within nearM of the hull's origin, nearer than the Boat view's closest zoom of 1.5 hull lengths: no faces up close), too far to read
+export function crewShown({ helmK = 0, distM = 0, maxM = 160, nearM = 10 } = {}) {
   if (helmK > 0.5) return 'helm view';
   if (distM < nearM) return 'on board';
   if (distM > maxM) return 'far';

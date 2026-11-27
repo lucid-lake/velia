@@ -156,7 +156,7 @@ export function decodeStars(bytes) {
 // --- the boat's nav lights (COLREGs, v1's src/boat/details.js: a sailing vessel shows sidelights and a sternlight), in
 // the world: the hull frame's lenses (dims.navBow, navStern) carried by the pose (x, heave, z, heading, pitch, heel as
 // render/boat.js builds the hull's matrix), their sector and vertical cut-offs toward the eye, the level from the sun.
-// Writes GLOW_FLOATS × 3 into out: x, y, z, size (m), r, g, b, intensity ---
+// Writes GLOW_FLOATS × 3 into out (× 5 with a mastHead: the anchor light, then the steaming light): x, y, z, size (m), r, g, b, intensity ---
 export const GLOW_FLOATS = 8;
 const LENS = { green: [0.2, 1.0, 0.45], red: [1.0, 0.22, 0.16], white: [1.0, 0.95, 0.85] };
 // the lens' glow (A1, v1's src/boat/details-mesh.js halos): a camera-facing quad 0.35 m across, never under 22 px on screen
@@ -165,6 +165,12 @@ const LENS = { green: [0.2, 1.0, 0.45], red: [1.0, 0.22, 0.16], white: [1.0, 0.9
 // v1's at the deck pose under the frame look's AgX and grade (v1's long-exposure night lifts its faint bloom to a ≈ 14 px disc;
 // 60 before the AgX change, 400 after it; renders/audit-fix-world/nav-*)
 export const NAV_GLOW = Object.freeze({ size: 0.35, minPx: 22, radiance: 400 });
+// the masthead (steaming) light's place on the mast (RIG frame from the step: y up, z forward of it negative): between the
+// spreaders, on the mast's forward face, as on a cruising sloop (COLREGs Annex I: at least 1 m above the sidelights)
+export const STEAMING_AT = Object.freeze([0, 5.4, -0.09]);
+// the nav lights' mode from the boat's state: motoring while the engine turns the prop in gear (rule 25(e): a sailing vessel under
+// power shows a power-driven vessel's lights, sails up or not)
+export const navMode = (s) => (s && s.engineOn && (s.engineGear ?? 0) !== 0 && (s.engineRpm ?? 0) > 0 ? 'motoring' : 'sailing');
 // a far point light (owner, 2026-11-18, the anchored boats' riding lights: "dim them at distance so they don't read big on the horizon"):
 // a glow record with a negative size keeps the nav halo within nearM of the eye; past it the 22 px floor shrinks toward minPx and the
 // light dims toward dim by farM, so a far anchor light is a small faint point, still seen (render/night.js)
@@ -189,7 +195,12 @@ export function navLights(out, { pose, sunElevDeg, eye, dims, mode = 'sailing', 
     { at: [dims.navBow[0] - 0.035, dims.navBow[1], dims.navBow[2] - 0.05], kind: 'red', grp: 'bow', c: LENS.red },
     { at: [dims.navStern[0], dims.navStern[1], dims.navStern[2] + 0.05], kind: 'stern', grp: 'stern', c: LENS.white },
   ];
-  if (mastHead) rows.push({ at: mastHead, kind: 'anchor', grp: 'anchor', c: LENS.white, size: NAV_GLOW.size * 0.8, allRound: true });
+  if (mastHead) {
+    rows.push({ at: mastHead, kind: 'anchor', grp: 'anchor', c: LENS.white, size: NAV_GLOW.size * 0.8, allRound: true });
+    // the masthead (steaming) light, a fifth slot: on the mast's forward face STEAMING_AT up, lit only while the engine drives her
+    // (mode 'motoring': rule 25(e) / 23, white over the forward 225°)
+    rows.push({ at: [0, (dims.mastStepY ?? 0) + STEAMING_AT[1], (dims.mastStepZ ?? mastHead[2]) + STEAMING_AT[2]], kind: 'steaming', grp: 'steaming', c: LENS.white, size: NAV_GLOW.size * 0.8 });
+  }
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i], p = hullToWorld(r.at, pose), k = i * GLOW_FLOATS;
     out[k] = p[0]; out[k + 1] = p[1]; out[k + 2] = p[2]; out[k + 3] = r.size ?? NAV_GLOW.size;

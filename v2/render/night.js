@@ -12,7 +12,7 @@
 //   night.attachTerrain(terrain.hbgl)               the glitter streaks' pipeline (its shore test reads the terrain's heights)
 //   night.draw(pass, c, sky, heightsBG)             after the sky: the stars, the town lights, the boat's lights, their streaks on the water
 //   night.setRace(f32, n)                           step D: a night race's lit marks (regatta/nightMarks.js raceLights), n 0 for none
-import { NIGHT, decodeStars, decodeLights, navLights, NAV_GLOW, FAR_POINT, GLOW_FLOATS, STAR_FLOATS, LIGHT_FLOATS } from '../sim/night.js';
+import { NIGHT, decodeStars, decodeLights, navLights, navMode, NAV_GLOW, FAR_POINT, GLOW_FLOATS, STAR_FLOATS, LIGHT_FLOATS } from '../sim/night.js';
 import { NIGHT_READ } from './night-read.js';
 import { ATMO_WGSL, SKY_READ } from './sky.js';
 import { createMoon } from '../sim/moon.js';
@@ -26,7 +26,8 @@ const STAGE = globalThis.GPUShaderStage ?? { VERTEX: 1, FRAGMENT: 2, COMPUTE: 4 
 // feat/v2-sky-v1-grade: v1's desktop map (4K, 2.4 MB, its desktop size: src/core/index.js), one channel (r8unorm: the same 8 MB of GPU memory
 // as the 2K map in rgba8 was); a phone never fetches it
 export const NIGHT_FILES = Object.freeze({ mw: '/data/sky/milkyway-4k.webp', tint: '/data/sky/milkyway-tint.png', mwSize: [4096, 2048], tintSize: [256, 128], mwFormat: 'r8unorm' });
-export const CAPS = Object.freeze({ stars: 10000, lights: 32768, nav: 4, race: 24 });   // nav: the sidelights, the sternlight, the anchor light   // race: step D's lit marks (24 since the glass boat's three nav lights, 2026-11-18) (regatta/nightMarks.js NIGHT_MARKS.max: 12), then the channel markers' lamps (v2/sim/channelMarks.js markLights)
+export const CAPS = Object.freeze({ stars: 10000, lights: 32768, nav: 5, race: 24 });   // nav: the sidelights, the sternlight, the anchor light, the steaming light   // race: step D's lit marks (24 since the glass boat's three nav lights, 2026-11-18) (regatta/nightMarks.js NIGHT_MARKS.max: 12), then the channel markers' lamps (v2/sim/channelMarks.js markLights)
+export const NAV_HALO = Object.freeze({ ring: 0.09, ringK: 2.5, bloom: 0, core: 400 });   // the nav halo's coloured ring (HDR at full on) and its fall (r² × ringK over the quad); bloom: the white bloom's share kept
 export const GLOW = Object.freeze({ townRadiance: 0.5, minPx: 3.0, energyPow: 1.4, townsBelowDeg: 4 });   // a town window's HDR radiance when on; the point's least size on screen; the far light's energy fall-off
 // the lights in the water: each town and nav light's glitter streak, the glint of a point light off the wind's waves (the
 // owner's 2026-11-25 bug: the old images sat at each light's mirror point as short dashes on their own ripple clocks, a band
@@ -261,7 +262,12 @@ struct GV { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
 @fragment fn fs(v: GV) -> @location(0) vec4f {
   let r2 = dot(v.uv, v.uv);
   // A1: v1's halo (src/boat/details-mesh.js): a hot core and a faint round bloom gone well inside the quad (0.006 : 0.6)
-  if (GU.mode > 0.5) { return vec4f(v.col * (exp(-r2 * 200.0) + 0.01 * exp(-r2 * 12.0)), 1.0); }
+  // + the lens' own colour in a soft ring at a level the tone curve keeps (NAV_HALO: the hot core bleaches a lens to white; a red
+  // or green light must read red or green from the Boat view), scaled with the light (its sector's fade, the dusk)
+  if (GU.mode > 0.5) {
+    let m = max(v.col.r, max(v.col.g, v.col.b)); let h = v.col / max(m, 1e-6);
+    return vec4f(v.col * (exp(-r2 * ${NAV_HALO.core.toFixed(1)}) + 0.01 * ${NAV_HALO.bloom.toFixed(3)} * exp(-r2 * 12.0)) + h * h * m * ${(NAV_HALO.ring / NAV_GLOW.radiance).toExponential(4)} * exp(-r2 * ${NAV_HALO.ringK.toFixed(2)}), 1.0);
+  }
   return vec4f(v.col * exp(-r2 * 4.0) * step(r2, 1.0), 1.0);
 }`;
 
@@ -391,7 +397,7 @@ export function createNight({ device, reg, frameBGL, frameBG, U, frameStruct, hd
       state.band = band; state.k = levels.k;
       for (const u of glowU) u[3] = focalPx;
       device.queue.writeBuffer(glowBufs[0], 0, glowU[0]); device.queue.writeBuffer(glowBufs[2], 0, glowU[2]);
-      if (pose && dims) navLights(nav, { pose, sunElevDeg, eye, dims, anchored: !!pose.anchorLight, mastHead }), device.queue.writeBuffer(navBuf, 0, nav);
+      if (pose && dims) navLights(nav, { pose, sunElevDeg, eye, dims, anchored: !!pose.anchorLight, mastHead, mode: navMode(pose) }), device.queue.writeBuffer(navBuf, 0, nav);
       if ((pose && dims) || state.race > 0) { device.queue.writeBuffer(glowBufs[1], 0, glowU[1]); device.queue.writeBuffer(glowBufs[3], 0, glowU[3]); }   // step D: the race's marks share the nav lights' record
       state.navOn = !!(pose && dims) && sunElevDeg < 1.5;
       state.townsOn = state.loaded && sunElevDeg < GLOW.townsBelowDeg;

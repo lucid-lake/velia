@@ -125,6 +125,28 @@ function boxPrim(sx, sy, sz, [cx, cy, cz]) {
   }
   return { P, N, I };
 }
+// the king spoke's sleeve on the wheel's rim (its own frame: the rim in the x-y plane round the axle, z the axle): a tube of
+// radius `tube` round the rim's centre line (radius R) from the top (90°) ± half deg
+export const WHEEL_MARK = Object.freeze({ R: 0.391, tube: 0.023, half: 8, hex: '#EFE6D2' });
+export function rimSleevePrim({ R, tube, half }, segA = 10, segT = 8) {
+  const P = [], N = [], I = [];
+  for (let i = 0; i <= segA; i++) {
+    const a = (90 - half + 2 * half * i / segA) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+    for (let j = 0; j <= segT; j++) {
+      const b = 2 * Math.PI * j / segT, nr = Math.cos(b), nz = Math.sin(b);   // round the tube: out along the radius, along the axle
+      N.push(ca * nr, sa * nr, nz); P.push(ca * (R + tube * nr), sa * (R + tube * nr), tube * nz);
+    }
+  }
+  for (let i = 0; i < segA; i++) for (let j = 0; j < segT; j++) { const a = i * (segT + 1) + j, b = a + 1, c = a + segT + 1, d = c + 1; I.push(a, c, b, b, c, d); }
+  // the ends capped (a flat disc each), so the sleeve reads as a band, not a hollow tube
+  for (const i of [0, segA]) {
+    const a = (90 - half + 2 * half * i / segA) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a), t = [-sa, ca, 0], s = i ? 1 : -1, c0 = P.length / 3;
+    P.push(ca * R, sa * R, 0); N.push(t[0] * s, t[1] * s, 0);
+    for (let j = 0; j <= segT; j++) { const b = 2 * Math.PI * j / segT, nr = Math.cos(b), nz = Math.sin(b); P.push(ca * (R + tube * nr), sa * (R + tube * nr), tube * nz); N.push(t[0] * s, t[1] * s, 0); }
+    for (let j = 0; j < segT; j++) I.push(c0, c0 + 1 + j, c0 + 2 + j);
+  }
+  return { P, N, I };
+}
 function roundPrim(r, h, [cx, cy, cz], { seg = 8, sphere = false } = {}) {   // an 8-sided prism along y, or a low sphere
   const P = [], N = [], I = [];
   const rings = sphere ? 6 : 1;
@@ -288,6 +310,13 @@ export function buildBoatModels(glbs, { dims, canvas }) {
       const prim = { attributes: { POSITION: { array: Float32Array.from(geo.P), size: 3, count: geo.P.length / 3 }, NORMAL: { array: Float32Array.from(geo.N), size: 3, count: geo.N.length / 3 } }, indices: { array: Uint32Array.from(geo.I) }, mode: 4 };
       addPrim('always', prim, offset(0, 0, 0), matId(rec, 'stand-in'));
     }
+  }
+  // the wheel's turn read from the Boat view (research 101 item 4): the king spoke's cream sleeve over the black leather at the
+  // rim's top (WHEEL_MARK: a turk's head grown to read at 36 m), in the wheel's own frame so it turns with it
+  if (glbs.wheel) {
+    const geo = rimSleevePrim(WHEEL_MARK);
+    const prim = { attributes: { POSITION: { array: Float32Array.from(geo.P), size: 3, count: geo.P.length / 3 }, NORMAL: { array: Float32Array.from(geo.N), size: 3, count: geo.N.length / 3 } }, indices: { array: Uint32Array.from(geo.I) } };
+    addPrim('wheel', prim, offset(0, 0, 0), matId({ name: 'wheel_king_spoke', kind: KIND.plain, base: [...hexLinear(WHEEL_MARK.hex), 1], metal: 0, rough: 0.55, coat: 0, coatRough: 0, vcol: false, scale: 1, opacity: 1, tex: { base: -1, normal: -1, mr: -1 } }, 'stand-in'));
   }
   // the life ring (render/boat/lifeRing.js): the GLB's white ring and its strips were dropped above; this one is orange
   for (const { prim, rec } of buildLifeRing(H.freeboard)) addPrim('always', prim, offset(0, 0, 0), matId(rec, 'life-ring'));
