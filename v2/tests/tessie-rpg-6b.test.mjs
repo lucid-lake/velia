@@ -4,7 +4,8 @@
 // race. The Emerald Bay set without the Regatta rival (a rival sails only in races, where she is never played).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTessieDeep, actsOf, actPlan, DEEP, DEACT } from '../regatta/tessieDeep.js';
+import { createTessieDeep, actPlan, DEEP, DEACT } from '../regatta/tessieDeep.js';
+import { actsOf } from '../regatta/tessieDeepRpg.js';
 import { SURGE_RANKS } from '../sim/tessieSurge.js';
 import { readRanks, BOUNTY, SETS, blankSave, scoreInto } from '../sim/tessieBounty.js';
 import { areaOf } from '../stage/areas.js';
@@ -121,7 +122,7 @@ test('Breach: beside the course (never on it); the wave heels a boat that holds 
   assert.equal(actPlan('breach', boat('me', 0, 0, 0), area, 10, 1, { depthAt: () => 2 }), null, 'never in water too shallow for her');
 });
 
-test('her attacks take turns: your acts, then today\'s strike; an act waits for you (out of her reach: a strike on a rival)', () => {
+test('her attacks alternate: an act, today\'s strike, the next act, today\'s strike; an act waits for you (out of her reach: a strike on a rival)', () => {
   const D = createTessieDeep({ area, pace, seed: 2, acts: actsOf({ dash: 2, lure: 1, sonar: 1, surge: 2, breach: 1 }) });
   const acts = [];
   for (let t = 0; t < 900; t += 0.25) {
@@ -130,10 +131,20 @@ test('her attacks take turns: your acts, then today\'s strike; an act waits for 
     for (const e of D.step(t, { boats: fleet })) if (e.type === 'warn') acts.push([far, e.act, e.target]);
   }
   const near = acts.filter((a) => !a[0]).map((a) => a[1]);
-  assert.deepEqual(near.slice(0, 8), ['dash', 'surge', 'breach', 'strike', 'dash', 'surge', 'breach', 'strike']);
+  assert.deepEqual(near.slice(0, 8), ['dash', 'strike', 'surge', 'strike', 'breach', 'strike', 'dash', 'strike']);
+  for (let i = 1; i < near.length; i++) assert.ok(near[i] === 'strike' || near[i - 1] === 'strike', `never two acts in a row (${near.join()})`);
   for (const a of acts.filter((x) => !x[0] && x[1] !== 'strike')) assert.equal(a[2], 'me', 'an act is aimed at you');
   const farOnes = acts.filter((a) => a[0]);
   assert.ok(farOnes.length >= 2 && farOnes.every((a) => a[1] === 'strike' && a[2] === 'wren'), JSON.stringify(farOnes));
+});
+
+test('one act: act, strike, act, strike; acts set after create (their module loaded) give the same race as acts at create', () => {
+  const run = (D) => { const out = []; for (let t = 0; t < 400; t += 0.25) for (const e of D.step(t, { boats: [boat('me', 280, -100, 10, { progress: 200 })] })) if (e.type === 'warn') out.push(e.act); return out; };
+  const one = run(createTessieDeep({ area, pace, seed: 2, acts: actsOf({ dash: 2 }) }));
+  assert.deepEqual(one.slice(0, 4), ['dash', 'strike', 'dash', 'strike']);
+  const acts = actsOf({ dash: 2, surge: 1, breach: 1 }), late = createTessieDeep({ area, pace, seed: 2 });
+  late.setActs(acts);
+  assert.deepEqual(run(late), run(createTessieDeep({ area, pace, seed: 2, acts })));
 });
 
 test('the Emerald Bay set: no Regatta rival row (a rival sails only in a race, where she is never played)', () => {
@@ -163,14 +174,14 @@ test('engine: no flag, or no save: today\'s Tessie\'s Deep; ?tessierpg=1 with a 
   const runs = [];
   for (const [flags, store] of [[{}, mem()], [{}, mem({ [BOUNTY.key]: saveWith({ dash: 2 }) })], [{ tessierpg: true }, mem()]]) {
     const { R } = engine({ flags, store });
-    await R.enter({ hub: true, deal: true }); R.racePlace('tessies-deep');
+    await R.enter({ hub: true, deal: true }); R.racePlace('tessies-deep'); await R.deepReady;
     assert.ok(sailTo(R, () => R.deep.state.n >= 2), 'two attacks');
     runs.push(JSON.stringify(R.stats.attacks));
     assert.ok(R.stats.attacks.every((a) => !('act' in a)));
   }
   assert.equal(runs[1], runs[0], 'a save without the flag: today\'s race'); assert.equal(runs[2], runs[0], 'the flag without a save: today\'s race');
   const { R, log } = engine({ flags: { tessierpg: true }, store: mem({ [BOUNTY.key]: saveWith({ dash: 2 }) }) });
-  await R.enter({ hub: true, deal: true }); R.racePlace('tessies-deep');
+  await R.enter({ hub: true, deal: true }); R.racePlace('tessies-deep'); await R.deepReady;
   assert.ok(sailTo(R, () => R.deep.state.n >= 1));
   const w = R.stats.attacks.find((a) => a.type === 'warn');
   if (w.act === 'dash') { assert.equal(w.id, 'me'); assert.ok(log.some((e) => e[0] === 'ambush'), 'her run starts at the surface'); }
@@ -179,7 +190,7 @@ test('engine: no flag, or no save: today\'s Tessie\'s Deep; ?tessierpg=1 with a 
 
 test('engine: Tail Surge in the race: the wave heels the player through the boat\'s own wave roll, the race never knocks her down for it', async () => {
   const { R, B, waves } = engine({ flags: { tessierpg: true }, store: mem({ [BOUNTY.key]: saveWith({ dash: 1, lure: 1, sonar: 1, surge: 4 }) }) });
-  await R.enter({ hub: true, deal: true }); R.racePlace('tessies-deep');
+  await R.enter({ hub: true, deal: true }); R.racePlace('tessies-deep'); await R.deepReady;
   assert.ok(sailTo(R, () => R.deep.state.phase === 'warn' && R.deep.state.act === 'surge', 600), `a surge (${JSON.stringify(R.stats.attacks)})`);
   // hold the player on her slap's spot's edge: the wave reaches her
   const at = R.deep.state.at; B.place({ x: at[0] + 30, z: at[1], headingDeg: 0, speed: 3 }); R.session.t = B.t;
@@ -190,4 +201,23 @@ test('engine: Tail Surge in the race: the wave heels the player through the boat
   R.settle(6);
   assert.deepEqual(R.stats.knocks, [], 'no knockdown from her wave');
   assert.equal(R.held, false);
+});
+
+test('engine: a race wave heels a rival too, through its own physics (the same cap), never a knockdown', async () => {
+  const { R } = engine({ flags: { tessierpg: true }, store: mem({ [BOUNTY.key]: saveWith({ dash: 1, lure: 1, sonar: 1, surge: 4 }) }) });
+  await R.enter({ hub: true, deal: true }); R.racePlace('tessies-deep'); await R.deepReady;
+  assert.ok(sailTo(R, () => R.deep.state.phase === 'warn' && R.deep.state.act === 'surge', 600), `a surge (${JSON.stringify(R.stats.attacks)})`);
+  // a rival on her slap's ring, inside the knock radius: the wave reaches it at once
+  const rv = R.session.rivals.find((b) => R.session.race.view(b.id).status === 'racing'), q = rv.phys.state, at = R.deep.state.at;
+  const calls = [], wave0 = R.session.wave; R.session.wave = (id, heel) => { calls.push([id, heel]); return wave0(id, heel); };
+  let maxHeel = 0;
+  for (let s = 0; s < 30 && !calls.some((c) => c[0] === rv.id); s += 0.5) { q.x = at[0] + 10; q.z = at[1]; R.settle(0.5); }
+  const c = calls.find((x) => x[0] === rv.id);
+  assert.ok(c, `the wave reached the rival (${JSON.stringify(R.stats.heels)})`);
+  assert.ok(Math.abs(c[1]) <= DEACT.heelMaxDeg * DEG + 1e-9, 'the race cap');
+  for (let s = 0; s < 4; s += 0.1) { R.settle(0.1); maxHeel = Math.max(maxHeel, Math.abs(q.heel ?? 0) / DEG); }
+  assert.ok(maxHeel > 12 && maxHeel < DEACT.heelMaxDeg + 8, `the rival rolled (${maxHeel.toFixed(1)}°)`);
+  R.settle(6);
+  assert.ok(Math.abs(q.heel ?? 0) / DEG < 30, 'upright again');
+  assert.ok(!R.stats.knocks.some((k) => k.id === rv.id) && R.session.race.view(rv.id).status === 'racing', 'never a knockdown from her wave');
 });
