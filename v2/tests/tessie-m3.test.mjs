@@ -9,7 +9,7 @@
 //   turns at most 15°/s, eased, holds and returns
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTessie, TESSIE, reachAt } from '../sim/tessie.js';
+import { createTessie, TESSIE, reachAt, heightAt } from '../sim/tessie.js';
 import { createRevenge } from '../sim/tessieRevenge.js';
 import { createBehave, BEHAVE } from '../sim/tessieBehave.js';
 import { createBoatClear, boatShape, CLEAR } from '../sim/tessieClear.js';
@@ -89,7 +89,14 @@ function strikeRun({ seed = 2, kn = 7 } = {}) {
     t.step(DT, { playing: true, boat: bo, view: view(bo) });
     if (!pre) R.step(DT, { boat: { ...bo, heel: B.state.heel }, playing: true });
     if (R.state.sub && S.subs[S.subs.length - 1] !== R.state.sub) S.subs.push(R.state.sub);
-    for (const e of R.events) if (e.type === 'strike') { S.strike = e; struckAt = T; const P = B.phys.P; B.shove({ K: e.K * P.mass * 9.81 * P.gm }); }
+    for (const e of R.events) if (e.type === 'strike') {
+      S.strike = e; struckAt = T; const P = B.phys.P; B.shove({ K: e.K * P.mass * 9.81 * P.gm });
+      // in sight at the push: her highest point over the water, and her head's side of the hull (+ the lee side) and its lateral offset
+      const sp = t.state.spine, N = sp.length / 8, rx = Math.cos(bo.heading), rz = Math.sin(bo.heading);
+      let top = -Infinity; for (let i = 0; i < N; i++) top = Math.max(top, sp[i * 8 + 1] + heightAt(i * t.L / (N - 1), t.L));
+      S.atPush = { top, headY: sp[1], headLat: ((sp[0] - bo.x) * rx + (sp[2] - bo.z) * rz) * e.lee };
+    }
+    if (struckAt == null && R.state.sub === 'close') S.closeTop = Math.max(S.closeTop ?? -Infinity, t.state.spine[1]);
     if (t.state.visible) {
       const g = gapOf(t, bo); S.minGap = Math.min(S.minGap, g); S.frames++;
       if (Math.abs(B.state.heel) > 30 * DEG) S.minGapRoll = Math.min(S.minGapRoll, g);
@@ -100,11 +107,15 @@ function strikeRun({ seed = 2, kn = 7 } = {}) {
   return S;
 }
 
-test('the strike: her body never in the boat (0.15 m on every frame, through the knockdown roll); her back meets the keel and the bilge, the boat rolls away', () => {
+test('the strike: her body never in the boat (0.15 m on every frame, through the knockdown roll); in sight beside the lee rail, her head down on it, the boat rolls toward her', () => {
   for (const [seed, kn] of [[2, 7], [1, 12], [3, 16]]) {
     const S = strikeRun({ seed, kn });
     assert.ok(S.strike, `caught (seed ${seed}, ${kn} kn)`);
-    assert.deepEqual(S.subs, ['down', 'in', 'up'], 'down beside the hull, in under the bilge, up against the keel');
+    assert.deepEqual(S.subs, ['close', 'bite', 'hold'], 'alongside the lee rail with her neck up, her head down on it, held as it rolls');
+    // the player sees it: her head reared well over the water as she closes, still out of the water at the push, on the lee side of the hull
+    assert.ok(S.closeTop > 1.5, `her head ${S.closeTop.toFixed(2)} m over the water as she closes`);
+    assert.ok(S.atPush.top > 0.8 && S.atPush.headY > 0, `in sight at the push (her top ${S.atPush.top.toFixed(2)} m, her head ${S.atPush.headY.toFixed(2)} m)`);
+    assert.ok(S.atPush.headLat > 0, `her head on the lee side (${S.atPush.headLat.toFixed(2)} m to leeward of the centreline)`);
     assert.ok(S.strike.touch, 'the push comes when she touches');
     assert.ok(S.strike.clear >= M - 1e-6 && S.strike.clear <= M + 0.2, `the gap at the push ${S.strike.clear} m: touching, not through`);
     assert.ok(S.minGap >= M - 1e-6, `least gap ${S.minGap.toFixed(3)} m over ${S.frames} frames (seed ${seed}, ${kn} kn)`);
