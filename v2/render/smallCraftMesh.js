@@ -225,23 +225,42 @@ export function buildCraft(kind, { lod = 'near' } = {}) {
 export const JET = Object.freeze({ L: POWER.jetski.length, B: POWER.jetski.beam, sponsonY: 0.16, footY: 0.3, seatTop: 0.74, seatZ: 0.32, barY: 1.02, barZ: -0.52, nozzleY: 0.08 });
 export function jetAt(u) {
   u = Math.max(0, Math.min(1, u));
-  const hb = JET.B / 2 * (u < 0.45 ? Math.sin((u / 0.45) * Math.PI / 2) ** 0.62 : 1 - 0.1 * ((u - 0.45) / 0.55) ** 2);
-  const ys = 0.44 + (u < 0.35 ? 0.2 * (1 - u / 0.35) ** 2 : -0.04 * (u - 0.35) / 0.65);
+  // the plan: a full rounded nose, widest just aft of it, the stern drawn in (a tapered stern); w0: the old plan's share, which sets the
+  // V's heights (render/smallCraft.js draws the colour line from the same w0)
+  const w0 = u < 0.45 ? Math.sin((u / 0.45) * Math.PI / 2) ** 0.62 : 1 - 0.1 * ((u - 0.45) / 0.55) ** 2;
+  const hb = JET.B / 2 * (u < 0.42 ? Math.sin((u / 0.42) * Math.PI / 2) ** 0.55 : 1 - 0.15 * ((u - 0.42) / 0.58) ** 1.6);
+  // the sheer sweeping up to the nose, a touch of rise toward the stern deck
+  const ys = 0.42 + (u < 0.38 ? 0.24 * (1 - u / 0.38) ** 2 : 0) + 0.035 * Math.min(1, Math.max(0, (u - 0.62) / 0.38)) ** 2;
   const yk = -0.18 + (u < 0.42 ? 0.55 * (1 - u / 0.42) ** 2 : 0.03 * (u - 0.42));   // a long raked forefoot (the stem out of the water)
-  const w = hb / (JET.B / 2), yc = yk + 0.15 * w;
-  return { hb, ys, yk, yc, xc: hb * 0.76, ysp: yc + JET.sponsonY * w };
+  const yc = yk + 0.19 * w0;   // a deep V (about 22° at the transom)
+  const sp = 0.035 * Math.min(1, Math.max(0, (u - 0.45) / 0.25)) * (1 - Math.min(1, Math.max(0, (u - 0.96) / 0.04)));   // the sponsons, aft
+  return { hb, ys, yk, yc, xc: hb * 0.74, ysp: yc + JET.sponsonY * w0, sp };
 }
 const jz = (u) => -JET.L / 2 + u * JET.L;
 function jetSki(B, near) {
-  const n = near ? 26 : 6;
-  // the hull: gunwale, sponson ledge (out and down), chine, keel; a sheet port to starboard, smooth across, a sharp edge at the sponson
-  const ring = (u) => { const q = jetAt(u), z = jz(u); return [[-q.hb * 0.95, q.ys, z], [-q.hb, q.ysp + 0.03, z], [-q.hb * 0.97, q.ysp, z], [-q.xc, q.yc, z], [0, q.yk, z], [q.xc, q.yc, z], [q.hb * 0.97, q.ysp, z], [q.hb, q.ysp + 0.03, z], [q.hb * 0.95, q.ys, z]]; };
-  const rows = []; for (let i = 0; i <= n; i++) rows.push(ring((i / n) ** 1.1));
+  const n = near ? 30 : 6;
+  // the hull, each side in three sheets with a crease between them: the topsides (a rounded lip under the gunwale, a slight tumblehome
+  // out to the spray rail), the rail's ledge (out over the sponson aft, then back in), the bottom (a chine, a lifting strake, the keel)
+  const side = (u, sx) => {
+    const q = jetAt(u), z = jz(u), X = (x) => sx * x;
+    const P0 = [X(q.hb * 0.9), q.ys + 0.012, z], P1 = [X(q.hb * 0.975), q.ys - 0.014, z], P2 = [X(q.hb + 0.4 * q.sp), (q.ys + q.ysp) / 2 + 0.03, z], P3 = [X(q.hb + q.sp), q.ysp + 0.05, z];
+    const P4 = [X(q.hb + q.sp), q.ysp + 0.02, z], P5 = [X(q.hb * 0.95), q.ysp, z];
+    const P6 = [X(q.xc), q.yc, z], P7 = [X(q.xc * 0.55), q.yk + (q.yc - q.yk) * 0.5 - 0.012, z], P8 = [0, q.yk, z];
+    return [[P0, P1, P2, P3], [P3, P4, P5], [P5, P6, P7, P8]];
+  };
+  const us = []; for (let i = 0; i <= n; i++) us.push((i / n) ** 1.1);
   const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-  const R = rows.length, N = 9;
-  const nrm = (i, j) => B.norm(cross(sub(rows[Math.min(R - 1, i + 1)][j], rows[Math.max(0, i - 1)][j]), sub(rows[i][Math.min(N - 1, j + 1)], rows[i][Math.max(0, j - 1)])));
-  for (let i = 0; i < R - 1; i++) for (let j = 0; j < N - 1; j++) B.squad(rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j], nrm(i, j), nrm(i, j + 1), nrm(i + 1, j + 1), nrm(i + 1, j), SLOT.hull);
-  const t = rows[R - 1]; for (let j = 1; j < N - 1; j++) B.tri(t[4], t[j], t[j + 1], SLOT.hull); B.quad(t[0], t[1], t[7], t[8], SLOT.hull);   // the transom
+  const sheet = (rows) => {
+    const R = rows.length, N = rows[0].length;
+    const nrm = (i, j) => B.norm(cross(sub(rows[Math.min(R - 1, i + 1)][j], rows[Math.max(0, i - 1)][j]), sub(rows[i][Math.min(N - 1, j + 1)], rows[i][Math.max(0, j - 1)])));
+    for (let i = 0; i < R - 1; i++) for (let j = 0; j < N - 1; j++) B.squad(rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j], nrm(i, j), nrm(i, j + 1), nrm(i + 1, j + 1), nrm(i + 1, j), SLOT.hull);
+  };
+  for (const sx of [-1, 1]) { const S = us.map((u) => side(u, sx)); for (let k = 0; k < 3; k++) sheet(S.map((r) => r[k])); }
+  // the transom: a fan from its middle over both sides' outline
+  const tp = side(1, -1), ts = side(1, 1), outline = [...tp[0], ...tp[1].slice(1), ...tp[2].slice(1), ...[...ts[2]].reverse().slice(1), ...[...ts[1]].reverse().slice(1), ...[...ts[0]].reverse().slice(1)];
+  const tc = [0, (jetAt(1).ys + jetAt(1).yk) / 2, jz(1)];
+  for (let j = 0; j < outline.length - 1; j++) B.tri(tc, outline[j], outline[j + 1], SLOT.hull);
+  B.tri(tc, outline[outline.length - 1], outline[0], SLOT.hull);
   // the hood: lofted over the bow from the gunwales to a rounded crown that peaks ahead of the bars
   const hood = [], hn = near ? 14 : 3;
   for (let i = 0; i <= hn; i++) {
@@ -275,7 +294,7 @@ function jetSki(B, near) {
   const cs = [], cn = near ? 7 : 2, cm = near ? 8 : 4;
   for (let i = 0; i <= cn; i++) {
     const u = i / cn, z = zp + 0.03 + (z1 - zp - 0.1) * u, end = Math.sin(Math.max(0.2, Math.min(1, Math.min(u, 1 - u) * 6)) * Math.PI / 2);
-    const w = 0.2 * end, h = 0.14 * (0.6 + 0.4 * end) + (u < 0.3 ? 0.03 * (1 - u / 0.3) : 0);
+    const w = 0.2 * end, h = 0.14 * (0.6 + 0.4 * end) + (u < 0.3 ? 0.03 * (1 - u / 0.3) : 0) + 0.06 * Math.min(1, Math.max(0, (u - 0.52) / 0.1)) ** 2 * (0.6 + 0.4 * end);   // a stepped seat: the passenger's part raised
     cs.push(Array.from({ length: cm }, (_, k) => { const a = Math.PI * k / (cm - 1); return [-Math.cos(a) * w, py + Math.sin(a) * h, z]; }));
   }
   for (let i = 0; i < cs.length - 1; i++) for (let k = 0; k < cm - 1; k++) B.quad(cs[i][k], cs[i + 1][k], cs[i + 1][k + 1], cs[i][k + 1], SLOT.seatDark);

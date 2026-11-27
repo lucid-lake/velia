@@ -280,7 +280,7 @@ test('Tessie: power and jetski are targets; a runabout is knocked down (heeled h
 });
 
 // ---- their drawing and sound ----
-test('the models: a runabout about 6.6 m with a figure at the helm; a detailed jet ski about 3.2 m under 2.5 k triangles (far under 400): a pointed bow, the sponson ledge, two-tone deck, raised bars, mirrors, the cushion, footwells, grab handle, the pump\'s nozzle, the rider in a buoyancy aid and a helmet', () => {
+test('the models: a runabout about 6.6 m with a figure at the helm; a detailed jet ski about 3.2 m under 3.5 k triangles (far under 600): a pointed bow, the sponson ledge, two-tone deck, raised bars, mirrors, the cushion, footwells, grab handle, the pump\'s nozzle, the rider in a buoyancy aid and a helmet', () => {
   const known = new Set(Object.values(SLOT));
   const tris = {};
   for (const kind of ['power', 'jetski']) for (const lod of ['near', 'far']) {
@@ -294,7 +294,7 @@ test('the models: a runabout about 6.6 m with a figure at the helm; a detailed j
     tris[`${kind}-${lod}`] = a.length / VF / 3;
   }
   assert.ok(tris['power-near'] <= 6500 && tris['power-far'] <= 300, JSON.stringify(tris));   // near: the cockpit well, the moulded seats and console, the wheel, the outboard's cowling
-  assert.ok(tris['jetski-near'] >= 1500 && tris['jetski-near'] <= 2500 && tris['jetski-far'] <= 400 && tris['jetski-far'] * 4 < tris['jetski-near'], JSON.stringify(tris));
+  assert.ok(tris['jetski-near'] >= 1500 && tris['jetski-near'] <= 3500 && tris['jetski-far'] <= 600 && tris['jetski-far'] * 4 < tris['jetski-near'], JSON.stringify(tris));
   // the jet ski's parts by their slots and places
   const a = buildCraft('jetski', { lod: 'near' }), slots = new Set(); const at = (pred) => { for (let i = 0; i < a.length; i += VF) if (pred(a[i], a[i + 1], a[i + 2], a[i + 6])) return true; return false; };
   for (let i = 0; i < a.length; i += VF) slots.add(a[i + 6]);

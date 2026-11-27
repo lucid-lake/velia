@@ -62,10 +62,15 @@ fn litC(v: CV) -> vec3f {
       if (jet) {
         let u = clamp((lp.z + ${f(JET.L / 2)}) / ${f(JET.L)}, 0.0, 1.0); let w = select(1.0, pow(sin(u / 0.45 * 1.5708), 0.62), u < 0.45);
         let yk = -0.18 + select(0.03 * (u - 0.42), 0.55 * (1.0 - u / 0.42) * (1.0 - u / 0.42), u < 0.42);
-        let ysp = yk + (0.15 + ${f(JET.sponsonY)}) * w + 0.13;   // the colour line a hand above the ledge: dark topsides, the deck and hood bright
+        let ysp = yk + (0.19 + ${f(JET.sponsonY)}) * w + 0.05;   // the colour line just above the ledge: the bottom dark, the topsides, deck and hood bright
         band = 1.0 - smoothstep(ysp - aaY, ysp + aaY, lp.y);
         let pin = 1.0 - smoothstep(0.012 - aaY, 0.012 + aaY, abs(lp.y - ysp - 0.03));
         alb = mix(mix(p0.rgb, p1.rgb, band), vec3f(0.85), pin * 0.8);
+        // an accent along the topsides: a stripe in the second colour sweeping up toward the nose, a pale pinline under it, fading aft
+        let yl = ysp + 0.08 + 0.1 * (1.0 - u) * (1.0 - u); let dl = lp.y - yl;
+        let st = (1.0 - smoothstep(0.022 - aaY, 0.022 + aaY, abs(dl))) * smoothstep(0.03, 0.1, u) * (1.0 - smoothstep(0.62, 0.78, u));
+        let pl = (1.0 - smoothstep(0.006 - aaY, 0.006 + aaY, abs(dl + 0.036))) * smoothstep(0.03, 0.1, u) * (1.0 - smoothstep(0.62, 0.78, u));
+        alb = mix(mix(alb, p1.rgb, st), vec3f(0.9), pl * 0.85);
       } else { alb = mix(p0.rgb, p1.rgb, band); }
       rough = 0.22; spK = 1.0;
       alb = mix(alb, vec3f(0.06, 0.06, 0.07), (1.0 - smoothstep(0.04 - aaY, 0.04 + aaY, lp.y)) * 0.7);
