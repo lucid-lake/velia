@@ -188,10 +188,19 @@ try {
       return { w: innerWidth, row: [Math.round(row.l), Math.round(row.r)], dial: dial && Math.round(dial.right), sonar: sonar && Math.round(sonar.left), legend: !!leg, legL: leg && Math.round(leg.left), legB: leg && Math.round(leg.bottom), rowT: Math.round(row.t),
         ok: !hit(dial) && !hit(sonar) && !hit(leg) && row.l >= 0 && row.r <= innerWidth && !!dial && !!sonar };
     });
+    const names = () => page.evaluate(() => [...document.querySelectorAll('#lk-tplay .tp-skills .tp-slot')].map((s) => {
+      const n = s.querySelector('.nm'), r = n?.getBoundingClientRect(), cs = n && getComputedStyle(n), t = s.getBoundingClientRect();
+      return { t: n?.textContent, shown: !!n && cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0, px: cs ? parseFloat(cs.fontSize) : 0, op: cs ? +cs.opacity : 0, l: r?.left, r: r?.right, top: r?.top, b: r?.bottom, under: r && r.top >= t.bottom - 1, locked: s.classList.contains('locked') };
+    }));
     for (const w of [1280, 1180, 1100]) {
       await page.setViewportSize({ width: w, height: 720 }); await page.waitForTimeout(500);
       const c = await clear();
       check(c.ok && c.legend, `${w} px: the five slots clear of DEPTH, SONAR and the legend (${JSON.stringify(c)})`);
+      const nm = await names();
+      const apart = nm.every((x, i) => i === 0 || x.l >= nm[i - 1].r + 2);
+      check(nm.map((x) => x.t).join() === 'DASH,LURE,SONAR,SURGE,BREACH' && nm.every((x) => x.shown && x.under && x.px >= 11 && x.b <= 720) && apart,
+        `${w} px: every slot's name under its icon, 11 px or more, apart, on screen (${JSON.stringify(nm.map((x) => [x.t, Math.round(x.l), Math.round(x.r), Math.round(x.b)]))})`);
+      check(nm.filter((x) => x.locked).every((x) => x.op >= 0.45 && x.op < 0.8) && nm.filter((x) => !x.locked).every((x) => x.op === 1), `${w} px: a locked slot's name dimmed, an open one's full (${JSON.stringify(nm.map((x) => [x.t, x.op]))})`);
     }
     await page.setViewportSize({ width: 1280, height: 720 }); await page.waitForTimeout(400);
     // a waiting point: the line once she is still 2 s (nothing held), 7 s after her first tip (it jumps the lean skipper's 20 s gap)
@@ -275,13 +284,31 @@ try {
     const off2 = await offNow(laid), r2 = await slot('lure');
     check(off0 != null && off2 != null && off2 < off0 - 5, `the lured boat turned toward her within 2.5 s (${off0?.toFixed(0)}° → ${off2?.toFixed(0)}° off its bow)`);
     check(r2.ink === 'cool' && r2.ring < r2.full * 0.3, `then the ring cools, refilling (${JSON.stringify(r2)})`);
+    const wipe = await page.evaluate(() => { const c = document.querySelector('#lk-tplay .tp-slot[data-skill=lure] .cd'); return { d: c?.getAttribute('d') ?? '', shown: !!c && getComputedStyle(c).display !== 'none' }; });
+    check(wipe.shown && /^M32 32L/.test(wipe.d), `and a wipe over the Lure's tile while it cools (${wipe.d.slice(0, 30)})`);
     // the Sonar: 3 pings; its rings under the hulls, the rim, the word
     await page.keyboard.press('Digit3'); await page.waitForTimeout(1000);
-    const p1 = await page.evaluate(() => { const so = document.querySelector('#lk-tplay .tp-sonar'), w = document.querySelector('#lk-tplay .tp-world'); return { log: window.__velia.tessiePlay.stats().log.sonar, rim: +(so.dataset.rim ?? 0), ticks: so.querySelectorAll('.rim line').length, word: so.querySelector('.sw').textContent, marks: +(w.dataset.marks ?? 0), shown: [...w.querySelectorAll('.mk')].filter((e) => e.getAttribute('visibility') === 'visible').length }; });
+    const p1 = await page.evaluate(() => {
+      const so = document.querySelector('#lk-tplay .tp-sonar'), w = document.querySelector('#lk-tplay .tp-world'), V = window.__velia, n = V.tessie.sim.state.nose, R = 54;
+      // each blip against its boat's true bearing and range on the ping's scale (the busy lake's sailboats: their positions are known here)
+      const range = V.tessiePlay.stats().rpg.ping?.rangeM ?? 300, off = [];
+      for (const e of so.querySelectorAll('.pbs path[data-id]')) {
+        const b = V.busy.lake.liveBoats.find((o) => o.id === e.dataset.id)?.phys.state; if (!b || !n) continue;
+        const dx = b.x - n.x, dz = b.z - n.z, d = Math.hypot(dx, dz), ahead = dx * Math.sin(n.psi) - dz * Math.cos(n.psi), right = dx * Math.cos(n.psi) + dz * Math.sin(n.psi), k = Math.min(1, d / range) * R;
+        const m = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(e.getAttribute('transform')); if (!m) continue;
+        off.push({ id: e.dataset.id, shape: e.dataset.shape, px: +Math.hypot(+m[1] - (66 + right / d * k), +m[2] - (66 - ahead / d * k)).toFixed(2) });
+      }
+      const lab = [...so.querySelectorAll('.pr text')].map((t) => t.textContent), prShown = getComputedStyle(so.querySelector('.pr')).display !== 'none';
+      return { log: V.tessiePlay.stats().log.sonar, pinged: +(so.dataset.pinged ?? 0), rim: +(so.dataset.rim ?? 0), blips: so.querySelectorAll('.pbs path').length, ticks: so.querySelectorAll('.pbs line').length, lit: +(so.dataset.lit ?? 0), off, lab, prShown, plain: so.querySelectorAll('.bls > *').length,
+        word: so.querySelector('.sw').textContent, marks: +(w.dataset.marks ?? 0), shown: [...w.querySelectorAll('.mk')].filter((e) => e.getAttribute('visibility') === 'visible').length };
+    });
     if (process.env.TESSIE_RPG3_SHOT) await page.screenshot({ path: `${process.env.TESSIE_RPG3_SHOT}-sonar.png` });
     const n3 = p1.log?.ids.length ?? 0;
     check(n3 >= 1 && p1.log.rangeM === 300 && p1.log.markS === 8, `3 pings: ${n3} boats within 300 m marked for 8 s (${JSON.stringify(p1.log)})`);
-    check(p1.rim === n3 && p1.ticks === n3, `the SONAR dial's rim: a tick per marked boat (${p1.ticks} of ${n3})`);
+    check(p1.blips + p1.ticks === Math.min(n3, 16) && p1.pinged === p1.blips && p1.rim === p1.ticks && p1.lit === p1.blips + p1.ticks && p1.plain === 0,
+      `the SONAR dial shows the ping: a blip per marked boat, all lit 1 s on, the 160 m blips gone (${p1.blips} blips + ${p1.ticks} rim ticks of ${n3})`);
+    check(p1.off.length >= 1 && p1.off.every((o) => o.px < 2.5 && o.shape === 'tri'), `each sailboat's blip at its true bearing and range on the 300 m scale, a triangle (${JSON.stringify(p1.off)})`);
+    check(p1.prShown && p1.lab.join() === '150,300 m', `the dial's half ring and rim labelled (${p1.lab.join()})`);
     check(/^(300 M|HIDDEN)$/.test(p1.word), `the dial's word reads the ping's range (${p1.word})`);
     check(p1.marks >= 1 && p1.shown === p1.marks, `the marks in the world: a ring under each hull in view (${p1.marks} drawn)`);
     // the marks are world: every HUD box (each legend line, the two dials, the slots) lies inside a cut of the marks' mask
@@ -300,8 +327,8 @@ try {
     const p2 = await page.evaluate(() => window.__velia.tessiePlay.stats().log.sonar.at);
     check(p2 === p1.log.at, 'a click on the Sonar slot while it runs does nothing (no second ping)');
     await page.waitForTimeout(7500);
-    const p3 = await page.evaluate(() => ({ rim: document.querySelector('#lk-tplay .tp-sonar').dataset.rim, word: document.querySelector('#lk-tplay .tp-sonar .sw').textContent, marks: document.querySelector('#lk-tplay .tp-world').dataset.marks }));
-    check(p3.rim === '0' && p3.marks === '0' && /^(SONAR|HIDDEN)$/.test(p3.word), `after 8 s the marks are gone, the dial says SONAR again (${JSON.stringify(p3)})`);
+    const p3 = await page.evaluate(() => ({ rim: document.querySelector('#lk-tplay .tp-sonar').dataset.rim, pinged: document.querySelector('#lk-tplay .tp-sonar').dataset.pinged, ping: document.querySelector('#lk-tplay .tp-sonar').hasAttribute('data-ping'), word: document.querySelector('#lk-tplay .tp-sonar .sw').textContent, marks: document.querySelector('#lk-tplay .tp-world').dataset.marks }));
+    check(p3.rim === '0' && p3.pinged === '0' && !p3.ping && p3.marks === '0' && /^(SONAR|HIDDEN)$/.test(p3.word), `after 8 s the marks are gone, the dial is back at 160 m and says SONAR again (${JSON.stringify(p3)})`);
     check(errors.length === 0, `phase 3: no page errors (${errors.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }

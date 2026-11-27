@@ -52,13 +52,13 @@ test('the legend: Swim W A S D, Dash 1 / ⇧, Bite Space (SPC) or click, Up / Do
   assert.equal(L.find((l) => l.id === 'dash').level, 'learned'); assert.equal(L.find((l) => l.id === 'view').level, 'full');
 });
 
-test('a skill slot: the ring full and cream when ready, emptying in amber while it runs, refilling dim as it cools', () => {
+test('a skill slot: the ring full and cream when ready, emptying in amber while it runs, refilling dim under a wipe as it cools', () => {
   const S = createSkills();
   assert.deepEqual(slotLook(S.state('dash')), { ring: 1, ink: 'ready', glyph: 1 });
   S.press('dash'); S.step(0.45);
   const a = slotLook(S.state('dash')); assert.equal(a.ink, 'amber'); assert.ok(Math.abs(a.ring - 0.75) < 1e-9);
   S.step(1.35 + 1.125);
-  const c = slotLook(S.state('dash')); assert.equal(c.ink, 'cool'); assert.ok(Math.abs(c.ring - 0.25) < 1e-9); assert.equal(c.glyph, 0.5);
+  const c = slotLook(S.state('dash')); assert.equal(c.ink, 'cool'); assert.ok(Math.abs(c.ring - 0.25) < 1e-9); assert.equal(c.glyph, 0.85); assert.ok(Math.abs(c.wipe - 0.75) < 1e-9, 'the wipe covers the share still to recharge');
   assert.deepEqual(slotLook(null), { ring: 0, ink: 'empty', glyph: 0.28 });
 });
 

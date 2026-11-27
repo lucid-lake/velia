@@ -24,6 +24,18 @@
 //   THE RPG, phase 3 (rpg): a Sonar ping marks the boats within its range: while the marks last, a short cream tick on the SONAR
 //          dial's rim at each marked boat's bearing and the dial's word reads the ping's range ("480 M"; HIDDEN still wins); a free trial's
 //          slot shows its ring while the skill runs and cools (the trial count stays in the pips' place)
+//   THE ICONS (the RTS pass): each slot is a rounded-square tile of one family (a navy ground lit from the upper left, a bevel, a
+//          3 px frame that carries the state) with one bold cream silhouette, outlined in navy, that says what the skill does: the
+//          Dash a dart with three speed streaks (horizontal), the Lure a hook with a glint (a vertical curl), the Sonar a fan of three
+//          bands from a point (radial), the Tail Surge a breaking wave (a low heavy curl), the Breach her neck rising out of a splash
+//          (vertical). The frame tells the state: ready a full cream frame; running an amber frame emptying (the figure amber);
+//          cooling a dim frame refilling and a navy wipe over the tile shrinking clockwise from twelve; locked the tile and figure
+//          dimmed, no frame; pickable the steady amber halo. The skill's name under every tile, a locked one's dimmed
+//   THE PING ON THE DIAL: while a ping's marks last the SONAR dial rescales to the ping's range: each marked boat a blip at its true
+//          bearing and range, its shape by type (a sail a triangle, a runabout an arrowhead, a kayak a slim lens, the glass boat a
+//          bar, the paddle-wheeler a block, a jet ski a diamond, your Halcyon an outlined triangle), a ring at half the range and the
+//          rim labelled in metres, one ping wave out from her (0.9 s; none under reduced motion) that lights each blip as it passes,
+//          the blips fading as the marks run out; a marked boat that has run past the range sits on the rim as a tick
 import { SLOT_COUNT, slotLabel } from '../sim/tessieSkills.js';
 import { CAP_RULE, capFace, ensureLegendStyle } from '../../src/ui/keyLegend.js';
 export { CAP_RULE };
@@ -32,6 +44,7 @@ export const HUD = Object.freeze({
   narrow: Object.freeze({ width: 1100, dial: 112, slot: 56 }),
   tablet: Object.freeze({ dial: 104, inset: 16, slot: 72, stickShare: 0.4, buttonsW: 236 }),   // the stick owns the left 40 %, the buttons (Bite and ▲ ▼) about 236 px on the right
   sonar: Object.freeze({ rangeM: 160, rings: Object.freeze([50, 100]), max: 12, hz: 10, coneDeg: 35 }),
+  ping: Object.freeze({ waveS: 0.9, max: 16, fadeMin: 0.35, R: 54 }),   // the ping on the dial: the wave's run, the blips at most, the faintest a blip fades to, the rim (px of 132)
   learnAt: 3,   // uses before a line dims (Sail's LEARN_AT); the ink is Sail's (keyLegend.js OPACITY)
   storeKey: 'lakeshore.tessie.keys.v1',
 });
@@ -107,8 +120,47 @@ export const legendLineOf = (code, lines = LEGEND) => lines.find((l) => l.codes.
 export function slotLook(state) {
   if (!state) return { ring: 0, ink: 'empty', glyph: 0.28 };
   if (state.phase === 'active') return { ring: state.k, ink: 'amber', glyph: 1 };
-  if (state.phase === 'cool') return { ring: state.k, ink: 'cool', glyph: 0.5 };
+  if (state.phase === 'cool') return { ring: state.k, ink: 'cool', glyph: 0.85, wipe: 1 - state.k };   // the wipe: the share still to recharge
   return { ring: 1, ink: 'ready', glyph: 1 };
+}
+
+// the cooldown's wipe over a 64 px tile (pure): a navy wedge from the recharged share's edge clockwise round to twelve; '' when
+// nothing is left (share 0), the whole tile at 1
+export function wipePath(share = 0) {
+  const w = Math.min(1, Math.max(0, +share || 0)); if (w <= 0.001) return '';
+  if (w >= 0.999) return 'M-4 -4H68V68H-4Z';
+  const R = 46, a = (1 - w) * 2 * Math.PI, x = 32 + R * Math.sin(a), y = 32 - R * Math.cos(a);
+  return `M32 32L${x.toFixed(2)} ${y.toFixed(2)}A${R} ${R} 0 ${w > 0.5 ? 1 : 0} 1 32 ${32 - R}Z`;
+}
+// the wipe's leading edge (pure): the clock hand from the tile's centre to its edge, [x, y] of its far end; null with no wipe
+export function wipeHand(share = 0) {
+  const w = Math.min(1, Math.max(0, +share || 0)); if (w <= 0.001 || w >= 0.999) return null;
+  const a = (1 - w) * 2 * Math.PI; return [+(32 + 46 * Math.sin(a)).toFixed(2), +(32 - 46 * Math.cos(a)).toFixed(2)];
+}
+// a boat's blip shape on the ping's dial by its kind (the bounty's types): a sail a triangle, a runabout an arrowhead, a kayak a slim
+// lens, the glass boat a bar, the paddle-wheeler a block, a jet ski a diamond, the Halcyon an outlined triangle
+export const BLIP_SHAPE = Object.freeze({ sail: 'tri', rival: 'tri', anchored: 'tri', halcyon: 'otri', power: 'arrow', kayak: 'lens', sup: 'lens', glass: 'bar', paddle: 'block', jetski: 'diamond' });
+const BLIP_D = Object.freeze({ tri: 'M0 -6.5L4.2 5H-4.2Z', otri: 'M0 -6.5L4.2 5H-4.2Z', arrow: 'M0 -7L4.6 5.5L0 2.6L-4.6 5.5Z', lens: 'M0 -6.5Q2.6 0 0 6.5Q-2.6 0 0 -6.5Z',
+  bar: 'M-2.4 -6H2.4A2.4 2.4 0 0 1 4.8 -3.6V3.6A2.4 2.4 0 0 1 2.4 6H-2.4A2.4 2.4 0 0 1 -4.8 3.6V-3.6A2.4 2.4 0 0 1 -2.4 -6Z', block: 'M-5 -7H5V7H-5Z M-5 -1H5V1H-5Z', diamond: 'M0 -4.6L3.4 0L0 4.6L-3.4 0Z' });
+export const blipPath = (shape) => BLIP_D[shape] ?? BLIP_D.tri;
+// the ping on the dial (pure): her { x, z, psi }, the boats, the ping { rangeM, at, until, has(id) }, t (her clock), reduced (no
+// wave: every blip at once) → each marked boat { id, kind, shape, x, y (px on the 132 dial), rot (deg), d, out (past the range: on
+// the rim), on (the wave has reached it), op (its ink: 1 at the ping, fading to fadeMin as the marks run out) }, nearest first
+export function pingBlips(her, boats = [], ping = null, t = 0, { reduced = false, max = HUD.ping.max } = {}) {
+  if (!her || !ping || !(ping.rangeM > 0)) return [];
+  const P = HUD.ping, has = typeof ping.has === 'function' ? ping.has : () => true;
+  const at = ping.at ?? t, until = ping.until ?? t + 1, age = t - at;
+  const left = Math.min(1, Math.max(0, (until - t) / Math.max(1e-6, until - at))), op = +(P.fadeMin + (1 - P.fadeMin) * left).toFixed(3);
+  const c = Math.cos(her.psi), sn = Math.sin(her.psi), out = [];
+  for (const b of boats) {
+    if (!has(b.id)) continue;
+    const dx = b.x - her.x, dz = b.z - her.z, d = Math.hypot(dx, dz), ahead = dx * sn - dz * c, right = dx * c + dz * sn;   // her frame, as sonarBlips
+    const k = d / ping.rangeM, r = Math.min(1, k) * P.R, ux = d > 0 ? right / d : 0, vy = d > 0 ? ahead / d : 0;
+    out.push({ id: b.id, kind: b.kind, shape: BLIP_SHAPE[b.kind] ?? 'tri', d, x: +(66 + ux * r).toFixed(2), y: +(66 - vy * r).toFixed(2), rot: Math.round(wrap((b.heading ?? 0) - her.psi) / DEG),
+      out: k > 1, on: reduced || age >= P.waveS * Math.min(1, k), op });
+  }
+  out.sort((p, q) => p.d - q.d);
+  return out.slice(0, max);
 }
 
 const LOCKED_LOOK = Object.freeze({ ring: 0, ink: 'empty', glyph: slotGlyph('locked') }), TRIAL_LOOK = Object.freeze({ ring: 0, ink: 'empty', glyph: slotGlyph('trial') }), READY = Object.freeze({ phase: 'ready' });
@@ -123,17 +175,27 @@ const HUD_CSS = `#lk-tplay .tp-sonar{position:absolute;right:22px;bottom:22px;wi
 #lk-tplay .tp-sonar .lk{fill:none;stroke:rgb(var(--lk-amber,240 172 64));stroke-width:1.5}
 #lk-tplay .tp-sonar .rm{stroke:rgb(var(--lk-cream) / .9);stroke-width:2.2;stroke-linecap:round}
 #lk-tplay .tp-skills{position:absolute;bottom:22px;display:flex;gap:12px;align-items:flex-start}
-#lk-tplay .tp-slot{all:unset;box-sizing:border-box;position:relative;width:64px;height:64px;flex:none;border-radius:50%;color:var(--lk-ink,#f3ecdc)}
+#lk-tplay .tp-slot{all:unset;box-sizing:border-box;position:relative;width:64px;height:64px;flex:none;border-radius:14px;color:var(--lk-ink,#f3ecdc)}
 #lk-tplay .tp-slot svg{width:100%;height:100%;overflow:visible}
 #lk-tplay .tp-slot.empty{border:1.5px solid rgb(var(--lk-cream) / .28);background:rgb(var(--lk-brand-navy) / .35)}
+#lk-tplay .tp-slot .bg{fill:rgb(var(--lk-brand-navy) / .86)}
+#lk-tplay .tp-slot .base{fill:none;stroke:rgb(var(--lk-cream) / .22);stroke-width:3}
+#lk-tplay .tp-slot .cd{fill:rgb(var(--lk-brand-navy) / .74)}
+#lk-tplay .tp-slot .ch{stroke:rgb(var(--lk-cream) / .55);stroke-width:1.2;stroke-linecap:round}
+#lk-tplay .tp-slot .gl .f{fill:rgb(var(--lk-cream) / .96);stroke:rgb(var(--lk-brand-navy) / .95);stroke-width:2.6;stroke-linejoin:round;paint-order:stroke}
+#lk-tplay .tp-slot .gl .d{fill:rgb(var(--lk-brand-navy))}
+#lk-tplay .tp-slot .gl .so{fill:none;stroke:rgb(var(--lk-brand-navy) / .95);stroke-width:8.4;stroke-linecap:round;stroke-linejoin:round}
+#lk-tplay .tp-slot .gl .s{fill:none;stroke:rgb(var(--lk-cream) / .96);stroke-width:4.6;stroke-linecap:round;stroke-linejoin:round}
+#lk-tplay .tp-slot[data-ink=amber] .gl .f{fill:rgb(var(--lk-amber,240 172 64))}
+#lk-tplay .tp-slot[data-ink=amber] .gl .s{stroke:rgb(var(--lk-amber,240 172 64))}
 #lk-tplay .tp-slot .rg{fill:none;stroke-width:3;stroke-linecap:round;transition:stroke .3s ease,stroke-opacity .3s ease}
 #lk-tplay .tp-slot[data-ink=ready] .rg{stroke:rgb(var(--lk-cream));stroke-opacity:.9}
 #lk-tplay .tp-slot[data-ink=amber] .rg{stroke:rgb(var(--lk-amber,240 172 64));stroke-opacity:1;transition:none}
 #lk-tplay .tp-slot[data-ink=cool] .rg{stroke:rgb(var(--lk-cream));stroke-opacity:.55;transition:none}
-#lk-tplay .tp-slot .gl{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:opacity .3s ease}
-#lk-tplay .tp-slot[data-ink=amber] .gl{stroke:rgb(var(--lk-amber,240 172 64))}
+#lk-tplay .tp-slot .gl{transition:opacity .3s ease}
 #lk-tplay .tp-slot .lv{position:absolute;right:-4px;bottom:-2px;padding:1px 4px;border-radius:6px;background:rgb(var(--lk-brand-navy) / .85);border:1px solid rgb(var(--lk-cream) / .45);font:600 10px/1.2 var(--lk-ui,system-ui);letter-spacing:.04em}
-#lk-tplay .tp-slot .nm{position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);white-space:nowrap;font:600 11px/1 var(--lk-ui,system-ui);letter-spacing:.14em;text-shadow:0 1px 2px rgb(var(--lk-brand-navy) / .9)}
+#lk-tplay .tp-slot .nm{position:absolute;left:50%;top:calc(100% + 5px);transform:translateX(-50%);white-space:nowrap;font:700 11px/1 var(--lk-ui,system-ui);letter-spacing:.12em;color:rgb(var(--lk-cream) / .95);text-shadow:0 1px 2px rgb(var(--lk-brand-navy) / .95),0 0 6px rgb(var(--lk-brand-navy) / .8);pointer-events:none}
+#lk-tplay .tp-skills[data-tablet] .tp-slot .nm{font-size:12px}
 #lk-tplay .tp-slot.sk{pointer-events:auto;cursor:pointer;touch-action:none}
 #lk-tplay .tp-slot.sk:hover .rg{stroke-opacity:1}
 #lk-tplay .tp-slot.empty{pointer-events:auto;cursor:default}
@@ -147,44 +209,79 @@ const HUD_CSS = `#lk-tplay .tp-sonar{position:absolute;right:22px;bottom:22px;wi
 #lk-tplay .tp-slot .pp{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);display:flex;gap:3px;pointer-events:none}
 #lk-tplay .tp-slot .pp b{width:4px;height:4px;box-sizing:border-box;border-radius:50%;border:1px solid rgb(var(--lk-cream) / .28)}
 #lk-tplay .tp-slot .pp b.on{background:rgb(var(--lk-cream) / .9);border-color:transparent}
-#lk-tplay .tp-slot.locked{border:1.5px solid rgb(var(--lk-cream) / .28);background:rgb(var(--lk-brand-navy) / .35)}
-#lk-tplay .tp-slot.locked .base,#lk-tplay .tp-slot.locked .rg,#lk-tplay .tp-slot.locked .nm,#lk-tplay .tp-slot.locked .pp{display:none}
+#lk-tplay .tp-slot.locked .bg{fill:rgb(var(--lk-brand-navy) / .5)}
+#lk-tplay .tp-slot.locked .lt,#lk-tplay .tp-slot.locked .bv,#lk-tplay .tp-slot.locked:not([data-busy]) .cd,#lk-tplay .tp-slot.locked:not([data-busy]) .ch{display:none}
+#lk-tplay .tp-slot.locked .base{stroke:rgb(var(--lk-cream) / .2);stroke-width:1.5;stroke-dasharray:4 3}
+#lk-tplay .tp-slot.locked .rg,#lk-tplay .tp-slot.locked .pp{display:none}
+#lk-tplay .tp-slot.locked .nm{opacity:.5}
 #lk-tplay .tp-slot .tr{display:none;position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font:600 10px/1 var(--lk-ui,system-ui);letter-spacing:.04em;color:rgb(var(--lk-cream) / .9);pointer-events:none}
 #lk-tplay .tp-slot.locked.trial .tr{display:block}
 #lk-tplay .tp-slot.locked.trial[data-busy] .rg{display:inline}
 #lk-tplay .tp-slot.locked .kn{background:none;border-color:transparent;opacity:.4}
 #lk-tplay .tp-slot[data-halo]{box-shadow:0 0 0 2px rgb(var(--lk-brand-navy) / .55),0 0 0 4px rgb(var(--lk-amber,240 172 64) / .55),0 0 14px 5px rgb(var(--lk-amber,240 172 64) / .28)}   /* a navy hairline keeps the amber apart from the cream ring */
 #lk-tplay .tp-slot{transition:box-shadow .4s ease}
-@media (prefers-reduced-motion:reduce){#lk-tplay .tp-slot .rg{transition:none}}`;
+#lk-tplay .tp-sonar .pr,#lk-tplay .tp-sonar[data-ping] .r0,#lk-tplay .tp-sonar[data-ping] .cone{display:none}
+#lk-tplay .tp-sonar[data-ping] .pr{display:inline}
+#lk-tplay .tp-sonar[data-ping]:not([data-hidden]) .sw{visibility:hidden}   /* the rim's own label says the range */
+#lk-tplay .tp-sonar .pr circle{fill:none;stroke:rgb(var(--lk-cream) / .3);stroke-width:1;stroke-dasharray:2 3}
+#lk-tplay .tp-sonar .pr text{font:700 10px/1 var(--lk-ui,system-ui);letter-spacing:.04em;fill:rgb(var(--lk-cream) / .85);stroke:rgb(var(--lk-brand-navy) / .9);stroke-width:3;paint-order:stroke;text-anchor:middle}
+#lk-tplay .tp-sonar .pb{fill:rgb(var(--lk-cream) / .97);stroke:rgb(var(--lk-brand-navy) / .9);stroke-width:1.2;paint-order:stroke;transition:opacity .25s ease}
+#lk-tplay .tp-sonar .pb.o{fill:rgb(var(--lk-brand-navy) / .6);stroke:rgb(var(--lk-cream) / .97);stroke-width:1.5}
+#lk-tplay .tp-sonar .pw{fill:rgb(var(--lk-cream) / .05);stroke:rgb(var(--lk-cream) / .9);stroke-width:2;transform-box:view-box;transform-origin:66px 66px;transform:scale(0);opacity:0;animation:tp-ping .9s cubic-bezier(.25,.6,.35,1) forwards}
+#lk-tplay .tp-sonar .pw.e{stroke-width:1;animation-delay:.22s}
+@keyframes tp-ping{0%{transform:scale(.04);opacity:1}80%{opacity:.75}100%{transform:scale(1);opacity:0}}
+@media (prefers-reduced-motion:reduce){#lk-tplay .tp-slot .rg{transition:none}#lk-tplay .tp-sonar .pw{display:none}}`;
 
-const GLYPH = '<path class="gl" d="M18 26h10M15 32h13M18 38h10M34 24l8 8-8 8"/>';   // the dash: three speed lines and a chevron
-// the RPG's glyphs (the same 2 px cream line): the dash's, a tail flicking up three drops (Lure), a ping and two arcs (Sonar), two
-// waves running out (Tail Surge), an arc with an up chevron (Breach)
-const GLYPHS = Object.freeze({
-  dash: GLYPH,
-  lure: '<path class="gl" d="M20 40c6-1 10-6 12-13 2 7 6 12 12 13M25 23v-3M32 19v-4M39 23v-3"/>',
-  sonar: '<path class="gl" d="M32 37.5h.01M26 32a8.5 8.5 0 0 1 12 0M21 27a15.5 15.5 0 0 1 22 0"/>',
-  surge: '<path class="gl" d="M17 37q7.5-8 15 0t15 0M21 29q5.5-6 11 0t11 0"/>',
-  breach: '<path class="gl" d="M18 42q14-24 28 0M28 25l4-4 4 4"/>',
+// the five icons (the RTS pass: one bold silhouette each, a distinct shape language, cream on the lit navy tile, a navy outline):
+// .f a filled figure, .d a navy detail, .so/.s a thick line's navy outline and its cream body. 64 px grid; the figure keeps clear of
+// the frame (3 px) and of the pips (y 51 to 55)
+export const ICONS = Object.freeze({
+  // a dart pointing right (her head, streamlined) with three speed streaks behind: horizontal, forward
+  dash: '<rect class="f" x="12" y="23" width="12" height="4.2" rx="2.1"/><rect class="f" x="7.5" y="28.4" width="18" height="4.2" rx="2.1"/><rect class="f" x="13" y="33.8" width="11" height="4.2" rx="2.1"/>'
+    + '<path class="f" d="M56 30.5C51 23 41 20.5 28.5 22.5C32 25.5 33.5 28 33.5 30.5C33.5 33 32 35.5 28.5 38.5C41 40.5 51 38 56 30.5Z"/><circle class="d" cx="48" cy="28.6" r="1.8"/>',
+  // a hook with its eye and barb, a glint by it: the bait (a vertical curl)
+  lure: '<path class="so" d="M38 14.5V35a8 8 0 0 1-16 0v-4.5M22 30.5l4.6 4.4"/><circle class="so" cx="38" cy="11" r="3.4"/>'
+    + '<path class="s" d="M38 14.5V35a8 8 0 0 1-16 0v-4.5M22 30.5l4.6 4.4"/><circle class="s" cx="38" cy="11" r="3.4" style="stroke-width:3.2"/>'
+    + '<path class="f" d="M20 10l1.8 4.9L26.7 16.7l-4.9 1.8L20 23.4l-1.8-4.9L13.3 16.7l4.9-1.8Z"/>',
+  // a point and three bands fanning out ahead: radial
+  sonar: '<path class="f" d="M21.75 31.75A14.5 14.5 0 0 1 42.25 31.75L39.07 34.93A10 10 0 0 0 24.93 34.93Z"/><path class="f" d="M15.74 25.74A23 23 0 0 1 48.26 25.74L45.08 28.92A18.5 18.5 0 0 0 18.92 28.92Z"/>'
+    + '<path class="f" d="M9.73 19.73A31.5 31.5 0 0 1 54.27 19.73L51.09 22.91A27 27 0 0 0 12.91 22.91Z"/><circle class="f" cx="32" cy="42" r="4.6"/>',
+  // a breaking wave, its crest curling over, spray off it: low and heavy
+  surge: '<rect class="f" x="8" y="42.5" width="48" height="4.4" rx="2.2"/><path class="f" d="M9 45C11 31 21 18 36 17C47 16.5 55 23 55 31C55 37 50 40.5 45.5 39.5C41 38.5 39.5 34 42 31.5C44 29.5 47 30.5 47.5 32.5C48.5 26 43 22.5 37 23.5C28 25 24 35 28 45Z"/>'
+    + '<circle class="f" cx="50" cy="13" r="2.3"/><circle class="f" cx="55" cy="18.5" r="1.7"/>',
+  // her neck rising out of the water, a splash either side, drops flying: vertical, up
+  breach: '<rect class="f" x="9" y="42.5" width="46" height="4.4" rx="2.2"/><path class="f" d="M11.5 43C13.5 39 16 36 19.5 34C18.5 38 18.8 40.5 20.5 43Z"/><path class="f" d="M52.5 43C50.5 39 48 36 44.5 34C45.5 38 45.2 40.5 43.5 43Z"/>'
+    + '<path class="f" d="M24 44.5C23.5 31 27 19.5 34 12.5C36.2 10.3 40.2 9.6 42.4 11.8C44 13.4 43.5 16 41.3 17.2C37.3 19.6 35.2 28.5 36.5 44.5Z"/><circle class="d" cx="39.3" cy="13.6" r="1.4"/>'
+    + '<circle class="f" cx="15" cy="28" r="2.1"/><circle class="f" cx="49.5" cy="27" r="2.1"/>',
 });
+// the tile's frame: a rounded square from twelve o'clock, clockwise (the state ring runs along it: pathLength 100)
+const FRAME = 'M32 2H50A12 12 0 0 1 62 14V50A12 12 0 0 1 50 62H14A12 12 0 0 1 2 50V14A12 12 0 0 1 14 2Z';
+const CREAM = (a) => `stop-color:rgb(var(--lk-cream));stop-opacity:${a}`;
+// one tile: the lit ground, the figure, the cooldown wipe, the bevel, the frame and its state ring
+export const tileSvg = (id) => `<svg viewBox="0 0 64 64"><defs><radialGradient id="tpl-${id}" cx=".38" cy=".32" r=".78"><stop offset="0" style="${CREAM(0.22)}"/><stop offset=".55" style="${CREAM(0.05)}"/><stop offset="1" style="${CREAM(0)}"/></radialGradient>`
+  + `<linearGradient id="tpv-${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="${CREAM(0.55)}"/><stop offset=".45" style="${CREAM(0.06)}"/><stop offset="1" style="stop-color:#000;stop-opacity:.5"/></linearGradient>`
+  + `<clipPath id="tpc-${id}"><rect x="3" y="3" width="58" height="58" rx="11"/></clipPath></defs>`
+  + `<rect class="bg" x="3" y="3" width="58" height="58" rx="11"/><rect class="lt" x="3" y="3" width="58" height="58" rx="11" fill="url(#tpl-${id})"/>`
+  + `<g class="gl">${ICONS[id] ?? ''}</g><path class="cd" clip-path="url(#tpc-${id})" d=""/><line class="ch" clip-path="url(#tpc-${id})" x1="32" y1="32" x2="32" y2="32"/>`
+  + `<rect class="bv" x="5" y="5" width="54" height="54" rx="9" fill="none" stroke="url(#tpv-${id})" stroke-width="1.4"/>`
+  + `<path class="base" d="${FRAME}"/><path class="rg" d="${FRAME}" pathLength="100" stroke-dasharray="100 100"/></svg>`;
 const SONAR_SVG = (cone) => `<svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="58" stroke-width="2" style="fill:rgb(var(--lk-brand-navy) / .72);stroke:rgb(var(--lk-cream) / .7)"/>
-<circle cx="66" cy="66" r="${(54 * 50 / 160).toFixed(1)}" fill="none" stroke-width="1" style="stroke:rgb(var(--lk-cream) / .14)"/><circle cx="66" cy="66" r="${(54 * 100 / 160).toFixed(1)}" fill="none" stroke-width="1" style="stroke:rgb(var(--lk-cream) / .14)"/>
-<path d="M66 66L${(66 + 54 * Math.sin(cone)).toFixed(1)} ${(66 - 54 * Math.cos(cone)).toFixed(1)}A54 54 0 0 0 ${(66 - 54 * Math.sin(cone)).toFixed(1)} ${(66 - 54 * Math.cos(cone)).toFixed(1)}Z" style="fill:rgb(var(--lk-cream) / .06)"/>
-<g class="rim"></g><g class="bls"></g><path class="me" d="M66 59l4 10h-8z" style="fill:rgb(var(--lk-cream) / .95)"/></svg><b class="sw">SONAR</b>`;
+<circle class="r0" cx="66" cy="66" r="${(54 * 50 / 160).toFixed(1)}" fill="none" stroke-width="1" style="stroke:rgb(var(--lk-cream) / .14)"/><circle class="r0" cx="66" cy="66" r="${(54 * 100 / 160).toFixed(1)}" fill="none" stroke-width="1" style="stroke:rgb(var(--lk-cream) / .14)"/>
+<path class="cone" d="M66 66L${(66 + 54 * Math.sin(cone)).toFixed(1)} ${(66 - 54 * Math.cos(cone)).toFixed(1)}A54 54 0 0 0 ${(66 - 54 * Math.sin(cone)).toFixed(1)} ${(66 - 54 * Math.cos(cone)).toFixed(1)}Z" style="fill:rgb(var(--lk-cream) / .06)"/>
+<g class="pr"><circle cx="66" cy="66" r="27"/><text class="l1" x="66" y="96"></text><text class="l2" x="66" y="123.5"></text></g><g class="pwg"></g><g class="rim"></g><g class="bls"></g><g class="pbs"></g><path class="me" d="M66 59l4 10h-8z" style="fill:rgb(var(--lk-cream) / .95)"/></svg><b class="sw">SONAR</b>`;
 
 // the DOM: the sonar, the skills row, the legend, made in the play's layer; returns { paint(frame), place(layout), count(code), el }
-export function mountHud({ root, doc = globalThis.document, skills = [], storage = null, onSlot = null, onSlotUp = null, keyHints = () => true, rpg = false } = {}) {
+export function mountHud({ root, doc = globalThis.document, skills = [], storage = null, onSlot = null, onSlotUp = null, keyHints = () => true, rpg = false, reduced = () => false } = {}) {
   if (!root || !doc) return null;
   if (!doc.getElementById('lk-thud-css')) { const st = doc.createElement('style'); st.id = 'lk-thud-css'; st.textContent = HUD_CSS; doc.head.appendChild(st); }
   const sonar = doc.createElement('div'); sonar.className = 'tp-sonar tp-hud'; sonar.setAttribute('aria-hidden', 'true'); sonar.innerHTML = SONAR_SVG(HUD.sonar.coneDeg * DEG);
   const row = doc.createElement('div'); row.className = 'tp-skills tp-hud';
-  const circ = 2 * Math.PI * 29;
-  const ring = (glyph) => `<svg viewBox="0 0 64 64"><circle class="base" cx="32" cy="32" r="29" stroke-width="3" style="fill:rgb(var(--lk-brand-navy) / .72);stroke:rgb(var(--lk-cream) / .25)"/><circle class="rg" cx="32" cy="32" r="29" transform="rotate(-90 32 32)" stroke-dasharray="${circ.toFixed(1)} ${circ.toFixed(1)}"/>${glyph}</svg>`;
+  const circ = 100;   // the frame's pathLength
   const slot = (sk, n) => sk
-    ? `<button type="button" class="tp-slot sk" data-skill="${sk.id}" aria-label="${sk.name}, key ${slotLabel(sk.slot ?? 1)}" tabindex="-1">${ring(GLYPH)}<i class="lv">Lv ${sk.level}</i><i class="kn">${slotLabel(sk.slot ?? 1)}</i><b class="nm">${sk.name.toUpperCase()}</b></button>`
+    ? `<button type="button" class="tp-slot sk" data-skill="${sk.id}" aria-label="${sk.name}, key ${slotLabel(sk.slot ?? 1)}" tabindex="-1">${tileSvg(sk.id)}<i class="lv">Lv ${sk.level}</i><i class="kn">${slotLabel(sk.slot ?? 1)}</i><b class="nm">${sk.name.toUpperCase()}</b></button>`
     : `<i class="tp-slot empty" data-slot="${n}" aria-hidden="true"><i class="kn">${n}</i></i>`;
   // the RPG: every slot is a skill, locked until a point opens it (hud.ranks); the pips in place of the level tag
-  const rpgSlot = (sk) => `<button type="button" class="tp-slot sk${sk.id === 'dash' ? '' : ' locked'}" data-skill="${sk.id}" data-rank="${sk.id === 'dash' ? 1 : 0}" aria-label="${sk.name}, key ${slotLabel(sk.slot)}" tabindex="-1">${ring(GLYPHS[sk.id])}<i class="pp">${pipsOf(4).map(() => '<b></b>').join('')}</i><i class="tr"></i><i class="kn">${slotLabel(sk.slot)}</i><b class="nm">${sk.short}</b></button>`;
+  const rpgSlot = (sk) => `<button type="button" class="tp-slot sk${sk.id === 'dash' ? '' : ' locked'}" data-skill="${sk.id}" data-rank="${sk.id === 'dash' ? 1 : 0}" aria-label="${sk.name}, key ${slotLabel(sk.slot)}" tabindex="-1">${tileSvg(sk.id)}<i class="pp">${pipsOf(4).map(() => '<b></b>').join('')}</i><i class="tr"></i><i class="kn">${slotLabel(sk.slot)}</i><b class="nm">${sk.short}</b></button>`;
   // a skill sits in its own slot (its `slot`, else the next free one); the rest are reserved
   const bySlot = {}; skills.forEach((sk, i) => { bySlot[sk.slot ?? i + 1] = sk; });
   const dashRow = bySlot[1] ?? { id: 'dash', name: 'Dash', slot: 1 };
@@ -202,7 +299,7 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
     for (const t of ['pointerup', 'pointercancel']) b.addEventListener(t, (e) => { e.stopPropagation(); onSlotUp?.(b.dataset.skill); });
   }
   let counts = {}; try { counts = JSON.parse(storage?.getItem(HUD.storeKey) ?? '{}') ?? {}; } catch { counts = {}; }
-  let lastBlips = 0, lay = null, shown = false;
+  let lastBlips = 0, lay = null, shown = false, pingAt = null, pingRange = null;
   const px = (v) => (v == null ? '' : `${Math.round(v)}px`);
   const api = {
     el: { sonar, row, legend },
@@ -221,7 +318,8 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
       api.legendOn();
     },
     // each frame: t (s), skill states by id, the sonar's input (her, the boats, the corners' and the locked ids, seen(b, d)), hidden
-    // ping (the RPG's Sonar, while its marks last): { rangeM, marks: [{ a }] } (a: rad clockwise from her heading)
+    // ping (the RPG's Sonar, while its marks last): { rangeM, marks: [{ a }] (a: rad clockwise from her heading), at, until (s, her
+    // clock), has(id) (the boat is marked) }: the dial rescales to its range and draws the marked boats (pingBlips)
     paint({ t = 0, states = {}, her = null, boats = [], targetId = null, lockId = null, seen = () => false, hidden = false, ping = null } = {}) {
       for (const s of row.querySelectorAll('.tp-slot.sk')) {
         // the RPG: a locked slot keeps the empty slot's look (its glyph at 25 %); an unlocked skill with no state yet reads ready;
@@ -232,6 +330,8 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
         if (s.dataset.ink !== look.ink) s.dataset.ink = look.ink;
         s.querySelector('.rg').setAttribute('stroke-dasharray', `${(circ * look.ring).toFixed(1)} ${circ.toFixed(1)}`);
         s.querySelector('.gl').style.opacity = String(look.glyph);
+        const cd = s.querySelector('.cd'), wd = look.wipe ? wipePath(look.wipe) : ''; if (cd && cd.getAttribute('d') !== wd) cd.setAttribute('d', wd);   // the cooldown's wipe
+        const ch = s.querySelector('.ch'), hd = look.wipe ? wipeHand(look.wipe) : null; if (ch) { ch.setAttribute('x2', hd ? hd[0] : 32); ch.setAttribute('y2', hd ? hd[1] : 32); }   // and its hand
       }
       const lv = legendLevels(counts, lines);
       for (const k of legend.querySelectorAll('.kl')) k.classList.toggle('learned', lv.find((l) => l.id === k.dataset.id)?.level === 'learned');
@@ -239,8 +339,9 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
       sonar.toggleAttribute('data-hidden', !!hidden); const sw = sonar.querySelector('.sw'); const word = hidden ? 'HIDDEN' : ping ? `${Math.round(ping.rangeM)} M` : 'SONAR'; if (sw.textContent !== word) sw.textContent = word;
       if (t - lastBlips < 1 / HUD.sonar.hz && t >= lastBlips) return;
       lastBlips = t;
-      const R = 54, g = sonar.querySelector('.bls');
-      g.innerHTML = sonarBlips(her, boats, { targetId, lockId, seen }).map((b) => {
+      const R = 54, g = sonar.querySelector('.bls'), pinged = !!ping && typeof ping.has === 'function';
+      sonar.toggleAttribute('data-ping', pinged);
+      g.innerHTML = pinged ? '' : sonarBlips(her, boats, { targetId, lockId, seen }).map((b) => {
         const x = 66 + b.u * R, y = 66 - b.v * R, r = (b.rot / DEG).toFixed(0), tg = b.target ? ' data-t=""' : '';
         const shape = b.kind === 'kayak' || b.kind === 'sup' ? `<circle class="bl o"${tg} cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3"/>`
           : b.kind === 'glass' ? `<rect class="bl"${tg} x="-2" y="-5" width="4" height="10" rx="2" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${r})"/>`
@@ -250,10 +351,32 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
         return `<g data-id="${b.id}">${shape}${tick}${ring}</g>`;
       }).join('');
       sonar.dataset.blips = String(g.childElementCount);
-      // the ping's rim: a tick at each marked boat's bearing (in range or beyond the dial's 160 m)
-      const rim = sonar.querySelector('.rim'), marks = ping?.marks ?? [];
-      rim.innerHTML = marks.map((m) => { const sx = Math.sin(m.a), cy = Math.cos(m.a); return `<line class="rm" x1="${(66 + 55 * sx).toFixed(1)}" y1="${(66 - 55 * cy).toFixed(1)}" x2="${(66 + 62 * sx).toFixed(1)}" y2="${(66 - 62 * cy).toFixed(1)}"/>`; }).join('');
-      sonar.dataset.rim = String(marks.length);
+      // the ping on the dial: the rings and their labels at its range, the wave once per ping, a blip per marked boat (type-coded,
+      // lit as the wave reaches it, fading with the marks); a marked boat past the range a tick on the rim
+      const pb = sonar.querySelector('.pbs'), rim = sonar.querySelector('.rim');
+      let rimTicks = '';
+      if (pinged) {
+        if (pingRange !== ping.rangeM) { pingRange = ping.rangeM; sonar.querySelector('.pr .l1').textContent = String(Math.round(ping.rangeM / 2)); sonar.querySelector('.pr .l2').textContent = `${Math.round(ping.rangeM)} m`; }
+        let rm = false; try { rm = !!reduced(); } catch { /* */ }
+        if (pingAt !== ping.at) { pingAt = ping.at; sonar.querySelector('.pwg').innerHTML = rm ? '' : '<circle class="pw" cx="66" cy="66" r="54"/><circle class="pw e" cx="66" cy="66" r="54"/>'; }
+        const P = pingBlips(her, boats, ping, t, { reduced: rm });
+        pb.innerHTML = P.map((b) => (b.out
+          ? `<line class="rm" data-id="${b.id}" x1="${(66 + (b.x - 66) * 55 / R).toFixed(1)}" y1="${(66 + (b.y - 66) * 55 / R).toFixed(1)}" x2="${(66 + (b.x - 66) * 62 / R).toFixed(1)}" y2="${(66 + (b.y - 66) * 62 / R).toFixed(1)}" style="opacity:${b.on ? b.op : 0}"/>`
+          : `<path class="pb${b.shape === 'otri' ? ' o' : ''}" data-id="${b.id}" data-shape="${b.shape}" d="${blipPath(b.shape)}" transform="translate(${b.x} ${b.y}) rotate(${b.rot})" style="opacity:${b.on ? b.op : 0}"/>`)).join('');
+        sonar.dataset.pinged = String(P.filter((b) => !b.out).length);
+        sonar.dataset.lit = String(P.filter((b) => b.on).length);
+        rimTicks = String(P.filter((b) => b.out).length);
+      } else {
+        if (pingAt != null) { pingAt = null; pingRange = null; sonar.querySelector('.pwg').innerHTML = ''; }
+        if (pb.childElementCount) pb.innerHTML = '';
+        sonar.dataset.pinged = '0'; sonar.dataset.lit = '0';
+        // an older caller's ping (no has): a tick at each marked boat's bearing
+        const marks = ping?.marks ?? [];
+        rim.innerHTML = marks.map((m) => { const sx = Math.sin(m.a), cy = Math.cos(m.a); return `<line class="rm" x1="${(66 + 55 * sx).toFixed(1)}" y1="${(66 - 55 * cy).toFixed(1)}" x2="${(66 + 62 * sx).toFixed(1)}" y2="${(66 - 62 * cy).toFixed(1)}"/>`; }).join('');
+        rimTicks = String(marks.length);
+      }
+      if (pinged && rim.childElementCount) rim.innerHTML = '';
+      sonar.dataset.rim = rimTicks;
     },
     show(on) { shown = !!on; for (const e of [sonar, row, legend]) e.toggleAttribute('data-off', !on); for (const e of [sonar, row]) e.hidden = !on; api.legendOn(); },
     // the legend shows while she is played, on a wide desktop, with Setup › key hints on (Sail's legend's own setting)

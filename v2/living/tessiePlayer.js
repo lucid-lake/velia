@@ -306,7 +306,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const sinceSkill = (id) => { const k = skillAt.get(id); return k && clock <= k.until ? clock - k.t : undefined; };
   const markedNow = (id) => { const k = skillAt.get(id); return !!k && clock - k.t <= Math.max(BOUNTY.markedS, k.until - k.t); };   // the bonus: a ping or a lure within 30 s (or while it lasts)
   let ping = null, lureFx = null, halcyonLure = null, rimT = -1;   // ping { rangeM, until, tail }; lureFx { x, z, t0, n }; halcyonLure { x, z, until }
-  const casts = [], splashPts = [], rimOut = [], pingArg = { rangeM: 0, marks: rimOut }, hudStates = { dash: null };
+  const casts = [], splashPts = [], rimOut = [], pingArg = { rangeM: 0, marks: rimOut, at: 0, until: 0, has: (id) => marks.has(id) }, hudStates = { dash: null };
   const seenRecently = (id) => clock - (sawAt.get(id) ?? -Infinity) <= LURE.seenS;
   SKILL_RUN.lure = (rank) => runLure(rank);
   SKILL_RUN.sonar = (rank) => runSonar(rank);
@@ -350,7 +350,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     }
     doc.body.appendChild(el);
     //: the sonar, the skills row (a tablet taps DASH to dash), her keys on the right edge
-    hud = mountHud({ root: el, skills: C.skills.list(), storage, keyHints, rpg: !!bounty, onSlot: (id) => { if (bounty) pressSlot(id); else if (id === 'dash') touchIn.dash = true; }, onSlotUp: (id) => { if (bounty) releaseSlot(id); } });
+    hud = mountHud({ root: el, skills: C.skills.list(), storage, keyHints, rpg: !!bounty, reduced, onSlot: (id) => { if (bounty) pressSlot(id); else if (id === 'dash') touchIn.dash = true; }, onSlotUp: (id) => { if (bounty) releaseSlot(id); } });
     hud?.show(false);
     if (bounty) {
       hud?.level(bounty.legend());
@@ -708,7 +708,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     R.rank('sonar', rank); if (!R.press('sonar')) return false;
     const found = sonarPing({ x: n.x, z: n.z }, targets(), { rangeM: row.rangeM });
     marks.clear(); for (const m of found) { marks.set(m.id, clock + row.markS); skillAt.set(m.id, { t: clock, until: clock + row.markS }); }
-    ping = { rangeM: row.rangeM, until: clock + row.markS, tail: row.tail };
+    ping = { rangeM: row.rangeM, until: clock + row.markS, tail: row.tail, at: clock };
     rimT = -1;
     const heard = C.state.hidden ? [] : found.filter((m) => m.d <= SONAR.hearM && m.kind !== 'kayak').map((m) => m.id);   // a ping from HIDDEN keeps her hidden
     for (const id of heard) sawAt.set(id, clock);
@@ -1160,7 +1160,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     hudStates.dash = C.skills.state('dash');
     if (R) { hudStates.lure = R.state('lure'); hudStates.sonar = R.state('sonar'); hudStates.surge = R.state('surge'); hudStates.breach = R.state('breach'); }
     // the ping's rim (10 Hz: the dial's own rate): a tick at each marked boat's bearing
-    if (ping && n0 && (rimT < 0 || clock - rimT >= 0.1)) { rimT = clock; rimMarks(n0, list, (id) => marks.has(id), rimOut); pingArg.rangeM = ping.rangeM; }
+    if (ping && n0 && (rimT < 0 || clock - rimT >= 0.1)) { rimT = clock; rimMarks(n0, list, (id) => marks.has(id), rimOut); pingArg.rangeM = ping.rangeM; pingArg.at = ping.at; pingArg.until = ping.until; }
     hud?.paint({ t: clock, states: hudStates, her: n0, boats: list, targetId: tg?.id ?? null, lockId: lastLock?.id ?? null, seen: (b, d) => !!th && b.kind !== 'kayak' && d <= th.seeM, hidden: st.hidden, ping: ping ? pingArg : null });
     paintWorld(list);
     outT = tg && !tg.locked ? outT + dt : 0;
