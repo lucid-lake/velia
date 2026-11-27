@@ -32,6 +32,12 @@
 //               spring (aim.tau) at most aim.max °/s, its pull aim.pull × the lock's blend (the rising strike's look at the hull the same pull
 //               at 1); the aim's whole yaw at most aim.max °/s while nobody drags. First person: a third of the pull, at most fp.lockMax °/s,
 //               and the eye pushes in fp.push m with the strike
+//   the wreck   (step's `focus`: { x, z } the boat she just knocked over, or null) after a wreck the eye eases round behind her toward the
+//               wreck through the yaw's own spring (at most focus.yawMax °/s, no follow-swing while it holds) and the aim pulls focus.pull of
+//               the way onto it, so the wreck and her head stay in frame for the few seconds the page holds it; the page clears it on any
+//               drag, swim key or press, and a drag turns the eye at once (the player's look always wins)
+//   the strike  through a strike the aim also drops toward the struck boat (strike.aimK of the way) and the eye stands strike.back m
+//               further back, so her neck, her head and the boat's rail are in frame together at the contact
 //   reduced     (the OS's Reduce Motion, reducedNow() in sim/steadyCamera.js): third person by default (C still works), every rate halved (yaw 20°/s, pitch
 //               15°/s, the level 7.5°/s), the recentre's wait and spring twice as long
 //   const cam = createTessieCam();  cam.reset(); cam.step(dt, { spine, L, psi, nose, speed, strike, lock, view, reduced, orbit, follow,
@@ -45,11 +51,12 @@ export const TCAM = Object.freeze({
   pitchMaxSurface: 10, divePitch: 32, diveUp: 9, diveS: 1.5, diveFrom: 2.0, diveFull: 4.5,   // °, m, s; nose depth (m) where phase 1's dive look begins and is full
   //: the one spring (rad/s, m/s, s, m/s), the strike weight (s, s, m, m), the aim's smoothing (s, °/s, the lock's pull)
   spring: Object.freeze({ w0: 6, paceV: 6, wTau: 0.3, vOver: 6 }),
-  strike: Object.freeze({ in: 0.25, out: 0.6, up: 1.5, side: 1.5 }),
+  strike: Object.freeze({ in: 0.25, out: 0.6, up: 1.5, side: 1.5, back: 4, aimK: 0.55 }),
+  focus: Object.freeze({ pull: 0.85, yawMax: 40, in: 0.6, out: 0.8 }),   // the wreck look: the aim's pull, the eye's turn (°/s), its weight's ease in and out (s)
   aim: Object.freeze({ tau: 0.25, max: 60, pull: 0.35 }),
   paceV: 6,                                    // m/s: her pace read from her neck's own motion (eased) when step's speed is absent
   lookUp: 25, lookDown: 55, pitchMax: 60, diveExtra: 18,   // °: the look's range up and down at the surface, the camera's steepest, phase 1's extra down while she is under
-  pullBack: 10, pullUp: 4, pullS: 0.9,         // a knockdown: the eye eases back and up (m), so the falling rig never fills the frame
+  pullBack: 10, pullUp: 4, pullS: 0.9,         // a knockdown: the eye eases back and up (m), so the falling rig never fills the frame (step's pull: true, or a share for the boat's size: v2/sim/tessieFit.js frameK)
   // phase 2a, the continuous rig (owner, 2026-11-20)
   under: Object.freeze({ k0: 0.9, k1: 3.0, kS: 0.35, slowM: 1.0, slowV: 0.9, vMax: 5.0, flagM: 0.25, keepUnder: 0.9, bandM: 1.5, back: 7, aboveBack: 1.4, bedClear: 1.0, lookUp: 40, strikeUpK: 2.5, hullY: -0.6, strikeBack: 12 }),   // 2c: the eye through the surface 2.5 × as fast out of a strike from below; the hull's underbody (m) the rise looks up at; m short of the hull the rise's eye glides in to (a goal of the one spring)
   assist: Object.freeze({ waitS: 1.0, levelS: 1.0, restS: 3.0, restRate: 15, pitchRate: 30, smooth: 30 }),   // s, s, s, °/s, °/s, 1/s (the drag's one-stage smoothing)
@@ -73,21 +80,21 @@ export const rigBlend = (nose, U = TCAM.under) => smooth((nose - U.k0) / (U.k1 -
 export function createTessieCam({ K = TCAM } = {}) {
   const U = K.under, A = K.assist;
   let yaw = null, yawV = 0, pos = null, vel = [0, 0, 0], omega = null, ws = 0, wr = 0, aimOff = 0, aimOffV = 0, aimYaw = null, fpOffYaw = 0, pushK = 0, diveK = 0, fpPos = null, fpOff = null, viewK = null, viewWant = 0, look = 0, lookIn = 0, pitchNow = 0, first = true, pullK = 0;   // look: the player's own pitch (kept; it steers her climb)
-  let medium = 'air', kNow = null, dragAge = 99, restT = 0, prevA = null, vNow = 0, boatSide = 1;   // vNow: her pace (m/s, from her neck's own motion) when step's speed is absent
+  let medium = 'air', kNow = null, dragAge = 99, restT = 0, prevA = null, vNow = 0, boatSide = 1, wf = 0, fLast = null;   // wf: the wreck look's weight (0…1); fLast: its wreck while it eases out   // vNow: her pace (m/s, from her neck's own motion) when step's speed is absent
   const under = { medium: 'air', depth: -4.6, crossing: false, k: 0, surf: 0 };
   const out = { pos: [0, 0, 0], target: [0, 0, 0], fov: K.fov, up: [0, 1, 0], under };
   // one critically damped spring step toward g (exact for a goal held over dt: stable at any ω dt)
   const springTo = (i, g, w, dt) => { const x = pos[i] - g, e = Math.exp(-w * dt), q = (vel[i] + w * x) * dt; pos[i] = g + (x + q) * e; vel[i] = (vel[i] - w * q) * e; };
   const self = {
     K,
-    reset() { yaw = null; yawV = 0; pos = null; vel = [0, 0, 0]; omega = null; ws = 0; wr = 0; aimOff = 0; aimOffV = 0; aimYaw = null; fpOffYaw = 0; pushK = 0; diveK = 0; fpPos = null; fpOff = null; viewK = null; viewWant = 0; look = 0; lookIn = 0; pitchNow = 0; first = true; pullK = 0; medium = 'air'; kNow = null; dragAge = 99; restT = 0; prevA = null; vNow = 0; boatSide = 1; },
-    get state() { return { yaw, diveK, viewK: viewK ?? 0, view: viewWant ? 'first' : 'third', fpEye: fpPos ? [...fpPos] : null, look, pitch: pitchNow, medium, k: kNow ?? 0, crossing: under.crossing, dragAge, restT, omega: omega ?? 0, ws, aimOff, vel: [...vel] }; },
+    reset() { yaw = null; yawV = 0; pos = null; vel = [0, 0, 0]; omega = null; ws = 0; wr = 0; aimOff = 0; aimOffV = 0; aimYaw = null; fpOffYaw = 0; pushK = 0; diveK = 0; fpPos = null; fpOff = null; viewK = null; viewWant = 0; look = 0; lookIn = 0; pitchNow = 0; first = true; pullK = 0; medium = 'air'; kNow = null; dragAge = 99; restT = 0; prevA = null; vNow = 0; boatSide = 1; wf = 0; fLast = null; },
+    get state() { return { focusK: wf, yaw, diveK, viewK: viewK ?? 0, view: viewWant ? 'first' : 'third', fpEye: fpPos ? [...fpPos] : null, look, pitch: pitchNow, medium, k: kNow ?? 0, crossing: under.crossing, dragAge, restT, omega: omega ?? 0, ws, aimOff, vel: [...vel] }; },
     get yaw() { return yaw ?? 0; }, get pitch() { return pitchNow; },   // the look: its yaw (W's way, turned by the drag) and its pitch below level (rad, + down)
     get look() { return look; },   // the player's own look about the camera's neutral (+ down): her climb rate's input
     get medium() { return medium; },
     setLook(p) { lookIn = clamp(p, -Math.max(U.lookUp, viewWant ? K.fp.lookUp : 0) * DEG, (viewWant ? K.fp.lookDown : K.lookDown) * DEG); look = lookIn; },
     step(dt, { spine, L = 19, psi = 0, nose = 0, speed = null, strike = null, lock = null, view = 'third', reduced = false, orbit = null, pull = 0, follow = true,
-      followOn = true, limit = false, resting = false, waterAt = null, floorAt = null, underOn = true } = {}) {
+      followOn = true, limit = false, resting = false, waterAt = null, floorAt = null, underOn = true, focus = null } = {}) {
       dt = Math.max(0, Math.min(0.1, dt || 0));
       const N = spine.length / 8, ia = Math.min(N - 1, Math.round(K.backAlong / (L / (N - 1)))) * 8;
       const ax = spine[ia], ay = spine[ia + 1], az = spine[ia + 2], hx = spine[0], hy = spine[1], hz = spine[2];
@@ -129,7 +136,20 @@ export function createTessieCam({ K = TCAM } = {}) {
       if (Math.abs(lookIn - look) < 1e-5) look = lookIn;
       // the yaw: (phase 2) 1.0 s after the last drag, while she swims, it swings in behind her through the spring, its rate capped; else it holds
       const wait = underOn ? A.waitS * slow : 0;
-      if (!dragging && follow && followOn && dragAge >= wait) {
+      // the wreck look: its weight eases in and out; while it holds the yaw swings (the same spring) round behind her toward the wreck
+      const FK = K.focus, hasF = !!(focus && Number.isFinite(focus.x));
+      if (hasF) fLast = [focus.x, focus.z];
+      wf = hasF && !dragging ? Math.min(1, wf + dt / FK.in) : dragging ? 0 : Math.max(0, wf - dt / FK.out);
+      if (!hasF && wf <= 0) fLast = null;
+      if (!dragging && hasF) {
+        // from her middle (not her neck), so the eye stands behind her body and the wreck lies ahead of her head, never under the eye
+        const im = Math.min(N - 1, Math.round(L * 0.5 / (L / (N - 1)))) * 8, mx = spine[im], mz = spine[im + 2];
+        const want = Math.atan2(focus.x - mx, -(focus.z - mz)), w = 4 / (K.yawS * slow), err = wrap(want - yaw);
+        yawV += (w * w * err - 2 * w * yawV) * dt;
+        const cap = Math.min(FK.yawMax, reduced ? K.yawMaxReduced : K.yawMax) * DEG;
+        yawV = clamp(yawV, -cap, cap);
+        yaw = wrap(yaw + yawV * dt);
+      } else if (!dragging && follow && followOn && dragAge >= wait) {
         const w = 4 / (K.yawS * (underOn ? slow : 1)), err = wrap(psi - yaw);
         yawV += (w * w * err - 2 * w * yawV) * dt;
         const cap = (reduced ? K.yawMaxReduced : K.yawMax) * DEG;
@@ -140,8 +160,8 @@ export function createTessieCam({ K = TCAM } = {}) {
       // phase 1's dive (eased over diveS) only without the under rig
       const diveWant = underOn ? 0 : smooth((nose - K.diveFrom) / (K.diveFull - K.diveFrom));
       diveK += (diveWant - diveK) * (1 - Math.exp(-dt / (K.diveS / 3)));
-      pullK += ((pull ? 1 : 0) - pullK) * (1 - Math.exp(-dt / K.pullS));
-      const backAir = K.back + K.pullBack * pullK, backWater = U.back;
+      pullK += ((pull === true ? 1 : Number.isFinite(pull) ? Math.max(0, pull) : 0) - pullK) * (1 - Math.exp(-dt / K.pullS));
+      const backAir = K.back + K.pullBack * pullK + SK.back * smooth(ws), backWater = U.back;
       const back = backAir + (backWater - backAir) * kU;
       const side = K.side * (1 - 0.5 * kU);
       const hUp = K.up + K.pullUp * pullK;
@@ -195,9 +215,13 @@ export function createTessieCam({ K = TCAM } = {}) {
       // lock's blend), the rising strike's look at the hull the same pull at 1; the base pitch: shallow at the surface, toward her under it
       const AM = K.aim;
       let tx = hx + Math.sin(yw) * K.ahead, tz = hz - Math.cos(yw) * K.ahead;
+      // through a strike the aim drops toward the struck boat (her neck, head and its rail in frame); after a wreck toward the wreck
+      if (hasBoat && wsE > 0) { const k = SK.aimK * wsE; tx += (strike.x - tx) * k; tz += (strike.z - tz) * k; }
+      const wfE = smooth(wf);
+      if (fLast && wfE > 0) { const k = SK.aimK * wfE; tx += (fLast[0] - tx) * k; tz += (fLast[1] - tz) * k; }
       const lockOn = lock && lock.k > 0 && Number.isFinite(lock.x), baseYaw = Math.atan2(tx - pos[0], -(tz - pos[2]));
-      const pullTo = wrE > 0 && hasBoat ? [strike.x, strike.z] : lockOn ? [lock.x, lock.z] : null;
-      const pullAim = wrE > 0 && hasBoat ? Math.max(wrE, lockOn ? AM.pull * lock.k : 0) : lockOn ? AM.pull * lock.k : 0;
+      const pullTo = wrE > 0 && hasBoat ? [strike.x, strike.z] : fLast && wfE > 0 ? fLast : lockOn ? [lock.x, lock.z] : null;
+      const pullAim = wrE > 0 && hasBoat ? Math.max(wrE, lockOn ? AM.pull * lock.k : 0) : fLast && wfE > 0 ? K.focus.pull * wfE : lockOn ? AM.pull * lock.k : 0;
       const offWant = pullTo ? pullAim * wrap(Math.atan2(pullTo[0] - pos[0], -(pullTo[1] - pos[2])) - baseYaw) : 0;
       { const w = 1 / AM.tau, x = aimOff - offWant, e = Math.exp(-w * dt), q = (aimOffV + w * x) * dt; let nx = offWant + (x + q) * e; aimOffV = (aimOffV - w * q) * e;
         const cap = AM.max / slow * DEG * dt; if (Math.abs(nx - aimOff) > cap) { nx = aimOff + Math.sign(nx - aimOff) * cap; aimOffV = clamp(aimOffV, -AM.max * DEG, AM.max * DEG); } aimOff = nx; }
