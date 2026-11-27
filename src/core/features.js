@@ -263,6 +263,9 @@ export const POLICIES = Object.freeze({
   buildings: { fixed: true, axes: 'form', aliases: '?buildings=0 (off), ?buildings=1 (on, a phone too), ?profile=form:phone',
     why: 'the buildings, the Stateline towers, the gondola and the marina\'s boats (one pipeline, one instanced draw, a compute pass to ground them) on a tablet or a desktop; a phone has none (the ground photo and the night\'s lights only)',
     tier: (p, c) => (c.flags.buildings === '0' || c.flags.buildings === false ? 'off' : c.flags.buildings === '1' || c.flags.buildings === true ? 'on' : phoneOnly(p, c) ? 'off' : 'on') },
+  buildingsTier: { fixed: true, axes: 'form, gpu', aliases: '',
+    why: 'the buildings\' far mesh everywhere (walls, slopes, gables and the wing; no fascia, soffit or chimney) on a phone forced on or at L2-L3 (a tablet by its level); the full mesh within 800 m on a desktop or a strong tablet; never lite in a capture',
+    tier: (p, c) => (!c.headless && lite(p) ? 'lite' : 'full') },
   // --- rain on the lens (owner, 2026-11-24: "rain on the lens" per weather; phones only if within budget, behind a policy row): the
   // storm composites' lens pass (render/weatherLook.js: three lattices of drops, one extra texel read a pixel). A phone has no storm
   // (the storm row below), so it never draws; the row keeps the rule in one place if a phone storm comes back ---

@@ -23,7 +23,7 @@ import { WATER_WGSL, TERRAIN_BIND, TERRAIN_HEIGHT } from './terrain.js';
 import { MIRROR_HAZE_M } from './water-aa.js';
 import { SHADOW_STRUCT, SHADOW_READ } from './shadow-read.js';
 import { frustumPlanes, boxInFrustum } from '../terrain/quadtree.js';
-import { decodeShore, mergeShore, MESH, CHUNK, SHORE_SETS } from '../towns/format.js';
+import { decodeShore, mergeShore, MESH, CHUNK, SHORE_SETS, BAY } from '../towns/format.js';
 import { inflate } from '../terrain/decode.js';
 
 export const TOWN_FILES = Object.freeze({ shore: new URL('../assets/towns/shore.vsh.gz', import.meta.url), mask: new URL('../assets/towns/mask.vtm.gz', import.meta.url) });
@@ -106,7 +106,7 @@ ${WATER_WGSL}
 ${SHADOW_READ('tShadowT', 'sShadowT')}
 fn srgbToLin(c: vec3f) -> vec3f { return c * (c * (c * 0.305306011 + 0.682171111) + 0.012522878); }
 struct VI { @location(0) p: vec3f, @location(1) n: vec4f, @location(2) c: vec4f, @location(3) a: vec4f, @location(4) b: vec4f, @location(5) d: vec4f, @location(6) tint: vec4f }
-struct VO { @builtin(position) pos: vec4f, @location(0) world: vec3f, @location(1) n: vec3f, @location(2) alb: vec3f, @location(3) mat: vec2f }
+struct VO { @builtin(position) pos: vec4f, @location(0) world: vec3f, @location(1) n: vec3f, @location(2) alb: vec3f, @location(3) mat: vec2f, @location(4) lc: vec3f, @location(5) @interpolate(flat) sz: vec3f, @location(6) @interpolate(flat) ax: vec3f }
 // #41b: v1's material (format.js matByte): the instance's byte, or (0) the vertex's roughness; → (roughness, metalness)
 fn matOf(inst: f32, vert: f32) -> vec2f {
   let b = u32(round(inst * 255.0));
@@ -118,16 +118,54 @@ fn matOf(inst: f32, vert: f32) -> vec2f {
   let w = O + X * v.p.x + Y * v.p.y + Z * v.p.z;
   // the normal through the cofactor matrix (the inverse transpose up to a positive scale): right under any scale
   let n = cross(Y, Z) * v.n.x + cross(Z, X) * v.n.y + cross(X, Y) * v.n.z;
-  var o: VO; o.pos = F.viewProj * vec4f(w, 1.0); o.world = w; o.n = n; o.alb = srgbToLin(v.c.rgb) * srgbToLin(v.tint.rgb); o.mat = matOf(v.tint.a, v.c.a); return o;
+  var o: VO; o.pos = F.viewProj * vec4f(w, 1.0); o.world = w; o.n = n; o.alb = srgbToLin(v.c.rgb) * srgbToLin(v.tint.rgb); o.mat = matOf(v.tint.a, v.c.a);
+  // the face's own metres (the instance's axes' lengths × the mesh's units) and its long axis on the ground: the decks' boards
+  let sz = vec3f(length(X), length(Y), length(Z)); o.sz = sz; o.lc = v.p * sz;
+  o.ax = select(vec3f(Z.x, 0.0, Z.z), vec3f(X.x, 0.0, X.z), sz.x >= sz.z) / max(max(sz.x, sz.z), 1e-3);
+  return o;
 }
 fn sunAt(h: f32, s: vec3f) -> vec3f {
   let r = Rg + F.sky.z + h * 0.001 - F.cam.y * 0.001;
   return F.sky.x * transAt(r, s.y) * step(0.0, raySphere(vec3f(0.0, r, 0.0), s, Rg) * -1.0) * F.storm.y;   // × the storm cell's shade (1 fair): the land under the deck, as the water and the boat (v1's sunShade)
 }
 ${SHORE_LIGHT_WGSL}
+fn tHash(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(127.1, 311.7))) * 43758.5453); }
+fn tNoise(p: vec2f) -> f32 {
+  let i = floor(p); let f = fract(p); let u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(tHash(i), tHash(i + vec2f(1.0, 0.0)), u.x), mix(tHash(i + vec2f(0.0, 1.0)), tHash(i + vec2f(1.0, 1.0)), u.x), u.y);
+}
 @fragment fn fs(v: VO) -> @location(0) vec4f {
   let p = v.world; let n = normalize(v.n); let s = normalize(F.sun.xyz);
-  let A = v.alb;
+  var A = v.alb; var specK = 1.0; var roughT = v.mat.x;
+  // the decks and slabs above the water: weathered, never a flat grey box (each pattern filtered to its mean when small). A
+  // flat top of a long deck: boards across its length; a wide slab (a breakwater's or a harbour's top): concrete with joints;
+  // the sides: streaks and the wet, dark band over the waterline
+  // (outside Emerald Bay: the bay's shore keeps v1's look, which its page test holds to v1's colours)
+  let inBay = p.x > ${BAY.x0.toFixed(1)} && p.x < ${BAY.x1.toFixed(1)} && p.z > ${BAY.z0.toFixed(1)} && p.z < ${BAY.z1.toFixed(1)};
+  if (!inBay && p.y > -0.05 && max(v.sz.x, v.sz.z) > 2.0) {
+    specK = 0.45; roughT = max(roughT, 0.92);   // weathered: a matte face, its sky sheen mostly gone
+    A *= (0.5 + 0.45 * smoothstep(0.15, 0.85, tNoise(p.xz * 0.11 + vec2f(p.y * 0.2, 0.0)))) * (0.8 + 0.25 * tNoise(p.xz * 2.1 + vec2f(0.0, p.y * 1.7)));   // aged: a value darker than new, mottled
+    if (n.y > 0.95) {
+      let along = dot(p, v.ax) * max(max(v.sz.x, v.sz.z), 1e-3);
+      if (min(v.sz.x, v.sz.z) < 6.0) {
+        let u = along / 0.16; let fw = max(fwidth(u), 1e-4); let sh = 1.0 - smoothstep(0.3, 0.8, fw);
+        let seam = 1.0 - smoothstep(0.0, 0.18, fract(u)) ;
+        A *= mix(0.96, (1.0 - 0.45 * seam) * (0.86 + 0.28 * tHash(vec2f(floor(u), 3.0))), sh);
+        A = mix(A, A * vec3f(1.05, 0.95, 0.82), 0.5);   // weathered timber, warmer than the slab
+      } else {
+        let q = p.xz / 4.0; let fw = max(fwidth(q.x), 1e-4); let sh = 1.0 - smoothstep(0.1, 0.4, fw);
+        let jt = max(smoothstep(0.94, 0.98, abs(fract(q.x) - 0.5) * 2.0), smoothstep(0.94, 0.98, abs(fract(q.y) - 0.5) * 2.0));
+        A *= mix(0.97, (1.0 - 0.35 * jt) * (0.9 + 0.2 * tHash(floor(q))), sh);
+        A *= 0.8 + 0.3 * smoothstep(0.2, 0.8, tNoise(p.xz * 0.12));   // stains and gull-white patches
+      }
+    } else if (abs(n.y) < 0.4) {
+      let hz = dot(p.xz, vec2f(0.7071, 0.7071));
+      A *= 0.8 + 0.3 * tNoise(vec2f(hz * 1.3, p.y * 0.25));   // streaks down the face
+      let lift = p.y / 1.2; let lf = max(fwidth(lift), 1e-4);
+      A *= mix(0.97, 1.0 - 0.25 * (1.0 - smoothstep(0.0, 0.06, fract(lift))), 1.0 - smoothstep(0.2, 0.6, lf));   // the pours' lift lines
+      A = mix(A * vec3f(0.55, 0.62, 0.52), A, smoothstep(0.15, 0.7, p.y));   // the wet band and its weed
+    }
+  }
   let nl = max(dot(n, s), 0.0);
   var shadow = 0.0; if (nl > 0.001) { shadow = shadowAt(p, nl); }
   let eSky = LIGHT.sky.rgb + nightLand();
@@ -151,7 +189,7 @@ ${SHORE_LIGHT_WGSL}
     let eSun = sunAt(p.y, s) * nl * shadow;
     let E = eSun + (skyIrr(n) + eSky * (0.5 + 0.5 * n.y)) * SKY_K;
     let V = normalize(F.cam.xyz - p);
-    col = A * (1.0 - v.mat.y) * E / PI + shoreSpec(n, V, s, A, v.mat.x, v.mat.y, eSun);
+    col = A * (1.0 - v.mat.y) * E / PI + shoreSpec(n, V, s, A, roughT, v.mat.y, eSun) * specK;
   }
   var out = aerial(col, v.pos.xy, p);
   let toP = p - F.cam.xyz; let dist = length(toP);

@@ -465,7 +465,7 @@ async function boot() {
   // marina's boats, one instanced draw grounded on the drawn terrain by a compute pass; their sets load after the first frame (a
   // capture: before it), the south's only for a start or a move inside its box (the owner's rule: a birthplace outside the bay
   // loads its region's detail only when it is picked), with the south's own night lights
-  const buildings = feature('buildings').on ? inGroup('towns', () => createBuildings({ device, reg, frameBGL, frameStruct, sky, shadow: tshadow, terrain, hdrTarget, msaa: P.msaa, depthFormat, errors })) : null;
+  const buildings = feature('buildings').on ? inGroup('towns', () => createBuildings({ device, reg, frameBGL, frameStruct, sky, shadow: tshadow, terrain, hdrTarget, msaa: P.msaa, depthFormat, errors, lite: feature('buildingsTier').tier === 'lite', onYard: (cells) => forest?.setYard?.(cells) })) : null;
   let buildingsLoad = null;
   const loadBuildings = (x, z) => {
     const piers = towns.loadSets(shoreSetsFor(x, z));   // the south shore's piers (a phone too: no buildings there, the piers stay)

@@ -30,7 +30,7 @@ try {
     const s = await page.evaluate(() => { const st = window.__velia.stats(); return { b: st.buildings, pipelines: st.pipelines, errors: window.__velia.errors.slice(0, 3), night: window.__velia.night?.stats ?? null }; });
     check(!errors.length && !s.errors.length, `no page errors (${errors.concat(s.errors).slice(0, 2).join(' | ')})`);
     check(s.b?.ready && s.b.sets.join() === 'lake,south', `the Ski Run start loads the lake and south sets before the first frame (${s.b?.sets}, ${s.b?.records} records)`);
-    check(s.b.drawn > 500 && s.b.draws === 1, `one instanced draw: ${s.b.drawn} boxes in ${s.b.chunks} chunks`);
+    check(s.b.drawn > 500 && s.b.draws >= 1 && s.b.draws <= 2, `at most two instanced draws (near, far): ${s.b.drawn} boxes in ${s.b.chunks} chunks`);
     check(s.pipelines.afterFirstFrame === 0, `0 pipelines after the first frame (${s.pipelines.total} in all)`);
     // the GPU's grounding against the CPU's twin on the page's drawn ground
     const rows = await page.evaluate(async () => {

@@ -25,7 +25,7 @@ import { TERRAIN_BIND, TERRAIN_HEIGHT, COVER_BIND, GROUND_WGSL } from './terrain
 import { frustumPlanes, boxInFrustum, TREE } from '../terrain/quadtree.js';
 import { FOREST, REGION, regionSlots, MAX_TILES, createTilePicker } from '../forest/lod.js';
 import { scatterWgsl } from '../forest/scatter.js';
-import { N_LAYERS } from '../forest/format.js';
+import { N_LAYERS, packBits } from '../forest/format.js';
 import { SHADOW_STRUCT, SHADOW_READ } from './shadow-read.js';   // M5c: the terrain's shadow on the cards
 import { buildAll, SPECIES, SPECIES_LAYER, VARIANTS, VARIANT_SPREAD, VARIANT_SALT, FL } from '../forest/trees.js';   // T5: the trees as meshes, photographed into the atlas
 import { TOWNS_BIND, TOWNS_READ } from '../towns/wgsl.js';   // 10a: no tree on a ski run, Hwy 89 or its cut (v1's keepOut)
@@ -65,7 +65,7 @@ if (SHAPES.length !== SPECIES.length || SHAPES.some((s, l) => s.id !== SPECIES[l
 // the atlas's layers: a tree each (the data's N_LAYERS species, then the variants)
 export const ATLAS_LAYERS = SHAPES.length;
 // the instance buffer: the lidar's trees, its shrubs, then the region's slots (fixed offsets: the tile picker's)
-export const CAP = Object.freeze({ trees: 131072, shrubs: 655360 });
+export const CAP = Object.freeze({ trees: 131072, shrubs: 655360, yard: 16384 });   // yard: the trees beside the buildings (setYard)
 export const LIDAR_MIN_Y = 1.0;   // v1's LIDAR_LAND.minY: a crown under this (m above the lake) is no tree
 const f = (x) => (Number.isInteger(x) ? `${x}.0` : String(x));
 // the lidar's crown radius (a local-maximum segmentation) runs small against the canopy-height model's cover (71 % of the
@@ -664,8 +664,8 @@ export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wg
   const mips = Math.log2(Math.min(fw, fh)) - 1;   // down to 4 × 8 a frame
   const C = GPUShaderStage.COMPUTE, VX = GPUShaderStage.VERTEX, FR = GPUShaderStage.FRAGMENT;
   const shrubCap = L.shrubs ? CAP.shrubs : 0;
-  const OFF = { trees: 0, shrubs: CAP.trees, region: CAP.trees + shrubCap };
-  const nInst = OFF.region + REGION_SLOTS;
+  const OFF = { trees: 0, shrubs: CAP.trees, region: CAP.trees + shrubCap, yard: CAP.trees + shrubCap + REGION_SLOTS };
+  const nInst = OFF.yard + CAP.yard;
 
   // --- buffers and textures (all made now) ---
   const inst = device.createBuffer({ label: 'forest-instances', size: nInst * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC });   // COPY_SRC: readInst (10a's page test)
@@ -722,8 +722,8 @@ export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wg
   const sb = (b, type, vis_ = C) => ({ binding: b, visibility: vis_, buffer: { type } });
   const placeBGL = device.createBindGroupLayout({ label: 'forest-place', entries: [ub(0), sb(1, 'storage'), sb(2, 'read-only-storage')] });
   let townsBuf = device.createBuffer({ label: 'forest-towns-none', size: 16, usage: GPUBufferUsage.STORAGE });   // 10a: the towns' mask (render/towns.js) when it lands
-  const placeParams = device.createBuffer({ label: 'forest-place-params', size: 512, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-  const placeBGOf = () => [0, 1].map((k) => device.createBindGroup({ layout: placeBGL, entries: [{ binding: 0, resource: { buffer: placeParams, offset: 256 * k, size: 16 } }, { binding: 1, resource: { buffer: inst } }, { binding: 2, resource: { buffer: townsBuf } }] }));
+  const placeParams = device.createBuffer({ label: 'forest-place-params', size: 768, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const placeBGOf = () => [0, 1, 2].map((k) => device.createBindGroup({ layout: placeBGL, entries: [{ binding: 0, resource: { buffer: placeParams, offset: 256 * k, size: 16 } }, { binding: 1, resource: { buffer: inst } }, { binding: 2, resource: { buffer: townsBuf } }] }));
   let placeBGs = placeBGOf();
   const scatterBGL = device.createBindGroupLayout({ label: 'forest-scatter', entries: [ub(0), sb(1, 'storage'), sb(2, 'read-only-storage')] });
   const scatterParams = device.createBuffer({ label: 'forest-scatter-params', size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
@@ -856,12 +856,14 @@ export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wg
   graph.onBeforeSubmit((enc) => { if (!stats.mipsDone && pipesIn()) bakeStep(enc, false); });
   graph.onAfterSubmit(freeBake);
   function dispatchPlace(pass) {
-    const parts = [[OFF.trees, picker.src.trees?.n ?? 0], [OFF.shrubs, picker.src.shrubs?.n ?? 0]];
+    const parts = [[OFF.trees, picker.src.trees?.n ?? 0], [OFF.shrubs, picker.src.shrubs?.n ?? 0], [OFF.yard, yardN]];
     pass.setPipeline(reg.get('forest-place')); pass.setBindGroup(0, terrain.heightsBindGroup);
     parts.forEach(([first, n], k) => { if (!n) return; pass.setBindGroup(1, placeBGs[k]); pass.dispatchWorkgroups(Math.ceil(n / 64)); });
     stats.places++;
   }
   for (let k = 0; k < 2; k++) device.queue.writeBuffer(placeParams, 256 * k, new Uint32Array([k ? OFF.shrubs : OFF.trees, 0, 0, 0]));
+  device.queue.writeBuffer(placeParams, 512, new Uint32Array([OFF.yard, 0, 0, 0]));
+  let yardN = 0, yardDirty = false;   // the yard trees (setYard): their count; a place due on them
   function dispatchScatter(pass) {
     pass.setPipeline(reg.get('forest-scatter')); pass.setBindGroup(0, terrain.heightsBindGroup); pass.setBindGroup(1, terrain.coverBindGroup); pass.setBindGroup(2, scatterBG);
     pass.dispatchWorkgroups(Math.ceil(REGION_SLOTS / 64)); stats.regionRuns++; picker.src.region = true;
@@ -871,9 +873,10 @@ export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wg
   function oneOffs(pass, all) {
     if (!stats.mipsDone && !all) return;   // the bake first (bakeStep, on the frame's encoder after its passes)
     let moved = false;
-    if (placeDirty && picker.src.trees) {
-      for (let k = 0; k < 2; k++) device.queue.writeBuffer(placeParams, 256 * k + 4, new Uint32Array([k ? picker.src.shrubs?.n ?? 0 : picker.src.trees.n]));
-      dispatchPlace(pass); placeDirty = false; moved = true;
+    if ((placeDirty && picker.src.trees) || yardDirty) {
+      for (let k = 0; k < 2; k++) device.queue.writeBuffer(placeParams, 256 * k + 4, new Uint32Array([k ? picker.src.shrubs?.n ?? 0 : picker.src.trees?.n ?? 0]));
+      device.queue.writeBuffer(placeParams, 512 + 4, new Uint32Array([yardN]));
+      dispatchPlace(pass); placeDirty = false; yardDirty = false; moved = true;
     }
     if (scatterDirty) { dispatchScatter(pass); scatterDirty = false; moved = true; }
     if (moved) { canopy.setCount(0, picker.src.trees?.n ?? 0); canopy.run(pass); }   // T3: the canopy follows the trees
@@ -910,7 +913,20 @@ export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wg
       await buf.mapAsync(GPUMapMode.READ); const out = Array.from(new Float32Array(buf.getMappedRange().slice(0))); buf.unmap(); buf.destroy(); return out;
     },
     // 10a: the towns' mask (render/towns.js): the place and the scatter re-run with v1's keep-out
-    setTowns(buf) { townsBuf = buf; placeBGs = placeBGOf(); scatterBG = scatterBGOf(); placeDirty = !!picker.src.trees; scatterDirty = true; },
+    setTowns(buf) { townsBuf = buf; placeBGs = placeBGOf(); scatterBG = scatterBGOf(); placeDirty = !!picker.src.trees; scatterDirty = true; yardDirty = yardN > 0; },
+    // the yard trees (render/buildings.js yardTrees): records { x, z, h, r, layer } in cells ([{ x0, z0, x1, z1, recs }]), drawn as the
+    // forest's own trees (the same cards, species, cull, thinning, cap and tier); the place pass grounds them (none in the lake)
+    setYard(cells) {
+      const out = new Float32Array(CAP.yard * 4), u = new Uint32Array(out.buffer), list = [];
+      let n = 0;
+      for (const c of cells) {
+        const first = n;
+        for (const r of c.recs) { if (n >= CAP.yard) break; out[4 * n] = r.x; out[4 * n + 1] = r.z; out[4 * n + 2] = 0; u[4 * n + 3] = packBits(r.h, r.r, r.layer, false); n++; }
+        if (n > first) list.push({ x0: c.x0, z0: c.z0, x1: c.x1, z1: c.z1, first: OFF.yard + first, count: n - first });
+      }
+      if (n) device.queue.writeBuffer(inst, OFF.yard * 16, out, 0, n * 4);
+      yardN = n; picker.src.yard = list; yardDirty = n > 0; stats.yard = n;
+    },
     // headless: the files, the atlas, the place and the scatter, all before the first frame (one submit)
     async prime() {
       await load();
@@ -943,7 +959,7 @@ export function createForest({ device, reg, graph, frameBGL, U, frameStruct = wg
     },
     // per frame, before the graph runs: the swaps since the last frame, the tiles in range and view, the uniform
     update(eye, viewProj, focalPx) {
-      if (terrain.stats.swaps !== lastSwaps) { lastSwaps = terrain.stats.swaps; placeDirty = !!picker.src.trees; scatterDirty = true; }
+      if (terrain.stats.swaps !== lastSwaps) { lastSwaps = terrain.stats.swaps; placeDirty = !!picker.src.trees; scatterDirty = true; yardDirty = yardN > 0; }
       frustumPlanes(viewProj, planes);
       tileCount = stats.mipsDone ? picker.pick(eye, planes) : 0;
       if (tileCount) device.queue.writeBuffer(tilesBuf, 0, picker.out.buffer, 0, tileCount * 16);

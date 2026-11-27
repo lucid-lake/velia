@@ -12,7 +12,7 @@ import { encodeBuildings, decodeBuildings, instanceArray, groundBox, pickChunks,
 import { packBuildings, inputs, sameContent, southLights, RULES } from '../../tools/v2-buildings-pack.mjs';
 import { packLights } from '../../tools/v2-lights-pack.mjs';
 import { decodeLights } from '../sim/night.js';
-import { unitMesh } from '../render/buildings.js';
+import { unitMesh, yardTrees, HOUSE } from '../render/buildings.js';
 import { createFeatures } from '../../src/core/features.js';
 import { profileOf, readFacts, forcedOf } from '../../src/core/profile.js';
 import { DEVICES } from '../../tests/helpers/devices.mjs';
@@ -90,7 +90,9 @@ test('the cull: a chunk draws within its class\'s range (4 km; the landmarks 16 
 test('the policy: the buildings are off on a phone, on a desktop and a tablet; ?buildings= overrides', () => {
   const tier = (dev, flags = {}) => { const win = { ...DEVICES[dev], location: { search: '' } }; return createFeatures({ profile: { get: () => profileOf(readFacts(win), forcedOf(''), { gpu: 1 }), on: () => () => {} }, doc: null }).configure({ headless: false, flags }).feature('buildings').tier; };
   assert.equal(tier('desktop'), 'on'); assert.equal(tier('ipadTrackpad'), 'on'); assert.equal(tier('iphoneTurned'), 'off'); assert.equal(tier('androidSideways'), 'off');
-  assert.equal(tier('desktop', { buildings: '0' }), 'off'); assert.equal(tier('iphoneTurned', { buildings: '1' }), 'on');
+  assert.equal(tier('desktop', { buildings: '0' }), 'off'); assert.equal(tier('iphoneTurned', { buildings: '1' }), 'on');  // the mesh's tier: the full mesh near on a desktop and a strong tablet; the far mesh everywhere at L2-L3; a capture is full
+  const mt = (dev, gpu, headless = false) => { const win = { ...DEVICES[dev], location: { search: '' } }; return createFeatures({ profile: { get: () => profileOf(readFacts(win), forcedOf(''), { gpu }), on: () => () => {} }, doc: null }).configure({ headless, flags: {} }).feature('buildingsTier').tier; };
+  assert.equal(mt('desktop', 1), 'full'); assert.equal(mt('ipadTrackpad', 1), 'full'); assert.equal(mt('desktop', 2), 'lite'); assert.equal(mt('desktop', 3, true), 'full');
 });
 
 test('the grounding: every sampled box stands on the terrain (its foot under its lowest corner, at most 6.5 m under its mean, its eaves over its mean ground); the mesh is closed upward', () => {
@@ -113,8 +115,16 @@ test('the grounding: every sampled box stands on the terrain (its foot under its
     }
   }
   assert.ok(n > 600, `${n} boxes sampled`);
-  // every face of the unit mesh but the floor: 4 walls in 6 quads, the top in 2, two slopes, two gables (16 + 2 triangles, no bottom)
-  const M = unitMesh(); assert.equal(M.I.length / 3, 2 * 6 + 2 * 2 + 2 * 2 + 2);
+  // the unit mesh, no floor: the main block (4 walls in 6 quads, the top in 2, two slopes, two gables), the wing (4 walls, two
+  // slopes, two gables), each block's soffits (the slopes' undersides) and fascia (2 eaves, 4 rakes), the chimney (4 sides, a cap);
+  // the far mesh is the walls, slopes, gables and the yard, a subset of the full one's faces
+  // the yard (12 triangles from the footprint to its ring); its trees are the forest's (yardTrees, below)
+  const M = unitMesh(), main = 2 * 6 + 2 * 2 + 2 * 2 + 2, wing = 2 * 4 + 2 * 2 + 2, trim = 2 * 2 + 6 * 2, chimney = 5 * 2, yard = 12;
+  assert.equal(M.near / 3, main + wing + 2 * trim + chimney + yard);
+  assert.equal(M.farCount / 3, main + wing + yard);
+  const tri = (a) => Array.from({ length: a.length / 3 }, (_, i) => [a[3 * i], a[3 * i + 1], a[3 * i + 2]].join());
+  const full = new Set(tri(M.I.subarray(0, M.near)));
+  for (const t of tri(M.I.subarray(M.farFirst, M.farFirst + M.farCount))) assert.ok(full.has(t), 'a far face is a full-mesh face');
 });
 
 test('the landmarks: the Stateline high-rises at their sources\' heights, the gondola up the mountain, boats in the marina\'s slips', () => {
@@ -158,4 +168,19 @@ test('no brand text: what ships (the sets, the south\'s lights, the pack\'s stat
   // the records carry numbers only: no field is a string
   const D = decodeBuildings(shipped(SETS.lake.file));
   for (const v of Object.values(D.rec(0))) assert.equal(typeof v, 'number');
+});
+
+test('the yards\' trees: the forest\'s own species, 12–24 m, beside a building (never on a hull or a part), the same every load', () => {
+  const lake = decodeBuildings(shipped(SETS.lake.file));
+  const a = yardTrees(lake, 0), b = yardTrees(lake, 0);
+  assert.deepEqual(a, b, 'deterministic');
+  assert.ok(a.length > 500 && a.length < lake.count, `${a.length} trees for ${lake.count} records`);
+  for (const t of a) {
+    assert.ok([0, 1, 2].includes(t.layer), `layer ${t.layer}`);
+    assert.ok(t.h >= HOUSE.treeM[0] && t.h <= HOUSE.treeM[1], `h ${t.h}`);
+    assert.ok(t.r > 1 && t.r < 6, `r ${t.r}`);
+  }
+  // each stands within its building's yard: no farther from some record than its half-diagonal plus the yard
+  const recs = Array.from({ length: lake.count }, (_, i) => lake.rec(i)).filter((r) => r.kind < KIND.hull);
+  for (const t of a.slice(0, 200)) assert.ok(recs.some((r) => Math.hypot(t.x - r.x, t.z - r.z) <= Math.hypot(r.len, r.wid) / 2 + HOUSE.lotM + 1), 'beside a building');
 });
