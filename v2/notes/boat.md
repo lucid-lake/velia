@@ -196,23 +196,36 @@ click on the set (it asks for the forecast; v2 has no helm pick yet: O and the P
 A helmsman and one crew on the player's boat, the kayakers' figure (render/figureRig.js) on their skin pipeline: two indexed draws,
 posed in the HULL frame and carried by the hull's matrix (`boat.crewFrame`), so they heel, pitch and heave with her. Every mode the
 boat sails (Sail, Cruise, Regatta); the rivals and the lake's boats have none.
-- **The helmsman** stands behind the wheel, his hands on the rim where the wheel's turn (4 × the rudder) carries them; a hand that
-  has followed it 40° from its grip lets go and grips again 18° short of it (0.32 s, lifted off the rim), one hand at a time; past 52°
-  the rim slips through the holding hand. He braces against the heel (hips to windward, feet wider, the torso 75 % toward the world's
-  up) and glances up at the sails every 9 s.
+- **Balance is dynamic** (round 2, 2026-11-27): each chest is an actively balanced pendulum on its hips. Its lean in the world,
+  across and fore-and-aft, is a spring-damper (`BAL`: helmsman ω 4.6 rad/s, ζ 0.42; crew ω 3.8, ζ 0.5) toward the share of the heel
+  and pitch a sailor takes out (helmsman 78 % / 60 %, seated crew 50 % / 40 %), pushed by what the hips feel: the roll's
+  acceleration, a turn's lateral pull (u × yaw rate), the surge. So the chest lags a roll, catches up, overshoots a little and
+  settles. The pelvis takes a share of the chest's lean against the boat (helmsman 45 %, seated 15 %: her hips ride the seat) and
+  the spine bends over three segments between (render/figureRig.js `pelvisUp`); the head holds the horizon on a faster, better
+  damped loop (ω 8, ζ 0.75; `headUp`); a standing helmsman's knees take the heave (ω 7). Idle life: breathing (1.1° at 4.3 s), a
+  weight shift every 4.7–5.9 s, a glance at the sails or under the boom. All deterministic (`createBoatCrew({ idle: false })` for
+  clean steps in tests).
+- **The helmsman** stands behind the wheel, stance wide (±0.22 m), knees flexed, his weight on the low foot (the hips 7 cm to
+  leeward at 20° of heel), his hands on the rim where the wheel's turn (4 × the rudder) carries them; a hand that has followed it 40°
+  lets go and grips again 18° short (0.32 s, one hand at a time; past 52° the rim slips through the holding hand). When she rolls
+  (≥ 4–18°/s) he firms on the wheel: pulled in 4 cm, lower, elbows out, leaning to it.
 - **The crew** sits on the windward seat facing inboard and leans out over the coaming past 12–22° of windward heel (the aft hand on
-  its top). When the drawn boom crosses (± 4°) they cross the sole in 3.0 s: off the seat, ducking while the boom is within 28° of
-  the centreline, four side-steps (each foot lifted in its own window, never both up, never dragged), down onto the new seat.
-- **Hold on:** past 30° of heel, or a roll faster than 30°/s past 12° (a strike), both grip (the coaming, the wheel) and ride with the
-  boat's frame, then let go over 1.4 s once she is up.
+  its top). When the drawn boom crosses (± 4°) she scrambles across in 2.4 s: the trailing hand pushes off the old seat, the body
+  pitched forward low under the boom (ducking while it is within 28° of the centreline) with the weight leading toward the new side,
+  the lead hand reaching for the new seat's edge, two long steps and a settling one (each foot lifted in its own window, never both
+  up, never dragged), down onto the new seat with a small bounce (the landing kicks the body's own heave spring).
+- **Hold on:** past 30° of heel, or a roll faster than 30°/s past 12° (a strike), both grip with effort: the crew's hands on the
+  coaming top drawn in, elbows bent and out, her hips pulled toward it and the chest hunched to the grip, harder as she rolls; both
+  take less of the heel out (they ride the boat's frame), then let go over 1.4 s once she is up.
 - **Clocks:** the people move on the living clock (the kayakers' rule: real time live, not Sail's 2 ×); what they answer (the boom,
   the heel, the wheel) is the boat's. The first 1.5 s puts them straight on the right side (a start, a capture).
 - **Hidden** in the Helm view (its blend past half), from an eye within 10 m of the hull (nearer than the Boat view's closest zoom, 1.5
   hull lengths: no faces up close), and past 160 m (lite: 90 m). Policy:
   `src/core/features.js crew` (full at L0–L1, the core LOD only at L2–L3, none on a phone; `?crew=0|1|lite`).
 - **Cost** (M5 Pro, headless, the Boat view at 13:00): +40,238 triangles and +2 draws at full detail; GPU within the run-to-run noise
-  (ABBA ×2 under a load average of 7–9); CPU ≈ 14 µs a frame (the choreography and two rig poses, node).
-- **Checks:** `tests/boat-crew.test.mjs` (the side after a tack and a gybe, no joint through the boom, wheel, coaming, sole or hull,
+  (ABBA ×2 under a load average of 7–9); CPU ≈ 16 µs a frame (the balance, the choreography and two rig poses, node).
+- **Checks:** `tests/boat-crew.test.mjs` (a roll step: the chest lags, overshoots ≤ 15 % of the roll and settles; the seated crew
+  compensates 35–65 % of the heel, the helmsman 65–92 %; the side after a tack and a gybe, no joint through the boom, wheel, coaming, sole or hull,
   the two apart, feet stepped, hands on the turning rim, the hold, the hike, hidden in the Helm view, deterministic).
 
 ## The helm seen, and the lights at night (2026-11-26: boat/models.js, sim/wake.js, sim/night.js, render/night.js)

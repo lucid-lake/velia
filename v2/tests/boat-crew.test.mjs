@@ -151,7 +151,7 @@ test('a knockdown or a sudden roll: both hold on (the crew\'s hands on the coami
   for (let t = 0; t < 1.5; t += 1 / 60) C.step(1 / 60, { heel: Math.min(55 * DEG, 0.15 + t * 0.9), pitch: 0, boom: 0.5, rudder: 0 });
   assert.equal(C.state.hold, 1, 'holding at 55°');
   const T = C.targets('crew', 1), s = C.state.side;
-  for (const h of T.hands) assert.ok(Math.abs(h[0] - s * (HALCYON.coamingX[0] + 0.05)) < 0.02 && Math.abs(h[1] - (HALCYON.coamingTop + 0.05)) < 0.02, `a hand on the coaming (${h.map((v) => v.toFixed(2))})`);
+  for (const h of T.hands) assert.ok(Math.abs(h[0] - s * (HALCYON.coamingX[0] + 0.06)) < 0.02 && Math.abs(h[1] - (HALCYON.coamingTop + 0.09)) < 0.02, `a hand on the coaming (${h.map((v) => v.toFixed(2))})`);
   // the body rides with the boat: the torso's up nearer the boat's than the world's
   const wu = worldUpInHull(55 * DEG, 0), up = T.up;
   assert.ok(up[1] > Math.abs(wu[1]), 'the torso with the boat, not the world');
@@ -174,7 +174,7 @@ test('the hike: past the band the crew leans out over the coaming; the helmsman 
   const s = C.state.side, out = C.targets('crew', 1).up;
   assert.ok(out[0] * s > calm[0] * s + 0.25, `the torso leans outboard (${calm[0].toFixed(2)} → ${out[0].toFixed(2)})`);
   const H = C.targets('helm', 1);
-  assert.ok(H.hip[0] * s > 0.05, 'the helmsman\'s hips to windward');
+  assert.ok(H.hip[0] * s < -0.04, 'the helmsman\'s weight on the low foot (his hips to leeward)');
 });
 
 test('hidden in the Helm view and from an eye on board; shown in the Boat view at 36 m; gone far off', () => {
@@ -191,4 +191,35 @@ test('the same inputs give the same pose (no randomness, no clock)', () => {
   tackRun({ each: (C) => b.push(joints(C, 'crew')[5][1].join(',')) });
   assert.deepEqual(a, b);
   assert.ok(CREW.crossS >= 2 && CREW.crossS <= 4, 'a cross a person makes (2-4 s)');
+});
+
+// the balance is dynamic: a roll step (0 → 15° in 0.25 s) leaves the helmsman's chest behind (it lags), it swings past where it
+// settles (a damped overshoot, within bounds) and settles; he takes most of the heel out, the seated crew only about half
+test('a roll step: the chest lags, overshoots a little and settles (a damped response)', () => {
+  // 0 → 10° in 0.4 s (25°/s: a gust's roll, under the strike's hold and the crew's hike band)
+  const C = createBoatCrew({ idle: false }), dt = 1 / 120, H = 10 * DEG, rec = [];
+  const heelAt = (t) => (t < 2 ? 0 : t < 2.4 ? H * (t - 2) / 0.4 : H);
+  for (let t = 0; t < 7; t += dt) { C.step(dt, { heel: heelAt(t), pitch: 0, boom: 0.4, rudder: 0 }); C.targets('helm', 1); C.targets('crew', 1); rec.push([t, C.state.body.helm.psi, C.state.body.crew.psi]); }
+  for (const [k, who] of [[1, 'helm'], [2, 'crew']]) {
+    const at = (t) => rec.find((r) => r[0] >= t)[k], psi0 = at(1.9), fin = at(6.9), step = fin - psi0;
+    assert.ok(step > 1 * DEG, `${who}: the chest's world lean moves with the heel (${(step / DEG).toFixed(2)}°)`);
+    // lag: as she starts to roll the chest is left behind (its inertia against the hips' swing: it leans the other way first)
+    assert.ok(at(2.2) - psi0 < 0.15 * step, `${who} lags: ${((at(2.2) - psi0) / DEG).toFixed(2)}° 0.2 s into the roll`);
+    // a damped overshoot past where it settles: seen (≥ 0.4°) and modest (≤ 15 % of the roll)
+    const peak = Math.max(...rec.filter((r) => r[0] > 2.4 && r[0] < 5).map((r) => r[k])) - fin;
+    assert.ok(peak > 0.4 * DEG && peak < 0.15 * H, `${who} overshoots ${(peak / DEG).toFixed(2)}° past where it settles`);
+    assert.ok(rec.filter((r) => r[0] > 5.5).every((r) => Math.abs(r[k] - fin) < 0.4 * DEG), `${who}: settled within 3 s of the roll`);
+  }
+});
+
+test('heel compensation: the standing helmsman takes most of the heel out, the seated crew about half', () => {
+  const rel = (heel) => {
+    const C = createBoatCrew({ idle: false });
+    for (let t = 0; t < 6; t += 1 / 60) { C.step(1 / 60, { heel, pitch: 0, boom: 0.4, rudder: 0 }); C.targets('helm', 1); C.targets('crew', 1); }
+    const b = C.state.body; return { helm: b.helm.psi - heel, crew: b.crew.psi - heel };   // the chest's lean against the boat
+  };
+  const h0 = rel(0), h10 = rel(10 * DEG);   // 10°: under the crew's hike band (her side up)
+  const kH = -(h10.helm - h0.helm) / (10 * DEG), kC = -(h10.crew - h0.crew) / (10 * DEG);
+  assert.ok(kH > 0.65 && kH < 0.92, `the helmsman takes ${(kH * 100).toFixed(0)} % of the heel out`);
+  assert.ok(kC > 0.35 && kC < 0.65, `the seated crew takes ${(kC * 100).toFixed(0)} % of the heel out (partial: her hips ride the seat)`);
 });
