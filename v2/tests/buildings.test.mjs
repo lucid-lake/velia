@@ -90,7 +90,9 @@ test('the cull: a chunk draws within its class\'s range (4 km; the landmarks 16 
 test('the policy: the buildings are off on a phone, on a desktop and a tablet; ?buildings= overrides', () => {
   const tier = (dev, flags = {}) => { const win = { ...DEVICES[dev], location: { search: '' } }; return createFeatures({ profile: { get: () => profileOf(readFacts(win), forcedOf(''), { gpu: 1 }), on: () => () => {} }, doc: null }).configure({ headless: false, flags }).feature('buildings').tier; };
   assert.equal(tier('desktop'), 'on'); assert.equal(tier('ipadTrackpad'), 'on'); assert.equal(tier('iphoneTurned'), 'off'); assert.equal(tier('androidSideways'), 'off');
-  assert.equal(tier('desktop', { buildings: '0' }), 'off'); assert.equal(tier('iphoneTurned', { buildings: '1' }), 'on');
+  assert.equal(tier('desktop', { buildings: '0' }), 'off'); assert.equal(tier('iphoneTurned', { buildings: '1' }), 'on');  // the mesh's tier: the full mesh near on a desktop and a strong tablet; the far mesh everywhere at L2-L3; a capture is full
+  const mt = (dev, gpu, headless = false) => { const win = { ...DEVICES[dev], location: { search: '' } }; return createFeatures({ profile: { get: () => profileOf(readFacts(win), forcedOf(''), { gpu }), on: () => () => {} }, doc: null }).configure({ headless, flags: {} }).feature('buildingsTier').tier; };
+  assert.equal(mt('desktop', 1), 'full'); assert.equal(mt('ipadTrackpad', 1), 'full'); assert.equal(mt('desktop', 2), 'lite'); assert.equal(mt('desktop', 3, true), 'full');
 });
 
 test('the grounding: every sampled box stands on the terrain (its foot under its lowest corner, at most 6.5 m under its mean, its eaves over its mean ground); the mesh is closed upward', () => {
@@ -113,8 +115,15 @@ test('the grounding: every sampled box stands on the terrain (its foot under its
     }
   }
   assert.ok(n > 600, `${n} boxes sampled`);
-  // every face of the unit mesh but the floor: 4 walls in 6 quads, the top in 2, two slopes, two gables (16 + 2 triangles, no bottom)
-  const M = unitMesh(); assert.equal(M.I.length / 3, 2 * 6 + 2 * 2 + 2 * 2 + 2);
+  // the unit mesh, no floor: the main block (4 walls in 6 quads, the top in 2, two slopes, two gables), the wing (4 walls, two
+  // slopes, two gables), each block's soffits (the slopes' undersides) and fascia (2 eaves, 4 rakes), the chimney (4 sides, a cap);
+  // the far mesh is the walls, slopes and gables only, a subset of the full one's faces
+  const M = unitMesh(), main = 2 * 6 + 2 * 2 + 2 * 2 + 2, wing = 2 * 4 + 2 * 2 + 2, trim = 2 * 2 + 6 * 2, chimney = 5 * 2;
+  assert.equal(M.near / 3, main + wing + 2 * trim + chimney);
+  assert.equal(M.farCount / 3, main + wing);
+  const tri = (a) => Array.from({ length: a.length / 3 }, (_, i) => [a[3 * i], a[3 * i + 1], a[3 * i + 2]].join());
+  const full = new Set(tri(M.I.subarray(0, M.near)));
+  for (const t of tri(M.I.subarray(M.farFirst, M.farFirst + M.farCount))) assert.ok(full.has(t), 'a far face is a full-mesh face');
 });
 
 test('the landmarks: the Stateline high-rises at their sources\' heights, the gondola up the mountain, boats in the marina\'s slips', () => {
