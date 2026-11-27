@@ -188,7 +188,8 @@ export function createTipQueue({ hint = () => null, active = () => true, onShown
 // "Tessie's up." (owner, 2026-11-24: one skipper line in place of the Be Tessie pill): when she shows herself near the boat (the swap's
 // window, W.pill), the skipper's line says so with the way in: "[T] to be her", or on a tablet "Tap here to be her." with the line itself
 // as the tap target. The lean skipper decides when (v2/ui/leanSkipper.js 'tip.tessie.be', LEAN_REPEAT): the first sighting of a session,
-// then later sightings at most every 4 min, at most 3 a session, under the 20 s gap and the busy rule. The first swap by T or the tap
+// then later sightings at most every 4 min, at most 3 a session; it jumps the 20 s gap (the only door in: a sighting lasts seconds) and
+// waits out a busy moment at most 3 s (leanSkipper.js LEAN_JUMP). The first swap by T or the tap
 // retires it for good (the lean store). Asked once per sighting: a sighting that ends before a quiet moment drops it.
 // onShown: the line is up (the player keeps the swap's window open while it can be read: W.hold).
 //   const L = createBeLine({ hint: () => controlsHint, touch: () => tablet, onTap, onShown });  L.step(dt, up); L.retire()
