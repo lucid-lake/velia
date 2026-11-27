@@ -144,7 +144,9 @@ export function createSailUi({ B, windField, clock, cockpit = null, terrain, can
   // sails going up or down, the anchor going down or coming up
   const ANCHOR_WORK = new Set(['falling', 'down', 'weighing', 'up']);   // not 'held' (nor 'stowed'): at anchor is quiet water, so "Anchor's holding." (a tip) can show
   const leanBusy = () => !!assist?.active || !!B.carryKeep || Math.abs((phys.state.furl ?? 0) - furlWantNow()) > 0.03 || ANCHOR_WORK.has(B.sea?.tackle?.state?.anchor?.phase);
-  const lean = createLeanSkipper({ phone: phoneQuiet, storage: store, busy: leanBusy });
+  // the first sail's intro is due (v2/ui/firstSail.js: Sail, welcomed, not yet said; never on a ?filmui=1 film, which builds no first sail)
+  const firstDue = () => mode === homeId() && flags.filmui !== true && !!settings?.get && settings.get('welcomed') === true && settings.get('introShown') === false;
+  const lean = createLeanSkipper({ phone: phoneQuiet, storage: store, busy: leanBusy, firstDue });
   services.provide('lean', lean);
   const hint = createControlsHint({ services, state: () => phys.state, once, skills, words, proKeys: () => pro, pilot: () => B.assists?.pilot !== false, voice, phoneQuiet: lean,
     lean: true });   // the lean key set (owner 2026-11-20): no H list (the key legend always shows the keys; Menu › Keys has them all), no H+5/6/7 (Setup › Aids has them), no "hold H" whisper

@@ -532,7 +532,7 @@ fn clothCol(v: V, ff: bool) -> vec4f {
     var rad = 0.0;
     if (scr != 0.0) {
       let aC = atan2(h, max(chordFoot - sx, 0.01)); let aH = atan2(hoist - h, max(sx, 0.01));
-      let wC = smoothstep(0.66, 0.54, h / max(hoist, 1e-3));
+      let wC = 1.0 - smoothstep(0.54, 0.66, h / max(hoist, 1e-3));
       rad = max(line(aC, 0.105, 0.004) * wC, line(aH, 0.115, 0.004) * (1.0 - wC)) * (1.0 - smoothstep(0.02, 0.05, fw));
     }
     var a2 = cc * CALB * across * (1.0 - min(layers, 2.0) * 0.06) * (1.0 - pockets * 0.10) * (1.0 - reefPts * 0.45);

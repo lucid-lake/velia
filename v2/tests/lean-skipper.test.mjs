@@ -244,3 +244,15 @@ test('the anchor branch\'s kinds: deepSpot and dragging MUST, holding a tip that
   R.step(1);
   assert.equal(R.hint.current, 'none', 'once ever');
 });
+
+test('the first sail\'s intro goes first: while it is due no other tip takes the row (a start by the island finds it at once)', () => {
+  let due = true;
+  const lean = createLeanSkipper({ storage: store(), firstDue: () => due });
+  lean.update(30);
+  assert.equal(lean.allow('tip.logbook'), false, 'the island\'s logbook line waits for the intro');
+  assert.equal(lean.allow('first'), true, 'the intro shows');
+  assert.equal(lean.allow('sea.shore'), true, 'a MUST still shows at once');
+  due = false;
+  lean.update(30);
+  assert.equal(lean.allow('tip.logbook'), true, 'the intro said: tips as before');
+});

@@ -104,12 +104,14 @@ try {
       const o = await openLive(dev, 'sail');
       await openMap(o.page);
       // the open lake past the bay's bar (past z −2000, v1's old chart): deep water on v2's terrain; the planner routes there through
-      // the entrance channel. The map centres on it at the whole bay's zoom
+      // the entrance channel. The map centres on it at the whole bay's zoom. The spot keeps the navigator's shore room (85 m): water
+      // all round it 110 m out, so the boat's start (the Off Fannette pin since 2026-11-25) never picks a cove by the shore
       const far = await o.page.evaluate(() => {
         const T = window.__velia.terrain.field, b = window.__velia.boat.state;
-        for (let dz = 1100; dz <= 2600; dz += 100) for (const dx of [0, -200, 200, -400, 400]) {
+        const open = (x, z) => -T.height(x, z) > 10 && [0, 1, 2, 3, 4, 5, 6, 7].every((k) => -T.height(x + 110 * Math.cos(k * Math.PI / 4), z + 110 * Math.sin(k * Math.PI / 4)) > 2);
+        for (let dz = 1100; dz <= 2600; dz += 100) for (const dx of [0, -200, 200, -400, 400, 600, 800]) {
           const x = b.x + dx, z = b.z - dz; if (z > -2100) continue;
-          if (-T.height(x, z) > 10) return { x, z };
+          if (open(x, z)) return { x, z };
         }
         return null;
       });

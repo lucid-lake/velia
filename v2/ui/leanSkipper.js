@@ -15,6 +15,8 @@
 //   const lean = createLeanSkipper({ phone, storage, busy });   // phone: createPhoneQuiet(...); busy(): a manoeuvre is under way
 //   createControlsHint({ ..., phoneQuiet: lean })                // controlsHint asks it through the phone rule's interface
 //   lean.gate(kind)                                              // another channel's line (Cruise's, Regatta's card): may it show now?
+// firstDue(): the first sail's intro line (kind 'first', v2/ui/firstSail.js) is still to come: no other tip takes the row before it (a
+// start by a place, Off Fannette by the island, finds it at once: its logbook line used to take the row and the 20 s gap held the intro).
 // coachSays(): the Coach (src/ui/captainView.js coach) shows a word on the dial now; while it does, the skill model's trim and
 // steering tips (COACH_HINTS: the same advice) wait, so the advice is never said twice. MUST lines (the knockdown, the shore) stay.
 import { LINE as CALM_LINE } from '../../src/ui/calmHud.js';
@@ -125,7 +127,7 @@ export function textKind(text) {
 const PHONE_KIND = { 'mark.set': 'reply', 'refuse.plan': 'reply', 'refuse.mark': 'reply', 'refuse.pilot': 'reply', 'tip.plan': 'reply', 'nav.beat': 'reply', 'knock.warn': 'stuck' };
 const phoneKind = (kind) => PHONE_KIND[kind] ?? kind;
 
-export function createLeanSkipper({ phone = null, storage = globalThis.localStorage ?? null, busy = () => false, coachSays = () => false, P = LEAN } = {}) {
+export function createLeanSkipper({ phone = null, storage = globalThis.localStorage ?? null, busy = () => false, coachSays = () => false, firstDue = () => false, P = LEAN } = {}) {
   let t = 0, lastAt = -Infinity, mustAt = -Infinity;
   const holds = new Set();   // a channel's own manoeuvre (Regatta's mark rounding): hold('rounding', on)
   let seen = new Set();
@@ -143,7 +145,9 @@ export function createLeanSkipper({ phone = null, storage = globalThis.localStor
     w.at = t;
     return t - w.from < j.busyMaxS;
   };
+  const introWaits = (kind) => { if (kind === 'first') return false; try { return !!firstDue(); } catch { return false; } };
   const tipOk = (kind) => {
+    if (introWaits(kind)) return false;
     const j = LEAN_JUMP[kind];
     if (j) return !seen.has(kind) && again(kind) && t - mustAt >= P.mustHoldS && t - lastAt >= (j.afterS ?? 0) && !busyHolds(kind, j);
     return !seen.has(kind) && again(kind) && !isBusy() && t - lastAt >= P.gapS && t - mustAt >= P.mustHoldS;

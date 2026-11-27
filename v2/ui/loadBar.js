@@ -30,6 +30,7 @@ const READY_MS = 260;
 // main thread is free to notice, the creep restarts from where it is toward a cap a quarter of the way on to 0.9, so the
 // line keeps a visible pace instead of crawling into its cap
 export const REARM_MS = 2500;
+const AHEAD = 0.25;   // the least step a creep takes toward 0.9 (rearm's, and a milestone's that arrives past its cap)
 
 // one creep as keyframes: offsets and values (linear between them), its length, and its value at a time (ms), the same
 // piecewise line the compositor draws
@@ -80,7 +81,9 @@ export function installLoadBar({ root, now = () => performance.now(), every = (f
     // a little ahead of now: the compositor's frame runs ahead of this thread's clock, so the new creep never starts behind it
     // (the shell's CSS creep, read on this thread, can trail its compositor frame by a pixel: a hair ahead of it)
     const v = Math.min(MAX_BEFORE_READY, Math.max(floor, cur ? cur.c.at(now() - cur.t0 + 34) : css() + 0.004));
-    const c = creep(v, Math.max(v, Math.min(MAX_BEFORE_READY, cap)), half);
+    // a bar already at or past this milestone's cap (a long gate on a slow link: its rearms carried it there) still creeps on: a
+    // quarter of the way to 0.9 at least, the rearm's own step, so the build after it never sits still
+    const c = creep(v, Math.max(v + AHEAD * (MAX_BEFORE_READY - v), Math.min(MAX_BEFORE_READY, cap)), half);
     cur = { c, t0: now(), cap: c.values.at(-1), half };
     play(c.values, { offsets: c.offsets, duration: c.duration });
     log.push([name, +v.toFixed(4), Math.round(now())]);
@@ -92,7 +95,7 @@ export function installLoadBar({ root, now = () => performance.now(), every = (f
     rearm() {
       if (stopped || done || !cur || now() - cur.t0 < REARM_MS) return;
       const v = cur.c.at(now() - cur.t0 + 34);
-      go(v, Math.max(cur.cap, v + 0.25 * (MAX_BEFORE_READY - v)), Math.max(cur.half, REARM_MS), 'rearm');
+      go(v, Math.max(cur.cap, v + AHEAD * (MAX_BEFORE_READY - v)), Math.max(cur.half, REARM_MS), 'rearm');
     },
     ready() {
       clear(timer);
