@@ -125,9 +125,10 @@ function boxPrim(sx, sy, sz, [cx, cy, cz]) {
   }
   return { P, N, I };
 }
-// the king spoke's sleeve on the wheel's rim (its own frame: the rim in the x-y plane round the axle, z the axle): a tube of
-// radius `tube` round the rim's centre line (radius R) from the top (90°) ± half deg
-export const WHEEL_MARK = Object.freeze({ R: 0.391, tube: 0.023, half: 8, hex: '#EFE6D2' });
+// the king spoke's whipping on the wheel's rim (its own frame: the rim in the x-y plane round the axle, z the axle): a tube of
+// radius `tube` (just proud of the 18 mm leather) round the rim's centre line (radius R) from the top (90°) ± half deg, in a matte
+// tan leather (a Turk's head's tone: it reads by feel and by its lighter tone, not a glaring cream in the Helm view)
+export const WHEEL_MARK = Object.freeze({ R: 0.391, tube: 0.0205, half: 6, hex: '#8E6A44', rough: 0.85 });
 export function rimSleevePrim({ R, tube, half }, segA = 10, segT = 8) {
   const P = [], N = [], I = [];
   for (let i = 0; i <= segA; i++) {
@@ -311,12 +312,12 @@ export function buildBoatModels(glbs, { dims, canvas }) {
       addPrim('always', prim, offset(0, 0, 0), matId(rec, 'stand-in'));
     }
   }
-  // the wheel's turn read from the Boat view (research 101 item 4): the king spoke's cream sleeve over the black leather at the
-  // rim's top (WHEEL_MARK: a turk's head grown to read at 36 m), in the wheel's own frame so it turns with it
+  // the wheel's turn read: the king spoke's tan whipping over the black leather at the rim's top (WHEEL_MARK), in the wheel's own
+  // frame so it turns with it
   if (glbs.wheel) {
     const geo = rimSleevePrim(WHEEL_MARK);
     const prim = { attributes: { POSITION: { array: Float32Array.from(geo.P), size: 3, count: geo.P.length / 3 }, NORMAL: { array: Float32Array.from(geo.N), size: 3, count: geo.N.length / 3 } }, indices: { array: Uint32Array.from(geo.I) } };
-    addPrim('wheel', prim, offset(0, 0, 0), matId({ name: 'wheel_king_spoke', kind: KIND.plain, base: [...hexLinear(WHEEL_MARK.hex), 1], metal: 0, rough: 0.55, coat: 0, coatRough: 0, vcol: false, scale: 1, opacity: 1, tex: { base: -1, normal: -1, mr: -1 } }, 'stand-in'));
+    addPrim('wheel', prim, offset(0, 0, 0), matId({ name: 'wheel_king_spoke', kind: KIND.plain, base: [...hexLinear(WHEEL_MARK.hex), 1], metal: 0, rough: WHEEL_MARK.rough, coat: 0, coatRough: 0, vcol: false, scale: 1, opacity: 1, tex: { base: -1, normal: -1, mr: -1 } }, 'stand-in'));
   }
   // the life ring (render/boat/lifeRing.js): the GLB's white ring and its strips were dropped above; this one is orange
   for (const { prim, rec } of buildLifeRing(H.freeboard)) addPrim('always', prim, offset(0, 0, 0), matId(rec, 'life-ring'));

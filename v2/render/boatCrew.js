@@ -10,11 +10,13 @@ import { createFigureRig } from './figureRig.js';
 import { createBoatCrew, crewShown } from './boat/crew.js';
 import { pickLook } from '../../src/sim/props/paddler/look.js';
 
-// the two looks (fixed: the same people every sail): a man at the helm in a navy aid and a cream cap, a woman crewing in a yellow
-// aid and a navy cap (no red or green on them: those mean port and starboard here)
+// the two looks (fixed: the same people every sail), dressed to be found at the Boat view's 36 m: a foul-weather jacket in a muted
+// signal colour over the body (the buoyancy aid and the shirt the jacket's colour, a shade apart), dark shorts and a dark cap for
+// the value contrast against the white deck. Him in a muted orange-red, her in a muted mustard (no pure red or green on them:
+// those mean port and starboard here)
 export const CREW_LOOKS = Object.freeze({
-  helm: Object.freeze({ seed: 9101, o: Object.freeze({ sex: 'male', pfd: 'blue', hatColour: '#E9E4D8' }) }),
-  crew: Object.freeze({ seed: 9102, o: Object.freeze({ sex: 'female', pfd: 'yellow', hatColour: '#1D2B4A' }) }),
+  helm: Object.freeze({ seed: 9101, o: Object.freeze({ sex: 'male', pfd: '#B8492C', hatColour: '#1D2433' }), kit: Object.freeze({ top: '#A3412A', shorts: '#1B1F29' }) }),
+  crew: Object.freeze({ seed: 9102, o: Object.freeze({ sex: 'female', pfd: '#C99A2C', hatColour: '#1D2433' }), kit: Object.freeze({ top: '#B38A2A', shorts: '#1B1F29' }) }),
 });
 // draw distances (m from the eye to the hull) and the detail LOD's switch (the figure's height on screen, px)
 export const CREW_DRAW = Object.freeze({ full: Object.freeze({ maxM: 160, detailPx: 140 }), lite: Object.freeze({ maxM: 90, detailPx: Infinity }) });
@@ -22,11 +24,11 @@ export const CREW_DRAW = Object.freeze({ full: Object.freeze({ maxM: 160, detail
 export function createBoatCrewRender({ device, reg, sky, shadow, kayakRender, tier = 'full' }) {
   const lim = CREW_DRAW[tier] ?? CREW_DRAW.full;
   const C = createBoatCrew();
-  const looks = { helm: pickLook(CREW_LOOKS.helm.seed, CREW_LOOKS.helm.o), crew: pickLook(CREW_LOOKS.crew.seed, CREW_LOOKS.crew.o) };
+  const looks = { helm: { ...pickLook(CREW_LOOKS.helm.seed, CREW_LOOKS.helm.o), ...CREW_LOOKS.helm.kit }, crew: { ...pickLook(CREW_LOOKS.crew.seed, CREW_LOOKS.crew.o), ...CREW_LOOKS.crew.kit } };
   const WHO = ['helm', 'crew'];
   let rig = null, rigClips = null, pal = null, ins = null, insU = null, palBuf = null, insBuf = null, bg = null, bgl = null;
   const rows = new Float32Array(12), figs = [];
-  const stats = { tier, figures: 0, calls: 0, triangles: 0, side: 0, cross: -1, hold: 0, hidden: '' };
+  const stats = { tier, figures: 0, calls: 0, triangles: 0, side: 0, cross: -1, hold: 0, at: '', work: 0, hidden: '' };
   const ensure = (share, clips) => {
     if (!share || !clips) return false;
     if (rig && rigClips === clips && bg && bgl === share.skinBGL) return true;
@@ -42,7 +44,7 @@ export function createBoatCrewRender({ device, reg, sky, shadow, kayakRender, ti
     figs.length = 0; stats.figures = 0; stats.hidden = '';
     if (!frame) { stats.hidden = 'no boat'; return; }
     C.step(dt, frame);   // the choreography runs whether or not they are drawn (a view back from the helm finds them where they were)
-    const st = C.state; stats.side = st.side; stats.cross = +st.cross.toFixed(3); stats.hold = +st.hold.toFixed(2);
+    const st = C.state; stats.side = st.side; stats.cross = +st.cross.toFixed(3); stats.hold = +st.hold.toFixed(2); stats.at = st.mv ? 'moving' : `${st.at.k}${st.at.s}`; stats.work = st.work;
     const M = frame.M, d = Math.hypot(eye[0] - M[12], eye[1] - M[13], eye[2] - M[14]);
     const why = crewShown({ helmK, distM: d, maxM: lim.maxM });
     if (why) { stats.hidden = why; return; }

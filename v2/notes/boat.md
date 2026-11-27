@@ -210,10 +210,21 @@ boat sails (Sail, Cruise, Regatta); the rivals and the lake's boats have none.
   lets go and grips again 18° short (0.32 s, one hand at a time; past 52° the rim slips through the holding hand). When she rolls
   (≥ 4–18°/s) he firms on the wheel: pulled in 4 cm, lower, elbows out, leaning to it.
 - **The crew** sits on the windward seat facing inboard and leans out over the coaming past 12–22° of windward heel (the aft hand on
-  its top). When the drawn boom crosses (± 4°) she scrambles across in 2.4 s: the trailing hand pushes off the old seat, the body
-  pitched forward low under the boom (ducking while it is within 28° of the centreline) with the weight leading toward the new side,
-  the lead hand reaching for the new seat's edge, two long steps and a settling one (each foot lifted in its own window, never both
-  up, never dragged), down onto the new seat with a small bounce (the landing kicks the body's own heave spring).
+  its top). She works (round 3): her stations are the rail (the windward seat) and the winch (the aft end of a seat, turned to that
+  side's primary winch, `COCKPIT.winch`: the working jib sheet's on the leeward side, as the lines are led). When the player trims
+  (the sheets' angle moving over 3°/s for 0.6 s; not in her first 5 s back on the rail, nor heeled past 18° or rolling) she goes to the leeward winch, cranks the handle round the drum's top (≈ 1 turn a
+  second) and tails the sheet hand over hand while the trim goes on, rests a hand on it 2.5 s, then back to the rail. In a tack
+  (the drawn boom across ± 4°) she slides aft on her own seat to the new leeward winch (the side she was on), tails the new sheet
+  1.8 s, then scrambles to the new windward rail; caught at the old leeward winch she lets the old sheet fly first (0.5 s). The
+  scramble (2.4 s, Catmull-Rom through its keys: no stop at a key): the trailing hand on a real handhold as she rises (the sprayhood's
+  aft frame low on its side, `cockpit.glb dodger_trim`, 1.62 m up, under the boom; from the winch, the seat's edge), the body pitched
+  forward low under the boom with the weight leading, forward of the wheel's pedestal first when it starts or ends at a winch, the
+  lead hand to the new seat's edge, then the new side's frame as she sits, two long steps and a settling one (each foot lifted in its
+  own window, along while it is up, set down in place; never both up, never dragged), and a small bounce on landing.
+- **The kit** (round 3: to be found at the Boat view's 36 m): a foul-weather top in a muted signal colour (him orange-red #B8492C, her
+  mustard #C99A2C; the buoyancy aid and the shirt a shade apart), dark shorts and dark navy caps for value contrast on the white
+  deck. No pure red or green (port and starboard). The figure's arms and legs are bare in its mesh: a long-sleeved jacket and
+  trousers need new geometry.
 - **Hold on:** past 30° of heel, or a roll faster than 30°/s past 12° (a strike), both grip with effort: the crew's hands on the
   coaming top drawn in, elbows bent and out, her hips pulled toward it and the chest hunched to the grip, harder as she rolls; both
   take less of the heel out (they ride the boat's frame), then let go over 1.4 s once she is up.
@@ -230,9 +241,9 @@ boat sails (Sail, Cruise, Regatta); the rivals and the lake's boats have none.
 
 ## The helm seen, and the lights at night (2026-11-26: boat/models.js, sim/wake.js, sim/night.js, render/night.js)
 
-- **The wheel's turn:** the king spoke's sleeve (`WHEEL_MARK`: cream #EFE6D2 over 16° of the black leather rim's top (11 cm), a 23 mm tube;
-  176 triangles in the wheel's own range) turns with the wheel (4 × the rudder), a light mark on the dark rim that reads its angle
-  from the Boat view; the helmsman's hands carry the turn too (§ The crew).
+- **The wheel's turn:** the king spoke's whipping (`WHEEL_MARK`: matte tan leather #8E6A44 over 12° of the black leather rim's top
+  (8 cm), a 20.5 mm tube just proud of the 18 mm leather; 176 triangles in the wheel's own range) turns with the wheel (4 × the
+  rudder): a Turk's-head tone in the Helm view, not a cream glare; from the Boat view the helmsman's hands carry the turn (§ The crew).
 - **The rudder:** M3's foil under the hull at `HULL.rudderZ`, turned about its stock (it was already drawn); a spade rudder 0.8 m
   forward of the transom, so from astern and above the hull hides it and from the quarter it shows through the water. No stock
   shows above the water on this hull (it rises inside her), so none is drawn.

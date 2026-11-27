@@ -151,7 +151,7 @@ test('the race livery: the hull skin is its own material under the sheer, the de
   assert.throws(() => buildBoatModels(Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, parseGlb(v)])), { dims: { HULL: { freeboard: 0.95, anchorPin: [0, 1, -4], throttle: null } }, canvas }), /loa/);
 });
 
-test('the wheel\'s king-spoke sleeve: cream over the rim\'s top, in the wheel\'s own frame (it turns with the wheel)', () => {
+test('the wheel\'s king-spoke whipping: tan leather over the rim\'s top, matte, in the wheel\'s own frame (it turns with the wheel)', () => {
   const g = rimSleevePrim(WHEEL_MARK), R = WHEEL_MARK.R, t = WHEEL_MARK.tube;
   for (let i = 0; i < g.P.length; i += 3) {
     const x = g.P[i], y = g.P[i + 1], z = g.P[i + 2], r = Math.hypot(x, y);
@@ -159,5 +159,7 @@ test('the wheel\'s king-spoke sleeve: cream over the rim\'s top, in the wheel\'s
     assert.ok(y > 0 && Math.abs(Math.atan2(x, y)) <= WHEEL_MARK.half * Math.PI / 180 + 1e-6, 'over the top');
   }
   assert.ok(WHEEL_MARK.R + WHEEL_MARK.tube > 0.409, 'proud of the leather (0.409 m)');
-  const L = hexLinear(WHEEL_MARK.hex); assert.ok(Math.min(...L) > 0.5, 'a light mark on the black rim');
+  const L = hexLinear(WHEEL_MARK.hex), lum = 0.2126 * L[0] + 0.7152 * L[1] + 0.0722 * L[2];
+  assert.ok(lum > 0.1 && lum < 0.3 && L[0] > L[2] * 1.5, `a tan leather tone, lighter than the black rim but not a cream (${lum.toFixed(3)})`);
+  assert.ok(WHEEL_MARK.rough >= 0.8 && WHEEL_MARK.half <= 7, 'matte and narrow');
 });

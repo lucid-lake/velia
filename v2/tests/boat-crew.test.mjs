@@ -101,7 +101,7 @@ test('no clipping through a tack: the boom, the wheel, the coaming, the hull and
   assert.ok(crossFrames > 100, `the crew crossed (${crossFrames} frames)`);
   assert.ok(duckMax > 0.5, `the crew ducked under the swinging boom (duck ${duckMax.toFixed(2)})`);
   assert.ok(minBoom > HALCYON.boom.bottom + 0.15, `the boom ${minBoom.toFixed(3)} m from the nearest joint`);
-  assert.ok(minWheel > 0.3, `the crew ${minWheel.toFixed(3)} m from the wheel's rim`);
+  assert.ok(minWheel > 0.2, `the crew ${minWheel.toFixed(3)} m from the wheel's rim (the primary winch she works is beside it)`);
   assert.ok(minHelmBody > 0.08, `the helmsman's body ${minHelmBody.toFixed(3)} m from the rim`);
   assert.ok(minEach > 0.25, `the two ${minEach.toFixed(3)} m apart at the nearest`);
 });
@@ -222,4 +222,31 @@ test('heel compensation: the standing helmsman takes most of the heel out, the s
   const kH = -(h10.helm - h0.helm) / (10 * DEG), kC = -(h10.crew - h0.crew) / (10 * DEG);
   assert.ok(kH > 0.65 && kH < 0.92, `the helmsman takes ${(kH * 100).toFixed(0)} % of the heel out`);
   assert.ok(kC > 0.35 && kC < 0.65, `the seated crew takes ${(kC * 100).toFixed(0)} % of the heel out (partial: her hips ride the seat)`);
+});
+
+// purposeful work: the player trims (the sheets' angle moving) and the crew goes to the working sheet's winch (the leeward primary),
+// cranks while the trim goes on, then back to her seat on the rail; in a tack she tails the new sheet on the new leeward winch first
+test('trimming: the crew works the leeward winch while the sheets move, then returns to the rail', () => {
+  const C = createBoatCrew(), dt = 1 / 60, seen = { winch: null, crank: [], back: false };
+  let sheet = 0.5;
+  for (let t = 0; t < 14; t += dt) {
+    if (t > 2 && t < 6) sheet -= 0.12 * dt;   // W held: the sheets in, 7°/s
+    C.step(dt, { heel: 0.15, pitch: 0, boom: 0.4, rudder: 0, sheet });
+    const T = C.targets('crew', 1), st = C.state;
+    if (!st.mv && st.at.k === 'winch') { seen.winch ??= st.at.s; if (t > 4 && t < 6) seen.crank.push([...T.hands[st.at.s > 0 ? 1 : 0]]); }
+    if (t > 12) seen.back = !st.mv && st.at.k === 'rail' && st.at.s === -1;
+  }
+  assert.equal(seen.winch, 1, 'to the leeward (starboard) winch: the boom is to starboard');
+  const xs = seen.crank.map((p) => p[0]), zs = seen.crank.map((p) => p[2]);
+  assert.ok(Math.max(...xs) - Math.min(...xs) > 0.25 && Math.max(...zs) - Math.min(...zs) > 0.25, 'the cranking hand goes round the drum');
+  const W = [1.33, 1.40, 2.65];
+  assert.ok(seen.crank.every((p) => Math.hypot(p[0] - W[0], p[2] - W[2]) < 0.25 && p[1] > W[1]), 'over the winch\'s top');
+  assert.ok(seen.back, 'back on the windward rail after the trim');
+});
+
+test('a tack: she tails the new sheet on the new leeward winch, then settles on the new windward rail', () => {
+  const seq = [];
+  tackRun({ each: (C) => { const st = C.state, k = st.mv ? `${st.mv.a.k}${st.mv.a.s}>${st.mv.b.k}${st.mv.b.s}` : `${st.at.k}${st.at.s}${st.work ? '*' : ''}`; if (seq[seq.length - 1] !== k) seq.push(k); } });
+  // boom from starboard to port: she starts on the port rail; the new leeward is port: tail there (working), then across to starboard
+  assert.deepEqual(seq, ['rail-1', 'rail-1>winch-1', 'winch-1*', 'winch-1>rail1', 'rail1'], seq.join(' '));
 });
