@@ -649,7 +649,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const moving = has('KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight') || Math.hypot(touchIn.x, touchIn.y) > 0.25;
     const still = !moving && !C.state.dash && !C.state.bite && !C.state.lunge && C.state.speed <= PLAY.drift + RPG.stillV;
     const h = hintSvc(), st = levelUp.state;
-    const lineUp = !st.open || clock - st.lineAt < 1.5 || !h || h.current === 'note';   // the note shows 0.6 s after it is taken
+    const lineUp = !st.open || st.t - st.lineAt < 1.5 || !h || h.current === 'note';   // the note shows 0.6 s after it is taken (lineAt is the level-up's own clock, not hers)
     levelUp.step(dt, { still, lineUp, say: (text) => {
       if (!h?.note) return false;
       const count = () => { const c = h.phoneQuiet?.state?.counts; return c ? c[LEVEL_UP.kind] ?? 0 : null; };   // null: no lean to ask
