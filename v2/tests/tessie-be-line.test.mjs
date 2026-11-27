@@ -11,6 +11,7 @@ import { createLeanSkipper, classOf, TIP, LEAN, LEAN_REPEAT } from '../ui/leanSk
 import { createTessie, TESSIE } from '../sim/tessie.js';
 import { createBoatSim, waterFor } from '../sim/boat.js';
 import { steadyWind } from '../../src/sim/boat.js';
+import { SWAP } from '../sim/tessieSwap.js';
 import { createSkills } from '../../src/sail/skills.js';
 import { createWords } from '../../src/ui/words.js';
 
@@ -162,4 +163,58 @@ test('the player: no .tp-be pill in the DOM; T while she shows herself swaps in 
     assert.ok(html.length > 0, 'her DOM was built');
     for (const s of html) assert.doesNotMatch(s, /tp-be|Be Tessie/, 'no pill');
   } finally { delete globalThis.document; delete globalThis.addEventListener; delete globalThis.removeEventListener; }
+});
+
+// A late line (a slow machine, a busy skipper): the line can wait in the lean queue until she is nearly gone. Once it shows, T read off
+// it must still swap for SWAP.readS, then the window closes as before. (The page test met this under load: the line up, T ignored.)
+test('a late line: T read off it swaps for readS after it shows, though her own window would have closed', () => {
+  const DT = 1 / 30;
+  const mk = (tag = 'div') => { const kids = {}; return { tagName: tag.toUpperCase(), dataset: {}, style: {}, hidden: false, children: [], innerHTML: '',
+    addEventListener() {}, removeEventListener() {}, setAttribute() {}, removeAttribute() {}, toggleAttribute() {}, hasAttribute() { return false; },
+    appendChild(c) { return c; }, prepend() {}, append() {}, after() {}, before() {}, replaceChildren() {}, insertBefore(c) { return c; }, remove() {}, matches() { return false; }, setPointerCapture() {}, getBoundingClientRect() { return { left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 }; },
+    querySelector(s) { return (kids[s] ??= mk()); }, querySelectorAll() { return []; }, classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } } }; };
+  // one session: her sighting from its first frame (?tessie=now), the skipper busy until freeAt s, then T pressed pressAfter s after the line shows
+  const run = ({ freeAt, pressAfter, until = 40 }) => {
+    const keys = {};
+    globalThis.addEventListener = (t, f) => { (keys[t] ??= []).push(f); }; globalThis.removeEventListener = () => {};
+    globalThis.document = { createElement: (t) => mk(t), getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], body: mk('body'), head: mk('head'), documentElement: mk('html'), activeElement: null, addEventListener() {}, removeEventListener() {} };
+    try {
+      const wind = { pattern: null, base: { dirDeg: 200, speedMs: 6 }, setLevel() { return 1; }, sample(x, z, t) { const v = steadyWind(6, 200)(x, z, t); return { vx: v.vx, vz: v.vz }; } };
+      const B = createBoatSim({ water: waterFor(() => 0), heightAt: () => -40, wind, headless: true });
+      const sim = createTessie({ seed: 1, depthAt: () => 40 });
+      const plugin = { sim, render: { ready: true }, playing: false, revenge: null, boatFor: null, playDip: 1 };
+      let t = 0;
+      const lean = createLeanSkipper({ storage: store(), busy: () => t < freeAt }), h = hintWith(lean);
+      const services = { get: (k) => (k === 'hint' ? h : null), provide() {} };
+      const P = createTessiePlayer({ plugin, B, depthAt: () => 40, touch: () => false, veil: () => {}, storage: null, services: () => services });
+      const b0 = { x: B.state.x, z: B.state.z, heading: 0, speed: 0 }, view = { x: b0.x, z: b0.z + 20, yaw: 0, hHalf: 0.6 };
+      sim.now(11, { boat: b0, view });
+      let shownAt = null, closedAt = null, pillAtPress = null, wasUp = false, endAt = null;
+      for (; t < until && P.as === 'boat'; t += DT) {
+        lean.update(DT);
+        sim.step(DT, { playing: true, boat: b0, view }); P.step(DT); P.camera(DT, { pos: [b0.x, 3, b0.z + 20], target: [b0.x, 1, b0.z], fov: 55 });
+        if (P.pill) wasUp = true; else if (wasUp && endAt == null) endAt = t;
+        if (shownAt == null && h.shown.some((l) => l.kind === BE_LINE.kind)) shownAt = t;
+        if (shownAt != null && closedAt == null && !P.pill) closedAt = t;
+        if (pressAfter != null && shownAt != null && t >= shownAt + pressAfter) {
+          pillAtPress = P.pill;
+          for (const f of keys.keydown ?? []) f({ code: 'KeyT', repeat: false, preventDefault() {}, stopImmediatePropagation() {} });
+          break;
+        }
+      }
+      return { shownAt, closedAt, pillAtPress, endAt, as: P.as };
+    } finally { delete globalThis.document; delete globalThis.addEventListener; delete globalThis.removeEventListener; }
+  };
+  // her own window, no line (the skipper busy all along): it closes a few seconds after she goes under
+  const own = run({ freeAt: Infinity, pressAfter: null });
+  assert.equal(own.shownAt, null, 'busy throughout: no line');
+  assert.ok(own.endAt > 18 && own.endAt < 20, `her own window closes at ${own.endAt?.toFixed(2)} s`);
+  // the late line: the skipper frees up 1.2 s before her window would close; T pressed 3 s after the line shows, past that close
+  const late = run({ freeAt: 17.8, pressAfter: 3 });
+  assert.ok(late.shownAt != null && late.shownAt < own.endAt && late.shownAt + 3 > own.endAt, `the late line shows, the press falls past her own close (${late.shownAt?.toFixed(2)} s)`);
+  assert.equal(late.pillAtPress, true, `the window stays open after the line (shown at ${late.shownAt?.toFixed(2)} s)`);
+  assert.equal(late.as, 'tessie', 'T read off the late line swaps her in');
+  // and the hold ends: no press, the window closes about readS after the line
+  const idle = run({ freeAt: 17.8, pressAfter: null });
+  assert.ok(idle.closedAt != null && idle.closedAt - idle.shownAt <= SWAP.readS + 0.2 && idle.closedAt - idle.shownAt >= SWAP.readS - 0.2, `closed ${(idle.closedAt - idle.shownAt).toFixed(2)} s after the line`);
 });

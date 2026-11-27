@@ -13,6 +13,7 @@
 // Run by `npm run test:pages:v2 -- tessiePlay`, or node v2/tests/pages/tessiePlay.page.mjs --base http://127.0.0.1:<port>
 import { chromium } from 'playwright-core';
 import { openMap } from './liveMap.mjs';
+import { LEAN, LEAN_CLASS, TIP } from '../../ui/leanSkipper.js';
 
 const argv = process.argv.slice(2);
 const BASE = argv.includes('--base') ? argv[argv.indexOf('--base') + 1] : process.env.LAKESHORE_BASE;
@@ -24,17 +25,24 @@ const SEEN = () => { try { localStorage.setItem('lakeshore.settings.v1', JSON.st
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1';
 const Q = 'mode=sail&seed=1&wind=3&noload=1&attract=0&fv=1&once=0&hm=0&chatter=0&hour=13&stage=off&cinema=0';
 const browser = await chromium.launch({ executablePath: process.env.LAKESHORE_CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--enable-unsafe-webgpu', '--no-first-run', '--mute-audio'] });
-async function open(q, opts = {}) {
+async function open(q, { init = null, ...opts } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, ...opts });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  await page.addInitScript(PERSON); await page.addInitScript(SEEN);
+  await page.addInitScript(PERSON); await page.addInitScript(SEEN); if (init) await page.addInitScript(init.fn, init.arg);
   await page.goto(`${BASE}/?${q}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__velia?.ready, null, { timeout: 240000 });
   return { ctx, page, errors };
 }
 // the skipper's line while she shows herself (v2/living/tessiePlayer.js createBeLine): up on the hint row, no pill
+// a skipper who has taught the boat already: the tips store on (once=1) with every first-time boat TIP marked seen (not hers), so no
+// boat tip takes the row and its 20 s gap while she shows herself. Her line waits for a quiet moment (the lean rules, by design): with
+// once=0 the untrimmed boat's first tip (about 2 s) held the row to about 22 s of her 25 s sighting, and the next boat tip (irons)
+// raced her line for that slot; on a loaded machine it won and the line never came
+const QUIET = { fn: ([key, kinds]) => { try { localStorage.setItem(key, JSON.stringify(kinds)); } catch {} },
+  arg: [LEAN.storeKey, Object.keys(LEAN_CLASS).filter((k) => LEAN_CLASS[k] === TIP && !k.startsWith('tip.tessie'))] };
+const QQ = Q.replace('once=0', 'once=1');
 const BE_UP = () => window.__velia.tessiePlay?.pill && /Tessie.s up\./.test(document.querySelector('.lk-hint .row.in')?.textContent ?? '');
 // the line's facts, read in the frame it is found (a loaded machine: a later read can meet the next line)
 const beLine = (page) => page.waitForFunction(() => { const r = document.querySelector('.lk-hint .row.in'), b = r?.getBoundingClientRect();
@@ -93,7 +101,7 @@ try {
   }
   // ---- the line, T in, a knockdown, T back ----
   {
-    const { ctx, page, errors } = await open(`${Q}&tessie=now`);
+    const { ctx, page, errors } = await open(`${QQ}&tessie=now`, { init: QUIET });
     await page.evaluate(() => { const hm = window.__velia.m4?.front?.home; if (hm?.isOpen) hm.close(); });
     const up = await page.waitForFunction(BE_UP, null, { timeout: 120000 }).then(() => true, () => false);
     check(up, 'swap: she shows herself near the boat, the skipper\'s line says so');
@@ -271,7 +279,7 @@ try {
   }
   // ---- a tablet's hands: the line tapped, the floating stick, Lunge and Dive ----
   {
-    const { ctx, page, errors } = await open(`${Q}&tessie=now&touch=1`);
+    const { ctx, page, errors } = await open(`${QQ}&tessie=now&touch=1`, { init: QUIET });
     await page.evaluate(() => { const hm = window.__velia.m4?.front?.home; if (hm?.isOpen) hm.close(); });
     // read the line and tap it in the frame it is found (a loaded machine: a later read can meet the next line)
     const tl0 = await page.waitForFunction(() => { const r = document.querySelector('.lk-hint .row.in'); if (!window.__velia.tessiePlay?.pill || !/Tessie.s up\./.test(r?.textContent ?? '')) return null;

@@ -180,9 +180,10 @@ export function createTipQueue({ hint = () => null, active = () => true, onShown
 // as the tap target. The lean skipper decides when (v2/ui/leanSkipper.js 'tip.tessie.be', LEAN_REPEAT): the first sighting of a session,
 // then later sightings at most every 4 min, at most 3 a session, under the 20 s gap and the busy rule. The first swap by T or the tap
 // retires it for good (the lean store). Asked once per sighting: a sighting that ends before a quiet moment drops it.
-//   const L = createBeLine({ hint: () => controlsHint, touch: () => tablet, onTap });  L.step(dt, up); L.retire()
+// onShown: the line is up (the player keeps the swap's window open while it can be read: W.hold).
+//   const L = createBeLine({ hint: () => controlsHint, touch: () => tablet, onTap, onShown });  L.step(dt, up); L.retire()
 export const BE_LINE = Object.freeze({ kind: 'tip.tessie.be', keys: "Tessie's up. [T] to be her.", touch: "Tessie's up. Tap here to be her." });
-export function createBeLine({ hint = () => null, touch = () => false, onTap = null, askS = 1 } = {}) {
+export function createBeLine({ hint = () => null, touch = () => false, onTap = null, onShown = null, askS = 1 } = {}) {
   let was = false, want = false, wait = 0, shown = 0;
   const lean = () => hint()?.phoneQuiet ?? null;
   const retired = () => { const s = lean()?.state?.seen; return Array.isArray(s) && s.includes(BE_LINE.kind); };
@@ -200,7 +201,7 @@ export function createBeLine({ hint = () => null, touch = () => false, onTap = n
       const tablet = !!touch(), c0 = count();
       h.note(capLine(tablet ? BE_LINE.touch : BE_LINE.keys), '', null, { kind: BE_LINE.kind, ...(tablet && onTap ? { onTap } : {}) });
       const c1 = count();
-      if (c0 == null || c1 > c0) { want = false; shown++; }   // shown (the lean counted it), or no lean to ask: asked once
+      if (c0 == null || c1 > c0) { want = false; shown++; onShown?.(); }   // shown (the lean counted it), or no lean to ask: asked once
     },
     retire() { want = false; lean()?.retire?.(BE_LINE.kind); hint()?.drop?.(BE_LINE.kind); },
     get waiting() { return want; }, get shown() { return shown; },
@@ -360,7 +361,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   const tip = (kind, text) => tips.want(kind, text), stepTips = (dt) => tips.step(dt);
   const tipSeen = (kind) => tips.waiting.includes(kind) || !!hintSvc()?.phoneQuiet?.state?.seen?.includes?.(kind);   // phase 6: asked already, or shown (the lean store)
   // she shows herself: the skipper's line says so, with the way in (a tablet: the line is the tap target)
-  const beLine = createBeLine({ hint: hintSvc, touch, onTap: () => self.become('swap') });
+  const beLine = createBeLine({ hint: hintSvc, touch, onTap: () => self.become('swap'), onShown: () => W.hold() });   // the line may come late in a sighting: T read off it still swaps
 
   // ---- the keys (capture: before every other listener; the boat's keys stop here while you are her) ----
   const onKey = (e) => {
