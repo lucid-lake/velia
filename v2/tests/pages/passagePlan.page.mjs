@@ -3,9 +3,9 @@
 //   the map      Menu opens the live map; a tap on the water opens its card (helper liveMap.mjs)
 //   the taps     three Add waypoint presses: three waypoints, three legs, leg 1 bends round the island; the card then offers Set course
 //                and Clear route; Add waypoint on dry land is refused with the navigator's words
-//   Set course   the card's word: "Course set"; the nav column's passage block MARK WP 1 · 3, DTW, BTW, TTG, XTE (with Pro off) once
-//                the map closes
-//   arrival      the boat placed by waypoint 1: WP 2 · 3; Clear route empties the block
+//   Set course   the card's word: "Course set"; the passage service (src/ui/passage.js, the beacon reads it) holds the route's
+//                mark WP 1 · 3 and its leg (the nav column that showed it went on 2026-11-25)
+//   arrival      the boat placed by waypoint 1: WP 2 · 3; Clear route empties the passage
 // Run by `npm run test:pages:v2` (LAKESHORE_BASE set), or node v2/tests/pages/passagePlan.page.mjs --base http://127.0.0.1:<port>
 import { chromium } from 'playwright-core';
 import { openMap, closeMap, waterAct, live } from './liveMap.mjs';
@@ -21,11 +21,10 @@ const Q = 'mode=sail&hour=15&wind=2&noload=1&fv=1&hm=0&chatter=0&hud=full&start=
 const WPS = [[300, -300], [900, -800], [600, -400]];
 const OPEN = [450, -150];   // open water clear of the waypoints: a tap here opens the water's card
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--enable-unsafe-webgpu', '--no-first-run'] });
+// the passage service's route mark (the nav column that showed it went on 2026-11-25; no left-edge column comes back)
 const col = (page) => page.evaluate(() => {
-  const el = document.querySelector('.lk-nav'); if (!el) return null;
-  const rows = [...el.children].filter((r) => !r.classList.contains('fade') && !r.classList.contains('off')).sort((a, b) => +a.style.order - +b.style.order);
-  const text = (r) => (r.dataset.id === 'mark' ? r.textContent.trim() : `${r.querySelector('.v')?.textContent ?? ''}${r.querySelector('.u')?.textContent ?? ''}`);
-  return { on: el.classList.contains('on'), ids: rows.map((r) => r.dataset.id).filter((id) => !id.startsWith('gap')), rows: Object.fromEntries(rows.filter((r) => !r.dataset.id.startsWith('gap')).map((r) => [r.dataset.id, text(r)])) };
+  const p = window.__velia.m4.ui.services.get('passage'); const s = p?.sync(); const t = s?.target;
+  return { nav: !!document.querySelector('.lk-nav'), on: t?.kind === 'route', mark: t?.kind === 'route' ? t.name : null, from: !!s?.from };
 });
 const hintText = (page) => page.evaluate(() => window.__said?.at(-1) ?? '');
 
@@ -41,7 +40,8 @@ try {
   await page.waitForFunction(() => window.__velia.m4.ui.chart.planner && window.__velia.m4.ui.station?.cockpit && window.__velia.boat?.sim?.t > 1, null, { timeout: 240000 });
   await page.evaluate(() => window.__velia.boat.sim.place({ x: -350, z: 150, headingDeg: 20, speed: 0.5 }));
   await page.waitForTimeout(800);
-  check((await col(page)).on === false, 'no plan, Pro off: the left edge is empty');
+  const C0 = await col(page);
+  check(C0.on === false && !C0.nav, 'no plan: no route mark, no left-edge column');
   // the live map (Menu); the skipper's lines spied (the kayaks' line may follow at once)
   await page.evaluate(() => { const h = window.__velia.m4.ui.hint, f = h.flash.bind(h); window.__said = []; h.flash = (t, o) => { window.__said.push(t); return f(t, o); }; });
   await openMap(page);
@@ -67,20 +67,19 @@ try {
   const set = await waterAct(page, tap, ...OPEN, 'setCourse');
   await page.waitForTimeout(600);
   check(set.pressed && /^Course set\./.test(await hintText(page)), `the skipper: "${await hintText(page)}"`);
-  check((await col(page)).on === false, 'under the live map the column steps aside');
   await closeMap(page); await page.waitForTimeout(1200);
   const C = await col(page);
-  check(C.on && /WP 1 · 3$/.test(C.rows.mark) && ['dtw', 'btw', 'ttg', 'xte'].every((k) => C.ids.includes(k)) && /^\d{3}°$/.test(C.rows.btw), `the map closed, the course stays: ${C.ids.map((k) => `${k.toUpperCase()} ${C.rows[k]}`).join(' · ')}`);
+  check(C.on && C.mark === 'WP 1 · 3' && C.from && !C.nav, `the map closed, the course stays: MARK ${C.mark}, a leg from the boat`);
   // arrival: the boat by waypoint 1 (the planner's own point)
   await page.evaluate(() => { const w = window.__velia.m4.ui.chart.course.route[0]; window.__velia.boat.sim.place({ x: w.x - 20, z: w.z, headingDeg: 40, speed: 1 }); });
   await page.waitForTimeout(1800);
   const A = await col(page);
-  check(/WP 2 · 3$/.test(A.rows.mark ?? ''), `arrival: MARK ${A.rows.mark} ("${await hintText(page)}")`);
+  check(A.mark === 'WP 2 · 3', `arrival: MARK ${A.mark} ("${await hintText(page)}")`);
   // Clear route (the water's card): the passage block goes
   await openMap(page);
   const clr = await waterAct(page, tap, ...OPEN, 'clearRoute');
   await closeMap(page); await page.waitForTimeout(1600);
-  check(clr.pressed && (await col(page)).on === false && (await page.evaluate(() => window.__velia.m4.ui.chart.course.route.length)) === 0, 'Clear route: no route, the left edge empty again');
+  check(clr.pressed && (await col(page)).on === false && (await page.evaluate(() => window.__velia.m4.ui.chart.course.route.length)) === 0, 'Clear route: no route, no route mark');
   check(errors.length === 0, `no page errors (${errors.join(' | ')})`);
   await page.close();
 } finally {
