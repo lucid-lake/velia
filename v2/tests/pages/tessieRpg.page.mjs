@@ -330,9 +330,15 @@ try {
       const w2 = await page.evaluate((i) => { const st = window.__velia.tessiePlay.stats(), w = document.querySelector('#lk-tplay .tp-world'); return { slap: st.log.surge.slap, ring: w.querySelector('.sr')?.getAttribute('visibility'), r: +(w.dataset.surge || 0), heel: Math.abs(window.__velia.busy.lake.liveBoats.find((o) => o.id === i)?.phys.state.heel ?? 0) * 180 / Math.PI }; }, laid);
       const h = w2.slap?.heels.find((x) => x.id === laid);
       // the boat's peak heel over the 2 s after this (the wave reaches it at its distance / 20 m/s)
-      for (let i = 0; i < 20; i++) { w2.heel = Math.max(w2.heel, await page.evaluate((id) => Math.abs(window.__velia.busy.lake.liveBoats.find((o) => o.id === id)?.phys.state.heel ?? 0) * 180 / Math.PI, laid)); await page.waitForTimeout(100); }
+      // and the ring's radius as it runs (read 2.1 s after the press it is only about 0.9 s into its 2 s run: about 18 m; it reaches
+      // 40 m at 2 s, then fades); each read also checks the drawn ring against the wave's own clock (ringM / waveS = 20 m/s)
+      const ringAt = () => page.evaluate(() => { const w = document.querySelector('#lk-tplay .tp-world'), fx = window.__velia.tessiePlay.stats().rpg.surgeFx; return { r: w.dataset.surge === '' || w.dataset.surge == null ? null : +w.dataset.surge, t: fx?.phase === 'wave' ? fx.t : null }; });
+      const ring = { max: w2.r, off: [] };
+      const ringRead = (q) => { if (q.r == null) return; ring.max = Math.max(ring.max, q.r); if (q.t != null) { const want = 40 * Math.min(1, Math.max(0, q.t - 1.2) / 2); if (Math.abs(q.r - want) > 3) ring.off.push([q.t, q.r]); } };
+      for (let i = 0; i < 20; i++) { w2.heel = Math.max(w2.heel, await page.evaluate((id) => Math.abs(window.__velia.busy.lake.liveBoats.find((o) => o.id === id)?.phys.state.heel ?? 0) * 180 / Math.PI, laid)); ringRead(await ringAt()); await page.waitForTimeout(100); }
+      for (let i = 0; i < 30 && ring.max < 40; i++) { const q = await ringAt(); if (q.r == null) break; ringRead(q); await page.waitForTimeout(100); }
       check(!!w2.slap && Math.abs(w2.slap.at - w1.surge.at - 1.2) < 0.15, `the slap 1.2 s after the press (${JSON.stringify(w2.slap && { at: w2.slap.at, press: w1.surge.at })})`);
-      check(w2.ring === 'visible' && w2.r > 20 && w2.r <= 40, `the wave's ring on the water, running out to 40 m (${w2.r} m)`);
+      check(w2.ring === 'visible' && w2.r > 0 && ring.max === 40 && !ring.off.length, `the wave's ring on the water, running out to 40 m at 20 m/s (${w2.r} m at the first read, ${ring.max} m at most; off its clock: ${JSON.stringify(ring.off)})`);
       check(!!h && h.heelDeg > 15 && Math.abs(w2.heel - h.heelDeg) < 4 && w2.heel > heel0 + 8, `the boat ${h?.d} m off heels away from her (${heel0.toFixed(0)}° → ${w2.heel.toFixed(0)}°, the wave's ${h?.heelDeg}°)`);
       const so = await page.evaluate(() => { const r = document.querySelector('#lk-tplay .tp-slot[data-skill=surge]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
       await page.mouse.click(so.x, so.y); await page.waitForTimeout(200);
