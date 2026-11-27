@@ -401,10 +401,17 @@ try {
     await page.keyboard.down('Digit5'); await page.waitForTimeout(500);
     const r1 = await page.evaluate(() => { const st = window.__velia.tessiePlay.stats(), s = document.querySelector('#lk-tplay .tp-slot[data-skill=breach]'); return { b: st.log.breach, fx: st.rpg.breachFx, ink: s?.dataset.ink, trials: window.__velia.tessiePlay.bounty.state().trials.breach }; });
     check(r1.fx?.phase === 'run' && r1.b?.target === laid && r1.trials === 4 && r1.ink === 'amber', `${tag}: 5 held: the run at the laid boat, the slot amber, a free trial spent (${JSON.stringify({ fx: r1.fx, target: r1.b?.target, laid, trials: r1.trials, ink: r1.ink })})`);
-    // held until the corners turn amber (a release now lands the arc on it), then let go
-    const amber = await page.waitForFunction(() => window.__velia.tessiePlay.stats().rpg.breachFx?.near && document.querySelector('#lk-tplay .tp-aim')?.hasAttribute('data-reach'), null, { timeout: 8000, polling: 16 }).then(() => true, () => false);
+    // held until the corners turn amber (a release now lands the arc on it), then let go. The release is made in the page on the
+    // frame the corners turn amber (raf polling, the slot's own release as the key-up calls it): a key-up sent from here arrives a
+    // round trip later, and under load that is a second or more of game time, long enough for the crew to see the run-up within
+    // 25 m and bear away (the game's rule: she then lands where the boat was). The key-up itself follows and changes nothing.
+    const amber = await page.waitForFunction(() => {
+      const P = window.__velia.tessiePlay, fx = P.stats().rpg.breachFx;
+      if (!fx?.near || !document.querySelector('#lk-tplay .tp-aim')?.hasAttribute('data-reach')) return false;
+      return { released: P.releaseSlot('breach'), phase: fx.phase };
+    }, null, { timeout: 8000, polling: 'raf' }).then((h) => h.jsonValue(), () => null);
     await page.keyboard.up('Digit5');
-    check(amber, `${tag}: the corners on the boat turn amber before the release`);
+    check(!!amber?.released, `${tag}: the corners on the boat turn amber before the release (${JSON.stringify(amber)})`);
     let minK = 1, slowMs = 0, eyeMax = 0, shot = false, t0 = Date.now(), last = t0;
     for (let i = 0; i < 160; i++) {
       const s = await page.evaluate(() => { const V = window.__velia, st = V.tessiePlay.stats(), n = V.tessie.sim.state.nose, e = st.eye; return { k: st.rpg.slowK, fall: st.log.breach?.fall ?? null, phase: st.rpg.breachFx?.phase, d: e && n ? Math.hypot(e[0] - n.x, e[2] - n.z) : 0 }; });
