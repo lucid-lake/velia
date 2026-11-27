@@ -16,7 +16,7 @@
 //   const S = createBirdSplash({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, wake, seed })
 //   S.step(dt, events); S.fill(focalPx); S.runWater(pass, c) (the water-sim pass); S.draw(pass, c) (before the water); S.stats
 import { createSplashSim, createKayakSplash } from './kayaks-splash.js';
-import { CREATURE, WATER_COMPUTE_WGSL } from '../render/creature-map.js';
+import { CREATURE, CREATURE_VEC4, WATER_COMPUTE_WGSL } from '../render/creature-map.js';
 import { mulberry32 } from '../../src/sim/core/rng.js';
 
 export const BIRD_SPLASH = Object.freeze({
@@ -110,7 +110,7 @@ export function createBirdSplash({ device, reg, frameBGL, frameStruct, sky, shad
   const T = BIRD_SPLASH;
   const drops = createKayakSplash({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, label: 'bird-splash', max: T.max, minPx: BIRD_SPLASH.minPx, colour: BIRD_SPLASH.colour, rough: BIRD_SPLASH.rough, white: BIRD_SPLASH.white, sim: fx.sim });
   // the rings and the patch: the creature map's compute into the wake's buffer (none when the page has no map)
-  const CU_VEC4 = 2 + CREATURE.maxK + CREATURE.maxR + CREATURE.maxC;
+  const CU_VEC4 = CREATURE_VEC4;
   const cu = new Float32Array(CU_VEC4 * 4);
   const size = wake?.sizes?.creature ?? 0;
   let bgC = null, cbuf = null, owned = false;

@@ -12,6 +12,10 @@ export const SONAR = Object.freeze({
   ringK: 0.75,        // the ring's radius as a share of the hull's length
   ringMinM: 2.5,      // m: the smallest ring (a kayak's)
   tailK: 1.6,         // rank 3+: the heading tail's length as a share of the ring's radius
+  pulseK: 1.8,        // the pulse's ease-in (its radius ∝ u^pulseK)
+  pulseS: 0.9,        // s: the ping's pulse runs out to the range (one thin ring on the water, the only ring a skill draws)
+  arcDeg: 110,        // the pulse's bright front: this wide about her heading (the sweep), the rest of the ring fainter
+  flashS: 0.4,        // s: a boat's mark flashes as the pulse reaches it (its ring grows in from 1.8 ×, thick, then settles)
 });
 
 export function sonarPing(her, list = [], { rangeM = 300, max = SONAR.max } = {}) {
@@ -39,4 +43,8 @@ export function rimMarks(her, list = [], has = () => false, out = []) {
   return out;
 }
 
+// the ping's pulse: its radius u (0 … 1) of the way through SONAR.pulseS (slow round her, then racing out: the ring is seen leaving
+// her before it nears the horizon), and the share of pulseS at which it reaches d m
+export const pulseR = (rangeM, u) => rangeM * Math.pow(Math.max(0, Math.min(1, u)), SONAR.pulseK);
+export const pulseU = (rangeM, d) => Math.pow(Math.max(0, Math.min(1, d / rangeM)), 1 / SONAR.pulseK);
 export const markRing = (L = 8.5) => Math.max(SONAR.ringMinM, SONAR.ringK * (L || 8.5));

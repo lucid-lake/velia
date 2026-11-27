@@ -23,11 +23,11 @@ const LEVEL = { ipadTrackpad: 1, touchLaptop: 1, smallDesktop: 0, iphoneTurned: 
 const WANT = {
   //                terrainSet townsTier birdsTier kayaksTier fireworksTier cockpitModel cockpitMaterials flatControls touchHands glassBoat (2026-11-18: a tablet as a desktop, by the GPU level; never a phone)
   ipadTrackpad:    ['phone',   'full',   'high',   'full',    'desktop',    'full',      'full',          'off',       'on', 'full'],   // L1: a tablet by its level, like a desktop (2026-11-18)
-  touchLaptop:     ['full',    'full',   'high',   'full',    'desktop',    'full',      'full',          'off',       'off', 'full'],
-  smallDesktop:    ['full',    'full',   'high',   'full',    'desktop',    'full',      'full',          'off',       'off', 'full'],
-  iphoneTurned:    ['phone',   'lite',   'low',    'lite',    'phone',      'phone',     'lite',          'on',        'on', 'off'],
-  androidSideways: ['phone',   'lite',   'low',    'lite',    'phone',      'phone',     'lite',          'on',        'on', 'off'],
-  desktop:         ['full',    'full',   'high',   'full',    'desktop',    'full',      'full',          'off',       'off', 'full'],
+  touchLaptop:     ['full',    'full',   'high',   'full',    'desktop',    'full',      'full',          'off',       'off', 'full', 'full', 'full'],
+  smallDesktop:    ['full',    'full',   'high',   'full',    'desktop',    'full',      'full',          'off',       'off', 'full', 'full', 'full'],
+  iphoneTurned:    ['phone',   'lite',   'low',    'lite',    'phone',      'phone',     'lite',          'on',        'on', 'off', 'none', 'none'],
+  androidSideways: ['phone',   'lite',   'low',    'lite',    'phone',      'phone',     'lite',          'on',        'on', 'off', 'none', 'none'],
+  desktop:         ['full',    'full',   'high',   'full',    'desktop',    'full',      'full',          'off',       'off', 'full', 'full', 'full'],
 };
 const NAMES = ['terrainSet', 'townsTier', 'birdsTier', 'kayaksTier', 'fireworksTier', 'cockpitModel', 'cockpitMaterials', 'flatControls', 'touchHands', 'glassBoat'];
 
@@ -41,14 +41,14 @@ test('the six devices: every feature\'s tier', () => {
 // step 3: the behaviours
 const WANT_B = {
   //                deskTrim binoculars deskEnter quietSkipper shoreSpray pipelineDeferral levelRetry fingerTargets tessie ospreyDive buildAllFirst teaHouse oldRuin islandGranite fleetDetail chartGround cinematicIntro tessieArt
-  ipadTrackpad:    ['on',    'on',      'on',     'off',       'full',    'on',            'on',      'on', 'on', 'on', 'off', 'on', 'off', 'full', 'full', 'live', 'on', 'on', 'on', 'on', 'full'],
-  touchLaptop:     ['on',    'on',      'on',     'off',       'full',    'on',            'on',      'off', 'on', 'on', 'off', 'on', 'off', 'full', 'full', 'live', 'on', 'on', 'on', 'on', 'full'],
-  smallDesktop:    ['on',    'on',      'on',     'off',       'full',    'on',            'on',      'off', 'on', 'on', 'off', 'on', 'off', 'full', 'full', 'live', 'on', 'on', 'on', 'off', 'full'],
-  iphoneTurned:    ['off',   'off',     'off',    'off',       'full',    'on',            'on',      'on', 'off', 'off', 'on', 'off', 'off', 'lite', 'lite', 'webp', 'off', 'off', 'off', 'off', 'none'],
-  androidSideways: ['off',   'off',     'off',    'off',       'lite',    'on',            'on',      'on', 'off', 'off', 'on', 'off', 'off', 'lite', 'lite', 'webp', 'off', 'off', 'off', 'off', 'none'],
-  desktop:         ['on',    'on',      'on',     'off',       'full',    'on',            'on',      'off', 'on', 'on', 'off', 'on', 'off', 'full', 'full', 'live', 'on', 'on', 'on', 'off', 'full'],
+  ipadTrackpad:    ['on',    'on',      'on',     'off',       'full',    'on',            'on',      'on', 'on', 'on', 'off', 'on', 'off', 'full', 'full', 'live', 'on', 'on', 'on', 'on', 'full', 'full'],
+  touchLaptop:     ['on',    'on',      'on',     'off',       'full',    'on',            'on',      'off', 'on', 'on', 'off', 'on', 'off', 'full', 'full', 'live', 'on', 'on', 'on', 'on', 'full', 'full'],
+  smallDesktop:    ['on',    'on',      'on',     'off',       'full',    'on',            'on',      'off', 'on', 'on', 'off', 'on', 'off', 'full', 'full', 'live', 'on', 'on', 'on', 'off', 'full', 'full'],
+  iphoneTurned:    ['off',   'off',     'off',    'off',       'full',    'on',            'on',      'on', 'off', 'off', 'on', 'off', 'off', 'lite', 'lite', 'webp', 'off', 'off', 'off', 'off', 'none', 'none'],
+  androidSideways: ['off',   'off',     'off',    'off',       'lite',    'on',            'on',      'on', 'off', 'off', 'on', 'off', 'off', 'lite', 'lite', 'webp', 'off', 'off', 'off', 'off', 'none', 'none'],
+  desktop:         ['on',    'on',      'on',     'off',       'full',    'on',            'on',      'off', 'on', 'on', 'off', 'on', 'off', 'full', 'full', 'live', 'on', 'on', 'on', 'off', 'full', 'full'],
 };
-const NAMES_B = ['deskTrim', 'binoculars', 'deskEnter', 'quietSkipper', 'shoreSpray', 'pipelineDeferral', 'levelRetry', 'fingerTargets', 'tessie', 'ospreyDive', 'buildAllFirst', 'teaHouse', 'oldRuin', 'islandGranite', 'fleetDetail', 'chartGround', 'cinematicIntro', 'tessieArt', 'playTessie', 'tessieTouch', 'tessieUnder'];
+const NAMES_B = ['deskTrim', 'binoculars', 'deskEnter', 'quietSkipper', 'shoreSpray', 'pipelineDeferral', 'levelRetry', 'fingerTargets', 'tessie', 'ospreyDive', 'buildAllFirst', 'teaHouse', 'oldRuin', 'islandGranite', 'fleetDetail', 'chartGround', 'cinematicIntro', 'tessieArt', 'playTessie', 'tessieTouch', 'tessieUnder', 'tessieSkillFx'];
 
 test('the six devices: the behaviours (binoculars, the desk\'s trim and Enter, the quiet skipper, the shore, the load)', () => {
   for (const [dev, want] of Object.entries(WANT_B)) {
@@ -224,6 +224,14 @@ test('play as Tessie under the water (phase 2a): full at L0-L1, lite at L2, none
   assert.equal(make('desktop', 2).f.feature('tessieUnder').tier, 'lite');
   assert.equal(make('desktop', 3).f.feature('tessieUnder').tier, 'none');
   assert.equal(make('iphoneTurned', 0).f.feature('tessieUnder').tier, 'none');
+});
+
+test('the Tessie RPG skills\' effects: full at L0-L1, lite at L2 (half the spray), none at L3 and on a phone', () => {
+  assert.equal(make('desktop', 0).f.feature('tessieSkillFx').tier, 'full');
+  assert.equal(make('desktop', 1).f.feature('tessieSkillFx').tier, 'full');
+  assert.equal(make('desktop', 2).f.feature('tessieSkillFx').tier, 'lite');
+  assert.equal(make('desktop', 3).f.feature('tessieSkillFx').tier, 'none');
+  assert.equal(make('iphoneTurned', 0).f.feature('tessieSkillFx').tier, 'none');
 });
 
 test('a weak desktop GPU (L2) takes the lite assets; a capture never does', () => {

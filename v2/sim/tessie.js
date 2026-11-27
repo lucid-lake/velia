@@ -40,7 +40,8 @@
 // up or down at most) and the body follows it there, so a dive under the keel is a path every point of her takes. A nose about
 // to meet the hull ducks under it (the reflex) unless she means to touch (contact(true): the revenge's strike).
 //   t.stats()   the schedule, the sightings (spot, distance, bearing, depth), the line
-import { createBoatClear, CLEAR } from './tessieClear.js';   // M3: the boat is solid to her (owner, 2026-11-18)
+import { createBoatClear, CLEAR } from './tessieClear.js';
+import { SKILL_WAVE_KIND, SKILL_WAVE_MAX, waveReach } from './tessieWaves.js';   // the RPG's skill waves on her water   // M3: the boat is solid to her (owner, 2026-11-18)
 
 export const TESSIE = Object.freeze({
   retryS: 5,            // no spot fits: try again this much later (the sighting stays cued)
@@ -205,7 +206,7 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
   const N = T.N, ds = () => L / (N - 1);
   const spine = new Float32Array(N * 8);
   const broke = new Uint8Array(N), above = new Uint8Array(N), lastRing = new Float32Array(N).fill(-1e9), prevY = new Float32Array(N);
-  const st = { phase: 'idle', visible: false, t: 0, spine, wetAge: 0, centre: [0, 0], radius: L, water: { kelvin: [], rings: [], contacts: [] }, events: [], rising: [], clips: [], clear: Infinity, held: 0 };
+  const st = { phase: 'idle', visible: false, t: 0, spine, wetAge: 0, centre: [0, 0], radius: L, water: { kelvin: [], rings: [], contacts: [], skill: [], reach: 0 }, events: [], rising: [], clips: [], clear: Infinity, held: 0 };
   // M3: the boat's solid shape (posed each step from the boat's drawn pose) and the least gap seen per sighting
   const clear = createBoatClear();
   let boatPosed = false;
@@ -216,6 +217,11 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
   const inAreaPt = (x, z, inset = 0) => !!area && Math.hypot(x - area.x, z - area.z) <= area.r - inset;
   let S = null;   // the sighting: its clock, its script (clips), the nose and its path history
   const sightings = [], rings = [];
+  // the RPG's skill waves (render/creature-map.js SKILL_WAVE): the Tail Surge's swell, the Lure's inward ripples, the Dash's churn;
+  // aged on her play clock, gone after their life. The events a caller emits after her frame's effects have read them (consumed())
+  // wait for her next step, so no splash is lost between two frames
+  const waves = [], queued = [];
+  let consumedNow = false, wakeK = 1, ghostV = 0;
   let line = { said: false, at: null }, rare = { said: false, at: null };
   let boatNow = null;
 
@@ -455,6 +461,8 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
 
   // ---- the water's sources (render/tessie.js: the wake's impulse maths) and the events (splashes, drips, the sound) ----
   const ev = (type, x, y, z, s = 1, extra = null) => st.events.push(extra ? { type, x, y, z, s, ...extra } : { type, x, y, z, s });
+  // a caller's event: this frame's if its effects have not read them yet, else the next step's
+  const post = (type, x, y, z, s = 1, extra = null) => { const e = extra ? { type, x, y, z, s, ...extra } : { type, x, y, z, s }; (consumedNow ? queued : st.events).push(e); };
   function water(t, dt) {
     const d = ds(), W = st.water;
     W.kelvin.length = 0; W.contacts.length = 0; st.rising.length = 0;
@@ -485,6 +493,14 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
     }
     while (rings.length && (playT - rings[0].t0 > 9 || rings.length > 16)) rings.shift();
     W.rings = rings.map((r) => [r.x, r.z, playT - r.t0, r.amp]);
+    // the skill waves: their sources (two vec4 each), and how far from her centre the farthest live one reaches (the map's extent)
+    for (let i = waves.length - 1; i >= 0; i--) if (playT - waves[i].t0 > waves[i].life) waves.splice(i, 1);
+    W.skill.length = 0; W.reach = 0;
+    for (const w of waves) {
+      const age = playT - w.t0;
+      W.skill.push([w.x, w.z, age, w.kind, w.p[0], w.p[1], w.p[2], w.p[3]]);
+      W.reach = Math.max(W.reach, Math.hypot(w.x - st.centre[0], w.z - st.centre[1]) + waveReach(w, age));
+    }
     // the V: impulses along the path of her neck's base while she is at the surface (the boat's wake, a point source)
     const ib = Math.round(T.neckS / d);
     let back = 0; for (let i = 1; i <= ib; i++) back += d;
@@ -494,8 +510,10 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
       histAt(back + S.nose.speed * tau, tmp);
       const yb = yAt(T.neckS, tb, tmp[2], tmp[3]) + heightAt(T.neckS, L);
       const pierce = smooth(-0.3, 0.3, yb);
-      if (pierce <= 0) continue;
-      W.kelvin.push([tmp[0], tmp[1], tau, 0.55 * pierce * Math.min(1.4, S.nose.speed / T.U)]);
+      // the Breach's run-up (ghostV): her V shows on the water over her even below it, fainter
+      const show = Math.max(pierce, ghostV * 0.45);
+      if (show <= 0) continue;
+      W.kelvin.push([tmp[0], tmp[1], tau, 0.55 * show * Math.min(1.4, S.nose.speed / T.U) * wakeK]);
     }
   }
   // the clip moments the splashes and the sound hang on (once each)
@@ -607,7 +625,7 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
     const p0 = pathAt(c, a0, [0, 0, 0]);
     S.nose = { x: p0[0], z: p0[1], psi: c.psi0, speed: T.U, want: T.U, kappa: c.kappa, arc: a0, target: null, dy: 0, dyWant: 0 };
     histReset(p0[0], p0[1], c.psi0, 0, T.U);
-    above.fill(0); broke.fill(0); lastRing.fill(-1e9); rings.length = 0;
+    above.fill(0); broke.fill(0); lastRing.fill(-1e9); rings.length = 0; waves.length = 0;
     if (script && kind === 'breach') { play('swim', 0); play('surface', 0); play('breach', T.lead + 0.6); play('arc', T.lead + 6); play('flick', T.flick[0] + 2); play('dive', T.dive + 2); S.dive = T.dive + 2; }
     else if (script && kind === 'neck') {
       // the arc's neck is full 3.5 s after its start and holds 9 s: up 3 s before the flash, down after it, the dive 3 s after
@@ -703,7 +721,25 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
     // a sound moment at her nose or her tail now (the strike's deep breath; the give-up's slap)
     // 2c: rings on the surface at a point (the strike from below's warning): real rings in her water map, as her own surfacing's
     ring(x, z, amp = 0.7) { if (!S) return false; rings.push({ x, z, t0: playT, amp }); return true; },
-    emit(type, at = 'nose', s = 1) { if (!S) return false; const o = at === 'tail' ? (N - 1) * 8 : 0; ev(type, spine[o], type === 'breath' ? Math.max(0.3, spine[o + 1] + 0.3) : 0, spine[o + 2], s); return true; },
+    emit(type, at = 'nose', s = 1) { if (!S) return false; const o = at === 'tail' ? (N - 1) * 8 : 0; post(type, spine[o], type === 'breath' ? Math.max(0.3, spine[o + 1] + 0.3) : 0, spine[o + 2], s); return true; },
+    // a splash at a point on the water (the RPG's skills: the Dash's boil, a hull's spray, the Breach's column)
+    splash(type, x, z, s = 1, extra = null) { if (!S) return false; post(type, x, 0, z, s, extra); return true; },
+    // the frame's effects and sound have read her events: anything emitted from now waits for her next step
+    consumed() { consumedNow = true; },
+    // the RPG's skill waves on her water (render/creature-map.js SKILL_WAVE): kind 'swell' { speed, maxR, amp }, 'inward'
+    // { r0, speed, amp }, 'churn' { r, amp }; life (s). Returns false with no sighting
+    wave(kind, x, z, p = {}, life = 3) {
+      if (!S || !SKILL_WAVE_KIND[kind]) return false;
+      const k = SKILL_WAVE_KIND[kind];
+      const q = kind === 'swell' ? [p.speed ?? 20, p.maxR ?? 40, p.amp ?? 0.5, p.width ?? 2.4] : kind === 'inward' ? [p.r0 ?? 24, p.speed ?? 8, p.amp ?? 0.2, p.width ?? 1.6] : [p.r ?? 2, p.amp ?? 1, p.grow ?? 0, 0];
+      waves.push({ kind: k, x, z, t0: playT, life, p: q });
+      while (waves.length > SKILL_WAVE_MAX) waves.shift();
+      return true;
+    },
+    get waves() { return waves.length; },
+    // the V's strength (the Dash: × 1.8 while it runs), and the run-up's V shown from below the surface (the Breach: 0 … 1)
+    wakeGain(k = 1) { wakeK = Number.isFinite(k) && k > 0 ? k : 1; return wakeK; },
+    ghostWake(a = 0) { ghostV = Math.max(0, Math.min(1, +a || 0)); return ghostV; },
     play(name, at) { return !!CLIPS[name] && play(name, at); },
     // steer her nose to (x, z) at `speed` m/s (null: back to her own course)
     swimTo(x, z, speed = T.U, acc = null, turn = null, max = null) { if (!S) return false; S.nose.target = x == null ? null : { x, z }; S.nose.want = Math.max(0, Math.min(max ?? T.speedMax, speed)); S.nose.acc = acc ?? undefined; S.nose.turnMax = turn ?? undefined; S.dive = Infinity; return true; },   // max: a caller's own top (the RPG's Dash ranks past 19.5 m/s)
@@ -726,6 +762,8 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
       boatPosed = !!boat;
       if (boat) clear.pose(boat);
       st.events.length = 0;
+      consumedNow = false;
+      if (queued.length) { for (const e of queued) st.events.push(e); queued.length = 0; }
       if (!playing || !(dt > 0)) return st;
       playT += dt;
       if (race && S && S.dive > S.t + 0.5) play('dive', S.t + 0.5);

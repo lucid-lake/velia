@@ -28,7 +28,7 @@ export { createTessiePlayer } from './tessiePlayer.js';   // play as Tessie: the
 
 const TESSIE_URL = new URL('../assets/tessie/tessie.glb', import.meta.url);
 
-export function createTessiePlugin({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, wake, errors = [], flags, P, depthAt, under = false }) {   // under: phase 2a (src/core/features.js tessieUnder)
+export function createTessiePlugin({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, wake, errors = [], flags, P, depthAt, under = false, skillFx = 'full' }) {   // under: phase 2a (src/core/features.js tessieUnder); skillFx: the RPG skills' effects (tessieSkillFx)
   const R = createTessieRender({ device, reg, frameBGL, frameStruct, sky, shadow, hdrTarget, msaa, depthFormat, wake, errors, under });
   const F = tessieFlag(flags.tessie);
   const area = areaOf('tessieWaters');   // her water (v2/stage/areas.js): near it each sighting is placed in it (how often: the stage's tessie act)
@@ -46,7 +46,7 @@ export function createTessiePlugin({ device, reg, frameBGL, frameStruct, sky, sh
   let revenge = null, clockT = 0, strikeAt = -Infinity;
   let raceDrone = 0;   // Tessie's Deep (v2/regatta/tessieDeep.js): the drone's level while she rises on the course (0–1)
   // M2: her splashes, drips and mist, her shadow on the bed (living/tessie-fx.js), her sound (living/tessie-sound.js)
-  const fx = createTessieFx({ seed: P.seed, bedAt: (x, z) => -depthAt(x, z) });
+  const fx = createTessieFx({ seed: P.seed, bedAt: (x, z) => -depthAt(x, z), skillK: skillFx === 'lite' ? 0.5 : skillFx === 'none' ? 0 : 1 });
   const eventLog = [];   // the events heard, for a film's offline sound (tools/v2-tessie-film.mjs): { t (s, page clock), type, x, z, s, cam }
   let loadP = null, started = false, level = 0, nowDone = false;
   const t = { assetMs: null, playAt: null };
@@ -112,6 +112,8 @@ export function createTessiePlugin({ device, reg, frameBGL, frameStruct, sky, sh
     // the hull she is held outside this frame (the nearest of the Halcyon and the lake's sailboats); playDip: the beds' level under the
     // surface; the sound's swim (the rush, the low-pass); playK: her step's dt scale while played (the RPG's Breach: 0.5 about the apex)
     playing: false, boatFor: null, playDip: 1, playK: 1,
+    // the RPG's skill effects (living/tessie-fx.js skill()): the spray each skill throws, at a tier (src/core/features.js tessieSkillFx)
+    skillFx: (type, o) => fx.skill(type, o), skillTier: skillFx,
     get sound() { return sound; },
     attach(o) {
       B = o.B; ui = o.ui ?? null; hold = o.hold ?? null; race = o.race ?? race; sunOf = o.sun ?? sunOf;
@@ -209,6 +211,7 @@ export function createTessiePlugin({ device, reg, frameBGL, frameStruct, sky, sh
           sound?.play(e, camYaw);
         }
       }
+      sim.consumed();   // her frame's effects and sound have read the events: a later emit (the player's skills) waits for her next step
       if (sim.line.pending) { const text = typeof sim.line.pending === "string" ? sim.line.pending : sim.T.line; sim.line.pending = false; say(text); }
     },
     camera(dt, c) { return P.headless || !R.ready || self.playing ? c : cameraAssist(dt, c); },
