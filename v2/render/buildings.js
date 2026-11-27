@@ -372,7 +372,7 @@ ${SHORE_LIGHT_WGSL}
   let p = v.world; var n = normalize(v.n); let s = normalize(F.sun.xyz);
   let mat = u32(v.info.x + 0.5); let hb = v.info.w;
   var A = v.alb; var emit = vec3f(0.0); var rough = ${LOOK.rough.toFixed(2)}; var metal = 0.0; var ao = 1.0; var sunVis = 1.0; var specK = 1.0;
-  let night = smoothstep(${LOOK.nightSin[0].toFixed(3)}, ${LOOK.nightSin[1].toFixed(3)}, s.y);
+  let night = 1.0 - smoothstep(${LOOK.nightSin[1].toFixed(3)}, ${LOOK.nightSin[0].toFixed(3)}, s.y);
   let id = floor(hb * 997.0);
   if (mat == 2u) {
     // a big block: a ground floor of its own (stone and shop glass under a canopy line), then storeys of 3.2 m with a slab band
