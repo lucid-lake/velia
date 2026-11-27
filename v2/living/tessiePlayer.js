@@ -278,6 +278,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   // phase 3: Lure's and Sonar's rings (their own skills table; the Dash keeps C.skills), the lure under way, the ping's marks
   const R = bounty ? createSkills(RPG_SKILLS_TABLE) : null;
   const marks = new Map();   // id → until (s, her clock): the boats the last ping marked
+  const skillAt = new Map();   // id → { t, until } (s, her clock): the last Sonar ping that marked the boat or Lure that lured it (the fastest record)
+  const sinceSkill = (id) => { const k = skillAt.get(id); return k && clock <= k.until ? clock - k.t : undefined; };
   let ping = null, lureFx = null, halcyonLure = null, rimT = -1;   // ping { rangeM, until, tail }; lureFx { x, z, t0, n }; halcyonLure { x, z, until }
   const casts = [], splashPts = [], rimOut = [], pingArg = { rangeM: 0, marks: rimOut }, hudStates = { dash: null };
   const seenRecently = (id) => clock - (sawAt.get(id) ?? -Infinity) <= LURE.seenS;
@@ -544,7 +546,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const kind = bounty ? RPG.kinds[b.kind] ?? null : null; if (!kind) return null;
     const st = ctx ?? strike ?? { depthM: C.state.nose, hidden: !!C.state.hidden, seen: null, skill: null };
     const splash = splashType(kind);   // the jet ski's rider and the paddle-wheeler's decks are splashed, never wrecked
-    const r = bounty.score({ kind, depthM: st.depthM, hidden: st.hidden, seen: !!st.seen?.has(b.id), skill: st.skill, splash }, { day: day() });
+    const r = bounty.score({ kind, depthM: st.depthM, hidden: st.hidden, seen: !!st.seen?.has(b.id), skill: st.skill, splash, sinceS: sinceSkill(b.id) }, { day: day() });
     if (r) { log.bounty.push({ kind, ...(splash ? { splash } : {}), xp: r.xp, first: r.first, levels: r.levels, at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); leveled(r); }
     return r;
   }
@@ -614,7 +616,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const fresh = ids.filter((id) => !(clock - (splashAt.get(id) ?? -Infinity) < RPG.splashS));
     if (!fresh.length) return null;
     for (const id of ids) splashAt.set(id, clock);
-    const r = bounty.score({ kind: 'kayak', splash: true, depthM: 0, hidden: false, seen: false }, { day: day() });
+    const since = fresh.map(sinceSkill).filter(Number.isFinite);   // a lured kayak splashed: the fastest record too
+    const r = bounty.score({ kind: 'kayak', splash: true, depthM: 0, hidden: false, seen: false, ...(since.length ? { sinceS: Math.min(...since) } : {}) }, { day: day() });
     if (r) { log.bounty.push({ kind: 'kayak', splash: true, xp: r.xp, first: r.first, levels: r.levels, at: +clock.toFixed(1) }); if (log.bounty.length > 8) log.bounty.shift(); hud?.level(bounty.legend()); leveled(r); }
     return r;
   }
@@ -650,6 +653,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
       else if (busy()?.lure?.(t.id, { x: her.x, z: her.z, s })) ids.push(t.id);   // the busy lake's sailboats
     }
     for (const id of kayaks()?.lure?.(her.x, her.z, row.rangeM, s) ?? []) ids.push(`k:${id}`);   // the kayakers judge their own sighting (the watch, the wariness)
+    for (const id of ids) skillAt.set(id, { t: clock, until: clock + s });
     lureFx = { x: her.x, z: her.z, t0: clock, n: 0 };
     sim.emit?.('flick', 'tail');
     casts.push({ type: 'lure', x: her.x, z: her.z });
@@ -660,7 +664,7 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
     const row = SONAR_RANKS[rank], n = nose(); if (!R || !row || !n || W.as !== 'tessie') return false;
     R.rank('sonar', rank); if (!R.press('sonar')) return false;
     const found = sonarPing({ x: n.x, z: n.z }, targets(), { rangeM: row.rangeM });
-    marks.clear(); for (const m of found) marks.set(m.id, clock + row.markS);
+    marks.clear(); for (const m of found) { marks.set(m.id, clock + row.markS); skillAt.set(m.id, { t: clock, until: clock + row.markS }); }
     ping = { rangeM: row.rangeM, until: clock + row.markS, tail: row.tail };
     rimT = -1;
     const heard = C.state.hidden ? [] : found.filter((m) => m.d <= SONAR.hearM && m.kind !== 'kayak').map((m) => m.id);   // a ping from HIDDEN keeps her hidden

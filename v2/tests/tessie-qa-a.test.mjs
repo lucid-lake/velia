@@ -31,12 +31,12 @@ function lake(ms = 6) {
   return { L, S, t };
 }
 // the player as her on the busy lake, far from the Halcyon (phase 4's rig)
-function rig({ storage, at = { x: 2000, z: 2000 }, heading = 0, world = lake(), kayaks = () => null, services = () => null } = {}) {
+function rig({ storage, at = { x: 2000, z: 2000 }, heading = 0, world = lake(), kayaks = () => null, services = () => null, traffic = () => [] } = {}) {
   const wind = { pattern: null, base: { dirDeg: 200, speedMs: 6 }, setLevel() { return 1; }, sample(x, z, t) { const v = steadyWind(6, 200)(x, z, t); return { vx: v.vx, vz: v.vz }; } };
   const B = createBoatSim({ water: waterFor(() => 0), heightAt: () => -40, wind, headless: true });
   const sim = createTessie({ seed: 1, depthAt: deep });
   const plugin = { sim, render: { ready: true }, playing: false, revenge: null, boatFor: null, playDip: 1, playK: 1 };
-  const P = createTessiePlayer({ plugin, B, depthAt: deep, headless: true, veil: () => {}, storage, rpg: true, busy: () => world.L, kayaks, services, day: () => '2026-07-04' });
+  const P = createTessiePlayer({ plugin, B, depthAt: deep, headless: true, veil: () => {}, storage, rpg: true, busy: () => world.L, kayaks, services, traffic, day: () => '2026-07-04' });
   const b0 = { x: B.state.x, z: B.state.z, heading: 0, speed: 0 };
   sim.ambush(at.x, at.z, heading, 0.2); sim.hunt(false);
   for (let k = 0; k < 6 / DT; k++) sim.step(DT, { playing: true, boat: b0, view: { x: at.x, z: at.z + 40, yaw: 0, hHalf: 0.6 } });
@@ -179,4 +179,25 @@ test('a save of a newer _v is kept untouched in the store (read in memory, play 
   assert.equal(U.state().byType.sail.wrecked, 7, 'and the counts');
   assert.equal(JSON.parse(old.map.get(BOUNTY.key))._v, BOUNTY.v, 'migrated and written as today\'s _v');
   assert.equal(migrate(JSON.stringify({ hello: 1 }), '3').save.byType.sail.wrecked, 3, 'no _v and nothing of a save: a new one (the old knock total carried)');
+});
+
+// ---- finding 4: the fastest record ----
+test('the fastest record: a boat wrecked after a Sonar ping marked it scores fastestS (the s from the ping); one never marked does not', () => {
+  for (const ping of [true, false]) {
+    let boat = null;
+    const traffic = () => (boat ? [{ targets: () => [{ ...boat }], hit: (id) => id === 'p0' }] : []);
+    const world = lake();
+    const { P, sim, step } = rig({ storage: save({}), traffic, world });
+    step(0.3);
+    alone(world, null);
+    const n = sim.state.nose;
+    boat = { id: 'p0', kind: 'power', x: n.x + Math.sin(n.psi) * 30, z: n.z - Math.cos(n.psi) * 30, heading: n.psi + Math.PI / 2, L: 6.6, B: 2.4 };
+    if (ping) assert.equal(P.pressSlot('sonar'), 'fire');
+    P.pin({ nose: 0, chase: 'p0' });
+    let t = 0; while (t < 8 && !P.stats().log.knocks.length) { step(DT); t += DT; }
+    assert.ok(P.stats().log.knocks.length, `knocked (${t.toFixed(1)} s)`);
+    const f = P.bounty.state().byType.runabout.fastestS;
+    if (ping) assert.ok(Number.isFinite(f) && Math.abs(f - t) <= 0.2, `fastestS ${f} ≈ ${t.toFixed(1)} s from the ping`);
+    else assert.equal(f, null, 'never marked: no record');
+  }
 });

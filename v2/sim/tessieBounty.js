@@ -2,7 +2,7 @@
 // caller passes the day as a string), no Math.random. One localStorage key per device, like every Velia save.
 //   the bounty   how many of each boat type she has wrecked (a knockdown) or splashed (a kayak pair), the first day, and three
 //                records: the deepest strike start (m under when it began), the unseen wrecks (struck from HIDDEN, deeper than 8 m),
-//                the fastest (s from a Sonar ping or a Lure to the hit; the skills come later, so null until then)
+//                the fastest (s from the Sonar ping that marked the boat or the Lure that lured it to the hit, while the mark or the lure lasts)
 //   the XP       per wreck by type (BOUNTY.xp), × 1.5 from HIDDEN, × 1.5 on a boat that had seen her, × 3 the first of a type; a set
 //                (every type of a region) + 25 once
 //   the level    1 to 20; level L → L + 1 needs 5L + 5 XP (level 2 at 10, level 5 at 70, level 10 at 270, level 20 at 1,045)
