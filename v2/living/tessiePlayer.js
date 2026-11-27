@@ -758,7 +758,8 @@ export function createTessiePlayer({ plugin, B, depthAt = () => 30, busy = () =>
   function breachTrack(list) {
     const fx = breachFx; if (!fx) return null;
     const b = list.find((o) => o.id === fx.targetId) ?? null;
-    if (!fx.seen && C.state.lunge?.phase === 'run' && (sawAt.get(fx.targetId) ?? -Infinity) > fx.t0) {
+    if (!fx.seen && C.state.lunge?.phase === 'run' && (sawAt.get(fx.targetId) ?? -Infinity) > fx.t0) fx.sawT ??= clock;   // the crew sees the V ...
+    if (!fx.seen && fx.sawT != null && C.state.lunge?.phase === 'run' && clock - fx.sawT >= BREACH.reactS) {   // ... and bears away BREACH.reactS later
       fx.seen = b ? { ...b, u: 0 } : true; if (log.breach) { log.breach.seen = +clock.toFixed(1); if (b) log.breach.seenAt = { x: +b.x.toFixed(1), z: +b.z.toFixed(1) }; }
     }
     return fx.seen ? (fx.seen === true ? null : fx.seen) : b;
