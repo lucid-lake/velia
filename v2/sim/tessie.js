@@ -679,8 +679,8 @@ export function createTessie({ seed = 1, depthAt = () => 30, L = TESSIE.L, T = T
     biteHold(dt) { const c = S && clipAt('bite'); if (!c || !(dt > 0)) return false; c.at += dt; return true; },
     get biteState() { return S?.biteNow ?? null; },
     // play as Tessie's breach: BREACH_PLAY's timing; roll (rad) in the air (R2: she lands on her side), lean (rad) of
-    // the fall toward the boat (R1)
-    breach({ roll = 0, lean = 0 } = {}) { if (!S) return false; S.breachRoll = roll; S.leanX = lean; return play('breach', S.t, { B: BREACH_PLAY }); },
+    // the fall toward the boat (R1); B: the arc's own timing { up, hang, down } (the RPG's Breach: a 1.6 s arc), else BREACH_PLAY's
+    breach({ roll = 0, lean = 0, B = null } = {}) { if (!S) return false; S.breachRoll = roll; S.leanX = lean; return play('breach', S.t, { B: B ?? BREACH_PLAY }); },
     // play as Tessie's gaits: dash (the burst runs), dive (0…1: the tail lifts as she goes down), look (rad: her head
     // leads toward it, null: toward the boat as her sightings do)
     gait({ dash = false, dive = 0, look = null } = {}) { if (!S) return false; S.gaitDash = !!dash; S.gaitDive = Math.max(0, Math.min(1, dive)); S.lookWant = Number.isFinite(look) ? look : null; return true; },

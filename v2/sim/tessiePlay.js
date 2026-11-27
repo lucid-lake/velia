@@ -54,11 +54,19 @@
 // the rise 60 %, the breach 30 %; the climb scaled the same. Her pace is never braked harder than PLAY.strikeStop (6 m/s²). A press is
 // held PLAY.bufS (0.25 s): pressed just before a boat enters the lock, or in the cooldown's last 0.25 s, it fires then. The cooldown: 0.8 s
 // after a miss, 2.5 s after a hit (from the contact); a dash press in the recovery cuts it short; nothing cancels a strike once begun.
+// The Breach (the RPG, phase 5; v2/sim/tessieBreach.js): C.skillBreach(target, { offM }) starts the run (the breach family's kind
+// 'skill': run → climb → breach → recover): she dives to BREACH.runNose and runs at BREACH.runV at the strike spot off the boat's near
+// rail (offM m off its middle line; a kayak: off it); lunge.near: let go now and the arc lands on it. C.releaseBreach() (the slot let
+// go), the spot itself reached (held on: BREACH.atK of that reach), BREACH.runM of run or BREACH.maxRunS starts the climb
+// (BREACH.climbV), then the arc (BREACH.arc, the free breach's roll toward the boat); her front's fall is the 'fall' event with
+// skill: true (the page judges it by the rank's landing window). ctx.track: the target as the page tells it now (a crew that saw the
+// run: where it was then, u 0; null: carried on along its last way)
 // The lock (ctx.lock from sim/tessieHits.js lock()): her wanted heading eases toward the locked boat's intercept with
 // weight 0.45 (0.55 under the water) × its blend, adding at most 20°/s to her own turn (a hard turn by the player always wins).
 import { BREACH_PLAY, biteBeats, biteDur, BITE2 } from './tessie.js';
 import { createSkills, SKILLS } from './tessieSkills.js';
 import { HITS, hullDist } from './tessieHits.js';
+import { BREACH, ARC_S, ARC_FALL_S } from './tessieBreach.js';   // the RPG's Breach (phase 5): the run, the climb, the 1.6 s arc
 
 const ROW = (o) => Object.freeze(o);
 export const PLAY = Object.freeze({
@@ -243,14 +251,15 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
     ev('lunge', { target: tgt.id });
   }
   function startBreach(n, free, from) {
-    const L = st.lunge;
+    const L = st.lunge, skill = !free && L?.kind === 'skill';
     st.breaches++;
-    const roll = free && st.breaches % 2 === 0 ? hashSide(st.breaches) * K.freeRoll * DEG : 0;   // R2: every other free breach lands on her side
-    const lean = !free && L?.target ? clamp(wrap(Math.atan2(L.target.x - n.x, -(L.target.z - n.z)) - n.psi), -K.leanDeg * DEG, K.leanDeg * DEG) : 0;   // R1: the fall leans toward the boat (at most leanDeg)
+    // R2: every other free breach lands on her side; the Breach skill always does (rolled toward the boat)
+    const roll = skill ? sideOf(n, L.target) * BREACH.roll * DEG : free && st.breaches % 2 === 0 ? hashSide(st.breaches) * K.freeRoll * DEG : 0;
+    const lean = !free && L?.target && !(skill && L.target.kind === 'kayak') ? clamp(wrap(Math.atan2(L.target.x - n.x, -(L.target.z - n.z)) - n.psi), -K.leanDeg * DEG, K.leanDeg * DEG) : 0;   // R1: the fall leans toward the boat (at most leanDeg; never toward a kayak)
     if (L) L.lean = lean;
     if (free) st.lunge = { phase: 'breach', kind: 'free', t: 0, target: null, judged: false, hit: false, fell: false, free: true, roll };
-    else Object.assign(L, { phase: 'breach', t: 0, fell: false, fromRise: true });
-    sim.contact(true); sim.breach({ roll, lean });
+    else Object.assign(L, { phase: 'breach', t: 0, fell: false, fromRise: true, roll });
+    sim.contact(true); sim.breach({ roll, lean, B: skill ? BREACH.arc : null });
     st.breachRest = K.breachRest; st.noseWant = 0; deepWas = false;
     ev('breach', { x: n.x, z: n.z, from });
   }
@@ -275,6 +284,19 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       if (sim.state.visible) { sim.drive(false); sim.contact(false); sim.depth(0); sim.bank?.(0); sim.swimTo(null); sim.play('dive', sim.state.t + 4); }
       return true;
     },
+    // the RPG's Breach: the run at `tgt` ({ id, kind, x, z, heading, u, L, B }); false while a strike is under way (nothing cancels one)
+    skillBreach(tgt, { offM = K.strikeOffM } = {}) {
+      if (!st.on || !tgt) return false;
+      const B = st.bite, beats = B ? biteBeats(B.kind, B.t, B.hit) : null;
+      if ((beats && beats.phase !== 'recover') || (st.lunge && st.lunge.phase !== 'recover')) return false;
+      st.bite = null;
+      st.lunge = { phase: 'run', kind: 'skill', t: 0, target: boatOf(tgt), locked: true, judged: false, hit: false, fell: false, free: false, skill: true, runM: 0, release: false, offM, fallS: ARC_FALL_S, endS: ARC_S };
+      st.lunges++; st.noseWant = 0; sim.contact(true);
+      ev('lunge', { target: tgt.id, skill: true });
+      return true;
+    },
+    // the slot let go: she launches (the climb, then the arc)
+    releaseBreach() { const L = st.lunge; if (!L || L.kind !== 'skill' || L.phase !== 'run') return false; L.release = true; return true; },
     // the page's verdict on the last 'contact' (a bite) or 'fall' (a breach): a hit says so (and the follow-through grips); a miss says
     // "Next time…" (one shake) unless nothing was aimed at; the cooldown runs from now (2.5 s after a hit, 0.8 s after a miss)
     result(hit) {
@@ -288,7 +310,7 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       if ((L && L.free && !hit) || (B && !B.target && !hit)) return;   // a breach for its own sake or a snap at nothing: no verdict
       ev('verdict', { hit: !!hit });   // no line (the UI audit's decision B): the knock itself says it
     },
-    step(dt, hands = {}, { target = null, lock = null } = {}) {
+    step(dt, hands = {}, { target = null, lock = null, track } = {}) {
       events.length = 0;
       if (!st.on || !(dt > 0)) return st;
       const n = nose(); if (!n) return st;
@@ -415,15 +437,19 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       // the breach family: the rise onto a spot off the boat's beam, the breach, the recovery
       if (L) {
         L.t += dt;
-        if (L.target && (L.phase === 'rise' || L.phase === 'breach')) L.target = refresh(L.target, locked, target, dt);   // the boat as it is now (the lock, else the corners, else carried on its way)
+        if (L.target && L.kind === 'skill' && L.phase !== 'recover') L.target = track ? boatOf(track) : refresh(L.target, null, null, dt);   // the Breach: the page's read of it (none: carried on its old way)
+        else if (L.target && (L.phase === 'rise' || L.phase === 'breach')) L.target = refresh(L.target, locked, target, dt);   // the boat as it is now (the lock, else the corners, else carried on its way)
         // the strike spot: where the boat will be at her fall, just off its beam; the side ahead of her, chosen once (never a turn-about onto
         // a spot behind her: a boat coming at her, she slows and lets it come). Her pace: onto the spot by the fall (never braked harder than
         // strikeStop); once the spot is under her, the boat's own way (she rises where it will be)
         let sx = null, sz = null;
-        const tLeft = L.phase === 'rise' ? Math.max(0, K.warn.s - L.t, (st.nose - K.breachAtM) / K.strikeRise) + FALL_S : L.phase === 'breach' ? Math.max(0, FALL_S - L.t) : 0;
+        const fallS = L.fallS ?? FALL_S, climbS = Math.max(0, st.nose - K.breachAtM) / BREACH.climbV;
+        const tLeft = L.phase === 'rise' ? Math.max(0, K.warn.s - L.t, (st.nose - K.breachAtM) / K.strikeRise) + FALL_S : L.phase === 'breach' ? Math.max(0, fallS - L.t)
+          : L.phase === 'run' ? climbS + fallS + (L.target ? Math.max(0, Math.hypot(L.target.x - n.x, L.target.z - n.z) - 8) / BREACH.runV : 0) : L.phase === 'climb' ? climbS + fallS : 0;
         if (L.target) {
           const tg = L.target, rx = Math.cos(tg.heading ?? 0), rz = Math.sin(tg.heading ?? 0), u = tg.u ?? 0;
-          const at = (sd) => [tg.x + rx * sd * K.strikeOffM + Math.sin(tg.heading ?? 0) * u * tLeft, tg.z + rz * sd * K.strikeOffM - Math.cos(tg.heading ?? 0) * u * tLeft];
+          const off = L.offM ?? K.strikeOffM;
+          const at = (sd) => [tg.x + rx * sd * off + Math.sin(tg.heading ?? 0) * u * tLeft, tg.z + rz * sd * off - Math.cos(tg.heading ?? 0) * u * tLeft];
           const aheadOf = (p) => (p[0] - n.x) * Math.sin(n.psi) - (p[1] - n.z) * Math.cos(n.psi);
           L.side ??= aheadOf(at(1)) >= aheadOf(at(-1)) ? 1 : -1;
           [sx, sz] = at(L.side);
@@ -433,9 +459,24 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
         const pace = () => {
           const dx = sx - n.x, dz = sz - n.z, ahead = dx * Math.sin(n.psi) - dz * Math.cos(n.psi);
           if (ahead < 2.5) { toward(L.target.x, L.target.z); goV = Math.max(2, L.target.u ?? 0); }   // the spot under her (or behind): hold here at the boat's way, facing it
-          else { toward(sx, sz); goV = clamp(Math.hypot(dx, dz) / Math.max(0.4, tLeft), 2, K.top); }
+          else { toward(sx, sz); goV = clamp(Math.hypot(dx, dz) / Math.max(0.4, tLeft), 2, L.skill ? Math.max(BREACH.runV, n.speed) : K.top); }   // the Breach: never faster than her run (a release far off lands short)
         };
-        if (L.phase === 'rise') {
+        if (L.phase === 'run') {
+          // the Breach's run: at the spot at her run pace, BREACH.runNose down; the climb on the release, at the spot, after runM or maxRunS
+          L.runM += n.speed * dt;
+          goV = BREACH.runV;
+          let at = false;
+          if (sx != null) {
+            toward(sx, sz);
+            const ds = Math.hypot(sx - n.x, sz - n.z), reach = Math.max(4, n.speed) * (climbS + fallS);
+            L.near = ds <= reach;               // let go now and the arc lands on it (the corners turn amber)
+            at = ds <= reach * BREACH.atK;      // held on to the spot itself: she launches there (the end of her run)
+          }
+          if (L.release || at || L.runM >= BREACH.runM || L.t >= BREACH.maxRunS) { L.phase = 'climb'; L.t = 0; L.launch = L.release ? 'release' : at ? 'at' : L.runM >= BREACH.runM ? 'run' : 'time'; ev('launch', { x: n.x, z: n.z, why: L.launch }); }
+        } else if (L.phase === 'climb') {
+          if (sx != null) pace();
+          if (st.nose < K.breachAtM + 0.1 || L.t >= 1.2) startBreach(n, false, st.nose);
+        } else if (L.phase === 'rise') {
           // the strike from below's fair warning (2c; owner, 2026-11-20): for its first WARN.s the surface over her rings and the boats near
           // them see her coming (living/tessiePlayer.js threat()); the breach waits for it
           if (L.t < K.warn.s && L.t - L.ringT >= K.warn.every) { L.ringT = L.t; sim.ring?.(n.x, n.z, K.warn.amp); ev('warn', { x: n.x, z: n.z, left: K.warn.s - L.t }); }
@@ -445,14 +486,14 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
           if (sx != null && !L.fell) pace();
           else goV = Math.max(2, st.setting, st.dash ? M.dash : 0);
           // the rising strike's contact: her head and back meet the hull's bottom as she comes up under it (the page lifts and rolls it)
-          if (!L.free && !L.contacted && L.t >= K.riseHitS && L.target) { L.contacted = true; const h = head(); ev('contact', { x: h.x, y: 0, z: h.z, psi: n.psi, kind: 'rising', locked: !!L.locked, targetId: L.target.id, knock: 1, where: 'bottom', at: [h.x, -0.4, h.z] }); }
-          if (!L.fell && L.t >= FALL_S) {
+          if (!L.free && !L.skill && !L.contacted && L.t >= K.riseHitS && L.target) { L.contacted = true; const h = head(); ev('contact', { x: h.x, y: 0, z: h.z, psi: n.psi, kind: 'rising', locked: !!L.locked, targetId: L.target.id, knock: 1, where: 'bottom', at: [h.x, -0.4, h.z] }); }
+          if (!L.fell && L.t >= (L.fallS ?? FALL_S)) {
             L.fell = true;
             // her front 9 m falls along her heading turned by the lean (about the breach's base 9 m back): the footprint's middle 6.3 m from it
             const fp = n.psi + (L.lean ?? 0), bx = n.x - Math.sin(n.psi) * 9, bz = n.z + Math.cos(n.psi) * 9, fx = bx + Math.sin(fp) * 6.3, fz = bz - Math.cos(fp) * 6.3;
-            ev('fall', { x: fx, z: fz, psi: fp, nx: n.x, nz: n.z, locked: !!L.locked, targetId: L.target?.id ?? null });
+            ev('fall', { x: fx, z: fz, psi: fp, nx: n.x, nz: n.z, locked: !!L.locked, targetId: L.target?.id ?? null, ...(L.skill ? { skill: true } : {}) });
           }
-          if (L.t >= BREACH_S) { sim.contact(false); if (!L.judged) self.result(false); L.phase = 'recover'; L.t = 0; }
+          if (L.t >= (L.endS ?? BREACH_S)) { sim.contact(false); if (!L.judged) self.result(false); L.phase = 'recover'; L.t = 0; }
         } else if (L.phase === 'recover' && (L.t >= K.recoverS || L.cut)) { st.lunge = L = null; st.noseWant = 0; }
       }
       // the shore: her nose turns away from 3 m of water (never beaches)
@@ -475,8 +516,12 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       // her depth: a rising strike up fast from depth (paced to the warning's end); a breach at the surface; else the climb rate: the target
       // leads her nose by the sim's own ease (TESSIE dyTau) at the rate, so she moves at it and stops where the rate ends (a 0.2 s glide)
       const water = depthAt(n.x, n.z);
-      if (L && L.phase !== 'recover') {
-        sim.depth(0, L.phase === 'rise' ? clamp((st.nose - K.breachAtM) / Math.max(0.25, K.warn.s - L.t), 1.5, K.strikeRise) : null);
+      if (L && L.phase === 'run') {   // the Breach's run: BREACH.runNose down (never deeper than the water allows)
+        const want = noseLimit(water, BREACH.runNose, K);
+        sim.depth(want > K.swimY ? -(want - K.swimY) : 0, K.rateRun);
+        st.noseWant = want;
+      } else if (L && L.phase !== 'recover') {
+        sim.depth(0, L.phase === 'rise' ? clamp((st.nose - K.breachAtM) / Math.max(0.25, K.warn.s - L.t), 1.5, K.strikeRise) : L.phase === 'climb' ? BREACH.climbV : null);
         st.noseWant = 0;
       } else {
         const limHere = noseLimit(water, 'deep', K);
@@ -501,7 +546,7 @@ export function createTessiePlay({ sim, depthAt = () => 30, K = PLAY, skills = n
       st.speed = n.speed;
       // the camera's read of the strike (ui/tessieCam.js: one spring, a strike weight shaping its goal): on, the boat, the rise
       const sb = B?.target ?? L?.target ?? null;
-      st.strike = (B && biteBeats(B.kind, B.t, B.hit).phase !== 'recover') || (L && L.phase !== 'recover') ? { phase: st.phase, x: sb?.x ?? null, z: sb?.z ?? null, rise: !!(L && L.phase === 'rise'), breach: !!(L && L.phase === 'breach') } : null;
+      st.strike = (B && biteBeats(B.kind, B.t, B.hit).phase !== 'recover') || (L && L.phase !== 'recover') ? { phase: st.phase, x: sb?.x ?? null, z: sb?.z ?? null, rise: !!(L && L.phase === 'rise'), breach: !!(L && L.phase === 'breach'), ...(L?.skill ? { skill: L.phase } : {}) } : null;
       if (st.nose > 1.5) wasUnder = true;
       else if (wasUnder && st.nose < K.surfacedM) { wasUnder = false; sim.emit('breath', 'nose', 1); ev('surfaced', { x: n.x, z: n.z }); }
       return st;

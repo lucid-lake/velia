@@ -110,8 +110,8 @@ export function createTessiePlugin({ device, reg, frameBGL, frameStruct, sky, sh
     render: R, get sim() { return sim; }, on: true,   // on: the harness's A/B (draws and dispatches off, the sim runs)
     // play as Tessie (living/tessiePlayer.js sets these): playing: the player has her (no revenge, no camera assist or cut); boatFor(boat):
     // the hull she is held outside this frame (the nearest of the Halcyon and the lake's sailboats); playDip: the beds' level under the
-    // surface; the sound's swim (the rush, the low-pass)
-    playing: false, boatFor: null, playDip: 1,
+    // surface; the sound's swim (the rush, the low-pass); playK: her step's dt scale while played (the RPG's Breach: 0.5 about the apex)
+    playing: false, boatFor: null, playDip: 1, playK: 1,
     get sound() { return sound; },
     attach(o) {
       B = o.B; ui = o.ui ?? null; hold = o.hold ?? null; race = o.race ?? race; sunOf = o.sun ?? sunOf;
@@ -180,7 +180,7 @@ export function createTessiePlugin({ device, reg, frameBGL, frameStruct, sky, sh
           else { pending.retryAt = pending.t + 2; if (pending.t > 20) { sim.cue(); pending = null; } }
         }
       }
-      sim.step(dt, { playing, boat, view: cam, race: !!race() });
+      sim.step(self.playing && !race() && self.playK > 0 && self.playK < 1 ? dt * self.playK : dt, { playing, boat, view: cam, race: !!race() });   // the Breach's slow clock: her own step only, never in a race
       if (dt > 0) clockT += dt;
       if (revenge?.active && behave.active) behave.cancel();   // her revenge drives her now
       if (behave.active && boat) { if (race()) behave.cancel(); else behave.step(dt, { boat }); }

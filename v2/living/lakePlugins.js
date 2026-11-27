@@ -425,7 +425,7 @@ export const TESSIE = {
         birthplaces: { moveTo: (id) => c.birthplaces?.moveTo(id) ?? Promise.resolve({ ok: false, why: 'unknown' }) },
         veil: (op, secs) => c.sea?.hooks?.veil?.(op, secs), canvas, mode: () => c.modeNow(), race: () => !!c.regatta?.on, knocked: () => !!c.kdGame && c.kdGame.state !== 'sailing',
         reduced: () => reducedNow(), keyHints: () => pageSettings()?.get?.('keyHints') !== false,   // Setup › key hints: her legend as Sail's (the UI audit)
-        services: () => c.m4.ui?.services ?? null, touch: () => c.feature('tessieTouch').on, headless: !!c.P.headless, rpg: c.flags?.tessierpg === true,   // the Tessie RPG (phase 1)
+        services: () => c.m4.ui?.services ?? null, touch: () => c.feature('tessieTouch').on, headless: !!c.P.headless, rpg: c.flags?.tessierpg === true, slowBreach: () => c.flags?.slowbreach !== false,   // the Tessie RPG (phase 1); phase 5: the Breach's slow clock (?slowbreach=0 off)
         waterAt: (x, z) => { const v = water.heightAt(x, z, { coarse: true }); return Number.isFinite(v) ? v : 0; }, floorAt: (x, z) => terrain.field.height(x, z), underOn: c.under,   // phase 2a: the eye under the water
         focal: () => 0.5 * (canvas.clientHeight || canvas.height) / Math.tan(0.5 * c.fovDeg * DEG),
         project: (x, y, z, out = null) => { const m = c.viewProj, w = m[3] * x + m[7] * y + m[11] * z + m[15]; if (!(w > 1e-3)) return null; const cx = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w, cy = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w;

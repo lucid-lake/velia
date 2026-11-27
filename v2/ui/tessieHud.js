@@ -173,7 +173,7 @@ const SONAR_SVG = (cone) => `<svg viewBox="0 0 132 132"><circle cx="66" cy="66" 
 <g class="rim"></g><g class="bls"></g><path class="me" d="M66 59l4 10h-8z" style="fill:rgb(var(--lk-cream) / .95)"/></svg><b class="sw">SONAR</b>`;
 
 // the DOM: the sonar, the skills row, the legend, made in the play's layer; returns { paint(frame), place(layout), count(code), el }
-export function mountHud({ root, doc = globalThis.document, skills = [], storage = null, onSlot = null, keyHints = () => true, rpg = false } = {}) {
+export function mountHud({ root, doc = globalThis.document, skills = [], storage = null, onSlot = null, onSlotUp = null, keyHints = () => true, rpg = false } = {}) {
   if (!root || !doc) return null;
   if (!doc.getElementById('lk-thud-css')) { const st = doc.createElement('style'); st.id = 'lk-thud-css'; st.textContent = HUD_CSS; doc.head.appendChild(st); }
   const sonar = doc.createElement('div'); sonar.className = 'tp-sonar tp-hud'; sonar.setAttribute('aria-hidden', 'true'); sonar.innerHTML = SONAR_SVG(HUD.sonar.coneDeg * DEG);
@@ -196,7 +196,11 @@ export function mountHud({ root, doc = globalThis.document, skills = [], storage
   const cap = (k) => { const f = capFace(k); return `<span class="cap${f.length > 2 ? ' wide' : ''}">${f}</span>`; };
   legend.innerHTML = (rpg ? '<div class="kl tp-lv" data-id="level"><span class="w">Tessie · Lv 1</span><i class="xp"><b></b></i></div>' : '') + lines.map((l) => `<div class="kl${l.skill ? ' off' : ''}" data-id="${l.id}"><span class="caps">${l.caps.map(cap).join(l.sep ? `<span class="sep">${l.sep}</span>` : '')}</span><span class="w">${l.word}</span></div>`).join('');
   root.append(sonar, row, legend);
-  for (const b of row.querySelectorAll('.tp-slot.sk')) b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); onSlot?.(b.dataset.skill); });
+  for (const b of row.querySelectorAll('.tp-slot.sk')) {
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); b.setPointerCapture?.(e.pointerId); onSlot?.(b.dataset.skill); });
+    // the press lifted (onSlotUp: the RPG's Breach is held on its slot and launches on the release)
+    for (const t of ['pointerup', 'pointercancel']) b.addEventListener(t, (e) => { e.stopPropagation(); onSlotUp?.(b.dataset.skill); });
+  }
   let counts = {}; try { counts = JSON.parse(storage?.getItem(HUD.storeKey) ?? '{}') ?? {}; } catch { counts = {}; }
   let lastBlips = 0, lay = null, shown = false;
   const px = (v) => (v == null ? '' : `${Math.round(v)}px`);
